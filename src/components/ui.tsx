@@ -15,13 +15,13 @@ export function IconButton({ active, flash, className = "", ...rest }: ButtonPro
       {...rest}
       data-flash={flashing || undefined}
       className={`${pressable} flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 ${
-        active ? "bg-accent-soft text-accent-text" : "text-muted hover:bg-hover hover:text-fg data-[flash]:bg-press"
+        active ? "bg-press text-fg" : "text-muted hover:bg-hover hover:text-fg data-[flash]:bg-press"
       } ${className}`}
     />
   );
 }
 
-/** Large round transport button; `primary` is the play button. */
+/** Round transport button; `primary` is the play button (solid ink). */
 export function RoundButton({ primary, flash, className = "", ...rest }: ButtonProps & { primary?: boolean }) {
   const flashing = useFlash(flash);
   return (
@@ -30,8 +30,8 @@ export function RoundButton({ primary, flash, className = "", ...rest }: ButtonP
       data-flash={flashing || undefined}
       className={`${pressable} grid place-items-center rounded-full ${
         primary
-          ? "size-14 bg-accent text-white shadow-[0_4px_14px_-4px] shadow-accent/60 hover:brightness-110"
-          : "size-11 text-fg/80 hover:bg-hover hover:text-fg data-[flash]:bg-press"
+          ? "size-12 bg-ink text-on-ink hover:opacity-85"
+          : "size-10 text-fg/75 hover:bg-hover hover:text-fg data-[flash]:bg-press"
       } ${className}`}
     />
   );
@@ -39,7 +39,7 @@ export function RoundButton({ primary, flash, className = "", ...rest }: ButtonP
 
 export function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-line bg-canvas px-1 font-sans text-[10px] font-medium text-muted">
+    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-line bg-elevated px-1 font-sans text-[11px] font-medium text-muted">
       {children}
     </kbd>
   );
@@ -86,11 +86,11 @@ export function Switch({ on, onChange, label }: { on: boolean; onChange: (on: bo
       aria-checked={on}
       aria-label={label}
       onClick={() => onChange(!on)}
-      className={`relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors duration-200 ${on ? "bg-accent" : "bg-track"}`}
+      className={`relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors duration-200 ${on ? "bg-ink" : "bg-track"}`}
     >
       <span
-        className={`absolute top-[3px] left-[3px] size-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-snappy ${
-          on ? "translate-x-4" : ""
+        className={`absolute top-[3px] left-[3px] size-4 rounded-full shadow-sm transition-transform duration-200 ease-snappy ${
+          on ? "translate-x-4 bg-on-ink" : "bg-white"
         }`}
       />
     </button>
@@ -103,7 +103,7 @@ export function Button({ primary, className = "", ...rest }: ButtonProps & { pri
     <button
       {...rest}
       className={`${pressable} flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-medium whitespace-nowrap ${
-        primary ? "bg-accent text-white hover:brightness-110" : "bg-hover text-fg hover:bg-press"
+        primary ? "bg-ink text-on-ink hover:opacity-85" : "bg-hover text-fg hover:bg-press"
       } ${className}`}
     />
   );
@@ -111,4 +111,4 @@ export function Button({ primary, className = "", ...rest }: ButtonProps & { pri
 
 /** Shared look for text inputs and selects. */
 export const fieldClass =
-  "h-8 w-full min-w-0 rounded-lg border border-line bg-canvas px-2.5 text-[13px] select-text outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-accent focus:ring-2 focus:ring-accent/20";
+  "h-8 w-full min-w-0 rounded-lg border border-line bg-canvas px-2.5 text-[13px] select-text outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-fg/40 focus:ring-2 focus:ring-fg/10";

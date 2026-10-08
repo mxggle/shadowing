@@ -41,6 +41,8 @@ pub struct Status {
     pub time: f64,
     pub duration: f64,
     pub playing: bool,
+    /// Passes the current A–B loop has completed (0 without a loop).
+    pub repeats: u32,
     /// Increases with every snapshot; events can arrive out of order, so the
     /// frontend drops any status older than one it has already applied.
     pub seq: u64,

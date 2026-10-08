@@ -44,6 +44,8 @@ pub struct Reader {
     history: u64,
     /// Regions to be freed off the audio thread.
     pub retired: Vec<Arc<Region>>,
+    /// Times the current loop has jumped from B back to A (0 when set).
+    pub wraps: u32,
 }
 
 impl Reader {
@@ -66,6 +68,7 @@ impl Reader {
             xf,
             history,
             retired: Vec::with_capacity(8),
+            wraps: 0,
         }
     }
 
@@ -80,6 +83,7 @@ impl Reader {
     pub fn set_loop(&mut self, ab: Option<(u64, u64)>, id: u64) {
         self.lp = ab.map(|(a, b)| Loop { a, b, id });
         self.region_failed = false;
+        self.wraps = 0;
         if self.loop_region.as_ref().is_some_and(|r| r.loop_id != id) {
             let r = self.loop_region.take();
             self.retire(r);
@@ -244,6 +248,7 @@ impl Reader {
                 self.abandon_wrap(fifo);
                 self.cursor = lp.a;
                 self.in_region = false;
+                self.wraps += 1;
                 return true;
             }
             return false;
@@ -282,6 +287,7 @@ impl Reader {
         let old = self.read_region.replace(r);
         self.retire(old);
         self.in_region = true;
+        self.wraps += 1;
         true
     }
 

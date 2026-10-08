@@ -16,6 +16,8 @@ export interface AppState extends TranscriptState {
   time: number;
   duration: number;
   loop: Loop;
+  /** Passes the current loop has completed, counted by the Rust engine. */
+  repeats: number;
   error: string | null;
   /** AI services and the choices made; loaded at start, never contains keys. */
   ai: AiOverview | null;
@@ -57,6 +59,7 @@ export const useApp = create<AppState>((set, get) => {
     onTime: (t) => {
       if (Math.abs(t - get().time) >= 0.05) set({ time: t });
     },
+    onRepeats: (repeats) => set({ repeats }),
     onDuration: (d) => set({ duration: Number.isFinite(d) ? d : 0 }),
     onPlaying: (playing) => {
       set({ playing });
@@ -108,7 +111,7 @@ export const useApp = create<AppState>((set, get) => {
   /** `sentence`: which transcript sentence this loop repeats, if any. */
   function applyLoop(loop: Loop, loopSentence: number | null = null) {
     engine.setLoop(loop);
-    set({ loop, loopSentence });
+    set({ loop, loopSentence, repeats: 0 });
   }
 
   return {
@@ -122,6 +125,7 @@ export const useApp = create<AppState>((set, get) => {
     time: 0,
     duration: 0,
     loop: NO_LOOP,
+    repeats: 0,
     error: null,
     ai: null,
     local: null,
@@ -165,7 +169,7 @@ export const useApp = create<AppState>((set, get) => {
       if (!folder) return;
       saveProgress(true);
       engine.unload();
-      set({ folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, error: null, transcript: null, loopSentence: null });
+      set({ folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null });
     },
 
     async rescan() {
@@ -176,7 +180,7 @@ export const useApp = create<AppState>((set, get) => {
     open(track, autoplay = true) {
       saveProgress(true);
       const start = resumePosition(get().progress[track.path]);
-      set({ current: track, time: start, duration: 0, loop: NO_LOOP, error: null, transcript: null, loopSentence: null });
+      set({ current: track, time: start, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null });
       void get().loadTranscript(track.path);
       void engine.load(track.path, start, autoplay).then(() => engine.setRate(get().settings.rate));
       void api.setLastTrack(track.path);

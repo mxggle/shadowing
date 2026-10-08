@@ -57,6 +57,8 @@ export function resumePosition(p: Progress | undefined): number {
 export const RATE_MIN = 0.5;
 export const RATE_MAX = 2;
 export const RATE_STEP = 0.05;
+/** One-click speeds in the player bar. */
+export const RATE_PRESETS = [0.75, 0.85, 1, 1.25];
 
 export function clampRate(rate: number): number {
   return Math.round(clamp(rate, RATE_MIN, RATE_MAX) / RATE_STEP) * RATE_STEP;

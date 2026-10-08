@@ -9,6 +9,7 @@ export interface EngineEvents {
   onTime(t: number): void;
   onDuration(d: number): void;
   onPlaying(playing: boolean): void;
+  onRepeats(repeats: number): void;
   onEnded(): void;
   onError(message: string): void;
 }
@@ -18,12 +19,14 @@ export interface PlayerStatus {
   time: number;
   duration: number;
   playing: boolean;
+  /** Passes the current A–B loop has completed (0 without a loop). */
+  repeats: number;
   /** Snapshot order from Rust; events may arrive out of order. */
   seq: number;
 }
 
 export class AudioEngine {
-  private status: PlayerStatus = { path: null, time: 0, duration: 0, playing: false, seq: 0 };
+  private status: PlayerStatus = { path: null, time: 0, duration: 0, playing: false, repeats: 0, seq: 0 };
   private statusAt = performance.now();
   private rate = 1;
   /** Track we last asked for; events for any other path are stale. */
@@ -52,6 +55,7 @@ export class AudioEngine {
     this.statusAt = performance.now();
     if (s.duration !== prev.duration) this.events.onDuration(s.duration);
     if (s.playing !== prev.playing) this.events.onPlaying(s.playing);
+    if (s.repeats !== prev.repeats) this.events.onRepeats(s.repeats);
     this.events.onTime(s.time);
   }
 
@@ -73,14 +77,14 @@ export class AudioEngine {
 
   async load(path: string, startAt: number, autoplay: boolean) {
     this.path = path;
-    this.status = { path, time: startAt, duration: 0, playing: false, seq: this.lastSeq };
+    this.status = { path, time: startAt, duration: 0, playing: false, repeats: 0, seq: this.lastSeq };
     this.statusAt = performance.now();
     await this.command("player_load", { path, startAt, autoplay });
   }
 
   unload() {
     this.path = null;
-    this.status = { path: null, time: 0, duration: 0, playing: false, seq: this.lastSeq };
+    this.status = { path: null, time: 0, duration: 0, playing: false, repeats: 0, seq: this.lastSeq };
     this.send("player_unload");
   }
 

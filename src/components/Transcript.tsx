@@ -1,11 +1,10 @@
 import { FileUp, Repeat, Trash2 } from "lucide-react";
 import { memo, useEffect, useRef, type RefObject } from "react";
-import { useFlash } from "../hooks/useFlash";
 import type { Sentence } from "../lib/api";
 import { sentenceIndexAt } from "../lib/sentences";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
-import { IconButton, Kbd } from "./ui";
+import { IconButton } from "./ui";
 
 /** Sentence list: click to play from a sentence, the loop button (or S) repeats it. */
 export function SentenceList() {
@@ -16,12 +15,14 @@ export function SentenceList() {
   useFollow(list, active);
 
   return (
-    <section className="@container flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-panel">
+    <section className="flex min-h-0 flex-1 flex-col">
       <Header />
-      <div ref={list} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
-        {sentences.map((sentence, i) => (
-          <Row key={i} index={i} sentence={sentence} active={i === active} looping={i === loopSentence} />
-        ))}
+      <div ref={list} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="mx-auto w-full max-w-[760px] px-8 pb-6">
+          {sentences.map((sentence, i) => (
+            <Row key={i} index={i} sentence={sentence} active={i === active} looping={i === loopSentence} />
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -30,27 +31,13 @@ export function SentenceList() {
 function Header() {
   const transcript = useApp((s) => s.transcript);
   const { importTranscript, removeTranscript } = useApp.getState();
-  const prev = useFlash("prevSentence");
-  const next = useFlash("nextSentence");
   if (!transcript) return null;
   return (
-    <div className="flex h-10 shrink-0 items-center gap-2 border-b border-line pr-1.5 pl-3">
-      <span className="text-[12px] font-medium">字幕</span>
-      <span className="min-w-0 truncate text-[11px] text-faint" title={transcript.origin}>
-        {transcript.sentences.length} 句 · {transcript.origin}
+    <div className="mx-auto flex h-11 w-full max-w-[760px] shrink-0 items-center gap-2 px-10">
+      <span className="min-w-0 truncate text-[12px] text-faint" title={`[ ] 换句，S 循环本句 · ${transcript.origin}`}>
+        <span className="tabular font-mono">{transcript.sentences.length}</span> 句 · {transcript.origin}
       </span>
-      <span className="ml-auto hidden shrink-0 items-center gap-1 text-[11px] whitespace-nowrap text-faint @[520px]:flex">
-        <span data-flash={prev || undefined} className="transition-[scale] data-[flash]:scale-90">
-          <Kbd>[</Kbd>
-        </span>
-        <span data-flash={next || undefined} className="transition-[scale] data-[flash]:scale-90">
-          <Kbd>]</Kbd>
-        </span>
-        换句
-        <Kbd>S</Kbd>
-        循环本句
-      </span>
-      <span className="ml-auto flex shrink-0 gap-0.5 @[520px]:ml-2">
+      <span className="ml-auto flex shrink-0 gap-0.5">
         <IconButton title="导入其他字幕文件" onClick={() => void importTranscript()}>
           <FileUp size={15} />
         </IconButton>
@@ -71,21 +58,17 @@ const Row = memo(function Row({ index, sentence, active, looping }: {
   looping: boolean;
 }) {
   const { playSentence, toggleSentenceLoop } = useApp.getState();
-  const tone = looping
-    ? "bg-accent-soft ring-1 ring-accent/40 ring-inset"
-    : active
-      ? "bg-elevated shadow-[0_0_0_1px] shadow-line"
-      : "hover:bg-hover";
+  const tone = looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover";
   return (
     <div
       data-index={index}
       onClick={() => playSentence(index)}
-      className={`group grid grid-cols-[3.25rem_1fr_auto] items-start gap-1 rounded-lg py-1.5 pr-1 pl-2 transition-colors duration-150 [contain-intrinsic-size:auto_44px] [content-visibility:auto] ${tone}`}
+      className={`group grid grid-cols-[3.5rem_1fr_auto] items-start gap-1 rounded-lg py-2 pr-1 pl-2 transition-colors duration-150 [contain-intrinsic-size:auto_48px] [content-visibility:auto] ${tone}`}
     >
-      <span className={`tabular pt-[4px] text-[11px] ${active || looping ? "text-accent-text" : "text-faint"}`}>
+      <span className={`tabular pt-[5px] font-mono text-[12px] ${looping ? "text-loop-text" : active ? "text-fg" : "text-faint"}`}>
         {formatTime(sentence.start)}
       </span>
-      <p className={`text-[15px] leading-relaxed break-words ${active || looping ? "text-fg" : "text-muted"}`}>{sentence.text}</p>
+      <p className={`text-[16px] leading-relaxed break-words ${active || looping ? "text-fg" : "text-muted"}`}>{sentence.text}</p>
       <button
         title={looping ? "取消循环 (S)" : "循环这一句 (S)"}
         aria-pressed={looping}
@@ -94,7 +77,7 @@ const Row = memo(function Row({ index, sentence, active, looping }: {
           toggleSentenceLoop(index);
         }}
         className={`grid size-7 place-items-center rounded-md transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${
-          looping ? "text-accent-text" : "text-muted opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-fg"
+          looping ? "text-loop" : "text-muted opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-fg"
         }`}
       >
         <Repeat size={14} strokeWidth={2.2} />

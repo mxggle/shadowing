@@ -80,7 +80,7 @@ export function KeyField({ preset, hint, onSaved }: { preset: Preset; hint?: str
       {preset.keyUrl && (!hint || editing) && (
         <button
           onClick={() => void api.ai.openKeyPage(preset.id)}
-          className="flex w-fit items-center gap-1 text-[12px] text-accent-text hover:underline"
+          className="flex w-fit items-center gap-1 text-[12px] text-fg underline decoration-fg/30 underline-offset-2 hover:decoration-fg"
         >
           去 {preset.name} 创建 API Key
           <ExternalLink size={12} />

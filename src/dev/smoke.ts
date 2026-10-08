@@ -99,15 +99,20 @@ async function scenario() {
       prev = t;
       await sleep(5);
     }
+    await sleep(100); // let the last status event land
+    const counted = app().repeats;
     app().clearLoop();
     app().setRate(1);
     const len = ((loop.b ?? 0) - (loop.a ?? 0)) / rate;
     const steady = cycles.slice(1);
     const worst = steady.length ? Math.max(...steady.map((c) => Math.abs(c - len))) : NaN;
+    // Real passes only: setting B seeks to A, which can show up as a near-zero "cycle".
+    // Rust may be one wrap ahead of what has been heard.
+    const passes = cycles.filter((c) => c > len / 2).length;
     check(
       `loop ${label}`,
-      steady.length >= 2 && worst < 0.06 && maxPastB < 0.05,
-      `len ${len.toFixed(2)}s cycles [${cycles.map((c) => c.toFixed(2)).join(", ")}] worst deviation ${(worst * 1000).toFixed(0)}ms, max past B ${(maxPastB * 1000).toFixed(0)}ms`,
+      steady.length >= 2 && worst < 0.06 && maxPastB < 0.05 && counted >= passes && counted <= passes + 1,
+      `len ${len.toFixed(2)}s, ${counted} repeats counted, cycles [${cycles.map((c) => c.toFixed(2)).join(", ")}] worst deviation ${(worst * 1000).toFixed(0)}ms, max past B ${(maxPastB * 1000).toFixed(0)}ms`,
     );
   };
 
@@ -175,7 +180,10 @@ async function scenario() {
       await sleep(10);
     }
     check("sentence loop repeats sentence 2", wrapped && app().loopSentence === 1, `A ${a?.toFixed(2)} B ${b?.toFixed(2)}`);
+    await waitFor(() => app().repeats >= 1, 1000);
+    check("repeat counter counts the pass", app().repeats >= 1, `repeats ${app().repeats}`);
     app().stepSentence(-1);
+    check("moving the loop resets the count", app().repeats === 0, `repeats ${app().repeats}`);
     check("[ moves the loop to sentence 1", app().loopSentence === 0 && app().loop.a === 0, `A ${app().loop.a}`);
     app().clearLoop();
   }

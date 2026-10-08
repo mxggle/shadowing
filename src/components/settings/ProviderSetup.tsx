@@ -31,7 +31,7 @@ export function ProviderSetup({ feature }: { feature: Feature }) {
         {presets.map((p) => (
           <Chip key={p.id} selected={p.id === preset?.id} onClick={() => void pick(p.id)}>
             {p.name}
-            {p.local && p.api !== "builtin" && <span className="rounded bg-hover px-1 text-[10px] text-muted">本机</span>}
+            {p.local && p.api !== "builtin" && <span className="rounded border border-current/30 px-1 text-[11px] opacity-75">本机</span>}
           </Chip>
         ))}
       </div>
@@ -48,7 +48,7 @@ function Chip({ selected, children, onClick }: { selected: boolean; children: Re
       aria-checked={selected}
       onClick={onClick}
       className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] transition-[background-color,color,scale] duration-150 ease-snappy active:scale-[0.96] ${
-        selected ? "bg-accent-soft font-medium text-accent-text ring-1 ring-accent/40 ring-inset" : "bg-hover text-fg hover:bg-press"
+        selected ? "bg-ink font-medium text-on-ink" : "bg-hover text-fg hover:bg-press"
       }`}
     >
       {children}
@@ -165,7 +165,7 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 function TestResult({ kind, text }: { kind: "ok" | "warn" | "error"; text: string }) {
-  const [Icon, color] = { ok: [Check, "text-accent-text"], warn: [AlertTriangle, "text-warn"], error: [X, "text-danger"] }[kind] as [
+  const [Icon, color] = { ok: [Check, "text-ok"], warn: [AlertTriangle, "text-warn"], error: [X, "text-danger"] }[kind] as [
     typeof Check,
     string,
   ];

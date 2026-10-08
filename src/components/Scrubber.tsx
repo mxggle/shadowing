@@ -32,7 +32,7 @@ export function Scrubber() {
       aria-valuenow={Math.round(shown)}
       aria-valuetext={formatTime(shown)}
       data-active={drag !== null || undefined}
-      className={`group relative h-6 touch-none ${ready ? "" : "pointer-events-none"}`}
+      className={`group relative h-5 touch-none ${ready ? "" : "pointer-events-none"}`}
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
         setDrag(toTime(e.clientX));
@@ -47,30 +47,30 @@ export function Scrubber() {
       onPointerCancel={() => setDrag(null)}
     >
       <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-track transition-[height] duration-150 ease-snappy group-hover:h-1.5 group-data-[active]:h-1.5">
-        <div className="h-full rounded-full bg-accent" style={{ width: `${pct(shown)}%` }} />
+        <div className="h-full rounded-full bg-played" style={{ width: `${pct(shown)}%` }} />
       </div>
 
       {loop.a !== null && loop.b !== null && (
         <div
-          className="pointer-events-none absolute top-1/2 h-3.5 -translate-y-1/2 animate-fade rounded-[3px] border-x-2 border-accent bg-accent/20"
+          className="pointer-events-none absolute top-1/2 h-3.5 -translate-y-1/2 animate-fade rounded-[3px] border-x-2 border-loop bg-loop-soft"
           style={{ left: `${pct(loop.a)}%`, width: `${pct(loop.b) - pct(loop.a)}%` }}
         />
       )}
       {loop.a !== null && loop.b === null && (
         <div
-          className="pointer-events-none absolute top-1/2 h-3.5 w-0.5 -translate-1/2 animate-fade rounded-full bg-accent"
+          className="pointer-events-none absolute top-1/2 h-3.5 w-0.5 -translate-1/2 animate-fade rounded-full bg-loop"
           style={{ left: `${pct(loop.a)}%` }}
         />
       )}
 
       <div
-        className="pointer-events-none absolute top-1/2 size-3.5 -translate-1/2 scale-0 rounded-full border-2 border-accent bg-white shadow-sm transition-transform duration-150 ease-snappy group-hover:scale-100 group-data-[active]:scale-100"
+        className="pointer-events-none absolute top-1/2 size-3.5 -translate-1/2 scale-0 rounded-full bg-ink shadow-sm transition-transform duration-150 ease-snappy group-hover:scale-100 group-data-[active]:scale-100"
         style={{ left: `${pct(shown)}%` }}
       />
 
       {tip !== null && (
         <div
-          className="tabular pointer-events-none absolute bottom-full mb-1 -translate-x-1/2 animate-fade rounded-md bg-fg px-1.5 py-0.5 text-[11px] font-medium text-canvas"
+          className="tabular pointer-events-none absolute bottom-full mb-1 -translate-x-1/2 animate-fade rounded-md bg-ink px-1.5 py-0.5 font-mono text-[11px] text-on-ink"
           style={{ left: `clamp(20px, ${pct(tip)}%, calc(100% - 20px))` }}
         >
           {formatTime(tip)}

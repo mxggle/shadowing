@@ -119,7 +119,7 @@ function TranscribeForm({ onClose }: { onClose: () => void }) {
           {cost !== null && (
             <span className="shrink-0 text-faint">{cost < 0.01 ? "不到 $0.01" : `约 $${cost.toFixed(2)}`}</span>
           )}
-          <button onClick={() => setSettingsOpen(true)} className="shrink-0 text-[12px] text-accent-text hover:underline">
+          <button onClick={() => setSettingsOpen(true)} className="shrink-0 text-[12px] text-fg underline decoration-fg/30 underline-offset-2 hover:decoration-fg">
             更改
           </button>
         </p>
@@ -152,7 +152,7 @@ function Progress({ job }: { job: Extract<TranscribeStatus, { state: "running" }
   return (
     <div className="animate-fade-in rounded-2xl border border-line bg-panel px-4 py-3">
       <div className="flex items-center gap-3">
-        <LoaderCircle size={18} className="shrink-0 animate-spin text-accent-text" />
+        <LoaderCircle size={18} className="shrink-0 animate-spin text-muted" />
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-medium">正在转写…</p>
           <p className="tabular truncate text-[12px] text-faint">
@@ -171,7 +171,7 @@ function Progress({ job }: { job: Extract<TranscribeStatus, { state: "running" }
       </div>
       <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-track">
         <div
-          className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out"
+          className="h-full rounded-full bg-ink transition-[width] duration-500 ease-out"
           style={{ width: `${Math.max(3, share * 100)}%` }}
         />
       </div>

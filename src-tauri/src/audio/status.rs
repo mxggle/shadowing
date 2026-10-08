@@ -56,6 +56,7 @@ pub struct Ctl {
     pub track: Option<Track>,
     pub shadow_time: f64,
     pub shadow_playing: bool,
+    pub shadow_repeats: u32,
     pub rate: f64,
     pub seq: u64,
 }
@@ -66,6 +67,7 @@ impl Default for Ctl {
             track: None,
             shadow_time: 0.0,
             shadow_playing: false,
+            shadow_repeats: 0,
             rate: 1.0,
             seq: 0,
         }
@@ -86,6 +88,7 @@ pub fn snapshot(cmd: &CmdTx, shared: &Shared, ctl: &mut Ctl) -> (Status, bool) {
                 time: 0.0,
                 duration: 0.0,
                 playing: false,
+                repeats: 0,
                 seq,
             },
             true,
@@ -96,12 +99,14 @@ pub fn snapshot(cmd: &CmdTx, shared: &Shared, ctl: &mut Ctl) -> (Status, bool) {
     if caught_up {
         ctl.shadow_time = shared.time();
         ctl.shadow_playing = shared.playing();
+        ctl.shadow_repeats = shared.repeats();
     }
     let status = Status {
         path: Some(t.path.clone()),
         time: ctl.shadow_time,
         duration: t.duration,
         playing: ctl.shadow_playing,
+        repeats: ctl.shadow_repeats,
         seq,
     };
     (status, caught_up)

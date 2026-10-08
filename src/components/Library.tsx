@@ -58,14 +58,14 @@ export function Library() {
 
       <div className="flex items-baseline gap-2 px-4 pb-2" title={folder.root}>
         <h2 className="min-w-0 truncate text-[13px] font-semibold">{folder.name}</h2>
-        <span className="tabular shrink-0 text-[11px] text-faint">{folder.tracks.length} 个音频</span>
+        <span className="tabular shrink-0 font-mono text-[12px] text-faint">{folder.tracks.length}</span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-4">
         {folder.tracks.length === 0 && (
           <div className="mx-3 mt-2 rounded-xl border border-dashed border-line px-4 py-6 text-center text-[13px] text-muted">
             这个文件夹里没有可播放的音频
-            <div className="mt-1 text-[11px] text-faint">支持 mp3、m4a、wav、flac 等格式</div>
+            <div className="mt-1 text-[12px] text-faint">支持 mp3、m4a、wav、flac 等格式</div>
           </div>
         )}
         {groups.map(([dir, tracks]) => {
@@ -77,7 +77,7 @@ export function Library() {
                   onClick={() => toggle(dir)}
                   aria-expanded={open}
                   title={dir}
-                  className="sticky top-0 z-10 flex w-full items-center gap-1 bg-sidebar px-3 pt-3 pb-1 text-left text-[11px] font-semibold text-faint transition-colors hover:text-muted"
+                  className="sticky top-0 z-10 flex w-full items-center gap-1 bg-sidebar px-3 pt-3 pb-1 text-left text-[12px] font-medium text-faint transition-colors hover:text-muted"
                 >
                   <ChevronRight size={12} className={`shrink-0 transition-transform duration-200 ease-snappy ${open ? "rotate-90" : ""}`} />
                   <span className="min-w-0 flex-1 truncate">{dir}</span>
@@ -123,7 +123,7 @@ function TrackRow({ track }: { track: Track }) {
       aria-current={active || undefined}
       title={track.name}
       className={`mx-2 my-px flex h-8 w-[calc(100%-1rem)] items-center gap-2 rounded-lg px-2.5 text-left text-[13px] transition-[background-color,color] duration-150 ${
-        active ? "bg-accent-soft font-medium text-accent-text" : "hover:bg-hover active:bg-press"
+        active ? "bg-press font-medium text-fg" : "text-fg/85 hover:bg-hover active:bg-press"
       }`}
     >
       <span className="min-w-0 flex-1 truncate">{track.name}</span>

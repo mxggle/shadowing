@@ -124,15 +124,18 @@ function mockTranscribe(path: string, language: string) {
   }
 }
 
-const player = { path: null as string | null, time: 0, duration: 0, playing: false, rate: 1, a: null as number | null, b: null as number | null };
+const player = { path: null as string | null, time: 0, duration: 0, playing: false, rate: 1, a: null as number | null, b: null as number | null, repeats: 0 };
 let seq = 0;
-const status = () => ({ path: player.path, time: player.time, duration: player.duration, playing: player.playing, seq: ++seq });
+const status = () => ({ path: player.path, time: player.time, duration: player.duration, playing: player.playing, repeats: player.repeats, seq: ++seq });
 const push = () => void emit("player:status", status());
 
 setInterval(() => {
   if (!player.playing) return;
   const next = player.time + 0.05 * player.rate;
-  if (player.a !== null && player.b !== null && player.time < player.b && next >= player.b) player.time = player.a;
+  if (player.a !== null && player.b !== null && player.time < player.b && next >= player.b) {
+    player.time = player.a;
+    player.repeats++;
+  }
   else if (next >= player.duration) {
     player.time = player.duration;
     player.playing = false;
@@ -159,7 +162,7 @@ export function installMockBackend() {
         case "get_snapshot":
           return snapshot;
         case "player_load":
-          Object.assign(player, { path: a.path, time: a.startAt, duration: 180 + tracks.findIndex((t) => t.path === a.path) * 20, playing: a.autoplay, a: null, b: null });
+          Object.assign(player, { path: a.path, time: a.startAt, duration: 180 + tracks.findIndex((t) => t.path === a.path) * 20, playing: a.autoplay, a: null, b: null, repeats: 0 });
           return status();
         case "player_play":
         case "player_pause":
@@ -173,7 +176,7 @@ export function installMockBackend() {
           player.rate = a.rate;
           return;
         case "player_set_loop":
-          Object.assign(player, { a: a.a, b: a.b });
+          Object.assign(player, { a: a.a, b: a.b, repeats: 0 });
           return;
         case "player_status":
           return status();

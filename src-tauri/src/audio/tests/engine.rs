@@ -70,6 +70,13 @@ fn ab_loop_is_gapless_and_exact() {
         "only {} loop passes",
         starts.len()
     );
+    // The reader can be one wrap ahead of what has been rendered.
+    let repeats = rig.shared.repeats() as usize;
+    assert!(
+        (starts.len()..=starts.len() + 1).contains(&repeats),
+        "{repeats} repeats counted for {} splices",
+        starts.len()
+    );
     for w in starts.windows(2) {
         assert_eq!(
             (w[1] - w[0]) as u64,
@@ -115,6 +122,7 @@ fn loop_wraps_only_when_crossing_b() {
             "no snap back when starting past B"
         );
     }
+    assert_eq!(rig.shared.repeats(), 0, "playing past B is not a repeat");
     // Seek before A: plays through A, wraps at B.
     rig.send(Cmd::Seek(a / 2));
     let (out, _) = rig.render(SR as usize * 2, 512);
@@ -127,6 +135,7 @@ fn loop_wraps_only_when_crossing_b() {
         (idx[last_before_wrap] - (b - 1) as f64).abs() < TOL,
         "wrap right after B−1"
     );
+    assert_eq!(rig.shared.repeats(), 1, "one pass counted per wrap");
     // Clearing the loop lets playback run on past B.
     rig.send(Cmd::Loop(None, 8));
     let (out, _) = rig.render(SR as usize * 2, 512);
@@ -136,6 +145,7 @@ fn loop_wraps_only_when_crossing_b() {
         "no wrap after clearing"
     );
     assert!(*idx.last().unwrap() > b as f64);
+    assert_eq!(rig.shared.repeats(), 0, "count resets with the loop");
 }
 
 #[test]

@@ -45,6 +45,7 @@ pub struct Shared {
     pub session: AtomicU64,
     pub applied: AtomicU64,
     events: AtomicU32,
+    repeats: AtomicU32,
     /// Producing sound (playing or fading); the output thread may idle otherwise.
     pub audible: AtomicBool,
     pub dev_rate: AtomicU32,
@@ -56,6 +57,10 @@ impl Shared {
     }
     pub fn playing(&self) -> bool {
         self.playing.load(Relaxed)
+    }
+    /// Passes completed by the current A–B loop.
+    pub fn repeats(&self) -> u32 {
+        self.repeats.load(Relaxed)
     }
     pub fn take_events(&self) -> u32 {
         self.events.swap(0, Relaxed)
@@ -311,6 +316,7 @@ impl Engine {
 
     fn publish(&mut self, device_pending: usize) {
         let Some(s) = self.session.as_deref_mut() else {
+            self.shared.repeats.store(0, Relaxed);
             self.shared.playing.store(false, Relaxed);
             self.shared.audible.store(false, Relaxed);
             return;
@@ -333,6 +339,7 @@ impl Engine {
         }
         self.last_time = time;
         self.shared.time.store(time.to_bits(), Relaxed);
+        self.shared.repeats.store(s.reader.wraps, Relaxed);
         self.shared
             .playing
             .store(self.playing && !self.pending_pause, Relaxed);

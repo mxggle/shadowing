@@ -1,6 +1,7 @@
 import { useEffect } from "react";
-import { AudioLines, FolderOpen } from "lucide-react";
+import { ChevronRight, FolderOpen } from "lucide-react";
 import { Library } from "./components/Library";
+import { PlayerBar } from "./components/PlayerBar";
 import { SettingsButton, SettingsDialog } from "./components/settings/Settings";
 import { ShortcutHelp } from "./components/ShortcutHelp";
 import { Stage } from "./components/Stage";
@@ -41,13 +42,33 @@ export default function App() {
     >
       <Library />
       <main className="flex min-w-0 flex-col">
-        <div data-tauri-drag-region className="flex h-[52px] shrink-0 items-center justify-end gap-0.5 px-3">
+        <div data-tauri-drag-region className="flex h-[52px] shrink-0 items-center gap-0.5 pr-3 pl-5">
+          <Breadcrumb />
           <ShortcutHelp />
           <SettingsButton />
         </div>
         <Stage />
+        <PlayerBar />
       </main>
       <SettingsDialog />
+    </div>
+  );
+}
+
+/** Where the current track lives: folder › subfolder. Kept out of the title so the title is just the name. */
+function Breadcrumb() {
+  const folderName = useApp((s) => s.folder?.name);
+  const relDir = useApp((s) => s.current?.relDir);
+  const parts = [folderName, ...(relDir ? relDir.split("/") : [])].filter(Boolean);
+  return (
+    // pointer-events-none: drags on the text still reach the bar's drag region.
+    <div className="pointer-events-none mr-auto flex min-w-0 items-center gap-1 text-[12px] text-faint">
+      {parts.map((p, i) => (
+        <span key={i} className="flex min-w-0 items-center gap-1">
+          {i > 0 && <ChevronRight size={12} className="shrink-0" />}
+          <span className="truncate">{p}</span>
+        </span>
+      ))}
     </div>
   );
 }
@@ -57,12 +78,9 @@ function Welcome() {
   const chooseFolder = useApp((s) => s.chooseFolder);
   return (
     <Centered>
-      <div className="flex max-w-sm animate-fade-in flex-col items-center text-center">
-        <div className="grid size-16 place-items-center rounded-[18px] bg-accent text-white shadow-[0_8px_24px_-8px] shadow-accent/70">
-          <AudioLines size={30} strokeWidth={2} />
-        </div>
-        <h1 className="mt-5 text-2xl font-semibold tracking-tight">Shadowing</h1>
-        <p className="mt-2 text-[14px] leading-relaxed text-muted">
+      <div className="flex max-w-sm animate-fade-in flex-col items-start">
+        <h1 className="text-[32px] font-semibold tracking-tight">Shadowing</h1>
+        <p className="mt-2 text-[15px] leading-relaxed text-muted">
           打开一个存放音频的文件夹，
           <br />
           反复听、变速、A–B 循环跟读。
@@ -72,7 +90,7 @@ function Welcome() {
         )}
         <button
           onClick={() => void chooseFolder()}
-          className="mt-6 flex h-10 items-center gap-2 rounded-xl bg-accent px-5 text-[14px] font-medium text-white transition-[filter,scale] duration-150 ease-snappy hover:brightness-110 active:scale-[0.96]"
+          className="mt-7 flex h-10 items-center gap-2 rounded-xl bg-ink px-5 text-[14px] font-medium text-on-ink transition-[opacity,scale] duration-150 ease-snappy hover:opacity-85 active:scale-[0.96]"
         >
           <FolderOpen size={17} /> 打开文件夹
         </button>

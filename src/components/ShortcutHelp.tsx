@@ -51,7 +51,7 @@ export function ShortcutHelp() {
       </IconButton>
       {open && (
         <div className="absolute top-full right-0 z-20 mt-2 w-64 origin-top-right animate-pop-in rounded-xl border border-line bg-elevated p-3 shadow-xl shadow-black/10">
-          <h2 className="mb-2 text-[11px] font-semibold text-muted">键盘快捷键</h2>
+          <h2 className="mb-2 text-[12px] font-medium text-muted">键盘快捷键</h2>
           <dl className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 text-[13px]">
             {shortcuts(seekStep).map(([keys, label]) => (
               <div key={label} className="contents">

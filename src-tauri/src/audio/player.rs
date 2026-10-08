@@ -104,6 +104,7 @@ impl Player {
             });
             ctl.shadow_time = start_secs;
             ctl.shadow_playing = autoplay;
+            ctl.shadow_repeats = 0;
             self.cmd
                 .send(Cmd::Load(Box::new(session), start, autoplay))?;
         }
@@ -191,7 +192,8 @@ impl Player {
 
     pub fn set_loop(&self, a: Option<f64>, b: Option<f64>) -> Result<(), String> {
         let id = self.loop_latest.fetch_add(1, Relaxed) + 1;
-        let ctl = lock(&self.ctl);
+        let mut ctl = lock(&self.ctl);
+        ctl.shadow_repeats = 0;
         let Some(t) = ctl.track.as_ref() else {
             return Ok(());
         };

@@ -63,15 +63,15 @@ function Row({ model, selected, recommended, onSelect }: {
       tabIndex={-1}
       onClick={onSelect}
       className={`flex flex-col gap-1.5 rounded-lg px-3 py-2 transition-colors duration-150 ${
-        selected ? "bg-accent-soft ring-1 ring-accent/40 ring-inset" : "hover:bg-hover"
+        selected ? "bg-press ring-1 ring-fg/15 ring-inset" : "hover:bg-hover"
       }`}
     >
       <div className="flex items-center gap-2">
-        <span className={`grid size-4 shrink-0 place-items-center rounded-full border ${selected ? "border-accent bg-accent" : "border-line"}`}>
-          {selected && <span className="size-1.5 rounded-full bg-white" />}
+        <span className={`grid size-4 shrink-0 place-items-center rounded-full border ${selected ? "border-ink bg-ink" : "border-fg/25"}`}>
+          {selected && <span className="size-1.5 rounded-full bg-on-ink" />}
         </span>
-        <span className={`text-[13px] ${selected ? "font-medium text-accent-text" : ""}`}>{model.name}</span>
-        {recommended && <Badge tone="accent">推荐</Badge>}
+        <span className={`text-[13px] ${selected ? "font-medium" : ""}`}>{model.name}</span>
+        {recommended && <Badge tone="ok">推荐</Badge>}
         {fit && <Badge tone={model.fit === "tooBig" ? "danger" : "warn"}>{fit}</Badge>}
         <span className="tabular ml-auto shrink-0 text-[12px] text-faint">{formatBytes(model.size)}</span>
         <Action model={model} running={running} disabled={busyElsewhere} />
@@ -102,7 +102,7 @@ function Action({ model, running, disabled }: { model: LocalModel; running: bool
   if (model.downloaded) {
     return (
       <span className="flex items-center gap-1.5" onClick={stop}>
-        <Check size={14} className="text-accent-text" aria-label="已下载" />
+        <Check size={14} className="text-ok" aria-label="已下载" />
         <Button
           className={`h-7 ${confirm ? "text-danger" : ""}`}
           onClick={async () => {
@@ -140,16 +140,16 @@ function Progress({ done, total }: { done: number; total: number }) {
   return (
     <div className="flex items-center gap-2 pl-6">
       <div className="h-1 flex-1 overflow-hidden rounded-full bg-track">
-        <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${Math.max(2, (done / total) * 100)}%` }} />
+        <div className="h-full rounded-full bg-ink transition-[width] duration-300" style={{ width: `${Math.max(2, (done / total) * 100)}%` }} />
       </div>
-      <span className="tabular shrink-0 text-[11px] text-faint">
+      <span className="tabular shrink-0 font-mono text-[11px] text-faint">
         {formatBytes(done)} / {formatBytes(total)}
       </span>
     </div>
   );
 }
 
-function Badge({ tone, children }: { tone: "accent" | "warn" | "danger"; children: React.ReactNode }) {
-  const color = { accent: "bg-accent-soft text-accent-text", warn: "bg-hover text-warn", danger: "bg-danger-soft text-danger" }[tone];
-  return <span className={`shrink-0 rounded px-1.5 py-px text-[10px] font-medium ${color}`}>{children}</span>;
+function Badge({ tone, children }: { tone: "ok" | "warn" | "danger"; children: React.ReactNode }) {
+  const color = { ok: "bg-hover text-ok", warn: "bg-hover text-warn", danger: "bg-danger-soft text-danger" }[tone];
+  return <span className={`shrink-0 rounded px-1.5 py-px text-[11px] font-medium ${color}`}>{children}</span>;
 }
