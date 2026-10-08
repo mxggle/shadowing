@@ -14,6 +14,7 @@ const shortcuts = (seekStep: number): [string[], string][] => [
   [["S"], "循环当前句 / 取消"],
   [["−", "="], "减速 / 加速"],
   [["?"], "显示 / 隐藏本列表"],
+  [["⌘", ","], "设置"],
 ];
 
 /** Keyboard button in the top bar; `?` toggles it, Esc or a click outside closes it. */
@@ -25,7 +26,7 @@ export function ShortcutHelp() {
   useEffect(() => {
     // Capture phase, so Esc closes this sheet instead of also clearing the loop.
     const onKey = (e: KeyboardEvent) => {
-      if (isTypingTarget(e.target)) return;
+      if (isTypingTarget(e.target) || useApp.getState().settingsOpen) return;
       if (e.key === "?") setOpen((o) => !o);
       else if (e.key === "Escape" && open) setOpen(false);
       else return;

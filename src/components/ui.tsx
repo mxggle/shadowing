@@ -96,3 +96,19 @@ export function Switch({ on, onChange, label }: { on: boolean; onChange: (on: bo
     </button>
   );
 }
+
+/** Text button: `primary` for the main action of a form, plain otherwise. */
+export function Button({ primary, className = "", ...rest }: ButtonProps & { primary?: boolean }) {
+  return (
+    <button
+      {...rest}
+      className={`${pressable} flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-medium whitespace-nowrap ${
+        primary ? "bg-accent text-white hover:brightness-110" : "bg-hover text-fg hover:bg-press"
+      } ${className}`}
+    />
+  );
+}
+
+/** Shared look for text inputs and selects. */
+export const fieldClass =
+  "h-8 w-full min-w-0 rounded-lg border border-line bg-canvas px-2.5 text-[13px] select-text outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-accent focus:ring-2 focus:ring-accent/20";

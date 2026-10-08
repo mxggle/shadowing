@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { AudioLines, FolderOpen } from "lucide-react";
 import { Library } from "./components/Library";
+import { SettingsButton, SettingsDialog } from "./components/settings/Settings";
 import { ShortcutHelp } from "./components/ShortcutHelp";
 import { Stage } from "./components/Stage";
 import { useShortcuts } from "./hooks/useShortcuts";
@@ -40,11 +41,13 @@ export default function App() {
     >
       <Library />
       <main className="flex min-w-0 flex-col">
-        <div data-tauri-drag-region className="flex h-[52px] shrink-0 items-center justify-end px-3">
+        <div data-tauri-drag-region className="flex h-[52px] shrink-0 items-center justify-end gap-0.5 px-3">
           <ShortcutHelp />
+          <SettingsButton />
         </div>
         <Stage />
       </main>
+      <SettingsDialog />
     </div>
   );
 }

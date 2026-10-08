@@ -13,6 +13,17 @@ _最后更新：2026-10-09_
 - 待验证：原生导入对话框与“移除字幕”确认框（只能手动点）；真实长字幕（上千句）的滚动手感
 - 限制：Shift_JIS / GBK 编码的字幕会提示先转成 UTF-8
 
+### 第 2 步 AI 设置底座（已实现）
+- 设置面板（顶栏齿轮或 `⌘,`）→ AI 功能：转写、句子解释各自选服务
+  - 转写：Groq / OpenAI / 自定义
+  - 解释：OpenAI / Anthropic / Gemini / DeepSeek / OpenRouter / Ollama / LM Studio / 自定义
+- API Key 存 macOS 钥匙串，界面只显示 `sk-…abcd`；可更换、删除（二次确认）；“去 X 创建 API Key”打开官方页面
+- 自动拉取模型列表（按功能筛选，比如转写只列 whisper），也可以手动输入；本机服务自动选第一个已装模型
+- 测试连接：检查 Key、地址和所选模型；错误翻成中文并附上服务商原话
+- 已验证（自动）：Rust 新增 13 个测试，其中 HTTP 请求用本地假服务器测了 Bearer / Anthropic 头和错误映射；真实钥匙串读写手动测试通过；真实应用 smoke 新增 5 项全部通过；浏览器 mock 里走过 Groq、Ollama、LM Studio 未启动、错误 Key 几种情况
+- 待验证：用真实 Key 连 Groq / OpenAI / Anthropic / Gemini 等；本机 Ollama（已安装但未启动）
+- 说明：“句子解释”目前只保存设置和测试连接，功能在第 5 步之后启用
+
 ## 第 1 阶段 播放器（功能完成，等你试用）
 
 ### 已实现

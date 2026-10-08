@@ -179,4 +179,17 @@ async function scenario() {
     check("[ moves the loop to sentence 1", app().loopSentence === 0 && app().loop.a === 0, `A ${app().loop.a}`);
     app().clearLoop();
   }
+
+  // 9. AI settings round-trip through Rust (smoke runs use an in-memory key store, no network).
+  let config = await api.ai.setKey("groq", "gsk_smoke_0123456789abcd");
+  check("API key saved, only a hint comes back", config.keyHints.groq === "gsk…abcd" && !JSON.stringify(config).includes("0123456789"));
+  config = await api.ai.choose("transcribe", "groq", "whisper-large-v3");
+  const reread = await api.ai.get();
+  check("feature choice persisted", reread.config.transcribe.provider === "groq" && reread.config.transcribe.model === "whisper-large-v3");
+  const refused = await api.ai.choose("transcribe", "anthropic", "x").then(() => "", String);
+  check("provider without transcription refused", refused.includes("不支持"), refused);
+  const noKey = await api.ai.models("openai", "chat").then(() => "", String);
+  check("missing key reported before any request", noKey.includes("API Key"), noKey);
+  config = await api.ai.setKey("groq", "");
+  check("API key deleted", !config.keyHints.groq);
 }

@@ -40,6 +40,7 @@ pub struct Persisted {
     pub settings: Settings,
     /// Keyed by absolute track path.
     pub progress: HashMap<String, Progress>,
+    pub ai: crate::ai::AiConfig,
 }
 
 impl Persisted {

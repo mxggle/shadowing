@@ -1,3 +1,4 @@
+mod ai;
 mod audio;
 mod library;
 mod smoke;
@@ -34,7 +35,11 @@ impl AppState {
             .unwrap_or_default()
     }
 
-    fn update(&self, f: impl FnOnce(&mut Persisted)) -> Result<(), String> {
+    pub fn read<T>(&self, f: impl FnOnce(&Persisted) -> T) -> T {
+        f(&self.data.lock().unwrap())
+    }
+
+    pub fn update(&self, f: impl FnOnce(&mut Persisted)) -> Result<(), String> {
         let mut data = self.data.lock().unwrap();
         f(&mut data);
         data.save(&self.state_path).map_err(|e| e.to_string())
@@ -149,6 +154,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            let smoke_run = smoke::folder().is_some();
             let (state_path, data) = match smoke::folder() {
                 Some(folder) => {
                     let path = smoke::state_path();
@@ -169,6 +175,16 @@ pub fn run() {
                 state_path,
                 data: Mutex::new(data),
             });
+            // Smoke runs never touch the real Keychain.
+            let store: Box<dyn ai::secrets::SecretStore> = match ai::secrets::Keychain::new() {
+                Ok(keychain) if !smoke_run => Box::new(keychain),
+                Ok(_) => Box::new(ai::secrets::Memory::default()),
+                Err(e) => {
+                    eprintln!("{e}; API keys will not be kept after quitting");
+                    Box::new(ai::secrets::Memory::default())
+                }
+            };
+            app.manage(ai::secrets::Secrets(store));
             let sink = std::sync::Arc::new(audio::TauriSink(app.handle().clone()));
             app.manage(audio::Player::new(sink));
             Ok(())
@@ -181,6 +197,13 @@ pub fn run() {
             set_last_track,
             save_settings,
             log_line,
+            ai::ai_get,
+            ai::ai_choose,
+            ai::ai_set_base_url,
+            ai::ai_set_key,
+            ai::ai_models,
+            ai::ai_test,
+            ai::ai_open_key_page,
             transcript::transcript_get,
             transcript::transcript_import,
             transcript::transcript_remove,

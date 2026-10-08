@@ -7,7 +7,7 @@ Shadowing：macOS 优先的 Tauri 2 桌面应用，用于本地音频的反复�
 
 - 前端：React 19 + TypeScript + Vite 8 + Tailwind 4 + Zustand 5，图标用 lucide-react。
 - 后端：Rust（Tauri 2）。**音频播放完全在 Rust**（`src-tauri/src/audio/`）：解码、变速、A–B 循环、输出都不经过 WebView。
-- 持久化：Rust 侧一个 JSON 文件（app data 目录下的 `state.json`，原子写入）。
+- 持久化：Rust 侧一个 JSON 文件（app data 目录下的 `state.json`，原子写入）。**API Key / token 只存 macOS 钥匙串**（`ai/secrets.rs`），state.json 里只有 `sk-…abcd` 这样的提示。
 
 ## 结构
 
@@ -18,7 +18,7 @@ src/                      前端
   audio/logic.ts          纯函数规则（循环、恢复位置、速度），有单元测试
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts）
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句），有单元测试
-  components/             UI
+  components/             UI（settings/ 是设置面板：AI 服务、Key、模型、测试）
   dev/smoke.ts            应用内自测脚本（只在 smoke 模式加载）
 src-tauri/src/
   lib.rs                  AppState + 命令注册
@@ -26,6 +26,7 @@ src-tauri/src/
   store.rs                state.json 读写、原子写入
   transcript.rs           每个音频的字幕：app data 里的 transcripts/，或音频旁的同名 .srt/.vtt
   subtitles.rs            SRT / WebVTT 解析
+  ai/                     可选的 AI 服务：providers.rs 预设与模型筛选、secrets.rs 钥匙串、http.rs 请求与中文错误
   audio/                  原生播放引擎（见下）
   smoke.rs                调试构建专用自测入口
 ```
@@ -42,6 +43,7 @@ src-tauri/src/
 
 - 保持小：单个文件尽量 < 300 行；新增依赖需要说明理由。
 - 只有用户在原生对话框里选择的文件夹才被授权；Rust 命令访问文件前都要 `resolve_inside` 校验。
+- 所有对外网络请求都从 Rust 发出（不经 WebView）；前端只传服务 id，不传 URL 或 Key 去请求。
 - 新规则优先写成纯函数并加测试（TS 放 `*.test.ts`，Rust 放模块内 `#[cfg(test)]`）。
 - 用户可见文案用简体中文，直接写在组件里（暂不做 i18n）。
 - 不为旧项目（~/code/lingoloop）做任何兼容或迁移；参考它的思路可以，不搬它的结构。
@@ -56,7 +58,8 @@ npm run dev                           # 浏览器 + mock 后端，只用来调 U
 npm run app                           # 开发模式启动应用
 ```
 
-- smoke 模式使用临时 state 文件，不影响真实数据。
+- smoke 模式使用临时 state 文件和内存里的 Key 存储，不影响真实数据和钥匙串。
+- 钥匙串手动测试：`cargo test --manifest-path src-tauri/Cargo.toml keychain_round_trip -- --ignored`。
 - Rust 引擎另有手动测试：`cargo test --manifest-path src-tauri/Cargo.toml plays_tone -- --ignored`（真实声卡播放测试音）。
 - 音质、循环边界听感、跟读节奏无法自动验证，需要用户试听反馈。汇报时区分“已实现 / 已验证 / 待验证”。
 

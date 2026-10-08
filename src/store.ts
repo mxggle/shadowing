@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { AudioEngine } from "./audio/engine";
 import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, type Loop } from "./audio/logic";
-import { api, type FolderListing, type Progress, type Settings, type Track } from "./lib/api";
+import { api, type AiConfig, type AiOverview, type FolderListing, type Progress, type Settings, type Track } from "./lib/api";
 import { createTranscriptSlice, type TranscriptState } from "./transcriptSlice";
 
 export interface AppState extends TranscriptState {
@@ -16,8 +16,13 @@ export interface AppState extends TranscriptState {
   duration: number;
   loop: Loop;
   error: string | null;
+  /** AI services and the choices made; loaded at start, never contains keys. */
+  ai: AiOverview | null;
+  settingsOpen: boolean;
 
   init(): Promise<void>;
+  setSettingsOpen(open: boolean): void;
+  setAiConfig(config: AiConfig): void;
   chooseFolder(): Promise<void>;
   rescan(): Promise<void>;
   open(track: Track, autoplay?: boolean): void;
@@ -106,20 +111,32 @@ export const useApp = create<AppState>((set, get) => {
     duration: 0,
     loop: NO_LOOP,
     error: null,
+    ai: null,
+    settingsOpen: false,
     ...createTranscriptSlice(set, get, engine, applyLoop),
 
     async init() {
-      const snap = await api.getSnapshot();
+      const [snap, ai] = await Promise.all([api.getSnapshot(), api.ai.get()]);
       set({
         ready: true,
         folder: snap.folder,
         missingFolder: snap.missingFolder,
         progress: snap.progress,
         settings: snap.settings,
+        ai,
       });
       engine.setRate(snap.settings.rate);
       const last = snap.folder?.tracks.find((t) => t.path === snap.lastTrack);
       if (last) get().open(last, false);
+    },
+
+    setSettingsOpen(settingsOpen) {
+      set({ settingsOpen });
+    },
+
+    setAiConfig(config) {
+      const ai = get().ai;
+      if (ai) set({ ai: { ...ai, config } });
     },
 
     async chooseFolder() {

@@ -49,6 +49,48 @@ export interface Transcript {
   sentences: Sentence[];
 }
 
+export type Feature = "transcribe" | "chat";
+
+/** A service the app can use (fixed list, defined in Rust: src-tauri/src/ai/providers.rs). */
+export interface Preset {
+  id: string;
+  name: string;
+  api: "openAi" | "anthropic";
+  /** Empty for custom servers. */
+  baseUrl: string;
+  /** Runs on this Mac. */
+  local: boolean;
+  key: "required" | "optional" | "none";
+  keyUrl: string | null;
+  features: Feature[];
+  transcribeModel: string | null;
+  chatModel: string | null;
+  note: string;
+}
+
+export interface Choice {
+  provider: string | null;
+  model: string;
+}
+
+export interface AiConfig {
+  transcribe: Choice;
+  chat: Choice;
+  baseUrls: Record<string, string>;
+  /** "sk-…abcd" per provider with a saved key; the key itself stays in the Keychain. */
+  keyHints: Record<string, string>;
+}
+
+export interface AiOverview {
+  presets: Preset[];
+  config: AiConfig;
+}
+
+export interface TestReport {
+  models: number;
+  modelFound: boolean;
+}
+
 export const isTauri = () => "__TAURI_INTERNALS__" in window;
 
 export const api = {
@@ -64,6 +106,18 @@ export const api = {
   importTranscript: (path: string) => invoke<Transcript | null>("transcript_import", { path }),
   /** Asks first; returns what the track falls back to. */
   removeTranscript: (path: string) => invoke<Transcript | null>("transcript_remove", { path }),
+  ai: {
+    get: () => invoke<AiOverview>("ai_get"),
+    choose: (feature: Feature, provider: string | null, model: string) =>
+      invoke<AiConfig>("ai_choose", { feature, provider, model }),
+    /** Empty string goes back to the default address. */
+    setBaseUrl: (provider: string, url: string) => invoke<AiConfig>("ai_set_base_url", { provider, url }),
+    /** Empty string deletes the saved key. */
+    setKey: (provider: string, key: string) => invoke<AiConfig>("ai_set_key", { provider, key }),
+    models: (provider: string, feature: Feature) => invoke<string[]>("ai_models", { provider, feature }),
+    test: (feature: Feature) => invoke<TestReport>("ai_test", { feature }),
+    openKeyPage: (provider: string) => invoke<void>("ai_open_key_page", { provider }),
+  },
   smokeMode: () => invoke<boolean>("smoke_mode"),
   smokeWindow: (minimized: boolean) => invoke<void>("smoke_window", { minimized }),
   smokeFinish: (code: number) => invoke<void>("smoke_finish", { code }),
