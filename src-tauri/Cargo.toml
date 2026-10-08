@@ -28,6 +28,12 @@ keyring-core = "1.0.0"
 apple-native-keyring-store = { version = "1.0.2", features = ["keychain"] }
 # Already in the tree via Tauri; named directly for retry back-off and cancellable uploads.
 tokio = { version = "1", features = ["time", "macros"] }
+# Local transcription (src/local): whisper.cpp on the GPU via Metal. Building it needs cmake.
+whisper-rs = { version = "0.16.0", features = ["metal"] }
+# Verifies downloaded model files against their published SHA-256.
+sha2 = "0.10"
+# RAM (sysctl) and free disk space (statfs) for choosing a model; already in the tree.
+libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3"
@@ -48,4 +54,6 @@ opt-level = 3
 [profile.dev.package.symphonia-codec-aac]
 opt-level = 3
 [profile.dev.package.symphonia-bundle-mp3]
+opt-level = 3
+[profile.dev.package.whisper-rs-sys]
 opt-level = 3

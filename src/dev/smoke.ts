@@ -212,4 +212,26 @@ async function scenario() {
   );
   const stored = await api.getTranscript(untranscribed.path);
   check("transcript saved for next time", stored?.source === "transcribed");
+
+  // 11. Local whisper.cpp on a real model, if one has been downloaded (see smoke.sh).
+  const local = await api.local.models();
+  const small = local.models.find((m) => m.id === "small-q5_1");
+  if (!local.supported || !small?.downloaded) {
+    devLog("SKIP local transcription — download the Small model in Settings first");
+    return;
+  }
+  app().setAiConfig(await api.ai.choose("transcribe", "local", "small-q5_1"));
+  const japanese = tracks.find((t) => t.name === "01 日本語 天気")!;
+  app().open(japanese, false);
+  await waitFor(() => engine.duration > 0, 3000);
+  await app().startTranscribe("ja");
+  await waitFor(() => app().job?.state !== "running", 60000);
+  const localJob = app().job;
+  check("local transcription finishes", localJob?.state === "done", localJob?.state === "failed" ? localJob.message : localJob?.state);
+  const ja = app().transcript;
+  check(
+    "local transcript has the Japanese sentences",
+    ja?.origin === "本机 · small-q5_1" && ja.sentences.length === 3 && ja.sentences[0].text.includes("天気"),
+    ja ? ja.sentences.map((x) => `${x.text}@${x.start.toFixed(2)}–${x.end.toFixed(2)}`).join(" ") : "none",
+  );
 }

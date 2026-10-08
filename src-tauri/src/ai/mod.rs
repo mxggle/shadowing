@@ -6,7 +6,7 @@ pub mod http;
 pub mod providers;
 pub mod secrets;
 
-use crate::AppState;
+use crate::{local, AppState};
 use http::Endpoint;
 use providers::{Feature, KeyPolicy, Preset, PRESETS};
 use secrets::Secrets;
@@ -116,7 +116,7 @@ impl Target {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiOverview {
-    presets: &'static [Preset],
+    presets: Vec<&'static Preset>,
     config: AiConfig,
 }
 
@@ -132,7 +132,11 @@ pub struct TestReport {
 #[tauri::command]
 pub fn ai_get(state: State<AppState>) -> AiOverview {
     AiOverview {
-        presets: PRESETS,
+        // Transcribing on this Mac is only offered where it runs well.
+        presets: PRESETS
+            .iter()
+            .filter(|p| p.id != local::PROVIDER || local::models::supported())
+            .collect(),
         config: state.read(|d| d.ai.clone()),
     }
 }
@@ -199,6 +203,12 @@ pub async fn ai_models(
     provider: String,
     feature: Feature,
 ) -> Result<Vec<String>, String> {
+    if provider == local::PROVIDER {
+        return Ok(local::downloaded(&state)
+            .into_iter()
+            .map(String::from)
+            .collect());
+    }
     let target = Target::resolve(&state, &secrets, &provider)?;
     let ids = target.endpoint().list_models().await?;
     Ok(providers::filter_models(target.preset, feature, ids))
@@ -213,6 +223,13 @@ pub async fn ai_test(
 ) -> Result<TestReport, String> {
     let choice = state.read(|d| d.ai.choice(feature).clone());
     let id = choice.provider.ok_or("还没有选择服务")?;
+    if id == local::PROVIDER {
+        let models = local::downloaded(&state);
+        return Ok(TestReport {
+            model_found: models.contains(&choice.model.as_str()),
+            models: models.len(),
+        });
+    }
     let target = Target::resolve(&state, &secrets, &id)?;
     let ids = target.endpoint().list_models().await?;
     let models = providers::filter_models(target.preset, feature, ids);

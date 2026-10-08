@@ -57,7 +57,8 @@ export type Feature = "transcribe" | "chat";
 export interface Preset {
   id: string;
   name: string;
-  api: "openAi" | "anthropic";
+  /** "builtin": runs inside the app (whisper.cpp), configured via `api.local`. */
+  api: "openAi" | "anthropic" | "builtin";
   /** Empty for custom servers. */
   baseUrl: string;
   /** Runs on this Mac. */
@@ -102,6 +103,39 @@ export type TranscribeStatus =
   | { state: "failed"; path: string; message: string }
   | { state: "cancelled"; path: string };
 
+/** A Whisper model that can run on this Mac. */
+export interface LocalModel {
+  id: string;
+  name: string;
+  /** Bytes. */
+  size: number;
+  memoryGb: number;
+  note: string;
+  downloaded: boolean;
+  /** Bytes of an unfinished download, kept for resuming. */
+  partial: number;
+  fit: "good" | "tight" | "tooBig";
+}
+
+export interface LocalOverview {
+  /** Apple Silicon; on Intel the "本机" option is not offered at all. */
+  supported: boolean;
+  ramGb: number;
+  freeBytes: number | null;
+  recommended: string;
+  models: LocalModel[];
+  downloading: string | null;
+}
+
+/** `local:download` events; done/total in bytes. */
+export type DownloadStatus =
+  | { state: "running"; id: string; done: number; total: number }
+  | { state: "done"; id: string }
+  | { state: "failed"; id: string; message: string }
+  | { state: "cancelled"; id: string };
+
+export const LOCAL_PROVIDER = "local";
+
 export const isTauri = () => "__TAURI_INTERNALS__" in window;
 
 export const api = {
@@ -128,6 +162,13 @@ export const api = {
     models: (provider: string, feature: Feature) => invoke<string[]>("ai_models", { provider, feature }),
     test: (feature: Feature) => invoke<TestReport>("ai_test", { feature }),
     openKeyPage: (provider: string) => invoke<void>("ai_open_key_page", { provider }),
+  },
+  local: {
+    models: () => invoke<LocalOverview>("local_models"),
+    /** Progress arrives as `local:download`. */
+    download: (id: string) => invoke<void>("local_download", { id }),
+    cancel: () => invoke<void>("local_cancel_download"),
+    remove: (id: string) => invoke<LocalOverview>("local_delete", { id }),
   },
   transcribe: {
     /** language: ISO-639-1 code, or "" to detect. Progress arrives as `transcribe:status`. */

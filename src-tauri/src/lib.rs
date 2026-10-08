@@ -1,6 +1,7 @@
 mod ai;
 mod audio;
 mod library;
+mod local;
 mod smoke;
 mod store;
 mod subtitles;
@@ -159,7 +160,10 @@ pub fn run() {
             let (state_path, data) = match smoke::folder() {
                 Some(folder) => {
                     let path = smoke::state_path();
-                    let _ = std::fs::remove_file(&path);
+                    // Fresh every run: state.json and the transcripts saved beside it.
+                    if let Some(dir) = path.parent() {
+                        let _ = std::fs::remove_dir_all(dir);
+                    }
                     let data = Persisted {
                         folder: Some(folder),
                         ..Default::default()
@@ -187,6 +191,7 @@ pub fn run() {
             };
             app.manage(ai::secrets::Secrets(store));
             app.manage(transcribe::Jobs::default());
+            app.manage(local::Downloads::default());
             let sink = std::sync::Arc::new(audio::TauriSink(app.handle().clone()));
             app.manage(audio::Player::new(sink));
             Ok(())
@@ -206,6 +211,10 @@ pub fn run() {
             ai::ai_models,
             ai::ai_test,
             ai::ai_open_key_page,
+            local::local_models,
+            local::local_download,
+            local::local_cancel_download,
+            local::local_delete,
             transcribe::transcribe_start,
             transcribe::transcribe_cancel,
             transcribe::transcribe_running,

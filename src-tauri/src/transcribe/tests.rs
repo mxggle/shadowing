@@ -97,17 +97,16 @@ fn transcribes_in_pieces_cut_at_pauses() {
     let dir = tempfile::tempdir().unwrap();
     let audio = speech_like_wav(dir.path());
     let target = target(&url);
-    let cancel = AtomicBool::new(false);
     let job = Job {
         audio: &audio,
-        target: &target,
-        model: "whisper-x",
         language: Some("en"),
         plan: PLAN,
-        cancel: &cancel,
+        cancel: Arc::new(AtomicBool::new(false)),
     };
-    let mut ticks = Vec::new();
-    let sentences = run(&job, |done, total| ticks.push((done, total))).unwrap();
+    let ticks = Arc::new(Mutex::new(Vec::new()));
+    let log = ticks.clone();
+    let progress = Arc::new(move |done, total| log.lock().unwrap().push((done, total)));
+    let sentences = run(&job, &mut cloud::Cloud::new(&target, "whisper-x"), progress).unwrap();
 
     let requests = seen.lock().unwrap().clone();
     assert_eq!(requests.len(), 3, "9 s in pieces of at most 4 s");
@@ -144,6 +143,7 @@ fn transcribes_in_pieces_cut_at_pauses() {
         "piece 2 starts at {second_start}"
     );
     assert!(sentences.windows(2).all(|w| w[0].end <= w[1].start));
+    let ticks = ticks.lock().unwrap();
     let (done, total) = *ticks.last().unwrap();
     assert!(
         (done - 9.0).abs() < 0.01 && (total - 9.0).abs() < 0.01,
@@ -157,16 +157,19 @@ fn cancelled_before_upload_sends_nothing() {
     let dir = tempfile::tempdir().unwrap();
     let audio = speech_like_wav(dir.path());
     let target = target(&url);
-    let cancel = AtomicBool::new(true);
     let job = Job {
         audio: &audio,
-        target: &target,
-        model: "m",
         language: None,
         plan: PLAN,
-        cancel: &cancel,
+        cancel: Arc::new(AtomicBool::new(true)),
     };
-    assert_eq!(run(&job, |_, _| {}).unwrap_err(), CANCELLED);
+    let err = run(
+        &job,
+        &mut cloud::Cloud::new(&target, "m"),
+        Arc::new(|_, _| {}),
+    )
+    .unwrap_err();
+    assert_eq!(err, CANCELLED);
     assert!(seen.lock().unwrap().is_empty());
 }
 
@@ -176,18 +179,21 @@ fn a_reply_without_segments_means_no_speech() {
     let dir = tempfile::tempdir().unwrap();
     let audio = speech_like_wav(dir.path());
     let target = target(&url);
-    let cancel = AtomicBool::new(false);
     let job = Job {
         audio: &audio,
-        target: &target,
-        model: "m",
         language: None,
         plan: ChunkPlan {
             max_secs: 20.0,
             search_secs: 2.0,
         },
-        cancel: &cancel,
+        cancel: Arc::new(AtomicBool::new(false)),
     };
     // A reply with no segments parses, but yields no sentences.
-    assert_eq!(run(&job, |_, _| {}).unwrap_err(), "没有识别出语音");
+    let err = run(
+        &job,
+        &mut cloud::Cloud::new(&target, "m"),
+        Arc::new(|_, _| {}),
+    )
+    .unwrap_err();
+    assert_eq!(err, "没有识别出语音");
 }

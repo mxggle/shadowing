@@ -37,6 +37,7 @@ const transcripts = new Map<string, Transcript>([[tracks[1].path, { ...mockTrans
 // AI settings: a trimmed copy of the Rust presets; "bad" as a key fails the test, LM Studio is "not running".
 const cloud: Omit<Preset, "id" | "name" | "baseUrl"> = { api: "openAi", local: false, key: "required", keyUrl: "https://example.com", features: ["chat"], transcribeModel: null, transcribePrices: [], chatModel: null, note: "" };
 const presets: Preset[] = [
+  { ...cloud, id: "local", name: "本机", api: "builtin", baseUrl: "", local: true, key: "none", keyUrl: null, features: ["transcribe"], note: "在这台 Mac 上用 Whisper 转写：免费、可离线，需要先下载一个模型" },
   { ...cloud, id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1", features: ["transcribe"], transcribeModel: "whisper-large-v3", transcribePrices: [["whisper-large-v3", 0.111], ["whisper-large-v3-turbo", 0.04]], note: "Whisper large-v3，约 $0.11 / 小时音频，速度很快" },
   { ...cloud, id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", features: ["transcribe", "chat"], transcribeModel: "whisper-1", transcribePrices: [["whisper-1", 0.36]], chatModel: "gpt-5-mini", note: "转写用 whisper-1（约 $0.36 / 小时）；解释可选 GPT 系列" },
   { ...cloud, id: "anthropic", name: "Anthropic", api: "anthropic", baseUrl: "https://api.anthropic.com/v1", chatModel: "claude-haiku-5-5", note: "Claude 系列" },
@@ -66,6 +67,34 @@ function mockList(provider: string, feature: Feature): string[] {
   return all.filter((m) => (feature === "transcribe") === m.includes("whisper") || !p.baseUrl);
 }
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Local models: downloads take ~5 s; turbo q5 is "already downloaded".
+const localModels = [
+  { id: "large-v3-turbo-q5_0", name: "Large v3 Turbo（压缩）", size: 574e6, memoryGb: 1, note: "速度和准确度平衡，日语、英语都不错", downloaded: true, partial: 0, fit: "good" as const },
+  { id: "large-v3-turbo-q8_0", name: "Large v3 Turbo", size: 874e6, memoryGb: 1.3, note: "比压缩版略准一点，速度差不多", downloaded: false, partial: 0, fit: "good" as const },
+  { id: "large-v3", name: "Large v3", size: 3.1e9, memoryGb: 3.9, note: "最准（尤其日语），但慢很多", downloaded: false, partial: 9e8, fit: "tight" as const },
+  { id: "small-q5_1", name: "Small", size: 190e6, memoryGb: 0.6, note: "很快、很小，但日语错误较多，适合先试试", downloaded: false, partial: 0, fit: "good" as const },
+];
+let downloading: { id: string; timer: number; cancelled: boolean } | null = null;
+const localOverview = () => ({ supported: true, ramGb: 16, freeBytes: 120e9, recommended: "large-v3-turbo-q8_0", models: localModels, downloading: downloading?.id ?? null });
+function mockDownload(id: string) {
+  if (downloading) throw "已经有一个模型在下载";
+  const m = localModels.find((x) => x.id === id)!;
+  let done = m.partial;
+  const status = (s: object) => void emit("local:download", { id, ...s });
+  downloading = {
+    id,
+    cancelled: false,
+    timer: window.setInterval(() => {
+      const end = (s: object) => (window.clearInterval(downloading!.timer), (downloading = null), status(s));
+      if (downloading?.cancelled) return (m.partial = done), end({ state: "cancelled" });
+      done = Math.min(m.size, done + m.size / 20);
+      if (done < m.size) return status({ state: "running", done, total: m.size });
+      Object.assign(m, { downloaded: true, partial: 0 });
+      end({ state: "done" });
+    }, 250),
+  };
+}
 
 // Transcription: ~4 s of fake progress, then a transcript. Language "xx" fails, to see the error state.
 let job: { path: string; timer: number; cancelled: boolean } | null = null;
@@ -186,6 +215,16 @@ export function installMockBackend() {
             return { models: list.length, modelFound: list.includes(choice.model) };
           });
         }
+        case "local_models":
+          return localOverview();
+        case "local_download":
+          return mockDownload(a.id);
+        case "local_cancel_download":
+          if (downloading) downloading.cancelled = true;
+          return;
+        case "local_delete":
+          Object.assign(localModels.find((m) => m.id === a.id)!, { downloaded: false, partial: 0 });
+          return localOverview();
         case "transcribe_start":
           return mockTranscribe(a.path, a.language);
         case "transcribe_cancel":

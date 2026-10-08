@@ -18,6 +18,8 @@ pub enum Feature {
 pub enum Api {
     OpenAi,
     Anthropic,
+    /// Runs inside the app (whisper.cpp), no HTTP at all.
+    Builtin,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
@@ -80,6 +82,16 @@ const CLOUD: Preset = Preset {
 };
 
 pub const PRESETS: &[Preset] = &[
+    Preset {
+        id: crate::local::PROVIDER,
+        name: "本机",
+        api: Api::Builtin,
+        local: true,
+        key: KeyPolicy::None,
+        features: &[Feature::Transcribe],
+        note: "在这台 Mac 上用 Whisper 转写：免费、可离线，需要先下载一个模型",
+        ..CLOUD
+    },
     Preset {
         id: "groq",
         name: "Groq",

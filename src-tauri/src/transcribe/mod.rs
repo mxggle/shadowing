@@ -1,26 +1,27 @@
-//! A track's audio → transcript, via the transcription service chosen in
-//! settings. One job at a time on its own thread; progress and the result go
-//! out as `transcribe:status` events, and the transcript is saved like an
-//! imported one.
+//! A track's audio → transcript, with the service chosen in settings (a cloud
+//! Whisper API, or whisper.cpp on this Mac). One job at a time on its own
+//! thread; progress and the result go out as `transcribe:status` events, and
+//! the transcript is saved like an imported one.
 
-mod chunk;
-mod cloud;
-mod pcm;
+pub mod chunk;
+pub mod cloud;
+pub mod pcm;
 pub mod sentences;
+mod snap;
 #[cfg(test)]
 mod tests;
 
 use crate::ai::secrets::Secrets;
 use crate::ai::Target;
 use crate::transcript::{self, Sentence, Source, Transcript};
-use crate::{library, AppState};
+use crate::{library, local, AppState};
 use chunk::ChunkPlan;
 use pcm::RATE;
+use sentences::Verbose;
 use serde::Serialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 pub const CANCELLED: &str = "已取消";
@@ -59,30 +60,50 @@ struct Running {
     cancel: Arc<AtomicBool>,
 }
 
-pub struct Job<'a> {
-    pub audio: &'a Path,
-    pub target: &'a Target,
-    pub model: &'a str,
+/// One piece of 16 kHz mono audio to transcribe.
+pub struct Piece<'a> {
+    pub samples: &'a [f32],
+    /// ISO-639-1 ("ja", "en"); None lets the model detect it.
     pub language: Option<&'a str>,
-    pub plan: ChunkPlan,
-    pub cancel: &'a AtomicBool,
+    /// The end of the previous piece, so the model keeps context and spelling.
+    pub prompt: &'a str,
+    pub cancel: &'a Arc<AtomicBool>,
 }
 
-/// Pieces quieter than this (RMS) are not worth a request.
+/// How far into the current piece the transcriber is, 0–1.
+pub type PieceProgress = Arc<dyn Fn(f64) + Send + Sync>;
+
+/// A cloud API or the local engine: one piece in, Whisper-style output out.
+pub trait Transcriber {
+    fn transcribe(&mut self, piece: &Piece, progress: PieceProgress) -> Result<Verbose, String>;
+}
+
+pub struct Job<'a> {
+    pub audio: &'a Path,
+    pub language: Option<&'a str>,
+    pub plan: ChunkPlan,
+    pub cancel: Arc<AtomicBool>,
+}
+
+/// Pieces quieter than this (RMS) are not worth transcribing.
 const SILENT_RMS: f32 = 1e-4;
 
-/// Decode → cut into pieces at pauses → upload each → sentences.
+/// Decode → cut into pieces at pauses → transcribe each → sentences.
 /// `progress(done, total)` is called in seconds of audio.
-pub fn run(job: &Job, mut progress: impl FnMut(f64, f64)) -> Result<Vec<Sentence>, String> {
+pub fn run(
+    job: &Job,
+    transcriber: &mut dyn Transcriber,
+    progress: Arc<dyn Fn(f64, f64) + Send + Sync>,
+) -> Result<Vec<Sentence>, String> {
     let mut pcm = pcm::Pcm16k::open(job.audio)?;
     let total = pcm.duration.unwrap_or(0.0);
-    let endpoint = job.target.endpoint();
     let max = job.plan.max_samples();
     let mut buf: Vec<f32> = Vec::with_capacity(max + 4096);
     let mut sent = 0usize;
     let mut more = true;
     let mut pieces = Vec::new();
     let mut prompt = String::new();
+    let mut meter = snap::Meter::default();
     progress(0.0, total);
 
     while more || !buf.is_empty() {
@@ -94,45 +115,45 @@ pub fn run(job: &Job, mut progress: impl FnMut(f64, f64)) -> Result<Vec<Sentence
         } else {
             buf.len()
         };
-        let piece: Vec<f32> = buf.drain(..cut).collect();
+        let samples: Vec<f32> = buf.drain(..cut).collect();
+        meter.push(&samples);
         let start = sent as f64 / f64::from(RATE);
-        sent += piece.len();
+        sent += samples.len();
+        let end = sent as f64 / f64::from(RATE);
         if job.cancel.load(Ordering::Relaxed) {
             return Err(CANCELLED.into());
         }
-        let rms = (piece.iter().map(|s| s * s).sum::<f32>() / piece.len().max(1) as f32).sqrt();
+        let rms = (samples.iter().map(|s| s * s).sum::<f32>() / samples.len().max(1) as f32).sqrt();
         if rms > SILENT_RMS {
-            let req = cloud::Request {
-                model: job.model,
+            let piece = Piece {
+                samples: &samples,
                 language: job.language,
                 prompt: &prompt,
+                cancel: &job.cancel,
             };
-            let wav = pcm::wav_bytes(&piece);
-            let verbose = tauri::async_runtime::block_on(async {
-                tokio::select! {
-                    r = cloud::transcribe(&endpoint, &req, &wav) => r,
-                    _ = cancelled(job.cancel) => Err(CANCELLED.into()),
-                }
-            })?;
+            let overall = progress.clone();
+            let total = total.max(end);
+            let within: PieceProgress =
+                Arc::new(move |f| overall(start + (end - start) * f, total));
+            let verbose = transcriber.transcribe(&piece, within)?;
             let text: String = verbose.segments.iter().map(|s| s.text.as_str()).collect();
             prompt = cloud::tail_prompt(&text);
             pieces.push((start, verbose));
         }
-        let done = sent as f64 / f64::from(RATE);
-        progress(done, total.max(done));
+        progress(end, total.max(end));
     }
 
-    let sentences = sentences::build(pieces);
+    let mut sentences = sentences::build(pieces);
     if sentences.is_empty() {
         return Err("没有识别出语音".into());
     }
+    snap::snap(&mut sentences, &meter.db);
     Ok(sentences)
 }
 
-async fn cancelled(flag: &AtomicBool) {
-    while !flag.load(Ordering::Relaxed) {
-        tokio::time::sleep(Duration::from_millis(200)).await;
-    }
+enum Backend {
+    Cloud(Target),
+    Local(PathBuf),
 }
 
 /// Starts transcribing a track with the service chosen in settings.
@@ -155,7 +176,14 @@ pub fn transcribe_start(
     if choice.model.is_empty() {
         return Err("还没有选择转写模型".into());
     }
-    let target = Target::resolve(&state, &secrets, &provider)?;
+    let (backend, origin) = if provider == local::PROVIDER {
+        let file = local::model_file(&state, &choice.model).ok_or("这个模型还没有下载完")?;
+        (Backend::Local(file), format!("本机 · {}", choice.model))
+    } else {
+        let target = Target::resolve(&state, &secrets, &provider)?;
+        let origin = format!("{} · {}", target.preset.name, choice.model);
+        (Backend::Cloud(target), origin)
+    };
     let cancel = Arc::new(AtomicBool::new(false));
     {
         let mut current = jobs.0.lock().unwrap();
@@ -169,28 +197,39 @@ pub fn transcribe_start(
     }
     let key = audio.to_string_lossy().into_owned();
     let dir = state.data_dir().join("transcripts");
-    let origin = format!("{} · {}", target.preset.name, choice.model);
     let language = Some(language.trim().to_string()).filter(|l| !l.is_empty());
 
     let spawned = std::thread::Builder::new()
         .name("transcribe".into())
         .spawn(move || {
-            let emit = |status: Status| drop(app.emit("transcribe:status", status));
+            let emit = {
+                let app = app.clone();
+                move |status: Status| drop(app.emit("transcribe:status", status))
+            };
+            let progress = {
+                let (emit, path) = (emit.clone(), path.clone());
+                Arc::new(move |done, total| {
+                    emit(Status::Running {
+                        path: path.clone(),
+                        done,
+                        total,
+                    })
+                })
+            };
             let job = Job {
                 audio: &audio,
-                target: &target,
-                model: &choice.model,
                 language: language.as_deref(),
-                plan: chunk::CLOUD,
-                cancel: &cancel,
+                plan: chunk::DEFAULT,
+                cancel,
             };
-            let result = run(&job, |done, total| {
-                emit(Status::Running {
-                    path: path.clone(),
-                    done,
-                    total,
-                })
-            });
+            let result = match backend {
+                Backend::Cloud(target) => {
+                    let mut t = cloud::Cloud::new(&target, &choice.model);
+                    run(&job, &mut t, progress)
+                }
+                Backend::Local(file) => local::whisper::Whisper::load(&file)
+                    .and_then(|mut t| run(&job, &mut t, progress)),
+            };
             let status = match result {
                 Ok(sentences) => {
                     let transcript = Transcript {

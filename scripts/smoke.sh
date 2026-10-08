@@ -11,4 +11,6 @@ target=$(cargo metadata --manifest-path src-tauri/Cargo.toml --format-version 1 
 python3 scripts/fake-whisper.py 18765 &
 fake=$!
 trap 'kill $fake 2>/dev/null' EXIT
+# Local transcription uses already-downloaded models (debug builds only); skipped if none.
+SHADOWING_MODELS_DIR="$HOME/Library/Application Support/dev.shadowing.app/models" \
 SHADOWING_SMOKE="$folder" "$target/debug/bundle/macos/Shadowing.app/Contents/MacOS/shadowing" | grep --line-buffered '^\[web\]'

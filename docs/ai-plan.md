@@ -27,7 +27,7 @@ _调研与决定：2026-10-09。实现前的设计稿，实现中有变化就改
   - `small` 及以下日语太差，不推荐。
   - kotoba-whisper v2.0 ggml 没有标点，难以分句，暂不提供。
   - 必须显式传语言；开 VAD、`no_context`、抑制空白，减少幻觉（如结尾的「ご視聴ありがとうございました」）。
-  - 待确认：whisper-rs 0.16 是否暴露 VAD 后映射回原时间轴的 `whisper_full_get_token_t0/t1`。
+  - 已确认（第 4 步）：whisper-rs 0.16 自带的 whisper.cpp 1.8.3 开 VAD 后只映射段落时间，不映射 token 时间，所以不用它的 VAD。
 - **不选**：
   - Parakeet v3 不支持日语。
   - Qwen3-ASR / Cohere Transcribe 的原生运行时没有时间戳。

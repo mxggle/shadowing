@@ -44,7 +44,7 @@ impl Endpoint<'_> {
             (Api::Anthropic, key) => req
                 .header("x-api-key", key.unwrap_or_default())
                 .header("anthropic-version", ANTHROPIC_VERSION),
-            (Api::OpenAi, None) => req,
+            (Api::OpenAi | Api::Builtin, None) | (Api::Builtin, Some(_)) => req,
         }
     }
 
@@ -121,7 +121,7 @@ impl Endpoint<'_> {
         }
         let path = match self.api {
             Api::Anthropic => "/models?limit=1000",
-            Api::OpenAi => "/models",
+            Api::OpenAi | Api::Builtin => "/models",
         };
         let body = self.send(self.get(path)).await?;
         let list: List = serde_json::from_str(&body)

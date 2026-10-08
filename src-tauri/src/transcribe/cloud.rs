@@ -2,25 +2,53 @@
 //! OpenAI whisper-1, self-hosted servers) with word and segment timestamps.
 
 use super::sentences::Verbose;
+use super::{pcm, Piece, PieceProgress, Transcriber, CANCELLED};
 use crate::ai::http::Endpoint;
+use crate::ai::Target;
 use reqwest::multipart::{Form, Part};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 /// Uploading 19 MB and transcribing 10 minutes can take a while on a slow line.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(600);
 const ATTEMPTS: u32 = 3;
 
-pub struct Request<'a> {
-    pub model: &'a str,
-    /// ISO-639-1 ("ja", "en"); None lets the model guess.
-    pub language: Option<&'a str>,
-    /// The end of the previous piece, so the model keeps context and spelling.
-    pub prompt: &'a str,
+pub struct Cloud<'a> {
+    endpoint: Endpoint<'a>,
+    model: &'a str,
 }
 
-pub async fn transcribe(
+impl<'a> Cloud<'a> {
+    pub fn new(target: &'a Target, model: &'a str) -> Self {
+        Self {
+            endpoint: target.endpoint(),
+            model,
+        }
+    }
+}
+
+impl Transcriber for Cloud<'_> {
+    fn transcribe(&mut self, piece: &Piece, _: PieceProgress) -> Result<Verbose, String> {
+        let wav = pcm::wav_bytes(piece.samples);
+        tauri::async_runtime::block_on(async {
+            tokio::select! {
+                r = request(&self.endpoint, self.model, piece, &wav) => r,
+                _ = cancelled(piece.cancel) => Err(CANCELLED.into()),
+            }
+        })
+    }
+}
+
+async fn cancelled(flag: &AtomicBool) {
+    while !flag.load(Ordering::Relaxed) {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+}
+
+async fn request(
     endpoint: &Endpoint<'_>,
-    req: &Request<'_>,
+    model: &str,
+    req: &Piece<'_>,
     wav: &[u8],
 ) -> Result<Verbose, String> {
     let build = || {
@@ -30,7 +58,7 @@ pub async fn transcribe(
             .expect("static mime type");
         let mut form = Form::new()
             .part("file", file)
-            .text("model", req.model.to_string())
+            .text("model", model.to_string())
             .text("response_format", "verbose_json")
             .text("timestamp_granularities[]", "word")
             .text("timestamp_granularities[]", "segment")

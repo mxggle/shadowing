@@ -4,6 +4,7 @@ import { api, type AiConfig, type Feature, type Preset } from "../../lib/api";
 import { useApp } from "../../store";
 import { Button, fieldClass } from "../ui";
 import { KeyField } from "./KeyField";
+import { LocalModels } from "./LocalModels";
 
 const save = (config: AiConfig) => useApp.getState().setAiConfig(config);
 
@@ -30,11 +31,12 @@ export function ProviderSetup({ feature }: { feature: Feature }) {
         {presets.map((p) => (
           <Chip key={p.id} selected={p.id === preset?.id} onClick={() => void pick(p.id)}>
             {p.name}
-            {p.local && <span className="rounded bg-hover px-1 text-[10px] text-muted">本机</span>}
+            {p.local && p.api !== "builtin" && <span className="rounded bg-hover px-1 text-[10px] text-muted">本机</span>}
           </Chip>
         ))}
       </div>
-      {preset && <Details key={preset.id} feature={feature} preset={preset} config={ai.config} />}
+      {preset?.api === "builtin" && <LocalModels />}
+      {preset && preset.api !== "builtin" && <Details key={preset.id} feature={feature} preset={preset} config={ai.config} />}
     </div>
   );
 }

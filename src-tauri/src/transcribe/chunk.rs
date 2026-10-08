@@ -11,7 +11,7 @@ pub struct ChunkPlan {
     pub search_secs: f64,
 }
 
-pub const CLOUD: ChunkPlan = ChunkPlan {
+pub const DEFAULT: ChunkPlan = ChunkPlan {
     max_secs: 600.0,
     search_secs: 90.0,
 };

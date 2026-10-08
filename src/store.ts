@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { AudioEngine } from "./audio/engine";
 import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, type Loop } from "./audio/logic";
-import { api, type AiConfig, type AiOverview, type FolderListing, type Progress, type Settings, type Track } from "./lib/api";
+import { listen } from "@tauri-apps/api/event";
+import { api, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
 import { createTranscriptSlice, type TranscriptState } from "./transcriptSlice";
 
 export interface AppState extends TranscriptState {
@@ -18,11 +19,16 @@ export interface AppState extends TranscriptState {
   error: string | null;
   /** AI services and the choices made; loaded at start, never contains keys. */
   ai: AiOverview | null;
+  /** Whisper models for transcribing on this Mac. */
+  local: LocalOverview | null;
+  /** Latest model download update. */
+  download: DownloadStatus | null;
   settingsOpen: boolean;
 
   init(): Promise<void>;
   setSettingsOpen(open: boolean): void;
   setAiConfig(config: AiConfig): void;
+  setLocal(local: LocalOverview): void;
   chooseFolder(): Promise<void>;
   rescan(): Promise<void>;
   open(track: Track, autoplay?: boolean): void;
@@ -64,6 +70,11 @@ export const useApp = create<AppState>((set, get) => {
     onError: (error) => set({ error, playing: false }),
   });
   debugEngine = engine;
+
+  void listen<DownloadStatus>("local:download", ({ payload }) => {
+    set({ download: payload });
+    if (payload.state !== "running") void api.local.models().then((local) => set({ local }));
+  });
 
   // Fixed interval rather than a debounce: frequent time updates would keep
   // resetting a debounce and nothing would ever be saved.
@@ -113,11 +124,13 @@ export const useApp = create<AppState>((set, get) => {
     loop: NO_LOOP,
     error: null,
     ai: null,
+    local: null,
+    download: null,
     settingsOpen: false,
     ...createTranscriptSlice(set, get, engine, applyLoop),
 
     async init() {
-      const [snap, ai] = await Promise.all([api.getSnapshot(), api.ai.get()]);
+      const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
       set({
         ready: true,
         folder: snap.folder,
@@ -125,6 +138,8 @@ export const useApp = create<AppState>((set, get) => {
         progress: snap.progress,
         settings: snap.settings,
         ai,
+        local,
+        download: local.downloading ? { state: "running", id: local.downloading, done: 0, total: 0 } : null,
       });
       engine.setRate(snap.settings.rate);
       void get().restoreJob();
@@ -134,6 +149,10 @@ export const useApp = create<AppState>((set, get) => {
 
     setSettingsOpen(settingsOpen) {
       set({ settingsOpen });
+    },
+
+    setLocal(local) {
+      set({ local });
     },
 
     setAiConfig(config) {

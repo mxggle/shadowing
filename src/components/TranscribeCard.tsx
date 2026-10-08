@@ -57,6 +57,7 @@ export function TranscribeCard() {
 
 function TranscribeForm({ onClose }: { onClose: () => void }) {
   const ai = useApp((s) => s.ai);
+  const local = useApp((s) => s.local);
   const duration = useApp((s) => s.duration);
   const saved = useApp((s) => s.settings.transcribeLanguage);
   const { startTranscribe, setSettingsOpen } = useApp.getState();
@@ -64,13 +65,23 @@ function TranscribeForm({ onClose }: { onClose: () => void }) {
 
   const choice = ai?.config.transcribe;
   const preset = ai?.presets.find((p) => p.id === choice?.provider);
-  const ready = !!preset && !!choice?.model && (preset.key !== "required" || !!ai?.config.keyHints[preset.id]);
+  const builtin = preset?.api === "builtin";
+  const ready =
+    !!preset &&
+    !!choice?.model &&
+    (builtin
+      ? !!local?.models.find((m) => m.id === choice.model)?.downloaded
+      : preset.key !== "required" || !!ai?.config.keyHints[preset.id]);
 
   if (!ready) {
     return (
       <div className="flex animate-fade-in items-center gap-3 border-t border-line px-4 py-3">
         <p className="min-w-0 flex-1 text-[12px] text-muted">
-          还没有设置转写服务。可以用 Groq（约 $0.11 / 小时音频）或 OpenAI，需要一个 API Key。
+          {builtin
+            ? "本机转写的模型还没有下载完。可以在设置里查看下载进度。"
+            : local?.supported
+              ? "还没有设置转写服务。可以在这台 Mac 上转写（免费，需要下载一个模型），或用 Groq、OpenAI 等云端服务。"
+              : "还没有设置转写服务。可以用 Groq（约 $0.11 / 小时音频）或 OpenAI，需要一个 API Key。"}
         </p>
         <Button primary onClick={() => setSettingsOpen(true)}>
           去设置
@@ -102,8 +113,9 @@ function TranscribeForm({ onClose }: { onClose: () => void }) {
         <span className="text-[12px] font-medium text-muted">服务</span>
         <p className="flex min-w-0 items-center gap-2 text-[13px]">
           <span className="truncate">
-            {preset.name} · {choice!.model}
+            {builtin ? `本机 · ${local?.models.find((m) => m.id === choice!.model)?.name}` : `${preset.name} · ${choice!.model}`}
           </span>
+          {builtin && <span className="shrink-0 text-faint">免费</span>}
           {cost !== null && (
             <span className="shrink-0 text-faint">{cost < 0.01 ? "不到 $0.01" : `约 $${cost.toFixed(2)}`}</span>
           )}
@@ -134,6 +146,8 @@ function TranscribeForm({ onClose }: { onClose: () => void }) {
 }
 
 function Progress({ job }: { job: Extract<TranscribeStatus, { state: "running" }> }) {
+  // Local transcription can take a couple of seconds to stop; show it was heard.
+  const [stopping, setStopping] = useState(false);
   const share = job.total > 0 ? job.done / job.total : 0;
   return (
     <div className="animate-fade-in rounded-2xl border border-line bg-panel px-4 py-3">
@@ -145,7 +159,15 @@ function Progress({ job }: { job: Extract<TranscribeStatus, { state: "running" }
             {job.done > 0 ? `${formatTime(job.done)} / ${formatTime(job.total)}` : "正在准备音频"} · 可以继续听，完成后字幕会自动出现
           </p>
         </div>
-        <Button onClick={() => useApp.getState().cancelTranscribe()}>取消</Button>
+        <Button
+          disabled={stopping}
+          onClick={() => {
+            setStopping(true);
+            useApp.getState().cancelTranscribe();
+          }}
+        >
+          {stopping ? "正在取消…" : "取消"}
+        </Button>
       </div>
       <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-track">
         <div

@@ -1,6 +1,6 @@
 //! Debug-only self-test: `SHADOWING_SMOKE=<audio folder> npm run smoke`.
 //! The webview runs a scripted playback scenario (src/dev/smoke.ts), prints
-//! results to stdout and exits. Uses a throwaway state file.
+//! results to stdout and exits. Uses a throwaway data folder (state.json, transcripts), cleared on start.
 
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};

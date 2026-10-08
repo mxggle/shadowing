@@ -6,7 +6,7 @@ Shadowing：macOS 优先的 Tauri 2 桌面应用，用于本地音频的反复�
 ## 技术栈
 
 - 前端：React 19 + TypeScript + Vite 8 + Tailwind 4 + Zustand 5，图标用 lucide-react。
-- 后端：Rust（Tauri 2）。**音频播放完全在 Rust**（`src-tauri/src/audio/`）：解码、变速、A–B 循环、输出都不经过 WebView。
+- 后端：Rust（Tauri 2）。构建需要 cmake（whisper.cpp），`brew install cmake`。**音频播放完全在 Rust**（`src-tauri/src/audio/`）：解码、变速、A–B 循环、输出都不经过 WebView。
 - 持久化：Rust 侧一个 JSON 文件（app data 目录下的 `state.json`，原子写入）。**API Key / token 只存 macOS 钥匙串**（`ai/secrets.rs`），state.json 里只有 `sk-…abcd` 这样的提示。
 
 ## 结构
@@ -27,7 +27,10 @@ src-tauri/src/
   transcript.rs           每个音频的字幕：app data 里的 transcripts/，或音频旁的同名 .srt/.vtt
   subtitles.rs            SRT / WebVTT 解析
   transcribe/             转写：pcm.rs 解码成 16 kHz 单声道、chunk.rs 在停顿处切块、cloud.rs 上传、
-                          sentences.rs 把 Whisper 结果变成带时间的句子；一次一个任务，进度发 transcribe:status
+                          sentences.rs 把 Whisper 结果变成带时间的句子、snap.rs 把句子边界对齐到真实停顿；
+                          一次一个任务，进度发 transcribe:status
+  local/                  本机转写（仅 Apple Silicon）：models.rs 模型清单（固定 commit + sha256）与内存适配、
+                          download.rs 可续传并校验的下载、whisper.rs whisper.cpp（Metal）
   ai/                     可选的 AI 服务：providers.rs 预设与模型筛选、secrets.rs 钥匙串、http.rs 请求与中文错误
   audio/                  原生播放引擎（见下）
   smoke.rs                调试构建专用自测入口
@@ -39,6 +42,7 @@ src-tauri/src/
 - A–B 循环在音频回调里按帧完成：设定循环时把 [A−0.3s, B] 解码进内存，越过 B 时 5ms 交叉淡化接回 A，不依赖任何定时器。
 - 命令同步执行、经无锁队列（rtrb）发给引擎；状态以 `player:status` 事件约 30Hz 推送，带递增 `seq`。
   前端丢弃 `seq` 更旧的事件；改变播放头的命令直接返回最新 Status。
+- whisper-rs 0.16 的 `set_abort_callback_safe` 有 bug（会让每次编码都中止），`local/whisper.rs` 改用原始回调。
 - 已知限制：m4a/m4b 的 AAC 有约 23ms 编码器前置延迟未裁剪；CAF 里的 AAC 打不开。
 
 ## 约定
@@ -62,6 +66,8 @@ npm run app                           # 开发模式启动应用
 ```
 
 - smoke 模式使用临时 state 文件和内存里的 Key 存储，不影响真实数据和钥匙串。
+- 真实模型手动测试（会下载到应用的 models 文件夹）：
+  `SHADOWING_FIXTURES=<fixtures> SHADOWING_LONG=<几分钟的语音> cargo test --manifest-path src-tauri/Cargo.toml real_ -- --ignored --nocapture`
 - 钥匙串手动测试：`cargo test --manifest-path src-tauri/Cargo.toml keychain_round_trip -- --ignored`。
 - Rust 引擎另有手动测试：`cargo test --manifest-path src-tauri/Cargo.toml plays_tone -- --ignored`（真实声卡播放测试音）。
 - 音质、循环边界听感、跟读节奏无法自动验证，需要用户试听反馈。汇报时区分“已实现 / 已验证 / 待验证”。
