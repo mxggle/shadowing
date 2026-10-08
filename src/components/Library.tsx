@@ -20,7 +20,7 @@ export function Library() {
   }, [folder]);
 
   return (
-    <aside className="flex min-h-0 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/40">
+    <aside className="flex min-h-0 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950">
       <div data-tauri-drag-region className="flex h-[52px] shrink-0 items-center justify-end gap-1 pl-20 pr-2">
         <IconButton title="重新扫描" onClick={() => void rescan()}>
           <RefreshCw size={15} />
@@ -39,7 +39,7 @@ export function Library() {
         {groups.map(([dir, tracks]) => (
           <section key={dir}>
             {dir && (
-              <h3 className="sticky top-0 truncate bg-zinc-50/95 px-4 pb-1 pt-3 text-[11px] font-medium text-zinc-400 backdrop-blur dark:bg-zinc-950/90">
+              <h3 className="sticky top-0 truncate bg-zinc-50 px-4 pb-1 pt-3 text-[11px] font-medium text-zinc-400 dark:bg-zinc-950">
                 {dir}
               </h3>
             )}

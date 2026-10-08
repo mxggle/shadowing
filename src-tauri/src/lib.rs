@@ -1,5 +1,5 @@
+mod audio;
 mod library;
-mod media;
 mod smoke;
 mod store;
 
@@ -159,11 +159,9 @@ pub fn run() {
                 state_path,
                 data: Mutex::new(data),
             });
+            let sink = std::sync::Arc::new(audio::TauriSink(app.handle().clone()));
+            app.manage(audio::Player::new(sink));
             Ok(())
-        })
-        .register_asynchronous_uri_scheme_protocol("media", |ctx, request, responder| {
-            let app = ctx.app_handle().clone();
-            std::thread::spawn(move || responder.respond(media::handle(&app, &request)));
         })
         .invoke_handler(tauri::generate_handler![
             get_snapshot,
@@ -175,7 +173,17 @@ pub fn run() {
             log_line,
             smoke::smoke_mode,
             smoke::smoke_window,
-            smoke::smoke_finish
+            smoke::smoke_finish,
+            audio::commands::player_load,
+            audio::commands::player_play,
+            audio::commands::player_pause,
+            audio::commands::player_toggle,
+            audio::commands::player_seek,
+            audio::commands::player_set_rate,
+            audio::commands::player_set_loop,
+            audio::commands::player_set_volume,
+            audio::commands::player_unload,
+            audio::commands::player_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

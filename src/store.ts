@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { AudioEngine } from "./audio/engine";
 import { clampRate, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, type Loop } from "./audio/logic";
-import { api, mediaUrl, type FolderListing, type Progress, type Settings, type Track } from "./lib/api";
+import { api, type FolderListing, type Progress, type Settings, type Track } from "./lib/api";
 
 interface AppState {
   ready: boolean;
@@ -133,8 +133,7 @@ export const useApp = create<AppState>((set, get) => {
       saveProgress(true);
       const start = resumePosition(get().progress[track.path]);
       set({ current: track, time: start, duration: 0, loop: NO_LOOP, error: null });
-      engine.load(mediaUrl(track.path), start, autoplay);
-      engine.setRate(get().settings.rate);
+      void engine.load(track.path, start, autoplay).then(() => engine.setRate(get().settings.rate));
       void api.setLastTrack(track.path);
     },
 
@@ -182,7 +181,7 @@ export const useApp = create<AppState>((set, get) => {
       // Setting B starts the first repeat right away.
       if (loop.a !== null && loop.b !== null) {
         engine.seek(loop.a);
-        if (engine.paused) void engine.play();
+        if (engine.paused) engine.play();
       }
     },
 

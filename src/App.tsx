@@ -33,7 +33,11 @@ export default function App() {
   if (!folder) return <Welcome />;
 
   return (
-    <div className="grid h-full grid-cols-[minmax(220px,300px)_1fr]">
+    <div
+      className="grid h-full grid-cols-[minmax(220px,300px)_1fr]"
+      // Buttons don't take focus on click, so Space/arrows stay global shortcuts.
+      onMouseDown={(e) => (e.target as HTMLElement).closest("button") && e.preventDefault()}
+    >
       <Library />
       <main className="flex min-w-0 flex-col">
         <div data-tauri-drag-region className="h-[52px] shrink-0" />

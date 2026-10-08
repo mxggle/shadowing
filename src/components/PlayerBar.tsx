@@ -15,13 +15,16 @@ export function PlayerBar() {
 
   return (
     <footer className="shrink-0 border-t border-zinc-200 px-5 pb-3 pt-2 dark:border-zinc-800">
+      <LoopBoundaries />
       <Scrubber />
       <div className="tabular mt-0.5 flex justify-between text-[11px] text-zinc-400">
         <span>{formatTime(time)}</span>
         <span>{formatTime(duration)}</span>
       </div>
       <div className="mt-1 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-        <LoopControls />
+        <div>
+          <LoopButton />
+        </div>
         <div className="flex items-center gap-1">
           <IconButton title="上一首 (↑)" disabled={disabled} onClick={() => step(-1)}>
             <SkipBack size={16} />
@@ -52,21 +55,33 @@ export function PlayerBar() {
   );
 }
 
-function LoopControls() {
+function LoopButton() {
   const loop = useApp((s) => s.loop);
   const hasTrack = useApp((s) => !!s.current);
-  const { cycleLoop, nudgeLoop } = useApp.getState();
-  const active = loop.a !== null && loop.b !== null;
+  const cycleLoop = useApp((s) => s.cycleLoop);
   const label = loop.a === null ? "A–B" : loop.b === null ? "设 B" : "取消";
-
   return (
-    <div className="flex min-w-0 items-center gap-1">
-      <IconButton title="A–B 循环 (L)" disabled={!hasTrack} active={loop.a !== null} onClick={cycleLoop}>
-        <Repeat size={15} />
-        <span className="ml-1 text-xs">{label}</span>
-      </IconButton>
-      {loop.a !== null && <Boundary label="A" value={loop.a} onNudge={active ? (d) => nudgeLoop("a", d) : undefined} />}
-      {active && <Boundary label="B" value={loop.b!} onNudge={(d) => nudgeLoop("b", d)} />}
+    <IconButton title="A–B 循环 (L)" disabled={!hasTrack} active={loop.a !== null} onClick={cycleLoop}>
+      <Repeat size={15} />
+      <span className="ml-1 whitespace-nowrap text-xs">{label}</span>
+    </IconButton>
+  );
+}
+
+/** Shown above the progress bar only while a loop is being set or active. */
+function LoopBoundaries() {
+  const loop = useApp((s) => s.loop);
+  const nudgeLoop = useApp((s) => s.nudgeLoop);
+  if (loop.a === null) return null;
+  const active = loop.b !== null;
+  return (
+    <div className="mb-1 flex items-center gap-1.5">
+      <Boundary label="A" value={loop.a} onNudge={active ? (d) => nudgeLoop("a", d) : undefined} />
+      {active ? (
+        <Boundary label="B" value={loop.b!} onNudge={(d) => nudgeLoop("b", d)} />
+      ) : (
+        <span className="text-[11px] text-zinc-400">再按 L 设定 B 点</span>
+      )}
     </div>
   );
 }

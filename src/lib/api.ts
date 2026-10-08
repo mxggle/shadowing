@@ -1,5 +1,5 @@
 // The only module that talks to Rust. Everything else imports from here.
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 
 export interface Track {
   path: string;
@@ -52,5 +52,3 @@ export const api = {
 export function devLog(line: string) {
   if (isTauri()) void invoke("log_line", { line });
 }
-
-export const mediaUrl = (path: string) => convertFileSrc(path, "media");

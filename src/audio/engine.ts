@@ -1,7 +1,9 @@
-// Wraps one <audio> element. All playback side effects live here; the store
-// only calls these methods and listens to the callbacks.
-import { devLog } from "../lib/api";
-import { NO_LOOP, shouldJumpToA, type Loop } from "./logic";
+// Thin client for the native Rust player (src-tauri/src/audio). Decoding,
+// speed, looping and output all happen in Rust; this class forwards commands
+// and turns `player:*` events into callbacks for the store.
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import type { Loop } from "./logic";
 
 export interface EngineEvents {
   onTime(t: number): void;
@@ -11,156 +13,129 @@ export interface EngineEvents {
   onError(message: string): void;
 }
 
-// A timer instead of requestAnimationFrame: rAF pauses when the window is
-// hidden, and people often shadow with the window in the background.
-const TICK_MS = 20;
+export interface PlayerStatus {
+  path: string | null;
+  time: number;
+  duration: number;
+  playing: boolean;
+  /** Snapshot order from Rust; events may arrive out of order. */
+  seq: number;
+}
 
 export class AudioEngine {
-  private audio = new Audio();
-  private loop: Loop = NO_LOOP;
-  private prevTime = 0;
-  private ticker: number | undefined;
-  private pendingStart: { at: number; play: boolean } | null = null;
-  private loopJumpTarget: number | null = null;
+  private status: PlayerStatus = { path: null, time: 0, duration: 0, playing: false, seq: 0 };
+  private statusAt = performance.now();
+  private rate = 1;
+  /** Track we last asked for; events for any other path are stale. */
+  private path: string | null = null;
+  private lastSeq = 0;
+  /** Playhead commands awaiting their reply; events meanwhile are stale. */
+  private inflight = 0;
 
   constructor(private events: EngineEvents) {
-    const a = this.audio;
-    a.preload = "auto";
-    a.preservesPitch = true;
-    (a as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = true;
-
-    a.addEventListener("loadedmetadata", () => {
-      this.events.onDuration(a.duration);
-      // Seeking before metadata is unreliable, so the start position waits for it.
-      const start = this.pendingStart;
-      this.pendingStart = null;
-      if (start) {
-        if (start.at > 0) a.currentTime = start.at;
-        this.prevTime = start.at;
-        this.events.onTime(start.at);
-        if (start.play) void this.play();
-      }
+    void listen<PlayerStatus>("player:status", (e) => {
+      if (this.inflight === 0) this.apply(e.payload);
     });
-    a.addEventListener("durationchange", () => this.events.onDuration(a.duration));
-    a.addEventListener("play", () => {
-      this.startTicker();
-      this.events.onPlaying(true);
+    void listen<{ path: string }>("player:ended", (e) => {
+      if (e.payload.path === this.path) this.events.onEnded();
     });
-    a.addEventListener("pause", () => {
-      this.stopTicker();
-      this.events.onTime(a.currentTime);
-      this.events.onPlaying(false);
-    });
-    a.addEventListener("ended", () => {
-      this.stopTicker();
-      this.events.onPlaying(false);
-      this.events.onEnded();
-    });
-    a.addEventListener("seeked", () => {
-      if (this.loopJumpTarget !== null) {
-        const ms = ((a.currentTime - this.loopJumpTarget) * 1000).toFixed(0);
-        devLog(`loop seek landed ${ms}ms from A`);
-        this.loopJumpTarget = null;
-      }
-      this.prevTime = a.currentTime;
-      this.events.onTime(a.currentTime);
-    });
-    a.addEventListener("error", () => {
-      const code = a.error?.code;
-      this.events.onError(
-        code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ? "无法播放此文件格式" : "音频加载失败",
-      );
+    void listen<{ path: string | null; message: string }>("player:error", (e) => {
+      if (!e.payload.path || e.payload.path === this.path) this.events.onError(e.payload.message);
     });
   }
 
-  load(url: string, startAt: number, autoplay: boolean) {
-    this.stopTicker();
-    this.loop = NO_LOOP;
-    this.pendingStart = { at: startAt, play: autoplay };
-    this.audio.src = url;
-    this.audio.load();
+  private apply(s: PlayerStatus) {
+    if (s.path !== this.path || s.seq <= this.lastSeq) return;
+    this.lastSeq = s.seq;
+    const prev = this.status;
+    this.status = s;
+    this.statusAt = performance.now();
+    if (s.duration !== prev.duration) this.events.onDuration(s.duration);
+    if (s.playing !== prev.playing) this.events.onPlaying(s.playing);
+    this.events.onTime(s.time);
   }
 
-  unload() {
-    this.stopTicker();
-    this.pendingStart = null;
-    this.audio.removeAttribute("src");
-    this.audio.load();
+  private send(cmd: string, args?: Record<string, unknown>) {
+    invoke(cmd, args).catch((err) => this.events.onError(String(err)));
   }
 
-  async play() {
+  /** Sends a command that moves the playhead and applies the status it returns. */
+  private async command(cmd: string, args?: Record<string, unknown>) {
+    this.inflight++;
     try {
-      await this.audio.play();
+      this.apply(await invoke<PlayerStatus>(cmd, args));
     } catch (err) {
-      if ((err as DOMException).name !== "AbortError") this.events.onError(String(err));
+      this.events.onError(String(err));
+    } finally {
+      this.inflight--;
     }
   }
 
+  async load(path: string, startAt: number, autoplay: boolean) {
+    this.path = path;
+    this.status = { path, time: startAt, duration: 0, playing: false, seq: this.lastSeq };
+    this.statusAt = performance.now();
+    await this.command("player_load", { path, startAt, autoplay });
+  }
+
+  unload() {
+    this.path = null;
+    this.status = { path: null, time: 0, duration: 0, playing: false, seq: this.lastSeq };
+    this.send("player_unload");
+  }
+
+  play() {
+    void this.command("player_play");
+  }
+
   pause() {
-    this.audio.pause();
+    void this.command("player_pause");
   }
 
   toggle() {
-    if (this.audio.paused) void this.play();
-    else this.pause();
+    void this.command("player_toggle");
   }
 
   get paused() {
-    return this.audio.paused;
+    return !this.status.playing;
   }
 
+  /** Last reported time, extrapolated between ~30 Hz status events. */
   get time() {
-    return this.audio.currentTime;
+    const { time, duration, playing } = this.status;
+    if (!playing) return time;
+    const t = time + ((performance.now() - this.statusAt) / 1000) * this.rate;
+    return duration > 0 ? Math.min(t, duration) : t;
   }
 
   get duration() {
-    return Number.isFinite(this.audio.duration) ? this.audio.duration : 0;
+    return this.status.duration;
   }
 
   seek(t: number) {
     const d = this.duration;
     const target = Math.max(0, d > 0 ? Math.min(t, d - 0.05) : t);
-    this.audio.currentTime = target;
-    this.prevTime = target;
+    this.status = { ...this.status, time: target };
+    this.statusAt = performance.now();
     this.events.onTime(target);
+    void this.command("player_seek", { time: target });
   }
 
   setRate(rate: number) {
-    this.audio.playbackRate = rate;
-    this.audio.defaultPlaybackRate = rate;
+    this.rate = rate;
+    this.send("player_set_rate", { rate });
   }
 
-  setVolume(v: number) {
-    this.audio.volume = v;
+  setVolume(volume: number) {
+    this.send("player_set_volume", { volume });
   }
 
   setLoop(loop: Loop) {
-    this.loop = loop;
-    this.prevTime = this.audio.currentTime;
+    this.send("player_set_loop", { a: loop.a, b: loop.b });
   }
 
-  private startTicker() {
-    if (this.ticker !== undefined) return;
-    this.prevTime = this.audio.currentTime;
-    this.ticker = window.setInterval(() => this.tick(), TICK_MS);
-  }
-
-  private stopTicker() {
-    if (this.ticker !== undefined) window.clearInterval(this.ticker);
-    this.ticker = undefined;
-  }
-
-  private tick() {
-    const now = this.audio.currentTime;
-    if (shouldJumpToA(this.loop, this.prevTime, now) && this.loop.a !== null) {
-      devLog(`loop overshoot ${((now - this.loop.b!) * 1000).toFixed(0)}ms past B`);
-      this.loopJumpTarget = this.loop.a;
-      this.audio.currentTime = this.loop.a;
-      this.prevTime = this.loop.a;
-      this.events.onTime(this.loop.a);
-      return;
-    }
-    this.prevTime = now;
-    this.events.onTime(now);
+  /** Authoritative status straight from Rust (used by the smoke test). */
+  statusNow() {
+    return invoke<PlayerStatus>("player_status");
   }
 }
