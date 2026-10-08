@@ -22,6 +22,26 @@
 **第 1 阶段完成后先停下**，等真实使用反馈，再开始第 2 阶段。
 （2026-10-09 更新：决定提前做 Transcript + 转写 + 引导向导，第 3 阶段的解释功能放在下一轮。方案与决定见 [docs/ai-plan.md](docs/ai-plan.md)。）
 
+## 路线图（以后，未排期）
+
+### Windows 版
+目前只支持 macOS（Apple Silicon 优先），Windows 上还编译不了。
+
+| 部分 | 现状 | 要做的 |
+| --- | --- | --- |
+| 区分说话人 | 已可移植：tract + realfft 都是纯 Rust，CPU 运行，模型是普通 ONNX 文件 | 在真机上验证 |
+| 播放引擎 | symphonia / cpal 等都跨平台 | 在真机上验证音频输出与切换设备 |
+| API Key 存储 | 只用 macOS 钥匙串（`apple-native-keyring-store`） | Windows 用凭据管理器（同一个 keyring 库的 Windows 存储） |
+| 本机转写 | whisper.cpp 固定开启 Metal，仅 Apple Silicon 显示 | Windows 关掉 Metal；先只提供云端转写，以后再考虑 CPU / CUDA / Vulkan 版 whisper.cpp |
+| 内存检测（推荐模型） | 读 macOS 的系统值 | 按平台实现，或在 Windows 上隐藏本机转写 |
+| 云端转写的词时间 | 未用真实 Key 测过（DTW 修正只用于本机） | 在 Groq / OpenAI 上核对句子开头和说话人 |
+
+做法：在 `Cargo.toml` 里按平台区分依赖（`[target.'cfg(...)'.dependencies]`），界面文案保持不变；没有 Windows 测试机之前不发布。
+
+### 按说话人练习
+- 只循环某个人的句子；“角色扮演”：播放对方的句子，轮到你的句子时自动停下。
+- 给说话人改名（A → 妻 / 夫）。
+
 ## v1 不做
 
 视频、YouTube、录音与对比、波形、生词本、多窗口、多语言界面、Web 版、云同步、移动端、导入旧项目（Pawcast）的数据。
