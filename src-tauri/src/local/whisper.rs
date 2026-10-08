@@ -1,7 +1,10 @@
 //! whisper.cpp on this Mac (GPU via Metal). Produces the same Whisper-style
 //! output as the cloud APIs, with words built from token times, so the same
-//! sentence builder works for both.
+//! sentence builder works for both. Token times come from DTW over the
+//! model's alignment heads (as the cloud APIs do): plain token times put the
+//! first word of a turn where the previous one ended, up to a second early.
 
+use crate::transcribe::pcm::RATE;
 use crate::transcribe::sentences::{Segment, Verbose, Word};
 use crate::transcribe::{Piece, PieceProgress, Transcriber, CANCELLED};
 use std::ffi::c_void;
@@ -9,7 +12,8 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use whisper_rs::{
-    FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters, WhisperState,
+    DtwMode, DtwModelPreset, DtwParameters, FullParams, SamplingStrategy, WhisperContext,
+    WhisperContextParameters, WhisperState,
 };
 
 pub struct Whisper {
@@ -17,12 +21,27 @@ pub struct Whisper {
 }
 
 impl Whisper {
-    pub fn load(file: &Path) -> Result<Self, String> {
+    /// `model`: its id in `models.rs`, which picks the alignment heads for DTW.
+    pub fn load(file: &Path, model: &str) -> Result<Self, String> {
         // Route whisper.cpp's chatty logging away from stdout/stderr.
         whisper_rs::install_logging_hooks();
+        let preset = match model {
+            m if m.starts_with("large-v3-turbo") => Some(DtwModelPreset::LargeV3Turbo),
+            m if m.starts_with("large-v3") => Some(DtwModelPreset::LargeV3),
+            m if m.starts_with("small") => Some(DtwModelPreset::Small),
+            _ => None,
+        };
         let params = WhisperContextParameters {
             use_gpu: true,
-            flash_attn: true,
+            // whisper.cpp can't do DTW with flash attention; ~25% slower, but
+            // sentence loops start where the speech does.
+            flash_attn: preset.is_none(),
+            dtw_parameters: DtwParameters {
+                mode: preset.map_or(DtwMode::None, |model_preset| DtwMode::ModelPreset {
+                    model_preset,
+                }),
+                ..Default::default()
+            },
             ..Default::default()
         };
         let ctx = WhisperContext::new_with_params(file, params)
@@ -74,6 +93,15 @@ impl Transcriber for Whisper {
         result.map_err(|e| format!("本机转写失败：{e}"))?;
         collect(&self.ctx, &state)
     }
+
+    fn detect_language(&mut self, samples: &[f32]) -> Option<String> {
+        // Whisper listens to the first 30 s to decide.
+        let head = &samples[..samples.len().min(30 * RATE as usize)];
+        let mut state = self.ctx.create_state().ok()?;
+        state.pcm_to_mel(head, threads() as usize).ok()?;
+        let (id, _) = state.lang_detect(0, threads() as usize).ok()?;
+        whisper_rs::get_lang_str(id).map(str::to_string)
+    }
 }
 
 unsafe extern "C" fn should_abort(flag: *mut c_void) -> bool {
@@ -104,10 +132,13 @@ fn collect(ctx: &WhisperContext, state: &WhisperState) -> Result<Verbose, String
             let data = tok.token_data();
             logprob += f64::from(data.plog);
             let bytes = tok.to_bytes().map_err(|e| e.to_string())?.to_vec();
-            tokens.push((bytes, data.t0, data.t1));
+            // -1 when DTW is off for this model.
+            let at = if data.t_dtw >= 0 { data.t_dtw } else { data.t0 };
+            tokens.push((bytes, at));
         }
         let n = tokens.len();
-        out.words.extend(words_from_tokens(tokens));
+        out.words
+            .extend(words_from_tokens(tokens, seg.end_timestamp()));
         out.segments.push(Segment {
             start: secs(seg.start_timestamp()),
             end: secs(seg.end_timestamp()),
@@ -119,23 +150,30 @@ fn collect(ctx: &WhisperContext, state: &WhisperState) -> Result<Verbose, String
     Ok(out)
 }
 
-/// Tokens can split a character (most CJK characters are 3 bytes); glue bytes
-/// together until they form valid text, timing the result from first to last token.
-fn words_from_tokens(tokens: Vec<(Vec<u8>, i64, i64)>) -> Vec<Word> {
+/// Tokens with the time each starts at → words lasting until the next one
+/// starts (the last until the segment ends). Tokens can split a character (most
+/// CJK characters are 3 bytes): bytes are glued together until they form valid text.
+fn words_from_tokens(tokens: Vec<(Vec<u8>, i64)>, segment_end: i64) -> Vec<Word> {
     let mut words = Vec::new();
     let mut pending: Vec<u8> = Vec::new();
     let mut start = 0;
-    for (bytes, t0, t1) in tokens {
+    let mut last = 0;
+    for (k, (bytes, at)) in tokens.iter().enumerate() {
         if pending.is_empty() {
-            start = t0;
+            start = (*at).max(last);
         }
-        pending.extend_from_slice(&bytes);
+        pending.extend_from_slice(bytes);
         if let Ok(text) = std::str::from_utf8(&pending) {
+            let end = tokens
+                .get(k + 1)
+                .map_or(segment_end, |next| next.1)
+                .max(start);
             words.push(Word {
                 word: text.to_string(),
                 start: secs(start),
-                end: secs(t1.max(start)),
+                end: secs(end),
             });
+            last = end;
             pending.clear();
         }
     }
@@ -150,19 +188,19 @@ mod tests {
     fn split_characters_are_glued_back_together() {
         let ni = "日".as_bytes(); // 3 bytes, split across two tokens
         let tokens = vec![
-            (b" Hello".to_vec(), 10, 40),
-            (ni[..2].to_vec(), 50, 60),
-            (ni[2..].to_vec(), 60, 70),
-            ("本".as_bytes().to_vec(), 70, 80),
+            (b" Hello".to_vec(), 10),
+            (ni[..2].to_vec(), 50),
+            (ni[2..].to_vec(), 60),
+            ("本".as_bytes().to_vec(), 70),
         ];
-        let words = words_from_tokens(tokens);
+        let words = words_from_tokens(tokens, 80);
         let got: Vec<_> = words
             .iter()
             .map(|w| (w.word.as_str(), w.start, w.end))
             .collect();
         assert_eq!(
             got,
-            [(" Hello", 0.1, 0.4), ("日", 0.5, 0.7), ("本", 0.7, 0.8)]
+            [(" Hello", 0.1, 0.5), ("日", 0.5, 0.7), ("本", 0.7, 0.8)]
         );
     }
 }

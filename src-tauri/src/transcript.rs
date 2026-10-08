@@ -13,6 +13,9 @@ pub struct Sentence {
     pub start: f64,
     pub end: f64,
     pub text: String,
+    /// Who says it (0 = the first voice heard), when a transcription found more than one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub speaker: Option<u8>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -201,6 +204,7 @@ mod tests {
                 start: 1.0,
                 end: 2.0,
                 text: text.into(),
+                speaker: None,
             }],
         }
     }

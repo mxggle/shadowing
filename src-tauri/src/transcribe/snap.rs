@@ -72,7 +72,7 @@ pub fn snap(sentences: &mut [Sentence], db: &[f32]) {
 }
 
 /// The longest quiet stretch in [lo, hi] seconds, if it is a real pause.
-fn longest_pause(db: &[f32], lo: f64, hi: f64) -> Option<(f64, f64)> {
+pub(super) fn longest_pause(db: &[f32], lo: f64, hi: f64) -> Option<(f64, f64)> {
     let a = (lo.max(0.0) / FRAME_SECS).floor() as usize;
     let b = ((hi / FRAME_SECS).ceil() as usize).min(db.len());
     if b <= a + 1 {
@@ -124,6 +124,7 @@ mod tests {
             start,
             end,
             text: String::new(),
+            speaker: None,
         }
     }
 

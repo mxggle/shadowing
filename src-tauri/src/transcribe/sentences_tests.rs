@@ -51,7 +51,7 @@ fn english_sentences_take_their_words_times() {
         ]),
     };
     assert_eq!(
-        summary(&build(vec![(0.0, v)])),
+        summary(&build(vec![(0.0, v)], &[])),
         [
             ("Hello there.".into(), 0.2, 1.1),
             ("How are you?".into(), 1.8, 3.4),
@@ -79,7 +79,7 @@ fn japanese_without_spaces() {
         ]),
     };
     assert_eq!(
-        summary(&build(vec![(0.0, v)])),
+        summary(&build(vec![(0.0, v)], &[])),
         [
             ("今日はいい天気ですね。".into(), 0.0, 2.2),
             ("散歩に行きましょう。".into(), 2.8, 5.2)
@@ -105,7 +105,7 @@ fn pieces_are_offset_and_hallucinations_dropped() {
         ]),
     };
     assert_eq!(
-        summary(&build(vec![(0.0, first), (600.0, second)])),
+        summary(&build(vec![(0.0, first), (600.0, second)], &[])),
         [("One.".into(), 0.5, 1.0), ("Two.".into(), 600.4, 600.9)]
     );
 }
@@ -117,7 +117,7 @@ fn without_words_times_are_spread_over_the_segment() {
         words: vec![],
     };
     assert_eq!(
-        summary(&build(vec![(0.0, v)])),
+        summary(&build(vec![(0.0, v)], &[])),
         [("Aa.".into(), 0.0, 2.0), ("Bb.".into(), 2.0, 4.0)]
     );
 }
@@ -143,10 +143,92 @@ fn long_sentences_split_at_the_middle_comma() {
         segments: vec![seg(0.0, 30.0, text)],
         words: vec![],
     };
-    let got = summary(&build(vec![(0.0, v)]));
+    let got = summary(&build(vec![(0.0, v)], &[]));
     assert_eq!(
         got.iter().map(|g| g.0.as_str()).collect::<Vec<_>>(),
         ["one two,", "three four,", "five six"]
     );
     assert!(got.windows(2).all(|w| w[0].2 <= w[1].1 + 1e-9));
+}
+
+#[test]
+fn unpunctuated_segments_are_sentences_of_their_own() {
+    // What large-v3-turbo returns for a Japanese dialogue without a language hint.
+    let v = Verbose {
+        segments: vec![
+            seg(0.0, 4.3, "あーどうしようたかしの熱が下がらない"),
+            seg(4.3, 7.1, "今日は日曜日だしな"),
+            seg(7.1, 10.0, "病院はどこもお休みだろ"),
+            seg(10.0, 14.4, "ん?寝蔵アート?何それ?"),
+        ],
+        words: vec![],
+    };
+    let got = build(vec![(0.0, v)], &[]);
+    assert_eq!(
+        got.iter().map(|s| s.text.as_str()).collect::<Vec<_>>(),
+        [
+            "あーどうしようたかしの熱が下がらない",
+            "今日は日曜日だしな",
+            "病院はどこもお休みだろ",
+            "ん?",
+            "寝蔵アート?",
+            "何それ?"
+        ]
+    );
+}
+
+#[test]
+fn unpunctuated_english_carries_on_into_a_lowercase_segment() {
+    let v = Verbose {
+        segments: vec![
+            seg(0.0, 2.0, " So I went to the"),
+            seg(2.0, 4.0, " store and bought milk"),
+            seg(4.0, 6.0, " Then I came home"),
+        ],
+        words: vec![],
+    };
+    let got = build(vec![(0.0, v)], &[]);
+    assert_eq!(
+        got.iter().map(|s| s.text.as_str()).collect::<Vec<_>>(),
+        ["So I went to the store and bought milk", "Then I came home"]
+    );
+}
+
+#[test]
+fn a_space_between_cjk_characters_ends_a_sentence() {
+    assert_eq!(
+        split_sentences("来週はパーティーですね そうですね 今 SNS で話題"),
+        ["来週はパーティーですね", "そうですね", "今 SNS で話題"]
+    );
+}
+
+#[test]
+fn long_sentences_without_a_comma_split_at_the_pause() {
+    // 20 s of speech, quiet from 12.0 to 12.6 s.
+    let frame = 0.02;
+    let db: Vec<f32> = (0..1000)
+        .map(|i| {
+            let t = i as f64 * frame;
+            if (12.0..12.6).contains(&t) {
+                -70.0
+            } else {
+                -20.0
+            }
+        })
+        .collect();
+    let v = Verbose {
+        segments: vec![seg(0.0, 20.0, "あいうえおかきくけこさしすせそたちつてと")],
+        words: words(&[
+            ("あいうえおかきくけこさし", 0.0, 12.0),
+            ("すせそたちつてと", 12.6, 20.0),
+        ]),
+    };
+    let got = summary(&build(vec![(0.0, v)], &db));
+    assert_eq!(
+        got,
+        [
+            ("あいうえおかきくけこさし".into(), 0.0, 12.0),
+            ("すせそたちつてと".into(), 12.6, 20.0)
+        ]
+    );
 }

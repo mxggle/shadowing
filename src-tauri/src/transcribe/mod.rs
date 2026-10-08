@@ -5,26 +5,31 @@
 
 pub mod chunk;
 pub mod cloud;
+pub mod commands;
+mod long;
 pub mod pcm;
 pub mod sentences;
 mod snap;
 #[cfg(test)]
 mod tests;
 
-use crate::ai::secrets::Secrets;
-use crate::ai::Target;
-use crate::transcript::{self, Sentence, Source, Transcript};
-use crate::{local, AppState};
+use crate::transcript::{Sentence, Transcript};
 use chunk::ChunkPlan;
 use pcm::RATE;
 use sentences::Verbose;
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, Manager, State};
+use std::sync::Arc;
 
 pub const CANCELLED: &str = "已取消";
+
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Step {
+    Transcribe,
+    Speakers,
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(
@@ -36,6 +41,7 @@ pub enum Status {
     /// `done` / `total` in seconds of audio (total is 0 when unknown).
     Running {
         path: String,
+        step: Step,
         done: f64,
         total: f64,
     },
@@ -54,14 +60,6 @@ pub enum Status {
     },
 }
 
-#[derive(Default)]
-pub struct Jobs(Mutex<Option<Running>>);
-
-struct Running {
-    path: String,
-    cancel: Arc<AtomicBool>,
-}
-
 /// One piece of 16 kHz mono audio to transcribe.
 pub struct Piece<'a> {
     pub samples: &'a [f32],
@@ -78,6 +76,11 @@ pub type PieceProgress = Arc<dyn Fn(f64) + Send + Sync>;
 /// A cloud API or the local engine: one piece in, Whisper-style output out.
 pub trait Transcriber {
     fn transcribe(&mut self, piece: &Piece, progress: PieceProgress) -> Result<Verbose, String>;
+
+    /// The language spoken (ISO-639-1), if this transcriber can tell before transcribing.
+    fn detect_language(&mut self, _samples: &[f32]) -> Option<String> {
+        None
+    }
 }
 
 pub struct Job<'a> {
@@ -104,6 +107,7 @@ pub fn run(
     let mut sent = 0usize;
     let mut more = true;
     let mut pieces = Vec::new();
+    let mut language = job.language.map(str::to_string);
     let mut prompt = cloud::style_prompt(job.language);
     let mut meter = snap::Meter::default();
     progress(0.0, total);
@@ -127,9 +131,15 @@ pub fn run(
         }
         let rms = (samples.iter().map(|s| s * s).sum::<f32>() / samples.len().max(1) as f32).sqrt();
         if rms > SILENT_RMS {
+            if language.is_none() && pieces.is_empty() {
+                // Knowing the language picks a punctuated example prompt; without
+                // one, Whisper tends to leave Japanese and English unpunctuated.
+                language = transcriber.detect_language(&samples);
+                prompt = cloud::style_prompt(language.as_deref());
+            }
             let piece = Piece {
                 samples: &samples,
-                language: job.language,
+                language: language.as_deref(),
                 prompt: &prompt,
                 cancel: &job.cancel,
             };
@@ -145,142 +155,10 @@ pub fn run(
         progress(end, total.max(end));
     }
 
-    let mut sentences = sentences::build(pieces);
+    let mut sentences = sentences::build(pieces, &meter.db);
     if sentences.is_empty() {
         return Err("没有识别出语音".into());
     }
     snap::snap(&mut sentences, &meter.db);
     Ok(sentences)
-}
-
-enum Backend {
-    Cloud(Target),
-    Local(PathBuf),
-}
-
-/// Starts transcribing a track with the service chosen in settings.
-/// `language`: ISO-639-1 code, or "" to let the model detect it.
-/// `keep`: save the result as the track's transcript (false for a trial run).
-#[tauri::command]
-pub fn transcribe_start(
-    app: AppHandle,
-    state: State<AppState>,
-    secrets: State<Secrets>,
-    jobs: State<Jobs>,
-    path: String,
-    language: String,
-    keep: bool,
-) -> Result<(), String> {
-    let audio = state.audio(&path)?;
-    let choice = state.read(|d| d.ai.transcribe.clone());
-    let provider = choice.provider.ok_or("还没有设置转写服务")?;
-    if choice.model.is_empty() {
-        return Err("还没有选择转写模型".into());
-    }
-    let (backend, origin) = if provider == local::PROVIDER {
-        let file = local::model_file(&state, &choice.model).ok_or("这个模型还没有下载完")?;
-        (Backend::Local(file), format!("本机 · {}", choice.model))
-    } else {
-        let target = Target::resolve(&state, &secrets, &provider)?;
-        let origin = format!("{} · {}", target.preset.name, choice.model);
-        (Backend::Cloud(target), origin)
-    };
-    let cancel = Arc::new(AtomicBool::new(false));
-    {
-        let mut current = jobs.0.lock().unwrap();
-        if current.is_some() {
-            return Err("已经有一个音频在转写，请等它完成".into());
-        }
-        *current = Some(Running {
-            path: path.clone(),
-            cancel: cancel.clone(),
-        });
-    }
-    let key = audio.to_string_lossy().into_owned();
-    let dir = state.data_dir().join("transcripts");
-    let language = Some(language.trim().to_string()).filter(|l| !l.is_empty());
-
-    let spawned = std::thread::Builder::new()
-        .name("transcribe".into())
-        .spawn(move || {
-            let emit = {
-                let app = app.clone();
-                move |status: Status| drop(app.emit("transcribe:status", status))
-            };
-            let progress = {
-                let (emit, path) = (emit.clone(), path.clone());
-                Arc::new(move |done, total| {
-                    emit(Status::Running {
-                        path: path.clone(),
-                        done,
-                        total,
-                    })
-                })
-            };
-            let job = Job {
-                audio: &audio,
-                language: language.as_deref(),
-                plan: chunk::DEFAULT,
-                cancel,
-            };
-            let result = match backend {
-                Backend::Cloud(target) => {
-                    let mut t = cloud::Cloud::new(&target, &choice.model);
-                    run(&job, &mut t, progress)
-                }
-                Backend::Local(file) => local::whisper::Whisper::load(&file)
-                    .and_then(|mut t| run(&job, &mut t, progress)),
-            };
-            let status = match result {
-                Ok(sentences) => {
-                    let transcript = Transcript {
-                        source: Source::Transcribed,
-                        origin,
-                        sentences,
-                    };
-                    let saved = if keep {
-                        transcript::save(&dir, &key, &transcript)
-                    } else {
-                        Ok(())
-                    };
-                    match saved {
-                        Ok(()) => Status::Done {
-                            path: path.clone(),
-                            transcript,
-                            saved: keep,
-                        },
-                        Err(e) => Status::Failed {
-                            path: path.clone(),
-                            message: format!("字幕保存失败：{e}"),
-                        },
-                    }
-                }
-                Err(m) if m == CANCELLED => Status::Cancelled { path: path.clone() },
-                Err(message) => Status::Failed {
-                    path: path.clone(),
-                    message,
-                },
-            };
-            // Free the slot before announcing, so the UI can start the next one straight away.
-            app.state::<Jobs>().0.lock().unwrap().take();
-            emit(status);
-        });
-    if let Err(e) = spawned {
-        jobs.0.lock().unwrap().take();
-        return Err(e.to_string());
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub fn transcribe_cancel(jobs: State<Jobs>) {
-    if let Some(job) = jobs.0.lock().unwrap().as_ref() {
-        job.cancel.store(true, Ordering::Relaxed);
-    }
-}
-
-/// The track being transcribed, if any (for a UI that was reloaded mid-job).
-#[tauri::command]
-pub fn transcribe_running(jobs: State<Jobs>) -> Option<String> {
-    jobs.0.lock().unwrap().as_ref().map(|j| j.path.clone())
 }

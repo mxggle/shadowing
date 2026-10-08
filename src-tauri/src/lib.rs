@@ -4,6 +4,7 @@ mod guide;
 mod library;
 mod local;
 mod smoke;
+mod speakers;
 mod store;
 mod subtitles;
 mod transcribe;
@@ -211,7 +212,7 @@ pub fn run() {
                 }
             };
             app.manage(ai::secrets::Secrets(store));
-            app.manage(transcribe::Jobs::default());
+            app.manage(transcribe::commands::Jobs::default());
             app.manage(local::Downloads::default());
             let sink = std::sync::Arc::new(audio::TauriSink(app.handle().clone()));
             app.manage(audio::Player::new(sink));
@@ -243,9 +244,9 @@ pub fn run() {
             local::local_download,
             local::local_cancel_download,
             local::local_delete,
-            transcribe::transcribe_start,
-            transcribe::transcribe_cancel,
-            transcribe::transcribe_running,
+            transcribe::commands::transcribe_start,
+            transcribe::commands::transcribe_cancel,
+            transcribe::commands::transcribe_running,
             transcript::transcript_get,
             transcript::transcript_import,
             transcript::transcript_remove,

@@ -28,12 +28,23 @@ const lines = [
   "天気予報によると、気温も上がるそうです。",
   "日焼け止めを忘れないようにしないと。",
 ];
-const mockTranscript = (origin: string, count: number): Transcript => ({
+// Who says each line when a transcription tells voices apart: a dialogue with uneven turns.
+const turns = [0, 1, 1, 0, 1, 0, 0, 1, 0, 1];
+const mockTranscript = (origin: string, count: number, speakers = false): Transcript => ({
   source: "imported",
   origin,
-  sentences: Array.from({ length: count }, (_, i) => ({ start: 2 + i * 6, end: 2 + i * 6 + 4.2, text: lines[i % lines.length] })),
+  sentences: Array.from({ length: count }, (_, i) => ({
+    start: 2 + i * 6,
+    end: 2 + i * 6 + 4.2,
+    text: lines[i % lines.length],
+    ...(speakers ? { speaker: turns[i % turns.length] } : {}),
+  })),
 });
-const transcripts = new Map<string, Transcript>([[tracks[1].path, { ...mockTranscript("02 天気の話.srt", 32), source: "sidecar" }]]);
+const transcripts = new Map<string, Transcript>([
+  [tracks[1].path, { ...mockTranscript("02 天気の話.srt", 32), source: "sidecar" }],
+  // Transcribed earlier, with two voices told apart.
+  [tracks[3].path, { ...mockTranscript("本机 · large-v3-turbo-q8_0", 24, true), source: "transcribed" }],
+]);
 
 for (const [path, t] of sampleTranscripts) transcripts.set(path, t);
 const durationOf = (path: string) => (path.startsWith("/App/samples/") ? 32.7 : 180 + tracks.findIndex((t) => t.path === path) * 20);
@@ -118,9 +129,10 @@ function mockTranscribe(path: string, language: string, keep: boolean) {
       if (job?.cancelled) return finish({ state: "cancelled" });
       done = Math.min(total, done + total / 8);
       if (language === "xx" && done > total / 2) return finish({ state: "failed", message: "Groq 额度不足或请求太频繁（429）" });
-      if (done < total) return status({ state: "running", done, total });
+      // The last stretch stands in for telling the voices apart.
+      if (done < total) return status({ state: "running", step: done > total * 0.7 ? "speakers" : "transcribe", done, total });
       const origin = `${presets.find((p) => p.id === aiConfig.transcribe.provider)?.name} · ${aiConfig.transcribe.model}`;
-      const transcript = { ...(transcripts.get(path) ?? mockTranscript(origin, 28)), origin, source: "transcribed" as const };
+      const transcript = { ...(transcripts.get(path) ?? mockTranscript(origin, 28, keep)), origin, source: "transcribed" as const };
       if (keep) transcripts.set(path, transcript);
       finish({ state: "done", transcript, saved: keep });
     }, 500),

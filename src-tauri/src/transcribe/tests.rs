@@ -2,10 +2,12 @@
 //! OpenAI-compatible server on localhost.
 
 use super::*;
-use crate::ai::providers;
+use crate::ai::{providers, Target};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
+use std::path::Path;
 use std::sync::atomic::AtomicBool;
+use std::sync::Mutex;
 
 /// Answers each request with `reply(n)` (n = 0, 1, …) and records the raw requests.
 fn fake_server(reply: fn(usize) -> String) -> (String, Arc<Mutex<Vec<String>>>) {

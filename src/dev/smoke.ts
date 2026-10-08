@@ -39,7 +39,7 @@ async function scenario() {
   engine.setVolume(0.05);
   const tracks = app().folder?.tracks ?? [];
   devLog(`smoke: ${tracks.length} tracks: ${tracks.map((t) => `${t.relDir}/${t.name}`).join(" | ")}`);
-  check("scan finds 5 audio files, skips .txt", tracks.length === 5);
+  check("scan finds 6 audio files, skips .txt", tracks.length === 6);
 
   // 1. Every format loads and plays.
   for (const t of tracks) {
@@ -257,5 +257,19 @@ async function scenario() {
     "local transcript has the Japanese sentences",
     ja?.origin === "本机 · small-q5_1" && ja.sentences.length === 3 && ja.sentences[0].text.includes("天気"),
     ja ? ja.sentences.map((x) => `${x.text}@${x.start.toFixed(2)}–${x.end.toFixed(2)}`).join(" ") : "none",
+  );
+
+  // 12. Two voices taking turns: each turn is labelled with its speaker.
+  const dialogue = tracks.find((t) => t.name === "05 会話 二人")!;
+  app().open(dialogue, false);
+  await waitFor(() => engine.duration > 0, 3000);
+  await app().startTranscribe("ja");
+  await waitFor(() => app().job?.state !== "running", 90000);
+  const talk = app().transcript?.sentences ?? [];
+  const who = (word: string) => talk.find((x) => x.text.includes(word))?.speaker;
+  check(
+    "dialogue turns alternate between two speakers",
+    who("週末") === 0 && who("決め") === 1 && who("一緒") === 0 && who("駅") === 1,
+    talk.map((x) => `${x.speaker ?? "-"}:${x.text}`).join(" "),
   );
 }

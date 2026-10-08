@@ -70,7 +70,12 @@ pub fn parse(text: &str) -> Result<Vec<Sentence>, String> {
                 continue;
             }
         }
-        out.push(Sentence { start, end, text });
+        out.push(Sentence {
+            start,
+            end,
+            text,
+            speaker: None,
+        });
     }
     out.sort_by(|a, b| a.start.total_cmp(&b.start));
     if out.is_empty() {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Sentence } from "./api";
-import { sentenceIndexAt, sentenceLoop, stepTarget } from "./sentences";
+import { sentenceIndexAt, sentenceLoop, speakerCount, speakerName, startsTurn, stepTarget } from "./sentences";
 
 const s = (start: number, end: number): Sentence => ({ start, end, text: "" });
 const list = [s(1, 3), s(4, 6), s(10, 12)];
@@ -48,5 +48,25 @@ describe("stepTarget", () => {
 
   it("returns −1 without sentences", () => {
     expect(stepTarget([], 3, 1)).toBe(-1);
+  });
+});
+
+describe("speakers", () => {
+  const said = (...who: (number | undefined)[]): Sentence[] => who.map((speaker, i) => ({ start: i, end: i + 1, text: "", speaker }));
+
+  it("counts the voices a transcription told apart", () => {
+    expect(speakerCount(said(0, 1, 1, 2))).toBe(3);
+    expect(speakerCount(said(undefined, undefined))).toBe(0);
+    expect(speakerCount([])).toBe(0);
+  });
+
+  it("marks where each turn starts", () => {
+    const talk = said(0, 0, 1, 0, 0);
+    expect(talk.map((_, i) => startsTurn(talk, i))).toEqual([true, false, true, true, false]);
+    expect(startsTurn(said(undefined, undefined), 1)).toBe(false);
+  });
+
+  it("names speakers A, B, C", () => {
+    expect([0, 1, 2].map(speakerName)).toEqual(["A", "B", "C"]);
   });
 });

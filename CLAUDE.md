@@ -31,10 +31,13 @@ src-tauri/src/
   transcript.rs           每个音频的字幕：app data 里的 transcripts/，或音频旁的同名 .srt/.vtt
   subtitles.rs            SRT / WebVTT 解析
   transcribe/             转写：pcm.rs 解码成 16 kHz 单声道、chunk.rs 在停顿处切块、cloud.rs 上传、
-                          sentences.rs 把 Whisper 结果变成带时间的句子、snap.rs 把句子边界对齐到真实停顿；
-                          一次一个任务，进度发 transcribe:status
+                          sentences.rs 把 Whisper 结果变成带时间的句子（没有标点时按 Whisper 分段断句）、
+                          long.rs 过长的句子在逗号或停顿处切开、snap.rs 把句子边界对齐到真实停顿；
+                          commands.rs 一次一个任务（转写 → 区分说话人），进度发 transcribe:status
   local/                  本机转写（仅 Apple Silicon）：models.rs 模型清单（固定 commit + sha256）与内存适配、
-                          download.rs 可续传并校验的下载、whisper.rs whisper.cpp（Metal）
+                          download.rs 可续传并校验的下载、whisper.rs whisper.cpp（Metal，DTW 词时间，自动识别时先判断语言）
+  speakers/               区分说话人：fbank.rs 声学特征、mod.rs 用 tract 跑 3D-Speaker CAM++ 声纹模型
+                          （Apache-2.0，固定 commit + sha256，第一次转写时下载到 models 文件夹）、cluster.rs 按声音分组
   ai/                     可选的 AI 服务：providers.rs 预设与模型筛选、secrets.rs 钥匙串、http.rs 请求与中文错误、
                           chat.rs 对话接口（OpenAI 兼容 / Anthropic / Responses）、check.rs 测试连接与本机服务检测、
                           oauth.rs + openrouter.rs + chatgpt/ 浏览器登录（ChatGPT 的 token 也只存钥匙串）
@@ -49,6 +52,8 @@ src-tauri/src/
 - 命令同步执行、经无锁队列（rtrb）发给引擎；状态以 `player:status` 事件约 30Hz 推送，带递增 `seq`。
   前端丢弃 `seq` 更旧的事件；改变播放头的命令直接返回最新 Status。
 - whisper-rs 0.16 的 `set_abort_callback_safe` 有 bug（会让每次编码都中止），`local/whisper.rs` 改用原始回调。
+- 本机转写用 DTW 词时间：普通 token 时间会把每轮第一个词放到上一轮结束处（早约 1 秒）。whisper.cpp 的 DTW 不能和
+  flash attention 同时用，所以关掉了 flash attention（慢约 25%）。
 - 已知限制：m4a/m4b 的 AAC 有约 23ms 编码器前置延迟未裁剪；CAF 里的 AAC 打不开。
 
 ## 约定

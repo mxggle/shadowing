@@ -88,7 +88,7 @@ fn real_transcription_of_fixtures() {
             continue;
         }
         let loaded = Instant::now();
-        let mut whisper = Whisper::load(&file).unwrap();
+        let mut whisper = Whisper::load(&file, id).unwrap();
         println!(
             "\n== {id} (loaded in {:.1} s)",
             loaded.elapsed().as_secs_f64()
@@ -120,7 +120,7 @@ fn real_speed_and_cancel_on_a_long_file() {
         if !file.is_file() {
             continue;
         }
-        let mut whisper = Whisper::load(&file).unwrap();
+        let mut whisper = Whisper::load(&file, id).unwrap();
         let job = Job {
             audio: &audio,
             language: Some("ja"),
@@ -179,7 +179,7 @@ fn real_print_srt() {
     let audio = PathBuf::from(std::env::var("SHADOWING_AUDIO").expect("SHADOWING_AUDIO"));
     let lang = std::env::var("SHADOWING_LANG").unwrap_or_else(|_| "ja".into());
     let file = models_dir().join(models::find("large-v3-turbo-q8_0").unwrap().file);
-    let mut whisper = Whisper::load(&file).unwrap();
+    let mut whisper = Whisper::load(&file, "large-v3-turbo-q8_0").unwrap();
     let job = Job {
         audio: &audio,
         language: Some(&lang),
@@ -208,5 +208,44 @@ fn real_print_srt() {
             stamp(s.end),
             s.text
         );
+    }
+}
+
+/// SHADOWING_AUDIO=<file>[;<file>…] SHADOWING_LANG=<ja, or empty to detect>:
+/// sentences and speakers the way the app makes them.
+#[test]
+#[ignore]
+fn real_speakers() {
+    let lang = std::env::var("SHADOWING_LANG")
+        .ok()
+        .filter(|l| !l.is_empty());
+    let file = models_dir().join(models::find("large-v3-turbo-q8_0").unwrap().file);
+    let mut whisper = Whisper::load(&file, "large-v3-turbo-q8_0").unwrap();
+    let audio = std::env::var("SHADOWING_AUDIO").expect("SHADOWING_AUDIO");
+    for audio in audio.split(';') {
+        let job = Job {
+            audio: std::path::Path::new(audio),
+            language: lang.as_deref(),
+            plan: chunk::DEFAULT,
+            cancel: Arc::new(AtomicBool::new(false)),
+        };
+        let mut sentences = run(&job, &mut whisper, Arc::new(|_, _| {})).unwrap();
+        let started = Instant::now();
+        crate::speakers::find(
+            &models_dir(),
+            job.audio,
+            &mut sentences,
+            &job.cancel,
+            |_| {},
+        )
+        .unwrap();
+        println!(
+            "\n== {audio}: speakers in {:.2} s",
+            started.elapsed().as_secs_f64()
+        );
+        for s in &sentences {
+            let who = s.speaker.map_or('-', |n| (b'A' + n) as char);
+            println!("  {:6.2}–{:6.2} {who} {}", s.start, s.end, s.text);
+        }
     }
 }

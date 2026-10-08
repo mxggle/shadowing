@@ -47,7 +47,7 @@ export function TrialStep() {
       path = track.path;
       setSample(track);
       startedAt.current = Date.now();
-      useApp.setState({ job: { state: "running", path, done: 0, total: 0 } });
+      useApp.setState({ job: { state: "running", path, step: "transcribe", done: 0, total: 0 } });
       await api.transcribe.start(path, language, false);
     } catch (e) {
       // Shown through the same job state as a failure reported by Rust.

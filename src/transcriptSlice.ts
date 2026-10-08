@@ -73,7 +73,7 @@ export function createTranscriptSlice(
       const path = get().current?.path;
       if (!path) return;
       get().setTranscribeLanguage(language);
-      set({ job: { state: "running", path, done: 0, total: get().duration } });
+      set({ job: { state: "running", path, step: "transcribe", done: 0, total: get().duration } });
       try {
         await api.transcribe.start(path, language);
       } catch (e) {
@@ -91,7 +91,7 @@ export function createTranscriptSlice(
 
     async restoreJob() {
       const path = await api.transcribe.running().catch(() => null);
-      if (path) set({ job: { state: "running", path, done: 0, total: 0 } });
+      if (path) set({ job: { state: "running", path, step: "transcribe", done: 0, total: 0 } });
     },
 
     async loadTranscript(path) {

@@ -54,6 +54,8 @@ export interface Sentence {
   start: number;
   end: number;
   text: string;
+  /** Who says it (0 = the first voice heard); only set when a transcription heard more than one. */
+  speaker?: number;
 }
 
 export interface Transcript {
@@ -118,7 +120,8 @@ export interface TestReport {
 
 /** `transcribe:status` events; done/total are seconds of audio (total 0 = unknown). */
 export type TranscribeStatus =
-  | { state: "running"; path: string; done: number; total: number }
+  /** done / total in seconds of audio; "speakers" is the pass that tells the voices apart. */
+  | { state: "running"; path: string; step: "transcribe" | "speakers"; done: number; total: number }
   /** saved: false for a trial run (the setup wizard's test on the sample). */
   | { state: "done"; path: string; transcript: Transcript; saved: boolean }
   | { state: "failed"; path: string; message: string }

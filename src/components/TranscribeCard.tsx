@@ -134,14 +134,16 @@ function Progress({ job }: { job: Extract<TranscribeStatus, { state: "running" }
   // Local transcription can take a couple of seconds to stop; show it was heard.
   const [stopping, setStopping] = useState(false);
   const share = job.total > 0 ? job.done / job.total : 0;
+  const speakers = job.step === "speakers";
   return (
     <div className="animate-fade-in rounded-2xl border border-line bg-panel px-4 py-3">
       <div className="flex items-center gap-3">
         <LoaderCircle size={18} className="shrink-0 animate-spin text-muted" />
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-medium">正在转写…</p>
+          <p className="text-[13px] font-medium">{speakers ? "正在区分说话人…" : "正在转写…"}</p>
           <p className="tabular truncate text-[12px] text-faint">
-            {job.done > 0 ? `${formatTime(job.done)} / ${formatTime(job.total)}` : "正在准备音频"} · 可以继续听，完成后字幕会自动出现
+            {job.done > 0 ? `${formatTime(job.done)} / ${formatTime(job.total)}` : speakers ? "正在准备" : "正在准备音频"} ·
+            可以继续听，完成后字幕会自动出现
           </p>
         </div>
         <Button

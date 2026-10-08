@@ -1,7 +1,7 @@
 import { FileUp, Repeat, Trash2 } from "lucide-react";
 import { memo, useEffect, useRef, type RefObject } from "react";
 import type { Sentence } from "../lib/api";
-import { sentenceIndexAt } from "../lib/sentences";
+import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { IconButton } from "./ui";
@@ -11,6 +11,7 @@ export function SentenceList() {
   const sentences = useApp((s) => s.transcript?.sentences ?? []);
   const active = useApp((s) => (s.transcript ? sentenceIndexAt(s.transcript.sentences, s.time) : -1));
   const loopSentence = useApp((s) => s.loopSentence);
+  const voices = speakerCount(sentences) > 1;
   const list = useRef<HTMLDivElement>(null);
   useFollow(list, active);
 
@@ -20,7 +21,15 @@ export function SentenceList() {
       <div ref={list} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto w-full max-w-[760px] px-8 pb-6">
           {sentences.map((sentence, i) => (
-            <Row key={i} index={i} sentence={sentence} active={i === active} looping={i === loopSentence} />
+            <Row
+              key={i}
+              index={i}
+              sentence={sentence}
+              active={i === active}
+              looping={i === loopSentence}
+              voices={voices}
+              turn={voices && startsTurn(sentences, i)}
+            />
           ))}
         </div>
       </div>
@@ -32,10 +41,18 @@ function Header() {
   const transcript = useApp((s) => s.transcript);
   const { importTranscript, removeTranscript } = useApp.getState();
   if (!transcript) return null;
+  const voices = speakerCount(transcript.sentences);
   return (
     <div className="mx-auto flex h-11 w-full max-w-[760px] shrink-0 items-center gap-2 px-10">
       <span className="min-w-0 truncate text-[12px] text-faint" title={`[ ] 换句，S 循环本句 · ${transcript.origin}`}>
-        <span className="tabular font-mono">{transcript.sentences.length}</span> 句 · {transcript.origin}
+        <span className="tabular font-mono">{transcript.sentences.length}</span> 句
+        {voices > 1 && (
+          <>
+            {" · "}
+            <span className="tabular font-mono">{voices}</span> 人
+          </>
+        )}{" "}
+        · {transcript.origin}
       </span>
       <span className="ml-auto flex shrink-0 gap-0.5">
         <IconButton title="导入其他字幕文件" onClick={() => void importTranscript()}>
@@ -51,23 +68,42 @@ function Header() {
   );
 }
 
-const Row = memo(function Row({ index, sentence, active, looping }: {
+/**
+ * One sentence. With more than one voice (`voices`), a column names the
+ * speaker where their turn starts (`turn`), like a script, and turns get a little air between them.
+ */
+const Row = memo(function Row({ index, sentence, active, looping, voices, turn }: {
   index: number;
   sentence: Sentence;
   active: boolean;
   looping: boolean;
+  voices: boolean;
+  turn: boolean;
 }) {
   const { playSentence, toggleSentenceLoop } = useApp.getState();
   const tone = looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover";
+  const columns = voices ? "grid-cols-[3.5rem_1.75rem_1fr_auto]" : "grid-cols-[3.5rem_1fr_auto]";
   return (
     <div
       data-index={index}
       onClick={() => playSentence(index)}
-      className={`group grid grid-cols-[3.5rem_1fr_auto] items-start gap-1 rounded-lg py-2 pr-1 pl-2 transition-colors duration-150 [contain-intrinsic-size:auto_48px] [content-visibility:auto] ${tone}`}
+      className={`group grid ${columns} items-start gap-1 rounded-lg py-2 pr-1 pl-2 transition-colors duration-150 [contain-intrinsic-size:auto_48px] [content-visibility:auto] ${tone} ${turn && index > 0 ? "mt-2" : ""}`}
     >
       <span className={`tabular pt-[5px] font-mono text-[12px] ${looping ? "text-loop-text" : active ? "text-fg" : "text-faint"}`}>
         {formatTime(sentence.start)}
       </span>
+      {voices && (
+        <span className="pt-[3px]">
+          {turn && sentence.speaker !== undefined && (
+            <span
+              title={`说话人 ${speakerName(sentence.speaker)}`}
+              className={`grid h-5 w-5 place-items-center rounded-[5px] bg-press font-mono text-[11px] font-medium ${active || looping ? "text-fg" : "text-muted"}`}
+            >
+              {speakerName(sentence.speaker)}
+            </span>
+          )}
+        </span>
+      )}
       <p className={`text-[16px] leading-relaxed break-words ${active || looping ? "text-fg" : "text-muted"}`}>{sentence.text}</p>
       <button
         title={looping ? "取消循环 (S)" : "循环这一句 (S)"}

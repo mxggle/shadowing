@@ -46,3 +46,16 @@ export function stepTarget(sentences: Sentence[], t: number, direction: 1 | -1):
   if (i >= 0 && t - sentences[i].start > RESTART_AFTER) return i;
   return Math.max(0, i - 1);
 }
+
+/** How many voices a transcription told apart (0 when it didn't). */
+export const speakerCount = (sentences: Sentence[]) =>
+  sentences.reduce((n, s) => (s.speaker === undefined ? n : Math.max(n, s.speaker + 1)), 0);
+
+/** "A", "B", … for speaker 0, 1, … */
+export const speakerName = (speaker: number) => String.fromCharCode(65 + speaker);
+
+/** A sentence that starts someone's turn: its speaker is known and differs from the one before. */
+export function startsTurn(sentences: Sentence[], i: number): boolean {
+  const who = sentences[i]?.speaker;
+  return who !== undefined && (i === 0 || sentences[i - 1].speaker !== who);
+}
