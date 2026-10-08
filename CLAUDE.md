@@ -16,14 +16,17 @@ src/                      前端
   lib/api.ts              唯一调用 Rust 命令的地方（除 audio/engine.ts 的 player_* 命令）
   audio/engine.ts         原生播放器的薄客户端：发命令、收 player:* 事件
   audio/logic.ts          纯函数规则（循环、恢复位置、速度），有单元测试
-  store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts）
+  store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，引导部分在 guideSlice.ts）
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句），有单元测试
+  lib/aiReady.ts          转写 / 解释是否已设置好、向导从哪一步继续，有单元测试
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板）、PlayerBar.tsx 底部播放条、
-                          Loop.tsx 循环面板 / 循环条、PlaybackMenu.tsx 速度等设置；settings/ 是设置面板
+                          Loop.tsx 循环面板 / 循环条、PlaybackMenu.tsx 速度等设置；settings/ 是设置面板；
+                          guide/ 是引导：Welcome.tsx 欢迎页、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示
   dev/smoke.ts            应用内自测脚本（只在 smoke 模式加载）
 src-tauri/src/
   lib.rs                  AppState + 命令注册
   library.rs              扫描文件夹、路径校验（resolve_inside）
+  guide.rs                引导状态（state.json 的 guide）、打包的示例音频（samples/，见 samples/README.md 的出处）
   store.rs                state.json 读写、原子写入
   transcript.rs           每个音频的字幕：app data 里的 transcripts/，或音频旁的同名 .srt/.vtt
   subtitles.rs            SRT / WebVTT 解析
@@ -51,7 +54,8 @@ src-tauri/src/
 ## 约定
 
 - 保持小：单个文件尽量 < 300 行；新增依赖需要说明理由。
-- 只有用户在原生对话框里选择的文件夹才被授权；Rust 命令访问文件前都要 `resolve_inside` 校验。
+- 只有用户在原生对话框里选择的文件夹（加上应用自带的只读 `samples/`）才被授权；Rust 命令访问文件前都要经过
+  `AppState::audio` / `allowed`（内部用 `resolve_inside`）。
 - 所有对外网络请求都从 Rust 发出（不经 WebView）；前端只传服务 id，不传 URL 或 Key 去请求。
 - 新规则优先写成纯函数并加测试（TS 放 `*.test.ts`，Rust 放模块内 `#[cfg(test)]`）。
 - 用户可见文案用简体中文，直接写在组件里（暂不做 i18n）。
@@ -66,7 +70,7 @@ npm run check                         # tsc + vite build + vitest + cargo fmt/cl
 scripts/make-fixtures.sh <文件夹>       # 生成自测用的测试音频（需要 say + ffmpeg）
 npm run smoke -- <文件夹>              # 构建调试版 .app，在真实应用里跑自测并打印 PASS/FAIL
                                       # （会在 18765 端口启动 scripts/fake-whisper.py 测转写全流程）
-npm run dev                           # 浏览器 + mock 后端，只用来调 UI（没有真实声音）
+npm run dev                           # 浏览器 + mock 后端，只用来调 UI（没有真实声音）；地址加 ?fresh 模拟第一次打开
 npm run app                           # 开发模式启动应用
 ```
 

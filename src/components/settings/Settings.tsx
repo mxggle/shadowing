@@ -2,7 +2,7 @@ import { Settings as Gear, X } from "lucide-react";
 import { useEffect } from "react";
 import type { Feature } from "../../lib/api";
 import { useApp } from "../../store";
-import { IconButton } from "../ui";
+import { Button, IconButton } from "../ui";
 import { ProviderSetup } from "./ProviderSetup";
 
 /** Gear in the top bar; ⌘, also opens settings, as in every Mac app. */
@@ -70,6 +70,21 @@ export function SettingsDialog() {
           </IconButton>
         </header>
         <div className="overflow-y-auto px-5 pt-4 pb-5">
+          <h3 className="text-[13px] font-semibold">入门</h3>
+          <div className="mt-2 mb-6 flex flex-col divide-y divide-line rounded-xl border border-line bg-panel">
+            <GuideRow
+              title="示例练习"
+              description="用一段约 30 秒的示例音频，练一遍播放、放慢、循环和跟读。"
+              action="开始"
+              onClick={() => void useApp.getState().startPractice()}
+            />
+            <GuideRow
+              title="AI 设置向导"
+              description="一步步设置转写和句子解释，最后用示例音频试一次。"
+              action="打开"
+              onClick={() => useApp.getState().setWizardOpen(true)}
+            />
+          </div>
           <h3 className="text-[13px] font-semibold">
             AI 功能 <span className="ml-1 font-normal text-faint">可选</span>
           </h3>
@@ -87,6 +102,18 @@ export function SettingsDialog() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function GuideRow({ title, description, action, onClick }: { title: string; description: string; action: string; onClick: () => void }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <h4 className="text-[13px] font-medium">{title}</h4>
+        <p className="mt-0.5 text-[12px] text-muted">{description}</p>
+      </div>
+      <Button onClick={onClick}>{action}</Button>
     </div>
   );
 }

@@ -14,7 +14,7 @@ mod tests;
 use crate::ai::secrets::Secrets;
 use crate::ai::Target;
 use crate::transcript::{self, Sentence, Source, Transcript};
-use crate::{library, local, AppState};
+use crate::{local, AppState};
 use chunk::ChunkPlan;
 use pcm::RATE;
 use sentences::Verbose;
@@ -42,6 +42,8 @@ pub enum Status {
     Done {
         path: String,
         transcript: Transcript,
+        /// False for a trial run (the setup wizard's test on the sample).
+        saved: bool,
     },
     Failed {
         path: String,
@@ -102,7 +104,7 @@ pub fn run(
     let mut sent = 0usize;
     let mut more = true;
     let mut pieces = Vec::new();
-    let mut prompt = String::new();
+    let mut prompt = cloud::style_prompt(job.language);
     let mut meter = snap::Meter::default();
     progress(0.0, total);
 
@@ -158,6 +160,7 @@ enum Backend {
 
 /// Starts transcribing a track with the service chosen in settings.
 /// `language`: ISO-639-1 code, or "" to let the model detect it.
+/// `keep`: save the result as the track's transcript (false for a trial run).
 #[tauri::command]
 pub fn transcribe_start(
     app: AppHandle,
@@ -166,11 +169,9 @@ pub fn transcribe_start(
     jobs: State<Jobs>,
     path: String,
     language: String,
+    keep: bool,
 ) -> Result<(), String> {
-    let root = state.root().ok_or("尚未选择文件夹")?;
-    let audio = library::resolve_inside(&root, Path::new(&path))
-        .filter(|p| library::is_audio(p))
-        .ok_or("无法访问此文件")?;
+    let audio = state.audio(&path)?;
     let choice = state.read(|d| d.ai.transcribe.clone());
     let provider = choice.provider.ok_or("还没有设置转写服务")?;
     if choice.model.is_empty() {
@@ -237,10 +238,16 @@ pub fn transcribe_start(
                         origin,
                         sentences,
                     };
-                    match transcript::save(&dir, &key, &transcript) {
+                    let saved = if keep {
+                        transcript::save(&dir, &key, &transcript)
+                    } else {
+                        Ok(())
+                    };
+                    match saved {
                         Ok(()) => Status::Done {
                             path: path.clone(),
                             transcript,
+                            saved: keep,
                         },
                         Err(e) => Status::Failed {
                             path: path.clone(),

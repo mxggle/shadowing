@@ -118,12 +118,9 @@ pub fn find_sidecar(audio: &Path) -> Option<PathBuf> {
     found.into_iter().next().map(|(_, _, path)| path)
 }
 
-/// Canonical audio path inside the approved folder, plus the transcripts dir.
+/// Canonical audio path (approved folder or bundled samples), plus the transcripts dir.
 fn authorize(state: &AppState, path: &str) -> Result<(PathBuf, String, PathBuf), String> {
-    let root = state.root().ok_or("尚未选择文件夹")?;
-    let audio = library::resolve_inside(&root, Path::new(path))
-        .filter(|p| library::is_audio(p))
-        .ok_or("无法访问此文件")?;
+    let audio = state.audio(path)?;
     let key = audio.to_string_lossy().into_owned();
     Ok((audio, key, state.data_dir().join("transcripts")))
 }
@@ -134,9 +131,8 @@ pub fn transcript_get(state: State<AppState>, path: String) -> Result<Option<Tra
     if let Some(t) = load(&dir, &key) {
         return Ok(Some(t));
     }
-    let root = state.root().ok_or("尚未选择文件夹")?;
     Ok(find_sidecar(&audio)
-        .and_then(|p| library::resolve_inside(&root, &p))
+        .and_then(|p| state.allowed(&p))
         .and_then(|p| read_subtitle(&p, Source::Sidecar).ok()))
 }
 
@@ -186,10 +182,9 @@ pub async fn transcript_remove(
     if confirmed {
         remove(&dir, &key).map_err(|e| e.to_string())?;
     }
-    let root = state.root().ok_or("尚未选择文件夹")?;
     Ok(load(&dir, &key).or_else(|| {
         find_sidecar(&audio)
-            .and_then(|p| library::resolve_inside(&root, &p))
+            .and_then(|p| state.allowed(&p))
             .and_then(|p| read_subtitle(&p, Source::Sidecar).ok())
     }))
 }

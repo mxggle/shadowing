@@ -4,8 +4,7 @@
 //! frontend can discard older `player:status` events still in flight.
 
 use super::{Player, Status};
-use crate::{library, AppState};
-use std::path::Path;
+use crate::AppState;
 use tauri::State;
 
 #[tauri::command]
@@ -16,10 +15,7 @@ pub fn player_load(
     start_at: f64,
     autoplay: bool,
 ) -> Result<Status, String> {
-    let root = state.root().ok_or("尚未选择文件夹")?;
-    let file = library::resolve_inside(&root, Path::new(&path))
-        .filter(|p| library::is_audio(p))
-        .ok_or("无法访问此文件")?;
+    let file = state.audio(&path)?;
     player.load(path, file, start_at, autoplay)?;
     Ok(player.status())
 }

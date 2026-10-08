@@ -55,7 +55,10 @@ function LoopButton() {
       title={look.title}
       disabled={!hasTrack}
       aria-pressed={phase === "active"}
-      onClick={() => useApp.getState().cycleLoop()}
+      onClick={() => {
+        useApp.getState().cycleLoop();
+        useApp.getState().tip("abLoop");
+      }}
       data-flash={flashing || undefined}
       className={`flex h-8 max-w-full items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium whitespace-nowrap transition-[background-color,color,box-shadow,scale] duration-150 ease-snappy active:scale-[0.96] disabled:pointer-events-none disabled:opacity-35 data-[flash]:scale-[0.96] ${look.style}`}
     >
@@ -67,7 +70,7 @@ function LoopButton() {
 
 function Transport() {
   const hasTrack = useApp((s) => !!s.current);
-  const hasTracks = useApp((s) => !!s.folder?.tracks.length);
+  const hasTracks = useApp((s) => !!s.current || !!s.folder?.tracks.length);
   const playing = useApp((s) => s.playing);
   const seekStep = useApp((s) => s.settings.seekStep);
   const { toggle, jump, step } = useApp.getState();

@@ -128,7 +128,7 @@ fn transcribes_in_pieces_cut_at_pauses() {
         assert!(first.contains(part), "missing {part}");
     }
     assert!(first.contains("name=\"language\"\r\n\r\nen"));
-    assert!(!first.contains("name=\"prompt\""));
+    assert!(first.contains("name=\"prompt\"\r\n\r\nHello, everyone."));
     assert!(
         requests[1].contains("name=\"prompt\"\r\n\r\nPiece 0."),
         "context from the previous piece"

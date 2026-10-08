@@ -1,12 +1,35 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronRight, ChevronsDownUp, ChevronsUpDown, FolderOpen, RefreshCw } from "lucide-react";
 import { isFinished } from "../audio/logic";
-import type { Progress, Track } from "../lib/api";
+import type { FolderListing, Progress, Track } from "../lib/api";
 import { useApp } from "../store";
 import { IconButton } from "./ui";
 
 export function Library() {
-  const folder = useApp((s) => s.folder)!;
+  const folder = useApp((s) => s.folder);
+  return folder ? <FolderView folder={folder} /> : <NoFolder />;
+}
+
+/** While practising on the sample before any folder is open. */
+function NoFolder() {
+  const chooseFolder = useApp((s) => s.chooseFolder);
+  return (
+    <aside className="flex min-h-0 flex-col border-r border-line bg-sidebar">
+      <div data-tauri-drag-region className="h-[52px] shrink-0" />
+      <div className="mx-3 mt-2 flex flex-col items-center gap-3 rounded-xl border border-dashed border-line px-4 py-6 text-center">
+        <p className="text-[13px] text-muted">还没有打开你的音频文件夹</p>
+        <button
+          onClick={() => void chooseFolder()}
+          className="flex h-8 items-center gap-1.5 rounded-lg bg-hover px-3 text-[13px] font-medium transition-[background-color,scale] duration-150 ease-snappy hover:bg-press active:scale-[0.96]"
+        >
+          <FolderOpen size={15} /> 打开文件夹
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function FolderView({ folder }: { folder: FolderListing }) {
   const chooseFolder = useApp((s) => s.chooseFolder);
   const rescan = useApp((s) => s.rescan);
   const [scanning, setScanning] = useState(false);

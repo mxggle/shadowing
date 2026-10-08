@@ -29,12 +29,25 @@ export interface Progress {
   updatedAt: number;
 }
 
+/** First-run guide: what the learner chose and has done. */
+export interface Guide {
+  /** The welcome screen was answered (or skipped). */
+  welcomed: boolean;
+  /** "ja", "en" or "other": picks the sample clip. */
+  language: string;
+  /** The practice on the sample was finished or skipped. */
+  practiced: boolean;
+  /** Contextual tips already shown once. */
+  tips: string[];
+}
+
 export interface Snapshot {
   folder: FolderListing | null;
   missingFolder: string | null;
   lastTrack: string | null;
   settings: Settings;
   progress: Record<string, Progress>;
+  guide: Guide;
 }
 
 export interface Sentence {
@@ -106,7 +119,8 @@ export interface TestReport {
 /** `transcribe:status` events; done/total are seconds of audio (total 0 = unknown). */
 export type TranscribeStatus =
   | { state: "running"; path: string; done: number; total: number }
-  | { state: "done"; path: string; transcript: Transcript }
+  /** saved: false for a trial run (the setup wizard's test on the sample). */
+  | { state: "done"; path: string; transcript: Transcript; saved: boolean }
   | { state: "failed"; path: string; message: string }
   | { state: "cancelled"; path: string };
 
@@ -153,6 +167,9 @@ export const api = {
     invoke<void>("save_progress", { path, position, duration }),
   setLastTrack: (path: string | null) => invoke<void>("set_last_track", { path }),
   saveSettings: (settings: Settings) => invoke<void>("save_settings", { settings }),
+  saveGuide: (guide: Guide) => invoke<void>("guide_save", { guide }),
+  /** The bundled practice clip (Japanese for "ja", English otherwise), with its subtitles beside it. */
+  sampleTrack: (language: string) => invoke<Track>("sample_track", { language }),
   getTranscript: (path: string) => invoke<Transcript | null>("transcript_get", { path }),
   /** Opens the file picker; null when cancelled. */
   importTranscript: (path: string) => invoke<Transcript | null>("transcript_import", { path }),
@@ -186,8 +203,11 @@ export const api = {
     remove: (id: string) => invoke<LocalOverview>("local_delete", { id }),
   },
   transcribe: {
-    /** language: ISO-639-1 code, or "" to detect. Progress arrives as `transcribe:status`. */
-    start: (path: string, language: string) => invoke<void>("transcribe_start", { path, language }),
+    /**
+     * language: ISO-639-1 code, or "" to detect. Progress arrives as `transcribe:status`.
+     * keep: false for a trial run whose result is not saved.
+     */
+    start: (path: string, language: string, keep = true) => invoke<void>("transcribe_start", { path, language, keep }),
     cancel: () => invoke<void>("transcribe_cancel"),
     running: () => invoke<string | null>("transcribe_running"),
   },

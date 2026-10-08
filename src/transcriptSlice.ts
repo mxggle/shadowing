@@ -51,7 +51,7 @@ export function createTranscriptSlice(
 
   void listen<TranscribeStatus>("transcribe:status", ({ payload }) => {
     set({ job: payload });
-    if (payload.state === "done") forCurrent(payload.path, payload.transcript);
+    if (payload.state === "done" && payload.saved) forCurrent(payload.path, payload.transcript);
   });
 
   function startAt(i: number) {

@@ -63,8 +63,8 @@ function RateControl() {
       incTitle="加速 (=)"
       decFlash="slower"
       incFlash="faster"
-      onDec={() => setRate(rate - RATE_STEP)}
-      onInc={() => setRate(rate + RATE_STEP)}
+      onDec={() => (setRate(rate - RATE_STEP), useApp.getState().tip("rate"))}
+      onInc={() => (setRate(rate + RATE_STEP), useApp.getState().tip("rate"))}
     >
       <button title="点击恢复 1.0×" onClick={() => setRate(1)} className="tabular h-8 w-full font-mono text-[13px] font-medium">
         {rate.toFixed(2)}×

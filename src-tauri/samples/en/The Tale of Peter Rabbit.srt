@@ -1,0 +1,23 @@
+1
+00:00:00,200 --> 00:00:06,100
+Once upon a time there were four little Rabbits, and their names were Flopsy, Mopsy, Cotton-tail, and Peter.
+
+2
+00:00:06,800 --> 00:00:11,050
+They lived with their Mother in a sand-bank, underneath the root of a very big fir-tree.
+
+3
+00:00:12,150 --> 00:00:19,300
+‘Now my dears,’ said old Mrs. Rabbit one morning, ‘you may go into the fields or down the lane, but don’t go into Mr. McGregor’s garden:
+
+4
+00:00:19,350 --> 00:00:23,250
+your Father had an accident there; he was put in a pie by Mrs. McGregor.’
+
+5
+00:00:24,100 --> 00:00:26,050
+‘Now run along, and don’t get into mischief.
+
+6
+00:00:26,050 --> 00:00:27,350
+I am going out.’

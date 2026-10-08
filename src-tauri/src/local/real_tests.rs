@@ -170,3 +170,43 @@ fn real_speed_and_cancel_on_a_long_file() {
         assert!(started.elapsed().as_secs_f64() < 5.0);
     }
 }
+
+/// SHADOWING_AUDIO=<file> SHADOWING_LANG=ja: prints the sentences as SRT
+/// (how the bundled sample transcripts were drafted before hand-checking).
+#[test]
+#[ignore]
+fn real_print_srt() {
+    let audio = PathBuf::from(std::env::var("SHADOWING_AUDIO").expect("SHADOWING_AUDIO"));
+    let lang = std::env::var("SHADOWING_LANG").unwrap_or_else(|_| "ja".into());
+    let file = models_dir().join(models::find("large-v3-turbo-q8_0").unwrap().file);
+    let mut whisper = Whisper::load(&file).unwrap();
+    let job = Job {
+        audio: &audio,
+        language: Some(&lang),
+        plan: chunk::DEFAULT,
+        cancel: Arc::new(AtomicBool::new(false)),
+    };
+    let stamp = |t: f64| {
+        let ms = (t * 1000.0).round() as u64;
+        format!(
+            "{:02}:{:02}:{:02},{:03}",
+            ms / 3_600_000,
+            ms / 60_000 % 60,
+            ms / 1000 % 60,
+            ms % 1000
+        )
+    };
+    for (i, s) in run(&job, &mut whisper, Arc::new(|_, _| {}))
+        .unwrap()
+        .iter()
+        .enumerate()
+    {
+        println!(
+            "{}\n{} --> {}\n{}\n",
+            i + 1,
+            stamp(s.start),
+            stamp(s.end),
+            s.text
+        );
+    }
+}

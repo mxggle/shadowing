@@ -83,6 +83,22 @@ async fn request(
     })
 }
 
+/// Prompt for the first piece. Whisper copies the style of its prompt; without
+/// one, English often comes back with no punctuation (one endless "sentence").
+pub fn style_prompt(language: Option<&str>) -> String {
+    match language.unwrap_or("") {
+        "ja" => "こんにちは。今日は、いい天気ですね。",
+        "zh" => "你好。今天的天气，真不错。",
+        "ko" => "안녕하세요. 오늘은 날씨가 좋네요.",
+        "en" => "Hello, everyone. Welcome to today's lesson.",
+        "fr" => "Bonjour à tous. Bienvenue à la leçon d'aujourd'hui.",
+        "de" => "Hallo zusammen. Willkommen zur heutigen Lektion.",
+        "es" => "Hola a todos. Bienvenidos a la lección de hoy.",
+        _ => "",
+    }
+    .to_string()
+}
+
 /// The last ~100 characters of text, cut at a word boundary where there is one.
 pub fn tail_prompt(text: &str) -> String {
     let chars: Vec<char> = text.trim().chars().collect();

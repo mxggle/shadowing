@@ -3,6 +3,7 @@
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import type { AiConfig, Feature, Preset, Snapshot, Track, Transcript } from "../lib/api";
+import { fresh, samples, sampleTranscripts } from "./mockSamples";
 
 const root = "/Mock/日本語ポッドキャスト";
 const tracks: Track[] = [
@@ -33,6 +34,9 @@ const mockTranscript = (origin: string, count: number): Transcript => ({
   sentences: Array.from({ length: count }, (_, i) => ({ start: 2 + i * 6, end: 2 + i * 6 + 4.2, text: lines[i % lines.length] })),
 });
 const transcripts = new Map<string, Transcript>([[tracks[1].path, { ...mockTranscript("02 天気の話.srt", 32), source: "sidecar" }]]);
+
+for (const [path, t] of sampleTranscripts) transcripts.set(path, t);
+const durationOf = (path: string) => (path.startsWith("/App/samples/") ? 32.7 : 180 + tracks.findIndex((t) => t.path === path) * 20);
 
 // AI settings: a trimmed copy of the Rust presets; "bad" as a key fails the test, LM Studio is "not running".
 const cloud: Omit<Preset, "id" | "name" | "baseUrl"> = { api: "openAi", local: false, key: "required", keyUrl: "https://example.com", features: ["chat"], transcribeModel: null, transcribePrices: [], chatModel: null, note: "" };
@@ -101,10 +105,10 @@ function mockDownload(id: string) {
 
 // Transcription: ~4 s of fake progress, then a transcript. Language "xx" fails, to see the error state.
 let job: { path: string; timer: number; cancelled: boolean } | null = null;
-function mockTranscribe(path: string, language: string) {
+function mockTranscribe(path: string, language: string, keep: boolean) {
   if (!aiConfig.transcribe.provider) throw "还没有设置转写服务";
   if (job) throw "已经有一个音频在转写，请等它完成";
-  const total = 180 + tracks.findIndex((t) => t.path === path) * 20;
+  const total = durationOf(path);
   let done = 0;
   const status = (s: object) => void emit("transcribe:status", { path, ...s });
   job = {
@@ -115,9 +119,10 @@ function mockTranscribe(path: string, language: string) {
       done = Math.min(total, done + total / 8);
       if (language === "xx" && done > total / 2) return finish({ state: "failed", message: "Groq 额度不足或请求太频繁（429）" });
       if (done < total) return status({ state: "running", done, total });
-      const transcript = { ...mockTranscript(`${presets.find((p) => p.id === aiConfig.transcribe.provider)?.name} · ${aiConfig.transcribe.model}`, 28), source: "transcribed" as const };
-      transcripts.set(path, transcript);
-      finish({ state: "done", transcript });
+      const origin = `${presets.find((p) => p.id === aiConfig.transcribe.provider)?.name} · ${aiConfig.transcribe.model}`;
+      const transcript = { ...(transcripts.get(path) ?? mockTranscript(origin, 28)), origin, source: "transcribed" as const };
+      if (keep) transcripts.set(path, transcript);
+      finish({ state: "done", transcript, saved: keep });
     }, 500),
   };
   function finish(s: object) {
@@ -149,14 +154,15 @@ setInterval(() => {
 
 export function installMockBackend() {
   const snapshot: Snapshot = {
-    folder: { root, name: "日本語ポッドキャスト", tracks },
+    folder: fresh ? null : { root, name: "日本語ポッドキャスト", tracks },
     missingFolder: null,
-    lastTrack: tracks[1].path,
+    lastTrack: fresh ? null : tracks[1].path,
     settings: { rate: 0.85, autoAdvance: true, seekStep: 5, transcribeLanguage: "" },
     progress: {
       [tracks[0].path]: { position: 178, duration: 180, updatedAt: 0 },
       [tracks[1].path]: { position: 64, duration: 200, updatedAt: 0 },
     },
+    guide: { welcomed: !fresh, language: fresh ? "" : "ja", practiced: !fresh, tips: [] },
   };
   mockIPC(
     (cmd, args) => {
@@ -165,7 +171,7 @@ export function installMockBackend() {
         case "get_snapshot":
           return snapshot;
         case "player_load":
-          Object.assign(player, { path: a.path, time: a.startAt, duration: 180 + tracks.findIndex((t) => t.path === a.path) * 20, playing: a.autoplay, a: null, b: null, repeats: 0 });
+          Object.assign(player, { path: a.path, time: a.startAt, duration: durationOf(a.path), playing: a.autoplay, a: null, b: null, repeats: 0 });
           return status();
         case "player_play":
         case "player_pause":
@@ -254,7 +260,14 @@ export function installMockBackend() {
           delete aiConfig.keyHints.chatgpt;
           return aiConfig;
         case "transcribe_start":
-          return mockTranscribe(a.path, a.language);
+          return mockTranscribe(a.path, a.language, a.keep);
+        case "sample_track":
+          return samples[a.language === "ja" ? "ja" : "en"];
+        case "guide_save":
+          snapshot.guide = a.guide;
+          return;
+        case "choose_folder":
+          return { root, name: "日本語ポッドキャスト", tracks };
         case "transcribe_cancel":
           if (job) job.cancelled = true;
           return;

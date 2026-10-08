@@ -3,9 +3,10 @@ import { AudioEngine } from "./audio/engine";
 import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, type Loop } from "./audio/logic";
 import { listen } from "@tauri-apps/api/event";
 import { api, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
+import { createGuideSlice, type GuideState } from "./guideSlice";
 import { createTranscriptSlice, type TranscriptState } from "./transcriptSlice";
 
-export interface AppState extends TranscriptState {
+export interface AppState extends TranscriptState, GuideState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -132,6 +133,7 @@ export const useApp = create<AppState>((set, get) => {
     download: null,
     settingsOpen: false,
     ...createTranscriptSlice(set, get, engine, applyLoop),
+    ...createGuideSlice(set, get, engine),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
@@ -141,6 +143,7 @@ export const useApp = create<AppState>((set, get) => {
         missingFolder: snap.missingFolder,
         progress: snap.progress,
         settings: snap.settings,
+        guide: snap.guide,
         ai,
         local,
         download: local.downloading ? { state: "running", id: local.downloading, done: 0, total: 0 } : null,
@@ -169,7 +172,8 @@ export const useApp = create<AppState>((set, get) => {
       if (!folder) return;
       saveProgress(true);
       engine.unload();
-      set({ folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null });
+      set({ folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, practicing: false });
+      if (!get().guide.welcomed) get().saveGuide({ welcomed: true });
     },
 
     async rescan() {
@@ -179,6 +183,8 @@ export const useApp = create<AppState>((set, get) => {
 
     open(track, autoplay = true) {
       saveProgress(true);
+      // Picking one of your own tracks ends the practice on the sample.
+      if (get().practicing && track.path !== get().sample?.path) set({ practicing: false });
       const start = resumePosition(get().progress[track.path]);
       set({ current: track, time: start, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null });
       void get().loadTranscript(track.path);
@@ -213,6 +219,7 @@ export const useApp = create<AppState>((set, get) => {
       const { folder, current } = get();
       if (!folder || !current) return;
       const i = folder.tracks.findIndex((t) => t.path === current.path);
+      if (i < 0) return; // the sample clip isn't part of the folder
       const next = folder.tracks[i + direction];
       if (next) get().open(next, true);
     },

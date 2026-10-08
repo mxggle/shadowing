@@ -1,5 +1,6 @@
 import { AlertCircle } from "lucide-react";
 import { useApp } from "../store";
+import { PracticeCoach } from "./guide/PracticeCoach";
 import { LoopPanel, LoopStrip } from "./Loop";
 import { TranscribeCard } from "./TranscribeCard";
 import { SentenceList } from "./Transcript";
@@ -11,6 +12,7 @@ import { SentenceList } from "./Transcript";
 export function Stage() {
   const hasTrack = useApp((s) => !!s.current);
   const hasTranscript = useApp((s) => !!s.transcript?.sentences.length);
+  const coaching = useApp((s) => s.practicing && !!s.current && s.current.path === s.sample?.path);
 
   if (!hasTrack) {
     return (
@@ -25,6 +27,7 @@ export function Stage() {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <TrackTitle />
+        {coaching && <PracticeCoach />}
         <SentenceList />
         <LoopStrip />
       </div>

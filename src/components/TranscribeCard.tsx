@@ -1,6 +1,7 @@
 import { AlertCircle, Cloud, FileText, FileUp, Laptop, LoaderCircle, Sparkles } from "lucide-react";
 import { useState } from "react";
 import type { TranscribeStatus } from "../lib/api";
+import { featureReady } from "../lib/aiReady";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { Button, fieldClass } from "./ui";
@@ -23,6 +24,7 @@ const LANGUAGES: [string, string][] = [
 export function TranscribeCard() {
   const current = useApp((s) => s.current);
   const job = useApp((s) => s.job);
+  const ready = useApp((s) => featureReady("transcribe", s.ai, s.local));
   const [open, setOpen] = useState(false);
   if (!current) return null;
 
@@ -45,12 +47,17 @@ export function TranscribeCard() {
           <FileUp size={15} />
           导入
         </Button>
-        <Button primary={!open} disabled={elsewhere} onClick={() => setOpen(!open)}>
+        <Button
+          primary={!open}
+          disabled={elsewhere}
+          // Nothing set up yet: the setup wizard explains the choices first.
+          onClick={() => (ready ? setOpen(!open) : useApp.getState().setWizardOpen(true))}
+        >
           <Sparkles size={15} />
           AI 转写
         </Button>
       </div>
-      {open && !elsewhere && <TranscribeForm onClose={() => setOpen(false)} />}
+      {open && ready && !elsewhere && <TranscribeForm onClose={() => setOpen(false)} />}
     </div>
   );
 }
@@ -66,29 +73,7 @@ function TranscribeForm({ onClose }: { onClose: () => void }) {
   const choice = ai?.config.transcribe;
   const preset = ai?.presets.find((p) => p.id === choice?.provider);
   const builtin = preset?.api === "builtin";
-  const ready =
-    !!preset &&
-    !!choice?.model &&
-    (builtin
-      ? !!local?.models.find((m) => m.id === choice.model)?.downloaded
-      : preset.key !== "required" || !!ai?.config.keyHints[preset.id]);
-
-  if (!ready) {
-    return (
-      <div className="flex animate-fade-in items-center gap-3 border-t border-line px-4 py-3">
-        <p className="min-w-0 flex-1 text-[12px] text-muted">
-          {builtin
-            ? "本机转写的模型还没有下载完。可以在设置里查看下载进度。"
-            : local?.supported
-              ? "还没有设置转写服务。可以在这台 Mac 上转写（免费，需要下载一个模型），或用 Groq、OpenAI 等云端服务。"
-              : "还没有设置转写服务。可以用 Groq（约 $0.11 / 小时音频）或 OpenAI，需要一个 API Key。"}
-        </p>
-        <Button primary onClick={() => setSettingsOpen(true)}>
-          去设置
-        </Button>
-      </div>
-    );
-  }
+  if (!preset || !choice) return null;
 
   const price = preset.transcribePrices.find(([m]) => m === choice!.model)?.[1];
   const cost = price && duration > 0 ? price * (duration / 3600) : null;

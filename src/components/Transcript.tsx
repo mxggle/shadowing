@@ -75,6 +75,7 @@ const Row = memo(function Row({ index, sentence, active, looping }: {
         onClick={(e) => {
           e.stopPropagation();
           toggleSentenceLoop(index);
+          useApp.getState().tip("sentenceLoop");
         }}
         className={`grid size-7 place-items-center rounded-md transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${
           looping ? "text-loop" : "text-muted opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-fg"

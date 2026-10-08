@@ -221,6 +221,22 @@ async function scenario() {
   const stored = await api.getTranscript(untranscribed.path);
   check("transcript saved for next time", stored?.source === "transcribed");
 
+  // 12. The bundled practice clip plays from inside the app with its subtitles; a trial run isn't saved.
+  const sample = await api.sampleTrack("ja");
+  app().open(sample, true);
+  const samplePlays = await waitFor(async () => (await rust()) > 0.3 || !!app().error, 5000);
+  check("bundled sample plays", samplePlays && !app().error, app().error ?? sample.path);
+  await waitFor(() => !!app().transcript, 2000);
+  const sampleText = app().transcript;
+  check("sample brings its 4 sentences", sampleText?.source === "sidecar" && sampleText.sentences.length === 4, sampleText?.origin ?? "none");
+  engine.pause();
+  await api.transcribe.start(sample.path, "ja", false);
+  await waitFor(() => app().job?.path === sample.path && app().job?.state !== "running", 20000);
+  const trial = app().job;
+  check("trial transcription of the sample", trial?.state === "done" && !trial.saved, trial?.state === "failed" ? trial.message : trial?.state);
+  const kept = await api.getTranscript(sample.path);
+  check("trial result is not saved", kept?.source === "sidecar" && app().transcript?.source === "sidecar", kept?.source);
+
   // 11. Local whisper.cpp on a real model, if one has been downloaded (see smoke.sh).
   const local = await api.local.models();
   const small = local.models.find((m) => m.id === "small-q5_1");

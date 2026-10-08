@@ -14,7 +14,7 @@ export function useShortcuts() {
       if (isTypingTarget(e.target)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const s = useApp.getState();
-      if (s.settingsOpen) return;
+      if (s.settingsOpen || s.wizardOpen) return;
       const actions: Record<string, [() => void, FlashId?]> = {
         " ": [s.toggle, "toggle"],
         ArrowLeft: [() => s.jump(-1), "back"],

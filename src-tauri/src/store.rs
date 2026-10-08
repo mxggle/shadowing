@@ -44,6 +44,7 @@ pub struct Persisted {
     /// Keyed by absolute track path.
     pub progress: HashMap<String, Progress>,
     pub ai: crate::ai::AiConfig,
+    pub guide: crate::guide::Guide,
 }
 
 impl Persisted {

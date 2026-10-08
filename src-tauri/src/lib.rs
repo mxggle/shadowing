@@ -1,5 +1,6 @@
 mod ai;
 mod audio;
+mod guide;
 mod library;
 mod local;
 mod smoke;
@@ -11,7 +12,7 @@ mod transcript;
 use library::FolderListing;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 use store::{Persisted, Progress, Settings};
@@ -21,12 +22,29 @@ use tauri_plugin_dialog::DialogExt;
 pub struct AppState {
     state_path: PathBuf,
     data: Mutex<Persisted>,
+    /// Bundled sample clips (read-only), playable without choosing a folder.
+    pub samples: Option<PathBuf>,
 }
 
 impl AppState {
     /// The single approved folder (canonical). Media requests outside it are refused.
     pub fn root(&self) -> Option<PathBuf> {
         self.data.lock().unwrap().folder.clone()
+    }
+
+    /// Canonical path if it is inside the approved folder or the bundled samples.
+    pub fn allowed(&self, path: &Path) -> Option<PathBuf> {
+        [self.root(), self.samples.clone()]
+            .into_iter()
+            .flatten()
+            .find_map(|root| library::resolve_inside(&root, path))
+    }
+
+    /// An audio file the webview may use (play, transcribe, attach subtitles to).
+    pub fn audio(&self, path: &str) -> Result<PathBuf, String> {
+        self.allowed(Path::new(path))
+            .filter(|p| library::is_audio(p))
+            .ok_or_else(|| "无法访问此文件".into())
     }
 
     /// Where state.json lives; transcripts and models sit beside it.
@@ -57,6 +75,7 @@ struct Snapshot {
     last_track: Option<String>,
     settings: Settings,
     progress: HashMap<String, Progress>,
+    guide: guide::Guide,
 }
 
 fn now_secs() -> u64 {
@@ -82,6 +101,7 @@ fn get_snapshot(state: State<AppState>) -> Snapshot {
         last_track: data.last_track,
         settings: data.settings,
         progress: data.progress,
+        guide: data.guide,
     }
 }
 
@@ -179,6 +199,7 @@ pub fn run() {
             app.manage(AppState {
                 state_path,
                 data: Mutex::new(data),
+                samples: guide::samples_dir(app.handle()),
             });
             // Smoke runs never touch the real Keychain.
             let store: Box<dyn ai::secrets::SecretStore> = match ai::secrets::Keychain::new() {
@@ -204,6 +225,8 @@ pub fn run() {
             set_last_track,
             save_settings,
             log_line,
+            guide::guide_save,
+            guide::sample_track,
             ai::ai_get,
             ai::ai_choose,
             ai::ai_set_base_url,
