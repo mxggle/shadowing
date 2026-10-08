@@ -16,13 +16,16 @@ src/                      前端
   lib/api.ts              唯一调用 Rust 命令的地方（除 audio/engine.ts 的 player_* 命令）
   audio/engine.ts         原生播放器的薄客户端：发命令、收 player:* 事件
   audio/logic.ts          纯函数规则（循环、恢复位置、速度），有单元测试
-  store.ts                唯一的 Zustand store
+  store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts）
+  lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句），有单元测试
   components/             UI
   dev/smoke.ts            应用内自测脚本（只在 smoke 模式加载）
 src-tauri/src/
   lib.rs                  AppState + 命令注册
   library.rs              扫描文件夹、路径校验（resolve_inside）
-  store.rs                state.json 读写
+  store.rs                state.json 读写、原子写入
+  transcript.rs           每个音频的字幕：app data 里的 transcripts/，或音频旁的同名 .srt/.vtt
+  subtitles.rs            SRT / WebVTT 解析
   audio/                  原生播放引擎（见下）
   smoke.rs                调试构建专用自测入口
 ```

@@ -47,6 +47,7 @@ function Cell({ label, keys, children }: { label: string; keys?: string[]; child
 /** One button walks through the same cycle as the L key: set A → set B (loop starts) → off. */
 function LoopSection() {
   const loop = useApp((s) => s.loop);
+  const loopSentence = useApp((s) => s.loopSentence);
   const hasTrack = useApp((s) => !!s.current);
   const { cycleLoop, clearLoop, nudgeLoop } = useApp.getState();
   const flashing = useFlash("loop");
@@ -55,7 +56,7 @@ function LoopSection() {
   const button = {
     idle: { label: "A–B 循环", title: "设起点 A (L)", style: "bg-hover text-fg hover:bg-press" },
     armed: { label: "设终点 B", title: "设终点 B (L)", style: "bg-accent-soft text-accent-text ring-1 ring-accent/40 ring-inset" },
-    active: { label: "循环中", title: "取消循环 (L)", style: "bg-accent text-white hover:brightness-110" },
+    active: { label: loopSentence === null ? "循环中" : `循环第 ${loopSentence + 1} 句`, title: "取消循环 (L)", style: "bg-accent text-white hover:brightness-110" },
   }[phase];
 
   return (

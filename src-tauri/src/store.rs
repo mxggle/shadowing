@@ -55,15 +55,19 @@ impl Persisted {
         })
     }
 
-    /// Atomic write: temp file + rename, so a crash never leaves half a file.
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
-        if let Some(dir) = path.parent() {
-            fs::create_dir_all(dir)?;
-        }
-        let tmp = path.with_extension("json.tmp");
-        fs::write(&tmp, serde_json::to_vec_pretty(self)?)?;
-        fs::rename(tmp, path)
+        write_atomic(path, &serde_json::to_vec_pretty(self)?)
     }
+}
+
+/// Temp file + rename, so a crash never leaves half a file.
+pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)?;
+    }
+    let tmp = path.with_extension("tmp");
+    fs::write(&tmp, bytes)?;
+    fs::rename(tmp, path)
 }
 
 #[cfg(test)]

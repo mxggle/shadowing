@@ -35,6 +35,20 @@ export interface Snapshot {
   progress: Record<string, Progress>;
 }
 
+export interface Sentence {
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface Transcript {
+  /** "imported": saved in the app; "sidecar": read from a subtitle file next to the audio. */
+  source: "imported" | "sidecar";
+  /** File name it came from. */
+  origin: string;
+  sentences: Sentence[];
+}
+
 export const isTauri = () => "__TAURI_INTERNALS__" in window;
 
 export const api = {
@@ -45,6 +59,11 @@ export const api = {
     invoke<void>("save_progress", { path, position, duration }),
   setLastTrack: (path: string | null) => invoke<void>("set_last_track", { path }),
   saveSettings: (settings: Settings) => invoke<void>("save_settings", { settings }),
+  getTranscript: (path: string) => invoke<Transcript | null>("transcript_get", { path }),
+  /** Opens the file picker; null when cancelled. */
+  importTranscript: (path: string) => invoke<Transcript | null>("transcript_import", { path }),
+  /** Asks first; returns what the track falls back to. */
+  removeTranscript: (path: string) => invoke<Transcript | null>("transcript_remove", { path }),
   smokeMode: () => invoke<boolean>("smoke_mode"),
   smokeWindow: (minimized: boolean) => invoke<void>("smoke_window", { minimized }),
   smokeFinish: (code: number) => invoke<void>("smoke_finish", { code }),

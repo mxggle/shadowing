@@ -23,6 +23,10 @@ export function useShortcuts() {
         l: [s.cycleLoop, "loop"],
         L: [s.cycleLoop, "loop"],
         Escape: [s.clearLoop],
+        "[": [() => s.stepSentence(-1), "prevSentence"],
+        "]": [() => s.stepSentence(1), "nextSentence"],
+        s: [() => s.toggleSentenceLoop(), "sentenceLoop"],
+        S: [() => s.toggleSentenceLoop(), "sentenceLoop"],
         "-": [() => s.setRate(s.settings.rate - RATE_STEP), "slower"],
         "=": [() => s.setRate(s.settings.rate + RATE_STEP), "faster"],
       };

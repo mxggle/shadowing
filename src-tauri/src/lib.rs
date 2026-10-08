@@ -2,6 +2,8 @@ mod audio;
 mod library;
 mod smoke;
 mod store;
+mod subtitles;
+mod transcript;
 
 use library::FolderListing;
 use serde::Serialize;
@@ -22,6 +24,14 @@ impl AppState {
     /// The single approved folder (canonical). Media requests outside it are refused.
     pub fn root(&self) -> Option<PathBuf> {
         self.data.lock().unwrap().folder.clone()
+    }
+
+    /// Where state.json lives; transcripts and models sit beside it.
+    pub fn data_dir(&self) -> PathBuf {
+        self.state_path
+            .parent()
+            .map(PathBuf::from)
+            .unwrap_or_default()
     }
 
     fn update(&self, f: impl FnOnce(&mut Persisted)) -> Result<(), String> {
@@ -171,6 +181,9 @@ pub fn run() {
             set_last_track,
             save_settings,
             log_line,
+            transcript::transcript_get,
+            transcript::transcript_import,
+            transcript::transcript_remove,
             smoke::smoke_mode,
             smoke::smoke_window,
             smoke::smoke_finish,

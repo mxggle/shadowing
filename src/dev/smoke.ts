@@ -151,4 +151,32 @@ async function scenario() {
   app().seek(engine.duration - 0.5);
   const advanced = await waitFor(() => app().current?.path === tracks[1].path, 4000);
   check("auto-advance to next track at end", advanced, `now ${app().current?.name}`);
+
+  // 8. A subtitle file next to the audio becomes its transcript; a sentence loop repeats it.
+  const english = tracks.find((t) => t.name === "02 English VBR")!;
+  app().open(english, true);
+  await waitFor(() => !!app().transcript && engine.duration > 0, 3000);
+  const transcript = app().transcript;
+  check(
+    "sidecar .srt loads as transcript",
+    transcript?.source === "sidecar" && transcript.sentences.length === 2,
+    `${transcript?.origin} · ${transcript?.sentences.length} sentences`,
+  );
+  if (transcript) {
+    app().toggleSentenceLoop(1);
+    const { a, b } = app().loop;
+    let wrapped = false;
+    let prev = await rust();
+    const until = performance.now() + ((b ?? 0) - (a ?? 0) + 1.5) * 1000;
+    while (!wrapped && performance.now() < until) {
+      const t = await rust();
+      wrapped = t < prev - 0.3;
+      prev = t;
+      await sleep(10);
+    }
+    check("sentence loop repeats sentence 2", wrapped && app().loopSentence === 1, `A ${a?.toFixed(2)} B ${b?.toFixed(2)}`);
+    app().stepSentence(-1);
+    check("[ moves the loop to sentence 1", app().loopSentence === 0 && app().loop.a === 0, `A ${app().loop.a}`);
+    app().clearLoop();
+  }
 }

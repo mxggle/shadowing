@@ -3,10 +3,35 @@ import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { PracticePanel } from "./PracticePanel";
 import { Scrubber } from "./Scrubber";
+import { SentenceList, TranscriptEmpty } from "./Transcript";
 import { RoundButton } from "./ui";
 
-/** Main column: what's playing, where you are in it, and the controls to practise with. */
+/**
+ * Main column: what's playing, where you are in it, and the controls to practise with.
+ * With a transcript, the sentence list takes the free space and the controls sit below it.
+ */
 export function Stage() {
+  const hasTranscript = useApp((s) => !!s.transcript?.sentences.length);
+
+  if (hasTranscript) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col px-8 pb-6">
+        <div className="mx-auto flex min-h-0 w-full max-w-[680px] flex-1 flex-col gap-4">
+          <TrackTitle />
+          <SentenceList />
+          <div className="shrink-0">
+            <Scrubber />
+            <Times />
+            <Transport />
+          </div>
+          <div className="shrink-0">
+            <PracticePanel />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-8 pb-8">
       {/* my-auto centres the content but still lets it scroll when the window is short. */}
@@ -18,6 +43,7 @@ export function Stage() {
           <Transport />
         </div>
         <PracticePanel />
+        <TranscriptEmpty />
       </div>
     </div>
   );

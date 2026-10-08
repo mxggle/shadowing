@@ -2,7 +2,7 @@
 // Simulates the Rust commands and player:* events; no real audio.
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { Snapshot, Track } from "../lib/api";
+import type { Snapshot, Track, Transcript } from "../lib/api";
 
 const root = "/Mock/日本語ポッドキャスト";
 const tracks: Track[] = [
@@ -12,6 +12,27 @@ const tracks: Track[] = [
   ["Unit 2", "04 駅で"],
   ["Unit 2", "05 カフェで"],
 ].map(([relDir, name], i) => ({ path: `${root}/${relDir}/${name}.mp3`, name, relDir, size: 1e6 * (i + 1) }));
+
+const lines = [
+  "おはようございます。今日もよろしくお願いします。",
+  "今日は天気の話をしましょう。",
+  "朝から雨が降っていますね。",
+  "傘を持ってきましたか？",
+  "いいえ、忘れてしまいました。",
+  "駅まで一緒に行きましょうか。",
+  "ありがとうございます。助かります。",
+  "週末は晴れるそうですよ。",
+  "それなら、公園でピクニックをしたいですね。",
+  "いいですね。お弁当を作りましょう。",
+  "天気予報によると、気温も上がるそうです。",
+  "日焼け止めを忘れないようにしないと。",
+];
+const mockTranscript = (origin: string, count: number): Transcript => ({
+  source: "imported",
+  origin,
+  sentences: Array.from({ length: count }, (_, i) => ({ start: 2 + i * 6, end: 2 + i * 6 + 4.2, text: lines[i % lines.length] })),
+});
+const transcripts = new Map<string, Transcript>([[tracks[1].path, { ...mockTranscript("02 天気の話.srt", 32), source: "sidecar" }]]);
 
 const player = { path: null as string | null, time: 0, duration: 0, playing: false, rate: 1, a: null as number | null, b: null as number | null };
 let seq = 0;
@@ -66,6 +87,16 @@ export function installMockBackend() {
           return;
         case "player_status":
           return status();
+        case "transcript_get":
+          return transcripts.get(a.path) ?? null;
+        case "transcript_import": {
+          const t = mockTranscript("imported.vtt", 24);
+          transcripts.set(a.path, t);
+          return t;
+        }
+        case "transcript_remove":
+          transcripts.delete(a.path);
+          return null;
         case "smoke_mode":
           return false;
         default:

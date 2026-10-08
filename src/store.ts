@@ -2,8 +2,9 @@ import { create } from "zustand";
 import { AudioEngine } from "./audio/engine";
 import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, type Loop } from "./audio/logic";
 import { api, type FolderListing, type Progress, type Settings, type Track } from "./lib/api";
+import { createTranscriptSlice, type TranscriptState } from "./transcriptSlice";
 
-interface AppState {
+export interface AppState extends TranscriptState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -87,9 +88,10 @@ export const useApp = create<AppState>((set, get) => {
     void api.saveSettings(settings);
   }
 
-  function applyLoop(loop: Loop) {
+  /** `sentence`: which transcript sentence this loop repeats, if any. */
+  function applyLoop(loop: Loop, loopSentence: number | null = null) {
     engine.setLoop(loop);
-    set({ loop });
+    set({ loop, loopSentence });
   }
 
   return {
@@ -104,6 +106,7 @@ export const useApp = create<AppState>((set, get) => {
     duration: 0,
     loop: NO_LOOP,
     error: null,
+    ...createTranscriptSlice(set, get, engine, applyLoop),
 
     async init() {
       const snap = await api.getSnapshot();
@@ -124,7 +127,7 @@ export const useApp = create<AppState>((set, get) => {
       if (!folder) return;
       saveProgress(true);
       engine.unload();
-      set({ folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, error: null });
+      set({ folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, error: null, transcript: null, loopSentence: null });
     },
 
     async rescan() {
@@ -135,7 +138,8 @@ export const useApp = create<AppState>((set, get) => {
     open(track, autoplay = true) {
       saveProgress(true);
       const start = resumePosition(get().progress[track.path]);
-      set({ current: track, time: start, duration: 0, loop: NO_LOOP, error: null });
+      set({ current: track, time: start, duration: 0, loop: NO_LOOP, error: null, transcript: null, loopSentence: null });
+      void get().loadTranscript(track.path);
       void engine.load(track.path, start, autoplay).then(() => engine.setRate(get().settings.rate));
       void api.setLastTrack(track.path);
     },
@@ -203,7 +207,7 @@ export const useApp = create<AppState>((set, get) => {
 
     nudgeLoop(which, delta) {
       const loop = nudgeLoop(get().loop, which, delta, engine.duration);
-      applyLoop(loop);
+      applyLoop(loop, get().loopSentence);
       // Re-hear the new boundary immediately.
       if (which === "a" && loop.a !== null) engine.seek(loop.a);
       if (which === "b" && loop.b !== null) engine.seek(Math.max(loop.a ?? 0, loop.b - 1.5));

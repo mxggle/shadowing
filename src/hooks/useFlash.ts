@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 const EVENT = "shadowing:flash";
 const FLASH_MS = 160;
 
-export type FlashId = "toggle" | "back" | "forward" | "prev" | "next" | "loop" | "slower" | "faster";
+export type FlashId = "toggle" | "back" | "forward" | "prev" | "next" | "loop" | "slower" | "faster" | "prevSentence" | "nextSentence" | "sentenceLoop";
 
 export function flash(id: FlashId) {
   window.dispatchEvent(new CustomEvent(EVENT, { detail: id }));

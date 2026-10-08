@@ -34,7 +34,7 @@ export default function App() {
 
   return (
     <div
-      className="grid h-full grid-cols-[minmax(220px,280px)_1fr]"
+      className="grid h-full grid-cols-[minmax(220px,280px)_1fr] grid-rows-[minmax(0,1fr)]"
       // Buttons don't take focus on click, so Space/arrows stay global shortcuts.
       onMouseDown={(e) => (e.target as HTMLElement).closest("button") && e.preventDefault()}
     >

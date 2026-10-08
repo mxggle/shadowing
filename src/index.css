@@ -2,6 +2,7 @@
 
 /* Colour tokens: one set of names, values swap with the system appearance. */
 :root {
+  color-scheme: light dark; /* native scrollbars and form controls follow the theme */
   --canvas: #ffffff;
   --sidebar: #f6f6f5;
   --panel: #f8f8f7;
