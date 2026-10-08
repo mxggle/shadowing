@@ -1,30 +1,36 @@
 import { useEffect } from "react";
 import { RATE_STEP } from "../audio/logic";
 import { useApp } from "../store";
+import { flash, type FlashId } from "./useFlash";
+
+export const isTypingTarget = (target: EventTarget | null) => {
+  const el = target as HTMLElement | null;
+  return !!el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
+};
 
 export function useShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+      if (isTypingTarget(e.target)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const s = useApp.getState();
-      const actions: Record<string, () => void> = {
-        " ": s.toggle,
-        ArrowLeft: () => s.jump(-1),
-        ArrowRight: () => s.jump(1),
-        ArrowUp: () => s.step(-1),
-        ArrowDown: () => s.step(1),
-        l: s.cycleLoop,
-        L: s.cycleLoop,
-        Escape: s.clearLoop,
-        "-": () => s.setRate(s.settings.rate - RATE_STEP),
-        "=": () => s.setRate(s.settings.rate + RATE_STEP),
+      const actions: Record<string, [() => void, FlashId?]> = {
+        " ": [s.toggle, "toggle"],
+        ArrowLeft: [() => s.jump(-1), "back"],
+        ArrowRight: [() => s.jump(1), "forward"],
+        ArrowUp: [() => s.step(-1), "prev"],
+        ArrowDown: [() => s.step(1), "next"],
+        l: [s.cycleLoop, "loop"],
+        L: [s.cycleLoop, "loop"],
+        Escape: [s.clearLoop],
+        "-": [() => s.setRate(s.settings.rate - RATE_STEP), "slower"],
+        "=": [() => s.setRate(s.settings.rate + RATE_STEP), "faster"],
       };
-      const action = actions[e.key];
-      if (!action) return;
+      const entry = actions[e.key];
+      if (!entry) return;
       e.preventDefault();
-      action();
+      entry[0]();
+      if (entry[1]) flash(entry[1]);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
