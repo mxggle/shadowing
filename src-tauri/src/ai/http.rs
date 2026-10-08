@@ -34,6 +34,10 @@ impl Endpoint<'_> {
         self.authorize(client().get(format!("{}{path}", self.base_url)))
     }
 
+    pub fn post(&self, path: &str) -> reqwest::RequestBuilder {
+        self.authorize(client().post(format!("{}{path}", self.base_url)))
+    }
+
     fn authorize(&self, req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         match (self.api, self.key) {
             (Api::OpenAi, Some(key)) => req.bearer_auth(key),
@@ -53,6 +57,43 @@ impl Endpoint<'_> {
             Ok(body)
         } else {
             Err(describe_status(status, &body, self.name))
+        }
+    }
+
+    /// Like `send`, but waits and tries again on rate limits, server errors and
+    /// dropped connections. `build` makes a fresh request for each attempt.
+    pub async fn send_retrying(
+        &self,
+        build: impl Fn() -> reqwest::RequestBuilder,
+        attempts: u32,
+    ) -> Result<String, String> {
+        let mut attempt = 1;
+        loop {
+            let last = attempt >= attempts;
+            let wait = match build().send().await {
+                Ok(res) => {
+                    let status = res.status().as_u16();
+                    let retry_after = res
+                        .headers()
+                        .get("retry-after")
+                        .and_then(|v| v.to_str().ok())
+                        .and_then(|v| v.parse::<u64>().ok());
+                    let body = res.text().await.map_err(|e| self.transport_error(&e))?;
+                    if (200..300).contains(&status) {
+                        return Ok(body);
+                    }
+                    if last || !(status == 429 || status >= 500) {
+                        return Err(describe_status(status, &body, self.name));
+                    }
+                    retry_after.unwrap_or(2u64.pow(attempt)).min(60)
+                }
+                Err(e) if !last && !self.local && (e.is_timeout() || e.is_connect()) => {
+                    2u64.pow(attempt)
+                }
+                Err(e) => return Err(self.transport_error(&e)),
+            };
+            tokio::time::sleep(Duration::from_secs(wait)).await;
+            attempt += 1;
         }
     }
 
@@ -209,6 +250,25 @@ mod tests {
             "{req}"
         );
         assert!(!req.contains("authorization:"));
+    }
+
+    #[tokio::test]
+    async fn rate_limits_are_retried_then_succeed() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            for reply in [
+                "HTTP/1.1 429 Too Many Requests\r\nretry-after: 0\r\nconnection: close\r\ncontent-length: 0\r\n\r\n",
+                "HTTP/1.1 200 OK\r\nconnection: close\r\ncontent-length: 2\r\n\r\nok",
+            ] {
+                let (mut sock, _) = listener.accept().await.unwrap();
+                let mut buf = vec![0; 4096];
+                let _ = sock.read(&mut buf).await.unwrap();
+                sock.write_all(reply.as_bytes()).await.unwrap();
+            }
+        });
+        let ep = endpoint(Api::OpenAi, &url, None);
+        assert_eq!(ep.send_retrying(|| ep.get("/x"), 3).await.unwrap(), "ok");
     }
 
     #[tokio::test]

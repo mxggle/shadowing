@@ -22,13 +22,15 @@ pub enum Source {
     Imported,
     /// Found next to the audio file; read fresh each time, never copied.
     Sidecar,
+    /// Made by a transcription service and saved in app data.
+    Transcribed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Transcript {
     pub source: Source,
-    /// File name it came from.
+    /// File name it came from, or "Groq · whisper-large-v3".
     pub origin: String,
     pub sentences: Vec<Sentence>,
 }

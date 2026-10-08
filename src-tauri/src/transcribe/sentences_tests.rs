@@ -1,0 +1,152 @@
+//! Tests for sentences.rs.
+
+use super::*;
+
+fn seg(start: f64, end: f64, text: &str) -> Segment {
+    Segment {
+        start,
+        end,
+        text: text.into(),
+        avg_logprob: Some(-0.2),
+        no_speech_prob: Some(0.01),
+    }
+}
+
+fn words(list: &[(&str, f64, f64)]) -> Vec<Word> {
+    list.iter()
+        .map(|&(w, start, end)| Word {
+            word: w.into(),
+            start,
+            end,
+        })
+        .collect()
+}
+
+fn summary(s: &[Sentence]) -> Vec<(String, f64, f64)> {
+    s.iter()
+        .map(|s| {
+            (
+                s.text.clone(),
+                (s.start * 100.0).round() / 100.0,
+                (s.end * 100.0).round() / 100.0,
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn english_sentences_take_their_words_times() {
+    let v = Verbose {
+        segments: vec![
+            seg(0.0, 3.0, " Hello there. How are"),
+            seg(3.0, 5.0, " you? Fine."),
+        ],
+        words: words(&[
+            ("Hello", 0.2, 0.6),
+            ("there", 0.7, 1.1),
+            ("How", 1.8, 2.0),
+            ("are", 2.0, 2.3),
+            ("you", 3.1, 3.4),
+            ("Fine", 4.2, 4.6),
+        ]),
+    };
+    assert_eq!(
+        summary(&build(vec![(0.0, v)])),
+        [
+            ("Hello there.".into(), 0.2, 1.1),
+            ("How are you?".into(), 1.8, 3.4),
+            ("Fine.".into(), 4.2, 4.6)
+        ]
+    );
+}
+
+#[test]
+fn japanese_without_spaces() {
+    let v = Verbose {
+        segments: vec![
+            seg(0.0, 4.0, "今日はいい天気ですね。散歩に"),
+            seg(4.0, 6.0, "行きましょう。"),
+        ],
+        words: words(&[
+            ("今日", 0.0, 0.5),
+            ("は", 0.5, 0.7),
+            ("いい", 0.7, 1.0),
+            ("天気", 1.0, 1.5),
+            ("ですね", 1.5, 2.2),
+            ("散歩", 2.8, 3.3),
+            ("に", 3.3, 3.5),
+            ("行きましょう", 4.1, 5.2),
+        ]),
+    };
+    assert_eq!(
+        summary(&build(vec![(0.0, v)])),
+        [
+            ("今日はいい天気ですね。".into(), 0.0, 2.2),
+            ("散歩に行きましょう。".into(), 2.8, 5.2)
+        ]
+    );
+}
+
+#[test]
+fn pieces_are_offset_and_hallucinations_dropped() {
+    let first = Verbose {
+        segments: vec![seg(0.0, 2.0, " One.")],
+        words: words(&[("One", 0.5, 1.0)]),
+    };
+    let mut fake = seg(3.0, 6.0, "ご視聴ありがとうございました");
+    fake.no_speech_prob = Some(0.9);
+    fake.avg_logprob = Some(-1.4);
+    let second = Verbose {
+        segments: vec![seg(0.0, 2.0, " Two."), fake],
+        words: words(&[
+            ("Two", 0.4, 0.9),
+            ("ご視聴", 3.0, 4.0),
+            ("ありがとうございました", 4.0, 6.0),
+        ]),
+    };
+    assert_eq!(
+        summary(&build(vec![(0.0, first), (600.0, second)])),
+        [("One.".into(), 0.5, 1.0), ("Two.".into(), 600.4, 600.9)]
+    );
+}
+
+#[test]
+fn without_words_times_are_spread_over_the_segment() {
+    let v = Verbose {
+        segments: vec![seg(0.0, 4.0, "Aa. Bb.")],
+        words: vec![],
+    };
+    assert_eq!(
+        summary(&build(vec![(0.0, v)])),
+        [("Aa.".into(), 0.0, 2.0), ("Bb.".into(), 2.0, 4.0)]
+    );
+}
+
+#[test]
+fn abbreviations_decimals_and_quotes_stay_together() {
+    assert_eq!(
+        split_sentences("Mr. Smith paid 3.5 dollars. \"Really?\" she asked. 「はい。」そうです…"),
+        [
+            "Mr. Smith paid 3.5 dollars.",
+            "\"Really?\"",
+            "she asked.",
+            "「はい。」",
+            "そうです…"
+        ]
+    );
+}
+
+#[test]
+fn long_sentences_split_at_the_middle_comma() {
+    let text = "one two, three four, five six";
+    let v = Verbose {
+        segments: vec![seg(0.0, 30.0, text)],
+        words: vec![],
+    };
+    let got = summary(&build(vec![(0.0, v)]));
+    assert_eq!(
+        got.iter().map(|g| g.0.as_str()).collect::<Vec<_>>(),
+        ["one two,", "three four,", "five six"]
+    );
+    assert!(got.windows(2).all(|w| w[0].2 <= w[1].1 + 1e-9));
+}

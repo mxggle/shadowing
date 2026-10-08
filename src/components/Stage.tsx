@@ -3,7 +3,8 @@ import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { PracticePanel } from "./PracticePanel";
 import { Scrubber } from "./Scrubber";
-import { SentenceList, TranscriptEmpty } from "./Transcript";
+import { TranscribeCard } from "./TranscribeCard";
+import { SentenceList } from "./Transcript";
 import { RoundButton } from "./ui";
 
 /**
@@ -43,7 +44,7 @@ export function Stage() {
           <Transport />
         </div>
         <PracticePanel />
-        <TranscriptEmpty />
+        <TranscribeCard />
       </div>
     </div>
   );

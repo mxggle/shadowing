@@ -1,8 +1,9 @@
 // Transcript part of the single store: loading/importing a track's sentences,
 // and playing or looping them through the same A–B loop the L key uses.
+import { listen } from "@tauri-apps/api/event";
 import { isLoopActive, NO_LOOP, type Loop } from "./audio/logic";
 import type { AudioEngine } from "./audio/engine";
-import { api, type Transcript } from "./lib/api";
+import { api, type TranscribeStatus, type Transcript } from "./lib/api";
 import { sentenceIndexAt, sentenceLoop, sentenceStart, stepTarget } from "./lib/sentences";
 import type { AppState } from "./store";
 
@@ -20,6 +21,16 @@ export interface TranscriptState {
   toggleSentenceLoop(i?: number): void;
   /** `[` / `]`: previous / next sentence, keeping a sentence loop going. */
   stepSentence(direction: 1 | -1): void;
+
+  /** Latest transcription update (for whichever track is being transcribed). */
+  job: TranscribeStatus | null;
+  /** Transcribes the current track with the service chosen in settings. */
+  startTranscribe(language: string): Promise<void>;
+  cancelTranscribe(): void;
+  /** Forget a finished, failed or cancelled job. */
+  dismissJob(): void;
+  /** After a reload mid-job: pick the running job back up. */
+  restoreJob(): Promise<void>;
 }
 
 type Get = () => AppState;
@@ -38,6 +49,11 @@ export function createTranscriptSlice(
     if (get().current?.path === path) set({ transcript, loopSentence: null });
   };
 
+  void listen<TranscribeStatus>("transcribe:status", ({ payload }) => {
+    set({ job: payload });
+    if (payload.state === "done") forCurrent(payload.path, payload.transcript);
+  });
+
   function startAt(i: number) {
     get().seek(sentenceStart(sentences()[i]));
     if (engine.paused) engine.play();
@@ -51,6 +67,32 @@ export function createTranscriptSlice(
   return {
     transcript: null,
     loopSentence: null,
+    job: null,
+
+    async startTranscribe(language) {
+      const path = get().current?.path;
+      if (!path) return;
+      get().setTranscribeLanguage(language);
+      set({ job: { state: "running", path, done: 0, total: get().duration } });
+      try {
+        await api.transcribe.start(path, language);
+      } catch (e) {
+        set({ job: { state: "failed", path, message: String(e) } });
+      }
+    },
+
+    cancelTranscribe() {
+      void api.transcribe.cancel();
+    },
+
+    dismissJob() {
+      if (get().job?.state !== "running") set({ job: null });
+    },
+
+    async restoreJob() {
+      const path = await api.transcribe.running().catch(() => null);
+      if (path) set({ job: { state: "running", path, done: 0, total: 0 } });
+    },
 
     async loadTranscript(path) {
       forCurrent(path, await api.getTranscript(path).catch(() => null));

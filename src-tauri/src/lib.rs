@@ -4,6 +4,7 @@ mod library;
 mod smoke;
 mod store;
 mod subtitles;
+mod transcribe;
 mod transcript;
 
 use library::FolderListing;
@@ -185,6 +186,7 @@ pub fn run() {
                 }
             };
             app.manage(ai::secrets::Secrets(store));
+            app.manage(transcribe::Jobs::default());
             let sink = std::sync::Arc::new(audio::TauriSink(app.handle().clone()));
             app.manage(audio::Player::new(sink));
             Ok(())
@@ -204,6 +206,9 @@ pub fn run() {
             ai::ai_models,
             ai::ai_test,
             ai::ai_open_key_page,
+            transcribe::transcribe_start,
+            transcribe::transcribe_cancel,
+            transcribe::transcribe_running,
             transcript::transcript_get,
             transcript::transcript_import,
             transcript::transcript_remove,

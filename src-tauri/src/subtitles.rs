@@ -146,7 +146,7 @@ fn join_lines(lines: &[String]) -> String {
     out
 }
 
-fn is_cjk(c: char) -> bool {
+pub(crate) fn is_cjk(c: char) -> bool {
     matches!(c as u32,
         0x3000..=0x30FF     // CJK punctuation, hiragana, katakana
         | 0x3400..=0x4DBF   // CJK extension A

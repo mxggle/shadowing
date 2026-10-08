@@ -12,6 +12,8 @@ pub struct Settings {
     pub auto_advance: bool,
     /// Seconds jumped by ← → and the rewind/forward buttons.
     pub seek_step: f64,
+    /// Last language picked for transcription ("" = detect).
+    pub transcribe_language: String,
 }
 
 impl Default for Settings {
@@ -20,6 +22,7 @@ impl Default for Settings {
             rate: 1.0,
             auto_advance: true,
             seek_step: 5.0,
+            transcribe_language: String::new(),
         }
     }
 }

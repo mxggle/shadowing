@@ -14,7 +14,7 @@
 //! - `audio-status` frees retired buffers and emits status at ~30 Hz.
 
 pub mod commands;
-mod decode;
+pub(crate) mod decode;
 mod engine;
 mod feed;
 mod fifo;
@@ -22,7 +22,7 @@ mod output;
 mod player;
 mod reader;
 mod region;
-mod resample;
+pub(crate) mod resample;
 mod session;
 mod status;
 mod stretch;

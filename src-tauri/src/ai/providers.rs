@@ -44,6 +44,8 @@ pub struct Preset {
     pub key_url: Option<&'static str>,
     pub features: &'static [Feature],
     pub transcribe_model: Option<&'static str>,
+    /// USD per hour of audio, per transcription model, for the estimate shown before starting.
+    pub transcribe_prices: &'static [(&'static str, f64)],
     pub chat_model: Option<&'static str>,
     /// One line under the choice, in the UI language.
     pub note: &'static str,
@@ -72,6 +74,7 @@ const CLOUD: Preset = Preset {
     key_url: None,
     features: &[Feature::Chat],
     transcribe_model: None,
+    transcribe_prices: &[],
     chat_model: None,
     note: "",
 };
@@ -84,6 +87,10 @@ pub const PRESETS: &[Preset] = &[
         key_url: Some("https://console.groq.com/keys"),
         features: &[Feature::Transcribe],
         transcribe_model: Some("whisper-large-v3"),
+        transcribe_prices: &[
+            ("whisper-large-v3", 0.111),
+            ("whisper-large-v3-turbo", 0.04),
+        ],
         note: "Whisper large-v3，约 $0.11 / 小时音频，速度很快",
         ..CLOUD
     },
@@ -94,6 +101,7 @@ pub const PRESETS: &[Preset] = &[
         key_url: Some("https://platform.openai.com/api-keys"),
         features: &[Feature::Transcribe, Feature::Chat],
         transcribe_model: Some("whisper-1"),
+        transcribe_prices: &[("whisper-1", 0.36)],
         chat_model: Some("gpt-5-mini"),
         note: "转写用 whisper-1（约 $0.36 / 小时）；解释可选 GPT 系列",
         ..CLOUD

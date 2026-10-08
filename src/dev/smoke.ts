@@ -192,4 +192,24 @@ async function scenario() {
   check("missing key reported before any request", noKey.includes("API Key"), noKey);
   config = await api.ai.setKey("groq", "");
   check("API key deleted", !config.keyHints.groq);
+
+  // 10. Transcription end to end against scripts/fake-whisper.py (started by smoke.sh).
+  await api.ai.setBaseUrl("custom-transcribe", "http://127.0.0.1:18765/v1");
+  app().setAiConfig(await api.ai.choose("transcribe", "custom-transcribe", "fake-whisper"));
+  const untranscribed = tracks.find((t) => t.name === "10 English CBR")!;
+  app().open(untranscribed, false);
+  await waitFor(() => engine.duration > 0, 3000);
+  check("track starts without transcript", !app().transcript);
+  await app().startTranscribe("en");
+  await waitFor(() => app().job?.state !== "running", 20000);
+  const job = app().job;
+  check("transcription finishes", job?.state === "done", job?.state === "failed" ? job.message : job?.state);
+  const made = app().transcript;
+  check(
+    "transcript appears with timed sentences",
+    made?.source === "transcribed" && made.sentences.map((x) => x.text).join(" | ") === "Fake sentence one. | Fake two.",
+    made ? `${made.origin}: ${made.sentences.map((x) => `${x.text}@${x.start.toFixed(2)}–${x.end.toFixed(2)}`).join(" ")}` : "none",
+  );
+  const stored = await api.getTranscript(untranscribed.path);
+  check("transcript saved for next time", stored?.source === "transcribed");
 }

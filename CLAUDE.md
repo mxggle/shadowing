@@ -26,6 +26,8 @@ src-tauri/src/
   store.rs                state.json 读写、原子写入
   transcript.rs           每个音频的字幕：app data 里的 transcripts/，或音频旁的同名 .srt/.vtt
   subtitles.rs            SRT / WebVTT 解析
+  transcribe/             转写：pcm.rs 解码成 16 kHz 单声道、chunk.rs 在停顿处切块、cloud.rs 上传、
+                          sentences.rs 把 Whisper 结果变成带时间的句子；一次一个任务，进度发 transcribe:status
   ai/                     可选的 AI 服务：providers.rs 预设与模型筛选、secrets.rs 钥匙串、http.rs 请求与中文错误
   audio/                  原生播放引擎（见下）
   smoke.rs                调试构建专用自测入口
@@ -53,7 +55,8 @@ src-tauri/src/
 ```bash
 npm run check                         # tsc + vite build + vitest + cargo fmt/clippy/test
 scripts/make-fixtures.sh <文件夹>       # 生成自测用的测试音频（需要 say + ffmpeg）
-npm run smoke -- <文件夹>              # 构建调试版 .app，在真实应用里跑播放自测并打印 PASS/FAIL
+npm run smoke -- <文件夹>              # 构建调试版 .app，在真实应用里跑自测并打印 PASS/FAIL
+                                      # （会在 18765 端口启动 scripts/fake-whisper.py 测转写全流程）
 npm run dev                           # 浏览器 + mock 后端，只用来调 UI（没有真实声音）
 npm run app                           # 开发模式启动应用
 ```

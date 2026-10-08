@@ -35,10 +35,10 @@ const mockTranscript = (origin: string, count: number): Transcript => ({
 const transcripts = new Map<string, Transcript>([[tracks[1].path, { ...mockTranscript("02 天気の話.srt", 32), source: "sidecar" }]]);
 
 // AI settings: a trimmed copy of the Rust presets; "bad" as a key fails the test, LM Studio is "not running".
-const cloud: Omit<Preset, "id" | "name" | "baseUrl"> = { api: "openAi", local: false, key: "required", keyUrl: "https://example.com", features: ["chat"], transcribeModel: null, chatModel: null, note: "" };
+const cloud: Omit<Preset, "id" | "name" | "baseUrl"> = { api: "openAi", local: false, key: "required", keyUrl: "https://example.com", features: ["chat"], transcribeModel: null, transcribePrices: [], chatModel: null, note: "" };
 const presets: Preset[] = [
-  { ...cloud, id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1", features: ["transcribe"], transcribeModel: "whisper-large-v3", note: "Whisper large-v3，约 $0.11 / 小时音频，速度很快" },
-  { ...cloud, id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", features: ["transcribe", "chat"], transcribeModel: "whisper-1", chatModel: "gpt-5-mini", note: "转写用 whisper-1（约 $0.36 / 小时）；解释可选 GPT 系列" },
+  { ...cloud, id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1", features: ["transcribe"], transcribeModel: "whisper-large-v3", transcribePrices: [["whisper-large-v3", 0.111], ["whisper-large-v3-turbo", 0.04]], note: "Whisper large-v3，约 $0.11 / 小时音频，速度很快" },
+  { ...cloud, id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", features: ["transcribe", "chat"], transcribeModel: "whisper-1", transcribePrices: [["whisper-1", 0.36]], chatModel: "gpt-5-mini", note: "转写用 whisper-1（约 $0.36 / 小时）；解释可选 GPT 系列" },
   { ...cloud, id: "anthropic", name: "Anthropic", api: "anthropic", baseUrl: "https://api.anthropic.com/v1", chatModel: "claude-haiku-5-5", note: "Claude 系列" },
   { ...cloud, id: "gemini", name: "Google Gemini", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", note: "Gemini 系列；免费额度的数据可能被 Google 用于改进模型" },
   { ...cloud, id: "deepseek", name: "DeepSeek", baseUrl: "https://api.deepseek.com", note: "价格低，中文好" },
@@ -67,6 +67,34 @@ function mockList(provider: string, feature: Feature): string[] {
 }
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Transcription: ~4 s of fake progress, then a transcript. Language "xx" fails, to see the error state.
+let job: { path: string; timer: number; cancelled: boolean } | null = null;
+function mockTranscribe(path: string, language: string) {
+  if (!aiConfig.transcribe.provider) throw "还没有设置转写服务";
+  if (job) throw "已经有一个音频在转写，请等它完成";
+  const total = 180 + tracks.findIndex((t) => t.path === path) * 20;
+  let done = 0;
+  const status = (s: object) => void emit("transcribe:status", { path, ...s });
+  job = {
+    path,
+    cancelled: false,
+    timer: window.setInterval(() => {
+      if (job?.cancelled) return finish({ state: "cancelled" });
+      done = Math.min(total, done + total / 8);
+      if (language === "xx" && done > total / 2) return finish({ state: "failed", message: "Groq 额度不足或请求太频繁（429）" });
+      if (done < total) return status({ state: "running", done, total });
+      const transcript = { ...mockTranscript(`${presets.find((p) => p.id === aiConfig.transcribe.provider)?.name} · ${aiConfig.transcribe.model}`, 28), source: "transcribed" as const };
+      transcripts.set(path, transcript);
+      finish({ state: "done", transcript });
+    }, 500),
+  };
+  function finish(s: object) {
+    window.clearInterval(job!.timer);
+    job = null;
+    status(s);
+  }
+}
+
 const player = { path: null as string | null, time: 0, duration: 0, playing: false, rate: 1, a: null as number | null, b: null as number | null };
 let seq = 0;
 const status = () => ({ path: player.path, time: player.time, duration: player.duration, playing: player.playing, seq: ++seq });
@@ -89,7 +117,7 @@ export function installMockBackend() {
     folder: { root, name: "日本語ポッドキャスト", tracks },
     missingFolder: null,
     lastTrack: tracks[1].path,
-    settings: { rate: 0.85, autoAdvance: true, seekStep: 5 },
+    settings: { rate: 0.85, autoAdvance: true, seekStep: 5, transcribeLanguage: "" },
     progress: {
       [tracks[0].path]: { position: 178, duration: 180, updatedAt: 0 },
       [tracks[1].path]: { position: 64, duration: 200, updatedAt: 0 },
@@ -158,6 +186,13 @@ export function installMockBackend() {
             return { models: list.length, modelFound: list.includes(choice.model) };
           });
         }
+        case "transcribe_start":
+          return mockTranscribe(a.path, a.language);
+        case "transcribe_cancel":
+          if (job) job.cancelled = true;
+          return;
+        case "transcribe_running":
+          return job?.path ?? null;
         case "smoke_mode":
           return false;
         default:

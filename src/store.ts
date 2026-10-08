@@ -35,6 +35,7 @@ export interface AppState extends TranscriptState {
   setRate(rate: number): void;
   setAutoAdvance(on: boolean): void;
   setSeekStep(seconds: number): void;
+  setTranscribeLanguage(language: string): void;
   cycleLoop(): void;
   clearLoop(): void;
   nudgeLoop(which: "a" | "b", delta: number): void;
@@ -104,7 +105,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, autoAdvance: true, seekStep: SEEK_STEP_DEFAULT },
+    settings: { rate: 1, autoAdvance: true, seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "" },
     current: null,
     playing: false,
     time: 0,
@@ -126,6 +127,7 @@ export const useApp = create<AppState>((set, get) => {
         ai,
       });
       engine.setRate(snap.settings.rate);
+      void get().restoreJob();
       const last = snap.folder?.tracks.find((t) => t.path === snap.lastTrack);
       if (last) get().open(last, false);
     },
@@ -205,6 +207,10 @@ export const useApp = create<AppState>((set, get) => {
     setSeekStep(seconds) {
       const seekStep = clampSeekStep(seconds);
       if (seekStep !== get().settings.seekStep) persistSettings({ seekStep });
+    },
+
+    setTranscribeLanguage(transcribeLanguage) {
+      if (transcribeLanguage !== get().settings.transcribeLanguage) persistSettings({ transcribeLanguage });
     },
 
     cycleLoop() {

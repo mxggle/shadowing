@@ -1,4 +1,4 @@
-import { FileText, FileUp, Repeat, Trash2 } from "lucide-react";
+import { FileUp, Repeat, Trash2 } from "lucide-react";
 import { memo, useEffect, useRef, type RefObject } from "react";
 import { useFlash } from "../hooks/useFlash";
 import type { Sentence } from "../lib/api";
@@ -54,7 +54,7 @@ function Header() {
         <IconButton title="导入其他字幕文件" onClick={() => void importTranscript()}>
           <FileUp size={15} />
         </IconButton>
-        {transcript.source === "imported" && (
+        {transcript.source !== "sidecar" && (
           <IconButton title="移除字幕" onClick={() => void removeTranscript()}>
             <Trash2 size={15} />
           </IconButton>
@@ -139,27 +139,4 @@ function useFollow(list: RefObject<HTMLDivElement | null>, active: number) {
     });
     first.current = false;
   }, [list, active]);
-}
-
-/** Shown under the practice panel when the track has no transcript yet. */
-export function TranscriptEmpty() {
-  const hasTrack = useApp((s) => !!s.current);
-  const importTranscript = useApp((s) => s.importTranscript);
-  if (!hasTrack) return null;
-  return (
-    <div className="flex animate-fade-in items-center gap-3 rounded-2xl border border-dashed border-line px-4 py-3">
-      <FileText size={18} className="shrink-0 text-faint" />
-      <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-medium">还没有字幕</p>
-        <p className="text-[12px] text-faint">导入 SRT / VTT，或把同名字幕文件放在音频旁边</p>
-      </div>
-      <button
-        onClick={() => void importTranscript()}
-        className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-hover px-3 text-[13px] font-medium transition-[background-color,scale] duration-150 ease-snappy hover:bg-press active:scale-[0.96]"
-      >
-        <FileUp size={15} />
-        导入字幕
-      </button>
-    </div>
-  );
 }

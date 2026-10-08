@@ -19,6 +19,8 @@ export interface Settings {
   autoAdvance: boolean;
   /** Seconds jumped by ← → and the rewind/forward buttons. */
   seekStep: number;
+  /** Last language picked for transcription ("" = detect). */
+  transcribeLanguage: string;
 }
 
 export interface Progress {
@@ -42,9 +44,9 @@ export interface Sentence {
 }
 
 export interface Transcript {
-  /** "imported": saved in the app; "sidecar": read from a subtitle file next to the audio. */
-  source: "imported" | "sidecar";
-  /** File name it came from. */
+  /** Saved in the app ("imported", "transcribed"), or read from a subtitle file next to the audio ("sidecar"). */
+  source: "imported" | "sidecar" | "transcribed";
+  /** File name it came from, or "Groq · whisper-large-v3". */
   origin: string;
   sentences: Sentence[];
 }
@@ -64,6 +66,8 @@ export interface Preset {
   keyUrl: string | null;
   features: Feature[];
   transcribeModel: string | null;
+  /** [model, USD per hour of audio] */
+  transcribePrices: [string, number][];
   chatModel: string | null;
   note: string;
 }
@@ -91,6 +95,13 @@ export interface TestReport {
   modelFound: boolean;
 }
 
+/** `transcribe:status` events; done/total are seconds of audio (total 0 = unknown). */
+export type TranscribeStatus =
+  | { state: "running"; path: string; done: number; total: number }
+  | { state: "done"; path: string; transcript: Transcript }
+  | { state: "failed"; path: string; message: string }
+  | { state: "cancelled"; path: string };
+
 export const isTauri = () => "__TAURI_INTERNALS__" in window;
 
 export const api = {
@@ -117,6 +128,12 @@ export const api = {
     models: (provider: string, feature: Feature) => invoke<string[]>("ai_models", { provider, feature }),
     test: (feature: Feature) => invoke<TestReport>("ai_test", { feature }),
     openKeyPage: (provider: string) => invoke<void>("ai_open_key_page", { provider }),
+  },
+  transcribe: {
+    /** language: ISO-639-1 code, or "" to detect. Progress arrives as `transcribe:status`. */
+    start: (path: string, language: string) => invoke<void>("transcribe_start", { path, language }),
+    cancel: () => invoke<void>("transcribe_cancel"),
+    running: () => invoke<string | null>("transcribe_running"),
   },
   smokeMode: () => invoke<boolean>("smoke_mode"),
   smokeWindow: (minimized: boolean) => invoke<void>("smoke_window", { minimized }),
