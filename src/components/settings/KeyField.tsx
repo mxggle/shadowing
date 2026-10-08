@@ -13,6 +13,11 @@ export function KeyField({ preset, hint, onSaved }: { preset: Preset; hint?: str
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // A key saved elsewhere (e.g. by signing in) shows as saved, not as an open field.
+  useEffect(() => {
+    if (hint) setEditing(false);
+  }, [hint]);
+
   useEffect(() => {
     if (!confirmDelete) return;
     const timer = window.setTimeout(() => setConfirmDelete(false), 3000);

@@ -2,7 +2,11 @@
 //! keys (Keychain), and checking that a service answers. Nothing here is
 //! needed for playback or subtitles.
 
+pub mod chat;
+pub mod check;
 pub mod http;
+pub mod oauth;
+pub mod openrouter;
 pub mod providers;
 pub mod secrets;
 
@@ -120,15 +124,6 @@ pub struct AiOverview {
     config: AiConfig,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TestReport {
-    /// Usable models the service listed.
-    models: usize,
-    /// Whether the chosen model is among them.
-    model_found: bool,
-}
-
 #[tauri::command]
 pub fn ai_get(state: State<AppState>) -> AiOverview {
     AiOverview {
@@ -212,31 +207,6 @@ pub async fn ai_models(
     let target = Target::resolve(&state, &secrets, &provider)?;
     let ids = target.endpoint().list_models().await?;
     Ok(providers::filter_models(target.preset, feature, ids))
-}
-
-/// Checks the chosen service for a feature answers with this key and knows the model.
-#[tauri::command]
-pub async fn ai_test(
-    state: State<'_, AppState>,
-    secrets: State<'_, Secrets>,
-    feature: Feature,
-) -> Result<TestReport, String> {
-    let choice = state.read(|d| d.ai.choice(feature).clone());
-    let id = choice.provider.ok_or("还没有选择服务")?;
-    if id == local::PROVIDER {
-        let models = local::downloaded(&state);
-        return Ok(TestReport {
-            model_found: models.contains(&choice.model.as_str()),
-            models: models.len(),
-        });
-    }
-    let target = Target::resolve(&state, &secrets, &id)?;
-    let ids = target.endpoint().list_models().await?;
-    let models = providers::filter_models(target.preset, feature, ids);
-    Ok(TestReport {
-        model_found: models.contains(&choice.model),
-        models: models.len(),
-    })
 }
 
 /// Opens the provider's API-key page in the default browser (fixed URLs only).

@@ -94,6 +94,10 @@ export interface AiOverview {
 export interface TestReport {
   models: number;
   modelFound: boolean;
+  /** Explanations only: the sample sentence and the model's answer. */
+  sample: string | null;
+  reply: string | null;
+  millis: number;
 }
 
 /** `transcribe:status` events; done/total are seconds of audio (total 0 = unknown). */
@@ -162,6 +166,11 @@ export const api = {
     models: (provider: string, feature: Feature) => invoke<string[]>("ai_models", { provider, feature }),
     test: (feature: Feature) => invoke<TestReport>("ai_test", { feature }),
     openKeyPage: (provider: string) => invoke<void>("ai_open_key_page", { provider }),
+    /** Ollama / LM Studio servers answering right now. */
+    detectLocal: () => invoke<{ id: string; models: number }[]>("ai_detect_local"),
+    /** Opens OpenRouter in the browser; resolves once the key is saved. */
+    signInOpenRouter: () => invoke<AiConfig>("ai_sign_in_openrouter"),
+    cancelSignIn: () => invoke<void>("ai_sign_in_cancel"),
   },
   local: {
     models: () => invoke<LocalOverview>("local_models"),

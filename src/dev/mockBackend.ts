@@ -215,7 +215,14 @@ export function installMockBackend() {
           if (!choice.provider) throw "还没有选择服务";
           return delay(600).then(() => {
             const list = mockList(choice.provider!, a.feature);
-            return { models: list.length, modelFound: list.includes(choice.model) };
+            const chat = a.feature === "chat";
+            return {
+              models: list.length,
+              modelFound: list.includes(choice.model),
+              sample: chat ? "今日はいい天気ですね。散歩に行きましょう。" : null,
+              reply: chat ? "今天天气真好啊。我们去散步吧。\n「〜ましょう」表示提议或邀请，相当于“一起……吧”。" : null,
+              millis: 1240,
+            };
           });
         }
         case "local_models":
@@ -228,6 +235,16 @@ export function installMockBackend() {
         case "local_delete":
           Object.assign(localModels.find((m) => m.id === a.id)!, { downloaded: false, partial: 0 });
           return localOverview();
+        case "ai_detect_local":
+          return [{ id: "ollama", models: 2 }];
+        case "ai_sign_in_openrouter":
+          return delay(1500).then(() => {
+            keys.openrouter = "sk-or-v1-mock000000001234";
+            aiConfig.keyHints.openrouter = "sk-…1234";
+            return aiConfig;
+          });
+        case "ai_sign_in_cancel":
+          return;
         case "transcribe_start":
           return mockTranscribe(a.path, a.language);
         case "transcribe_cancel":

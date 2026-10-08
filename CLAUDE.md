@@ -32,7 +32,8 @@ src-tauri/src/
                           一次一个任务，进度发 transcribe:status
   local/                  本机转写（仅 Apple Silicon）：models.rs 模型清单（固定 commit + sha256）与内存适配、
                           download.rs 可续传并校验的下载、whisper.rs whisper.cpp（Metal）
-  ai/                     可选的 AI 服务：providers.rs 预设与模型筛选、secrets.rs 钥匙串、http.rs 请求与中文错误
+  ai/                     可选的 AI 服务：providers.rs 预设与模型筛选、secrets.rs 钥匙串、http.rs 请求与中文错误、
+                          chat.rs 两种对话接口、check.rs 测试连接与本机服务检测、oauth.rs + openrouter.rs 浏览器登录
   audio/                  原生播放引擎（见下）
   smoke.rs                调试构建专用自测入口
 ```
