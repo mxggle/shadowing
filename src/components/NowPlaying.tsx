@@ -1,8 +1,8 @@
 import { useApp } from "../store";
 
-const SHORTCUTS: [string, string][] = [
+const shortcuts = (seekStep: number): [string, string][] => [
   ["空格", "播放 / 暂停"],
-  ["← →", "后退 / 前进 5 秒"],
+  ["← →", `后退 / 前进 ${seekStep} 秒`],
   ["L", "设 A → 设 B → 取消循环"],
   ["- =", "减速 / 加速"],
   ["↑ ↓", "上一首 / 下一首"],
@@ -11,6 +11,7 @@ const SHORTCUTS: [string, string][] = [
 export function NowPlaying() {
   const current = useApp((s) => s.current);
   const error = useApp((s) => s.error);
+  const seekStep = useApp((s) => s.settings.seekStep);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-8 pb-8">
@@ -24,7 +25,7 @@ export function NowPlaying() {
         <p className="text-sm text-zinc-500">从左侧选择一个音频开始播放</p>
       )}
       <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-1 text-xs text-zinc-400">
-        {SHORTCUTS.map(([k, v]) => (
+        {shortcuts(seekStep).map(([k, v]) => (
           <div key={k} className="contents">
             <dt className="text-right font-mono">{k}</dt>
             <dd>{v}</dd>

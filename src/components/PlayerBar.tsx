@@ -1,5 +1,6 @@
 import { ListEnd, Pause, Play, Repeat, RotateCcw, RotateCw, SkipBack, SkipForward } from "lucide-react";
-import { RATE_STEP } from "../audio/logic";
+import { useState } from "react";
+import { RATE_STEP, SEEK_STEP_MAX, SEEK_STEP_MIN } from "../audio/logic";
 import { formatPrecise, formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { IconButton } from "./Library";
@@ -10,16 +11,18 @@ export function PlayerBar() {
   const playing = useApp((s) => s.playing);
   const time = useApp((s) => s.time);
   const duration = useApp((s) => s.duration);
-  const { toggle, seekBy, step } = useApp.getState();
+  const seekStep = useApp((s) => s.settings.seekStep);
+  const { toggle, jump, step } = useApp.getState();
   const disabled = !current;
 
   return (
     <footer className="shrink-0 border-t border-zinc-200 px-5 pb-3 pt-2 dark:border-zinc-800">
       <LoopBoundaries />
       <Scrubber />
-      <div className="tabular mt-0.5 flex justify-between text-[11px] text-zinc-400">
+      <div className="tabular mt-0.5 grid grid-cols-[1fr_auto_1fr] items-center text-[11px] text-zinc-400">
         <span>{formatTime(time)}</span>
-        <span>{formatTime(duration)}</span>
+        <SeekStepControl />
+        <span className="text-right">{formatTime(duration)}</span>
       </div>
       <div className="mt-1 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <div>
@@ -29,7 +32,7 @@ export function PlayerBar() {
           <IconButton title="上一首 (↑)" disabled={disabled} onClick={() => step(-1)}>
             <SkipBack size={16} />
           </IconButton>
-          <IconButton title="后退 5 秒 (←)" disabled={disabled} onClick={() => seekBy(-5)}>
+          <IconButton title={`后退 ${seekStep} 秒 (←)`} disabled={disabled} onClick={() => jump(-1)}>
             <RotateCcw size={16} />
           </IconButton>
           <button
@@ -39,7 +42,7 @@ export function PlayerBar() {
           >
             {playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
           </button>
-          <IconButton title="前进 5 秒 (→)" disabled={disabled} onClick={() => seekBy(5)}>
+          <IconButton title={`前进 ${seekStep} 秒 (→)`} disabled={disabled} onClick={() => jump(1)}>
             <RotateCw size={16} />
           </IconButton>
           <IconButton title="下一首 (↓)" disabled={disabled} onClick={() => step(1)}>
@@ -103,6 +106,44 @@ function Boundary({ label, value, onNudge }: { label: string; value: number; onN
         </button>
       )}
     </span>
+  );
+}
+
+/**
+ * Free-typed step in seconds; saved as you type, tidied up on blur.
+ * Lives in the time row: the button row has no spare width at the 720px minimum.
+ */
+function SeekStepControl() {
+  const seekStep = useApp((s) => s.settings.seekStep);
+  const setSeekStep = useApp((s) => s.setSeekStep);
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <label
+      title={`快退 / 快进步长（${SEEK_STEP_MIN}–${SEEK_STEP_MAX} 秒）`}
+      className="flex items-center gap-1 whitespace-nowrap"
+    >
+      <span>步长</span>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={SEEK_STEP_MIN}
+        max={SEEK_STEP_MAX}
+        step={1}
+        value={draft ?? seekStep}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          const n = parseFloat(e.target.value);
+          if (Number.isFinite(n)) setSeekStep(n);
+        }}
+        onBlur={() => setDraft(null)}
+        onFocus={(e) => e.target.select()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur();
+        }}
+        className="tabular w-7 [appearance:textfield] rounded bg-zinc-100 text-center font-medium text-zinc-700 outline-none focus:ring-1 focus:ring-accent dark:bg-zinc-800 dark:text-zinc-200 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+      <span>秒</span>
+    </label>
   );
 }
 

@@ -17,6 +17,8 @@ export interface FolderListing {
 export interface Settings {
   rate: number;
   autoAdvance: boolean;
+  /** Seconds jumped by ← → and the rewind/forward buttons. */
+  seekStep: number;
 }
 
 export interface Progress {

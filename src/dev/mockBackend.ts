@@ -35,7 +35,7 @@ export function installMockBackend() {
     folder: { root, name: "日本語ポッドキャスト", tracks },
     missingFolder: null,
     lastTrack: tracks[1].path,
-    settings: { rate: 0.85, autoAdvance: true },
+    settings: { rate: 0.85, autoAdvance: true, seekStep: 5 },
     progress: {
       [tracks[0].path]: { position: 178, duration: 180, updatedAt: 0 },
       [tracks[1].path]: { position: 64, duration: 200, updatedAt: 0 },

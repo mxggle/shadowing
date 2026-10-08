@@ -62,6 +62,16 @@ export function clampRate(rate: number): number {
   return Math.round(clamp(rate, RATE_MIN, RATE_MAX) / RATE_STEP) * RATE_STEP;
 }
 
+export const SEEK_STEP_DEFAULT = 5;
+export const SEEK_STEP_MIN = 1;
+export const SEEK_STEP_MAX = 60;
+
+/** Jump step for ← → and the ±buttons: whole seconds in [1, 60]; junk falls back to the default. */
+export function clampSeekStep(step: number): number {
+  if (!Number.isFinite(step)) return SEEK_STEP_DEFAULT;
+  return clamp(Math.round(step), SEEK_STEP_MIN, SEEK_STEP_MAX);
+}
+
 export function clamp(v: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, v));
 }

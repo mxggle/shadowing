@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampRate, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, shouldJumpToA } from "./logic";
+import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, shouldJumpToA } from "./logic";
 
 describe("loop", () => {
   it("cycles A → B → clear", () => {
@@ -45,5 +45,15 @@ describe("rate", () => {
     expect(clampRate(0.1)).toBe(0.5);
     expect(clampRate(3)).toBe(2);
     expect(clampRate(0.87)).toBeCloseTo(0.85);
+  });
+});
+
+describe("seek step", () => {
+  it("keeps whole seconds within 1–60, falls back to 5 on junk", () => {
+    expect(clampSeekStep(3)).toBe(3);
+    expect(clampSeekStep(2.4)).toBe(2);
+    expect(clampSeekStep(0)).toBe(1);
+    expect(clampSeekStep(600)).toBe(60);
+    expect(clampSeekStep(NaN)).toBe(5);
   });
 });

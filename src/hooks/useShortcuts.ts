@@ -11,8 +11,8 @@ export function useShortcuts() {
       const s = useApp.getState();
       const actions: Record<string, () => void> = {
         " ": s.toggle,
-        ArrowLeft: () => s.seekBy(-5),
-        ArrowRight: () => s.seekBy(5),
+        ArrowLeft: () => s.jump(-1),
+        ArrowRight: () => s.jump(1),
         ArrowUp: () => s.step(-1),
         ArrowDown: () => s.step(1),
         l: s.cycleLoop,

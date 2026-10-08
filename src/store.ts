@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { AudioEngine } from "./audio/engine";
-import { clampRate, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, type Loop } from "./audio/logic";
+import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, type Loop } from "./audio/logic";
 import { api, type FolderListing, type Progress, type Settings, type Track } from "./lib/api";
 
 interface AppState {
@@ -23,9 +23,12 @@ interface AppState {
   toggle(): void;
   seek(t: number): void;
   seekBy(delta: number): void;
+  /** Jump back (-1) or forward (+1) by the configured step. */
+  jump(direction: 1 | -1): void;
   step(direction: 1 | -1): void;
   setRate(rate: number): void;
   setAutoAdvance(on: boolean): void;
+  setSeekStep(seconds: number): void;
   cycleLoop(): void;
   clearLoop(): void;
   nudgeLoop(which: "a" | "b", delta: number): void;
@@ -94,7 +97,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, autoAdvance: true },
+    settings: { rate: 1, autoAdvance: true, seekStep: SEEK_STEP_DEFAULT },
     current: null,
     playing: false,
     time: 0,
@@ -156,6 +159,10 @@ export const useApp = create<AppState>((set, get) => {
       get().seek(engine.time + delta);
     },
 
+    jump(direction) {
+      get().seekBy(direction * get().settings.seekStep);
+    },
+
     step(direction) {
       const { folder, current } = get();
       if (!folder || !current) return;
@@ -172,6 +179,11 @@ export const useApp = create<AppState>((set, get) => {
 
     setAutoAdvance(autoAdvance) {
       persistSettings({ autoAdvance });
+    },
+
+    setSeekStep(seconds) {
+      const seekStep = clampSeekStep(seconds);
+      if (seekStep !== get().settings.seekStep) persistSettings({ seekStep });
     },
 
     cycleLoop() {

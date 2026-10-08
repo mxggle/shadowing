@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 pub struct Settings {
     pub rate: f64,
     pub auto_advance: bool,
+    /// Seconds jumped by ← → and the rewind/forward buttons.
+    pub seek_step: f64,
 }
 
 impl Default for Settings {
@@ -17,6 +19,7 @@ impl Default for Settings {
         Self {
             rate: 1.0,
             auto_advance: true,
+            seek_step: 5.0,
         }
     }
 }
@@ -87,6 +90,15 @@ mod tests {
         let loaded = Persisted::load(&path);
         assert_eq!(loaded.settings.rate, 0.8);
         assert_eq!(loaded.progress["/a.mp3"].position, 12.5);
+    }
+
+    #[test]
+    fn older_files_get_new_setting_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("state.json");
+        fs::write(&path, r#"{"settings":{"rate":0.8,"autoAdvance":false}}"#).unwrap();
+        let s = Persisted::load(&path).settings;
+        assert_eq!((s.rate, s.auto_advance, s.seek_step), (0.8, false, 5.0));
     }
 
     #[test]
