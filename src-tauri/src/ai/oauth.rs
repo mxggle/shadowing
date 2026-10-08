@@ -29,6 +29,32 @@ pub fn base64url(bytes: &[u8]) -> String {
     out
 }
 
+/// Decodes base64url (padding optional); also accepts standard base64.
+pub fn base64url_decode(s: &str) -> Option<Vec<u8>> {
+    let val = |c: u8| -> Option<u32> {
+        Some(u32::from(match c {
+            b'A'..=b'Z' => c - b'A',
+            b'a'..=b'z' => c - b'a' + 26,
+            b'0'..=b'9' => c - b'0' + 52,
+            b'-' | b'+' => 62,
+            b'_' | b'/' => 63,
+            _ => return None,
+        }))
+    };
+    let s = s.trim_end_matches('=').as_bytes();
+    let mut out = Vec::with_capacity(s.len() * 3 / 4);
+    for chunk in s.chunks(4) {
+        let n = chunk
+            .iter()
+            .enumerate()
+            .try_fold(0u32, |n, (i, &c)| Some(n | val(c)? << (18 - 6 * i)))?;
+        for i in 0..chunk.len().saturating_sub(1) {
+            out.push((n >> (16 - 8 * i)) as u8);
+        }
+    }
+    Some(out)
+}
+
 /// Random URL-safe string from `n` bytes of the system's secure randomness.
 pub fn random(n: usize) -> Result<String, String> {
     let mut bytes = vec![0; n];
@@ -145,6 +171,7 @@ mod tests {
             ("fooba", "Zm9vYmE"),
         ] {
             assert_eq!(base64url(raw.as_bytes()), enc);
+            assert_eq!(base64url_decode(enc).unwrap(), raw.as_bytes());
         }
         assert_eq!(base64url(&[0xfb, 0xff]), "-_8");
     }

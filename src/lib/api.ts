@@ -58,12 +58,13 @@ export interface Preset {
   id: string;
   name: string;
   /** "builtin": runs inside the app (whisper.cpp), configured via `api.local`. */
-  api: "openAi" | "anthropic" | "builtin";
+  api: "openAi" | "anthropic" | "builtin" | "responses";
   /** Empty for custom servers. */
   baseUrl: string;
   /** Runs on this Mac. */
   local: boolean;
-  key: "required" | "optional" | "none";
+  /** "account": signed in through the browser (ChatGPT), no key to paste. */
+  key: "required" | "optional" | "none" | "account";
   keyUrl: string | null;
   features: Feature[];
   transcribeModel: string | null;
@@ -82,8 +83,10 @@ export interface AiConfig {
   transcribe: Choice;
   chat: Choice;
   baseUrls: Record<string, string>;
-  /** "sk-…abcd" per provider with a saved key; the key itself stays in the Keychain. */
+  /** "sk-…abcd" per provider with a saved key (the account email for ChatGPT); keys stay in the Keychain. */
   keyHints: Record<string, string>;
+  chatgptClientId: string | null;
+  chatgptHostId: string | null;
 }
 
 export interface AiOverview {
@@ -171,6 +174,9 @@ export const api = {
     /** Opens OpenRouter in the browser; resolves once the key is saved. */
     signInOpenRouter: () => invoke<AiConfig>("ai_sign_in_openrouter"),
     cancelSignIn: () => invoke<void>("ai_sign_in_cancel"),
+    /** Sign in with ChatGPT (OpenAI preview); resolves once tokens are in the Keychain. */
+    signInChatGPT: () => invoke<AiConfig>("ai_sign_in_chatgpt"),
+    signOutChatGPT: () => invoke<AiConfig>("ai_sign_out_chatgpt"),
   },
   local: {
     models: () => invoke<LocalOverview>("local_models"),

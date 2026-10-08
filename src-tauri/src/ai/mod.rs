@@ -3,6 +3,7 @@
 //! needed for playback or subtitles.
 
 pub mod chat;
+pub mod chatgpt;
 pub mod check;
 pub mod http;
 pub mod oauth;
@@ -33,8 +34,12 @@ pub struct AiConfig {
     pub chat: Choice,
     /// Per-provider address: custom servers, or a local server on another port.
     pub base_urls: HashMap<String, String>,
-    /// "sk-…abcd" for each provider with a saved key.
+    /// "sk-…abcd" for each provider with a saved key (the account email for ChatGPT).
     pub key_hints: HashMap<String, String>,
+    /// Sign in with ChatGPT: the client id OpenAI issued to this app, reused on later sign-ins.
+    pub chatgpt_client_id: Option<String>,
+    /// Sign in with ChatGPT: this install's stable host id.
+    pub chatgpt_host_id: Option<String>,
 }
 
 impl AiConfig {
@@ -92,8 +97,12 @@ impl Target {
         if base_url.is_empty() {
             return Err(format!("还没有填写{}服务的地址", preset.name));
         }
+        if preset.key == KeyPolicy::Account && !state.read(|d| d.ai.key_hints.contains_key(id)) {
+            return Err(format!("还没有用 {} 登录", preset.name));
+        }
         let key = match preset.key {
-            KeyPolicy::None => None,
+            // Account tokens are put on by `ready` (they may need refreshing first).
+            KeyPolicy::None | KeyPolicy::Account => None,
             _ => secrets.0.get(id)?,
         };
         if preset.key == KeyPolicy::Required && key.is_none() {
@@ -104,6 +113,14 @@ impl Target {
             base_url,
             key,
         })
+    }
+
+    /// Finishes what `resolve` can't do synchronously: a fresh account token.
+    pub async fn ready(mut self, secrets: &Secrets) -> Result<Self, String> {
+        if self.preset.key == KeyPolicy::Account {
+            chatgpt::authorize(&mut self, secrets).await?;
+        }
+        Ok(self)
     }
 
     pub fn endpoint(&self) -> Endpoint<'_> {
@@ -176,7 +193,7 @@ pub fn ai_set_key(
     provider: String,
     key: String,
 ) -> Result<AiConfig, String> {
-    if preset(&provider)?.key == KeyPolicy::None {
+    if matches!(preset(&provider)?.key, KeyPolicy::None | KeyPolicy::Account) {
         return Err("这个服务不需要 API Key".into());
     }
     let key = key.trim();
@@ -204,7 +221,9 @@ pub async fn ai_models(
             .map(String::from)
             .collect());
     }
-    let target = Target::resolve(&state, &secrets, &provider)?;
+    let target = Target::resolve(&state, &secrets, &provider)?
+        .ready(&secrets)
+        .await?;
     let ids = target.endpoint().list_models().await?;
     Ok(providers::filter_models(target.preset, feature, ids))
 }

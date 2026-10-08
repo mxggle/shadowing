@@ -40,6 +40,7 @@ const presets: Preset[] = [
   { ...cloud, id: "local", name: "本机", api: "builtin", baseUrl: "", local: true, key: "none", keyUrl: null, features: ["transcribe"], note: "在这台 Mac 上用 Whisper 转写：免费、可离线，需要先下载一个模型" },
   { ...cloud, id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1", features: ["transcribe"], transcribeModel: "whisper-large-v3", transcribePrices: [["whisper-large-v3", 0.111], ["whisper-large-v3-turbo", 0.04]], note: "Whisper large-v3，约 $0.11 / 小时音频，速度很快" },
   { ...cloud, id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", features: ["transcribe", "chat"], transcribeModel: "whisper-1", transcribePrices: [["whisper-1", 0.36]], chatModel: "gpt-5-mini", note: "转写用 whisper-1（约 $0.36 / 小时）；解释可选 GPT 系列" },
+  { ...cloud, id: "chatgpt", name: "ChatGPT 账号", api: "responses", baseUrl: "https://api.openai.com/v1", key: "account", keyUrl: null, note: "用 ChatGPT Plus / Pro 套餐的额度，不需要 API Key（OpenAI 的预览功能，可能变化）" },
   { ...cloud, id: "anthropic", name: "Anthropic", api: "anthropic", baseUrl: "https://api.anthropic.com/v1", chatModel: "claude-haiku-5-5", note: "Claude 系列" },
   { ...cloud, id: "gemini", name: "Google Gemini", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", note: "Gemini 系列；免费额度的数据可能被 Google 用于改进模型" },
   { ...cloud, id: "deepseek", name: "DeepSeek", baseUrl: "https://api.deepseek.com", note: "价格低，中文好" },
@@ -49,17 +50,19 @@ const presets: Preset[] = [
   { ...cloud, id: "custom-transcribe", name: "自定义", baseUrl: "", key: "optional", keyUrl: null, features: ["transcribe"], note: "任何 OpenAI 兼容的转写服务（需要支持 verbose_json 时间戳）" },
   { ...cloud, id: "custom-chat", name: "自定义", baseUrl: "", key: "optional", keyUrl: null, note: "任何 OpenAI 兼容的服务" },
 ];
-const aiConfig: AiConfig = { transcribe: { provider: null, model: "" }, chat: { provider: null, model: "" }, baseUrls: {}, keyHints: {} };
+const aiConfig: AiConfig = { transcribe: { provider: null, model: "" }, chat: { provider: null, model: "" }, baseUrls: {}, keyHints: {}, chatgptClientId: null, chatgptHostId: null };
 const keys: Record<string, string> = {};
 const mockModels: Record<string, string[]> = {
   groq: ["whisper-large-v3", "whisper-large-v3-turbo"],
   openai: ["gpt-5", "gpt-5-mini", "gpt-5-nano", "whisper-1"],
   anthropic: ["claude-haiku-5-5", "claude-sonnet-5-5"],
+  chatgpt: ["gpt-6.1-luna", "gpt-6.1-sol"],
   ollama: ["gemma4:12b", "qwen3.5:9b"],
 };
 function mockList(provider: string, feature: Feature): string[] {
   const p = presets.find((x) => x.id === provider)!;
   if (p.key === "required" && !keys[provider]) throw `还没有填写 ${p.name} 的 API Key`;
+  if (p.key === "account" && !aiConfig.keyHints[provider]) throw `还没有用 ${p.name} 登录`;
   if (keys[provider] === "bad") throw `${p.name} 拒绝了这个 API Key（401），请检查是否填错或已失效：Incorrect API key provided`;
   if (provider === "lmstudio") throw "没有连接到 LM Studio，请确认它已经启动";
   if (!p.baseUrl && !aiConfig.baseUrls[provider]) throw "还没有填写自定义服务的地址";
@@ -245,6 +248,11 @@ export function installMockBackend() {
           });
         case "ai_sign_in_cancel":
           return;
+        case "ai_sign_in_chatgpt":
+          return delay(1500).then(() => ((aiConfig.keyHints.chatgpt = "learner@example.com"), aiConfig));
+        case "ai_sign_out_chatgpt":
+          delete aiConfig.keyHints.chatgpt;
+          return aiConfig;
         case "transcribe_start":
           return mockTranscribe(a.path, a.language);
         case "transcribe_cancel":

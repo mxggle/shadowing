@@ -213,6 +213,8 @@ pub fn run() {
             ai::check::ai_detect_local,
             ai::openrouter::ai_sign_in_openrouter,
             ai::openrouter::ai_sign_in_cancel,
+            ai::chatgpt::sign_in::ai_sign_in_chatgpt,
+            ai::chatgpt::ai_sign_out_chatgpt,
             ai::ai_open_key_page,
             local::local_models,
             local::local_download,

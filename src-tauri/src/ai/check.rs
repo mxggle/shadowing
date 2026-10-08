@@ -56,7 +56,9 @@ pub async fn ai_test(
             millis: 0,
         });
     }
-    let target = Target::resolve(&state, &secrets, &id)?;
+    let target = Target::resolve(&state, &secrets, &id)?
+        .ready(&secrets)
+        .await?;
     let listed = target.endpoint().list_models().await;
     if feature == Feature::Transcribe {
         let models = providers::filter_models(target.preset, feature, listed?);

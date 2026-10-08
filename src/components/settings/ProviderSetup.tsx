@@ -4,6 +4,7 @@ import { api, type AiConfig, type Feature, type Preset } from "../../lib/api";
 import { useApp } from "../../store";
 import { Button, fieldClass } from "../ui";
 import { KeyField } from "./KeyField";
+import { ChatGPTAccount } from "./ChatGPTAccount";
 import { LocalModels } from "./LocalModels";
 import { OpenRouterSignIn } from "./OpenRouterSignIn";
 
@@ -39,6 +40,7 @@ export function ProviderSetup({ feature }: { feature: Feature }) {
           <Chip key={p.id} selected={p.id === preset?.id} onClick={() => void pick(p.id)}>
             {p.name}
             {p.local && p.api !== "builtin" && <span className="rounded border border-current/30 px-1 text-[11px] opacity-75">本机</span>}
+            {p.api === "responses" && <span className="rounded border border-current/30 px-1 text-[11px] opacity-75">预览</span>}
             {running[p.id] !== undefined && (
               <span title={`正在运行，有 ${running[p.id]} 个模型`} className="size-1.5 rounded-full bg-ok" />
             )}
@@ -75,7 +77,7 @@ function Details({ feature, preset, config }: { feature: Feature; preset: Preset
   const model = config[feature].model;
   const baseUrl = config.baseUrls[preset.id] ?? preset.baseUrl;
   const hint = config.keyHints[preset.id];
-  const ready = !!baseUrl && (preset.key !== "required" || !!hint);
+  const ready = !!baseUrl && ((preset.key !== "required" && preset.key !== "account") || !!hint);
   const [models, setModels] = useState<string[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -149,7 +151,14 @@ function Details({ feature, preset, config }: { feature: Feature; preset: Preset
         </>
       )}
 
-      {preset.key !== "none" && (
+      {preset.key === "account" && (
+        <>
+          <Label>账号</Label>
+          <ChatGPTAccount email={hint} onSaved={save} />
+        </>
+      )}
+
+      {(preset.key === "required" || preset.key === "optional") && (
         <>
           <Label>API Key</Label>
           <div className="flex min-w-0 flex-col gap-2">

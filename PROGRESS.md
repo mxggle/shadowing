@@ -64,6 +64,21 @@ _最后更新：2026-10-09_
   - Groq 免费档每小时音频秒数的限额，用尽时会显示 429 的原因。
 - 限制：一次只转写一个音频；已有字幕的音频暂不提供“重新转写”。
 
+### 第 5 步（下半）用 ChatGPT 登录（已实现，实验性）
+- 解释服务新增“ChatGPT 账号（预览）”：
+  - 用浏览器登录 ChatGPT，用 Plus / Pro 套餐的额度，不需要 API Key。
+  - 登录后显示邮箱，可以退出（会向 OpenAI 撤销登录）。
+- 按 OpenAI 文档实现：
+  - 首次动态注册（`dynamic_agent_client`），以后复用发给本应用的 client id。
+  - 本机稳定的 `ext_agent_host_id`（`urn:uuid:`）。
+  - 127.0.0.1 回调 + PKCE + state + nonce。
+  - 校验 ID token 的 iss / aud / exp / nonce。签名不校验：token 是通过 TLS 直接从 token 端点拿到的，OIDC 规范允许这种情况用 TLS 代替签名校验。
+  - 要求授权里包含 `chatgpt.tokens.use.direct`。
+  - token 存钥匙串，过期前自动刷新（串行，避免轮换冲突）。
+  - 请求走 Responses API（`stream: true`、`store: false`），读取流式文本；额度用完等错误给出中文说明。
+- 已验证（自动）：Rust 新增 5 个测试（ID token 各项校验、流式读取与额度错误、模型列表、token 请求的表单格式）；浏览器 mock 里走过登录 / 退出 / 拉取模型。
+- 待验证：**真实登录需要你来试**（我没有打开真实授权页，避免在你的 OpenAI 账号上注册应用）；这是 OpenAI 几周前上线的预览功能，接口可能变化。
+
 ### 第 5 步（上半）解释用的大模型连接（已实现）
 - 解释服务真正可用：
   - OpenAI 兼容接口（OpenAI、Gemini、DeepSeek、OpenRouter、Ollama、LM Studio、自定义）和 Anthropic 原生接口。
@@ -73,7 +88,7 @@ _最后更新：2026-10-09_
 - 设置里自动检测正在运行的 Ollama / LM Studio（选项旁绿点）。
 - **用 OpenRouter 账号登录**：官方 PKCE 流程，在浏览器授权后自动拿到 Key 存进钥匙串，可以取消。
 - 已验证：
-  - 自动：Rust 新增 8 个测试，包括用本地假服务器核对两种接口的请求体与请求头、PKCE 对照 RFC 7636 的向量、本地回调监听。
+  - 自动：Rust 新增 7 个测试，包括用本地假服务器核对两种接口的请求体与请求头、PKCE 对照 RFC 7636 的向量、本地回调监听。
   - 浏览器 mock 里走过：登录、测试、示例回答。
   - 真实 OpenRouter 授权页能正确识别参数（没有点授权，避免在你的账号上生成 Key）。
 - 待验证：用真实 Key / 真实 OpenRouter 登录；本机 Ollama 的真实模型（这台 Mac 上只有 `nemotron-3-super:cloud`，是 Ollama 云端模型，没调用）。

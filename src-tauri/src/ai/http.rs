@@ -44,7 +44,8 @@ impl Endpoint<'_> {
             (Api::Anthropic, key) => req
                 .header("x-api-key", key.unwrap_or_default())
                 .header("anthropic-version", ANTHROPIC_VERSION),
-            (Api::OpenAi | Api::Builtin, None) | (Api::Builtin, Some(_)) => req,
+            (Api::Responses, Some(key)) => req.bearer_auth(key),
+            (Api::OpenAi | Api::Builtin | Api::Responses, None) | (Api::Builtin, Some(_)) => req,
         }
     }
 
@@ -121,9 +122,13 @@ impl Endpoint<'_> {
         }
         let path = match self.api {
             Api::Anthropic => "/models?limit=1000",
-            Api::OpenAi | Api::Builtin => "/models",
+            Api::OpenAi | Api::Builtin | Api::Responses => "/models",
         };
         let body = self.send(self.get(path)).await?;
+        if self.api == Api::Responses {
+            return super::chatgpt::read_models(&body)
+                .ok_or_else(|| format!("{} 返回的模型列表无法识别", self.name));
+        }
         let list: List = serde_json::from_str(&body)
             .map_err(|_| format!("{} 返回的模型列表无法识别，请检查地址", self.name))?;
         Ok(list.data.into_iter().map(|m| m.id).collect())

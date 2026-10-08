@@ -52,6 +52,20 @@ pub async fn complete(target: &Target, model: &str, prompt: &Prompt<'_>) -> Resu
                 .await?;
             anthropic_text(&text).ok_or_else(|| unreadable(name))
         }
+        Api::Responses => {
+            // This route requires streaming and no server-side storage; length limits aren't accepted.
+            let body = json!({
+                "model": model,
+                "instructions": prompt.system,
+                "input": [{ "role": "user", "content": prompt.user }],
+                "store": false,
+                "stream": true,
+            });
+            let text = ep
+                .send(ep.post("/responses").json(&body).timeout(TIMEOUT))
+                .await?;
+            super::chatgpt::read_stream(&text)
+        }
         Api::Builtin => Err("这个服务不能用于解释".into()),
     }
 }
