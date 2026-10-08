@@ -1,12 +1,12 @@
-import { FileUp, Repeat, Trash2 } from "lucide-react";
-import { memo, useEffect, useRef, type RefObject } from "react";
+import { FileUp, Play, Repeat, Trash2 } from "lucide-react";
+import { memo, useEffect, useRef, type ReactNode, type RefObject } from "react";
 import type { Sentence } from "../lib/api";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { IconButton } from "./ui";
 
-/** Sentence list: click to play from a sentence, the loop button (or S) repeats it. */
+/** Sentence list: text is selectable; the play button plays from a sentence, the loop button (or S) repeats it. */
 export function SentenceList() {
   const sentences = useApp((s) => s.transcript?.sentences ?? []);
   const active = useApp((s) => (s.transcript ? sentenceIndexAt(s.transcript.sentences, s.time) : -1));
@@ -82,11 +82,10 @@ const Row = memo(function Row({ index, sentence, active, looping, voices, turn }
 }) {
   const { playSentence, toggleSentenceLoop } = useApp.getState();
   const tone = looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover";
-  const columns = voices ? "grid-cols-[3.5rem_1.75rem_1fr_auto]" : "grid-cols-[3.5rem_1fr_auto]";
+  const columns = voices ? "grid-cols-[3.5rem_1.75rem_1fr_auto_auto]" : "grid-cols-[3.5rem_1fr_auto_auto]";
   return (
     <div
       data-index={index}
-      onClick={() => playSentence(index)}
       className={`group grid ${columns} items-start gap-1 rounded-lg py-2 pr-1 pl-2 transition-colors duration-150 [contain-intrinsic-size:auto_48px] [content-visibility:auto] ${tone} ${turn && index > 0 ? "mt-2" : ""}`}
     >
       <span className={`tabular pt-[5px] font-mono text-[12px] ${looping ? "text-loop-text" : active ? "text-fg" : "text-faint"}`}>
@@ -104,24 +103,48 @@ const Row = memo(function Row({ index, sentence, active, looping, voices, turn }
           )}
         </span>
       )}
-      <p className={`text-[16px] leading-relaxed break-words ${active || looping ? "text-fg" : "text-muted"}`}>{sentence.text}</p>
-      <button
+      <p className={`cursor-text text-[16px] leading-relaxed break-words select-text ${active || looping ? "text-fg" : "text-muted"}`}>
+        {sentence.text}
+      </p>
+      <RowButton title="从这一句播放" onClick={() => playSentence(index)}>
+        <Play size={13} fill="currentColor" strokeWidth={0} className="ml-px" />
+      </RowButton>
+      <RowButton
         title={looping ? "取消循环 (S)" : "循环这一句 (S)"}
-        aria-pressed={looping}
-        onClick={(e) => {
-          e.stopPropagation();
+        pressed={looping}
+        onClick={() => {
           toggleSentenceLoop(index);
           useApp.getState().tip("sentenceLoop");
         }}
-        className={`grid size-7 place-items-center rounded-md transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${
-          looping ? "text-loop" : "text-muted opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-fg"
-        }`}
       >
         <Repeat size={14} strokeWidth={2.2} />
-      </button>
+      </RowButton>
     </div>
   );
 });
+
+/** Small row action: shown while the row is hovered (or focused); stays lit while `pressed`. */
+function RowButton({ title, pressed, onClick, children }: {
+  title: string;
+  pressed?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      title={title}
+      aria-pressed={pressed}
+      onClick={onClick}
+      className={`grid size-7 place-items-center rounded-md transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${
+        pressed
+          ? "text-loop"
+          : "text-muted opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 const PAUSE_AFTER_USER_SCROLL_MS = 3000;
 

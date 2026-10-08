@@ -7,9 +7,9 @@ type TaskId = "play" | "slow" | "loop" | "shadow";
 const SHADOW_REPEATS = 3;
 
 const TASKS: { id: TaskId; title: string; how: string }[] = [
-  { id: "play", title: "播放", how: "按空格，或点任意一句，从那里开始听。" },
+  { id: "play", title: "播放", how: "按空格，或鼠标移到句子上点右边的播放按钮，从那里开始听。" },
   { id: "slow", title: "放慢", how: "在底部把速度调慢一点，比如 0.75（或按 −）。" },
-  { id: "loop", title: "循环一句", how: "鼠标移到句子上，点右边的循环按钮（或按 S）。" },
+  { id: "loop", title: "循环一句", how: "鼠标移到句子上，点最右边的循环按钮（或按 S）。" },
   { id: "shadow", title: "跟读", how: `跟着循环小声说出来，听满 ${SHADOW_REPEATS} 遍。` },
 ];
 
