@@ -1,9 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronRight, ChevronsDownUp, ChevronsUpDown, FolderOpen, RefreshCw } from "lucide-react";
+import { Check, ChevronRight, ChevronsDownUp, ChevronsUpDown, FolderOpen, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
 import { isFinished } from "../audio/logic";
 import type { FolderListing, Progress, Track } from "../lib/api";
 import { useApp } from "../store";
 import { Button, IconButton } from "./ui";
+
+/** Shows or hides the sidebar; lives in the sidebar header while open and in the top bar once it is closed. */
+export function ShelfToggle() {
+  const open = useApp((s) => s.shelfOpen);
+  const toggle = useApp((s) => s.toggleShelf);
+  return (
+    <IconButton title={open ? "收起左侧列表 (⌘B)" : "展开左侧列表 (⌘B)"} aria-expanded={open} onClick={toggle}>
+      {open ? <PanelLeftClose size={16} strokeWidth={1.8} /> : <PanelLeftOpen size={16} strokeWidth={1.8} />}
+    </IconButton>
+  );
+}
 
 export function Library() {
   const folder = useApp((s) => s.folder);
@@ -14,8 +25,10 @@ export function Library() {
 function NoFolder() {
   const chooseFolder = useApp((s) => s.chooseFolder);
   return (
-    <aside className="flex min-h-0 flex-col border-r border-line bg-shelf">
-      <div data-tauri-drag-region className="h-[52px] shrink-0" />
+    <aside className="flex h-full min-h-0 flex-col border-r border-line bg-shelf">
+      <div data-tauri-drag-region className="flex h-[52px] shrink-0 items-center justify-end pr-2.5 pl-20">
+        <ShelfToggle />
+      </div>
       <div className="flex flex-col items-start gap-3 px-5 pt-3">
         <p className="text-[13px] leading-relaxed text-muted">
           你的音频会列在这里。
@@ -62,8 +75,9 @@ function FolderView({ folder }: { folder: FolderListing }) {
   };
 
   return (
-    <aside className="group/shelf flex min-h-0 flex-col border-r border-line bg-shelf">
+    <aside className="group/shelf flex h-full min-h-0 flex-col border-r border-line bg-shelf">
       <div data-tauri-drag-region className="flex h-[52px] shrink-0 items-center justify-end gap-0.5 pr-2.5 pl-20">
+        <ShelfToggle />
         {named.length > 0 && (
           <IconButton
             title={allCollapsed ? "展开全部" : "折叠全部"}

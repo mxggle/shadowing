@@ -12,9 +12,14 @@ export function useShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
       const s = useApp.getState();
       if (s.settingsOpen || s.wizardOpen) return;
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        s.toggleShelf();
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       const actions: Record<string, [() => void, FlashId?]> = {
         " ": [s.toggle, "toggle"],
         ArrowLeft: [() => s.jump(-1), "back"],

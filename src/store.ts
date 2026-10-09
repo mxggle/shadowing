@@ -27,9 +27,12 @@ export interface AppState extends TranscriptState, GuideState {
   /** Latest model download update. */
   download: DownloadStatus | null;
   settingsOpen: boolean;
+  /** Whether the recordings sidebar is shown; remembered between launches. */
+  shelfOpen: boolean;
 
   init(): Promise<void>;
   setSettingsOpen(open: boolean): void;
+  toggleShelf(): void;
   setAiConfig(config: AiConfig): void;
   setLocal(local: LocalOverview): void;
   chooseFolder(): Promise<void>;
@@ -48,6 +51,15 @@ export interface AppState extends TranscriptState, GuideState {
   cycleLoop(): void;
   clearLoop(): void;
   nudgeLoop(which: "a" | "b", delta: number): void;
+}
+
+const SHELF_KEY = "shadowing:shelfOpen";
+function loadShelfOpen(): boolean {
+  try {
+    return localStorage.getItem(SHELF_KEY) !== "0";
+  } catch {
+    return true;
+  }
 }
 
 const SAVE_EVERY_MS = 2000;
@@ -132,6 +144,7 @@ export const useApp = create<AppState>((set, get) => {
     local: null,
     download: null,
     settingsOpen: false,
+    shelfOpen: loadShelfOpen(),
     ...createTranscriptSlice(set, get, engine, applyLoop),
     ...createGuideSlice(set, get, engine),
 
@@ -156,6 +169,15 @@ export const useApp = create<AppState>((set, get) => {
 
     setSettingsOpen(settingsOpen) {
       set({ settingsOpen });
+    },
+    toggleShelf() {
+      const shelfOpen = !get().shelfOpen;
+      set({ shelfOpen });
+      try {
+        localStorage.setItem(SHELF_KEY, shelfOpen ? "1" : "0");
+      } catch {
+        /* a per-window convenience; fine to forget */
+      }
     },
 
     setLocal(local) {

@@ -3,7 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { AiWizard } from "./components/guide/AiWizard";
 import { Hint } from "./components/guide/Hint";
 import { Welcome } from "./components/guide/Welcome";
-import { Library } from "./components/Library";
+import { Library, ShelfToggle } from "./components/Library";
 import { PlayerBar } from "./components/PlayerBar";
 import { SettingsButton, SettingsDialog } from "./components/settings/Settings";
 import { ShortcutHelp } from "./components/ShortcutHelp";
@@ -18,6 +18,7 @@ export default function App() {
   const ready = useApp((s) => s.ready);
   const folder = useApp((s) => s.folder);
   const practicing = useApp((s) => s.practicing);
+  const shelfOpen = useApp((s) => s.shelfOpen);
   useShortcuts();
 
   useEffect(() => {
@@ -47,13 +48,32 @@ export default function App() {
 
   return (
     <div
-      className="grid h-full grid-cols-[minmax(216px,264px)_1fr] grid-rows-[minmax(0,1fr)]"
+      className="flex h-full"
       // Buttons don't take focus on click, so Space/arrows stay global shortcuts.
       onMouseDown={(e) => (e.target as HTMLElement).closest("button") && e.preventDefault()}
     >
-      <Library />
-      <main className="flex min-w-0 flex-col">
-        <div data-tauri-drag-region className="flex h-[52px] shrink-0 items-center gap-0.5 pr-3 pl-6">
+      {/* Width animates between 0 and the sidebar width; the sidebar keeps its size and is clipped. */}
+      <div
+        inert={!shelfOpen}
+        className={`shrink-0 overflow-hidden transition-[width] duration-200 ease-snappy ${shelfOpen ? "w-[248px]" : "w-0"}`}
+      >
+        <div className="h-full w-[248px]">
+          <Library />
+        </div>
+      </div>
+      <main className="flex min-w-0 flex-1 flex-col">
+        <div
+          data-tauri-drag-region
+          className={`flex h-[52px] shrink-0 items-center gap-0.5 pr-3 transition-[padding] duration-200 ease-snappy ${
+            shelfOpen ? "pl-6" : "pl-20"
+          }`}
+        >
+          {!shelfOpen && (
+            <>
+              <ShelfToggle />
+              <span className="w-2" />
+            </>
+          )}
           <Breadcrumb />
           <ShortcutHelp />
           <SettingsButton />
