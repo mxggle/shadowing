@@ -43,13 +43,14 @@ fn reads_a_reply_wrapped_in_a_fence_and_tidies_it() {
 {"translation": " 今天天气真好。 ", "words": [
   {"word": "散歩", "reading": "さんぽ", "meaning": "散步"},
   {"word": "", "meaning": "空"},
-  {"word": "天気", "reading": "てんき"}
+  {"word": "天気", "reading": "てんき"},
+  {"word": "公園", "reading": "こうえん", "meaning": "公园"}
 ], "points": [
   {"point": "〜ましょう", "note": "提议一起做"},
   {"point": "は", "note": ""}
 ]}
 ```"#;
-    let e = parse(reply).unwrap();
+    let e = parse(reply, "今日は散歩に行きましょう。天気がいい").unwrap();
     assert_eq!(e.translation, "今天天气真好。");
     assert_eq!(
         e.words,
@@ -70,15 +71,19 @@ fn reads_a_reply_wrapped_in_a_fence_and_tidies_it() {
 
 #[test]
 fn lists_are_optional_and_capped() {
-    let e = parse(r#"{"translation": "你好"}"#).unwrap();
+    let e = parse(r#"{"translation": "你好"}"#, "").unwrap();
     assert!(e.words.is_empty() && e.points.is_empty());
     let many: Vec<String> = (0..12)
         .map(|i| format!(r#"{{"word": "w{i}", "meaning": "m"}}"#))
         .collect();
-    let e = parse(&format!(
-        r#"{{"translation": "x", "words": [{}]}}"#,
-        many.join(",")
-    ))
+    let sentence = (0..12)
+        .map(|i| format!("w{i}"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let e = parse(
+        &format!(r#"{{"translation": "x", "words": [{}]}}"#, many.join(",")),
+        &sentence,
+    )
     .unwrap();
     assert_eq!(e.words.len(), 8);
     assert_eq!(e.words[7].word, "w7");
@@ -92,6 +97,6 @@ fn a_reply_without_a_translation_is_not_an_explanation() {
         r#"{"translation": "  "}"#,
         r#"{"translation": 3}"#,
     ] {
-        assert!(parse(bad).is_err(), "{bad}");
+        assert!(parse(bad, "x").is_err(), "{bad}");
     }
 }

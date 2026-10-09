@@ -34,7 +34,8 @@ pub struct Explanation {
     pub points: Vec<Point>,
 }
 
-pub(super) fn parse(reply: &str) -> Result<Explanation, String> {
+/// `sentence` is what was asked about: a word the model lists must be in it.
+pub(super) fn parse(reply: &str, sentence: &str) -> Result<Explanation, String> {
     let unreadable = || "AI 的回复不是要求的格式，可以再试一次或换一个模型".to_string();
     let mut e = chat::json_object(reply)
         .and_then(|json| serde_json::from_str::<Explanation>(json).ok())
@@ -53,8 +54,11 @@ pub(super) fn parse(reply: &str) -> Result<Explanation, String> {
         p.note = p.note.trim().to_string();
     }
     // An entry needs something to read: a word its meaning, a point its note.
-    e.words
-        .retain(|w| !w.word.is_empty() && !w.meaning.is_empty());
+    // A word that isn't in the sentence (from the lines around it, or made up) isn't about it.
+    let sentence = sentence.to_lowercase();
+    e.words.retain(|w| {
+        !w.meaning.is_empty() && !w.word.is_empty() && sentence.contains(&w.word.to_lowercase())
+    });
     e.points
         .retain(|p| !p.point.is_empty() && !p.note.is_empty());
     e.words.truncate(MAX_WORDS);

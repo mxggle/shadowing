@@ -102,6 +102,8 @@ npm run app                           # 开发模式启动应用
   `SHADOWING_FIXTURES=<fixtures> SHADOWING_LONG=<几分钟的语音> cargo test --manifest-path src-tauri/Cargo.toml real_ -- --ignored --nocapture`
 - AI 校对手动测试（用设置里的「句子解释」服务和钥匙串里的登录，只读 state.json 的副本，不改应用数据）：
   `SHADOWING_AUDIO=<音频>[;<音频>…] cargo test --manifest-path src-tauri/Cargo.toml --release real_proofread -- --ignored --nocapture`
+- 句子解释手动测试（同样用设置里的服务和钥匙串登录，读音频已保存的字幕，不改应用数据）：
+  `SHADOWING_AUDIO=<音频> SHADOWING_SENTENCES=2,5,16 cargo test --manifest-path src-tauri/Cargo.toml --release real_explain -- --ignored --nocapture`
 - 钥匙串手动测试：`cargo test --manifest-path src-tauri/Cargo.toml keychain_round_trip -- --ignored`。
 - Rust 引擎另有手动测试：`cargo test --manifest-path src-tauri/Cargo.toml plays_tone -- --ignored`（真实声卡播放测试音）。
 - 音质、循环边界听感、跟读节奏无法自动验证，需要用户试听反馈。汇报时区分“已实现 / 已验证 / 待验证”。

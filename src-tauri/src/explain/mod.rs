@@ -2,6 +2,8 @@
 //! the words worth knowing and the grammar or speech points of one sentence, for
 //! a learner who reads Chinese. It only explains; nothing in the transcript changes.
 
+#[cfg(test)]
+mod real_tests;
 mod reply;
 #[cfg(test)]
 mod tests;
@@ -19,9 +21,9 @@ const SYSTEM: &str = r#"You help a Chinese-speaking language learner who is shad
 Reply with JSON only, no other text:
 {"translation": "...", "words": [{"word": "散歩", "reading": "さんぽ", "meaning": "散步"}], "points": [{"point": "〜ましょう", "note": "提议一起做某事，「我们…吧」"}]}
 - translation: a natural Simplified Chinese translation of the whole sentence. Use the lines around it to resolve who or what is meant. Keep the speaker's tone (casual stays casual).
-- words: at most 8 words or fixed phrases an intermediate learner may not know, in the order they appear. word: as written in the sentence. reading: only for Japanese (kana for words that contain kanji), otherwise "". meaning: the Simplified Chinese meaning in this sentence, under 15 characters.
+- words: at most 8 words or fixed phrases an intermediate learner may not know, in the order they appear. Skip basic words and fillers that a beginner already knows; a short reply like "うん。" needs no word list. Only words that are in the sentence itself, not in the lines around it. word: exactly as written in the sentence. reading: only for Japanese (kana for words that contain kanji), otherwise "". meaning: the Simplified Chinese meaning in this sentence, under 15 characters.
 - points: at most 3 things worth noticing: a grammar pattern, a spoken-language feature (contraction, dropped sounds, filler, slang, dialect), or a nuance. point: the pattern or phrase. note: Simplified Chinese, under 40 characters.
-Leave a list empty when there is nothing to say. Do not repeat the translation in the notes. The transcript was made by speech recognition, so if a word looks misheard, explain what it most likely is."#;
+Leave a list empty when there is nothing to say; a very short sentence may need only the translation. Do not repeat the translation in the notes. The transcript was made by speech recognition, so if a word looks misheard, explain what it most likely is."#;
 
 /// Lines of the transcript sent either side of the sentence, for context only.
 const BEFORE: usize = 3;
@@ -80,5 +82,5 @@ pub async fn ask(
         max_tokens: 2048,
     };
     let text = chat::complete(target, model, &prompt).await?;
-    reply::parse(&text)
+    reply::parse(&text, &sentences[index].text)
 }
