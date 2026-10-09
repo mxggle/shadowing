@@ -73,9 +73,20 @@ export async function aiScenario({ check, waitFor, tracks }: Kit) {
   const note = Object.values(app().explain)[0];
   check(
     "a sentence is explained",
-    note?.open && note.state === "done" && note.value.translation === "测试译文" && note.value.words[0]?.word === "sentinel",
+    note?.open && note.state === "done" && note.value.translation === "测试译文" && note.value.words[0]?.word === "two",
     JSON.stringify(app().explain),
   );
   app().toggleExplain(1);
   check("closing keeps the answer for later", Object.values(app().explain).every((e) => !e.open && e.state === "done"));
+
+  // 13. The answer is kept on disk: forget it on screen, and it comes back (closed) with its source.
+  const path = untranscribed.path;
+  useApp.setState({ explain: {} });
+  await app().loadExplanations(path);
+  const back = Object.values(app().explain)[0];
+  check(
+    "a kept answer comes back after a restart",
+    Object.keys(app().explain).length === 1 && back?.state === "done" && !back.open && back.value.translation === "测试译文" && back.value.source.endsWith("fake-chat"),
+    JSON.stringify(app().explain),
+  );
 }

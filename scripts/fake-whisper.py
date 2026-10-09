@@ -27,7 +27,7 @@ REPLY = {
 }
 
 # An explanation comes back for a request that asks for one sentence to be explained.
-EXPLANATION = '{"translation": "测试译文", "words": [{"word": "sentinel", "reading": "", "meaning": "哨兵"}], "points": []}'
+EXPLANATION = '{"translation": "测试译文", "words": [{"word": "two", "reading": "", "meaning": "二"}], "points": []}'
 
 # The fix comes back only if the request marked the unsure word (see REPLY) as 〔sentence〕;
 # the second one (no change) must be dropped by the app.

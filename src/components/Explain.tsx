@@ -43,7 +43,7 @@ export function ExplainNote({ index, entry }: { index: number; entry: Explain })
           </Button>
         </div>
       )}
-      {entry.state === "done" && <Answer value={entry.value} source={service ? `${service.local ? "本机 " : ""}${service.label}` : ""} />}
+      {entry.state === "done" && <Answer value={entry.value} />}
       <IconButton title="收起 (I)" onClick={() => toggleExplain(index)} className="absolute top-1.5 right-1.5 !h-6 !min-w-6">
         <X />
       </IconButton>
@@ -51,7 +51,7 @@ export function ExplainNote({ index, entry }: { index: number; entry: Explain })
   );
 }
 
-function Answer({ value, source }: { value: Explanation; source: string }) {
+function Answer({ value }: { value: Explanation }) {
   return (
     <div className="flex flex-col gap-2 pr-7">
       <p className="text-[14px] leading-[22px] text-fg">{value.translation}</p>
@@ -79,10 +79,10 @@ function Answer({ value, source }: { value: Explanation; source: string }) {
           ))}
         </ul>
       )}
-      {source && (
+      {value.source && (
         <p className="flex items-center gap-1 text-[11px] text-faint">
           <Sparkles size={11} className="shrink-0" />
-          {source} 的解释，可能有误
+          {value.source} 的解释，可能有误
         </p>
       )}
     </div>

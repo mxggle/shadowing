@@ -98,7 +98,9 @@ export function createTranscriptSlice(
     },
 
     async loadTranscript(path) {
-      forCurrent(path, await api.getTranscript(path).catch(() => null));
+      const transcript = await api.getTranscript(path).catch(() => null);
+      forCurrent(path, transcript);
+      if (transcript) void get().loadExplanations(path);
     },
 
     async importTranscript() {

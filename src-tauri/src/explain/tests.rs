@@ -100,3 +100,63 @@ fn a_reply_without_a_translation_is_not_an_explanation() {
         assert!(parse(bad, "x").is_err(), "{bad}");
     }
 }
+
+fn answer(index: usize, text: &str, translation: &str) -> saved::Saved {
+    saved::Saved {
+        index,
+        text: text.into(),
+        explanation: super::Explanation {
+            translation: translation.into(),
+            ..Default::default()
+        },
+    }
+}
+
+#[test]
+fn answers_are_kept_per_track_and_only_while_the_sentence_is_unchanged() {
+    let dir = tempfile::tempdir().unwrap();
+    let all = sentences(4);
+    saved::save(dir.path(), "/a.mp3", &all, answer(1, "line 1", "一")).unwrap();
+    saved::save(dir.path(), "/a.mp3", &all, answer(2, "line 2", "二")).unwrap();
+    // Asking again replaces the earlier answer for that sentence.
+    saved::save(dir.path(), "/a.mp3", &all, answer(1, "line 1", "一（新）")).unwrap();
+    let kept = saved::load(dir.path(), "/a.mp3", &all);
+    assert_eq!(
+        kept.iter()
+            .map(|a| (a.index, a.explanation.translation.as_str()))
+            .collect::<Vec<_>>(),
+        [(2, "二"), (1, "一（新）")]
+    );
+    assert!(saved::load(dir.path(), "/b.mp3", &all).is_empty());
+
+    // Sentence 2 was corrected: its answer is no longer given back, and the next save drops it.
+    let mut edited = all.clone();
+    edited[2].text = "line two".into();
+    assert_eq!(saved::load(dir.path(), "/a.mp3", &edited).len(), 1);
+    saved::save(dir.path(), "/a.mp3", &edited, answer(3, "line 3", "三")).unwrap();
+    assert_eq!(saved::load(dir.path(), "/a.mp3", &all).len(), 2);
+    assert!(saved::load(dir.path(), "/a.mp3", &all)
+        .iter()
+        .all(|a| a.index != 2));
+
+    saved::remove(dir.path(), "/a.mp3").unwrap();
+    assert!(saved::load(dir.path(), "/a.mp3", &all).is_empty());
+    saved::remove(dir.path(), "/a.mp3").unwrap();
+}
+
+#[test]
+fn a_damaged_file_means_no_answers_not_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let all = sentences(2);
+    saved::save(dir.path(), "/a.mp3", &all, answer(0, "line 0", "零")).unwrap();
+    let file = std::fs::read_dir(dir.path())
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    std::fs::write(&file, "{not json").unwrap();
+    assert!(saved::load(dir.path(), "/a.mp3", &all).is_empty());
+    saved::save(dir.path(), "/a.mp3", &all, answer(0, "line 0", "零")).unwrap();
+    assert_eq!(saved::load(dir.path(), "/a.mp3", &all).len(), 1);
+}

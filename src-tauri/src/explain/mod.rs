@@ -5,6 +5,7 @@
 #[cfg(test)]
 mod real_tests;
 mod reply;
+pub mod saved;
 #[cfg(test)]
 mod tests;
 
@@ -14,6 +15,7 @@ use crate::ai::{self, Target};
 use crate::transcript::{self, Sentence};
 use crate::AppState;
 pub use reply::Explanation;
+use saved::Saved;
 use tauri::State;
 
 const SYSTEM: &str = r#"You help a Chinese-speaking language learner who is shadowing a recording (listening, then repeating it aloud). Explain ONE sentence from its transcript.
@@ -50,9 +52,9 @@ fn user_message(sentences: &[Sentence], index: usize) -> String {
     out
 }
 
-/// Explains one sentence of a track's transcript with the explanation model.
-/// `text` is what the sentence said when it was asked for: if it has been
-/// corrected since, the answer would belong to other words, so the ask is refused.
+/// Explains one sentence of a track's transcript with the explanation model, and
+/// keeps the answer. `text` is what the sentence said when it was asked for: if it
+/// has been corrected since, the answer would belong to other words, so the ask is refused.
 #[tauri::command]
 pub async fn sentence_explain(
     state: State<'_, AppState>,
@@ -61,13 +63,46 @@ pub async fn sentence_explain(
     index: usize,
     text: String,
 ) -> Result<Explanation, String> {
-    let transcript = transcript::for_track(&state, &path)?.ok_or("这个音频没有字幕")?;
+    let (audio, transcript) = track(&state, &path)?;
     let sentences = &transcript.sentences;
     if sentences.get(index).map(|s| s.text.as_str()) != Some(text.as_str()) {
         return Err("这一句刚被修改过，请再试一次".into());
     }
     let (target, model) = ai::chat_target(&state, &secrets).await?;
-    ask(&target, &model, sentences, index).await
+    let explanation = ask(&target, &model, sentences, index).await?;
+    // Failing to keep it shouldn't lose what was just paid for.
+    let answer = Saved {
+        index,
+        text,
+        explanation: explanation.clone(),
+    };
+    if let Err(e) = saved::save(&dir(&state), &audio, sentences, answer) {
+        eprintln!("could not keep the explanation: {e}");
+    }
+    Ok(explanation)
+}
+
+/// The answers kept for a track that still match its sentences.
+#[tauri::command]
+pub fn sentence_explanations(state: State<AppState>, path: String) -> Result<Vec<Saved>, String> {
+    let (audio, transcript) = track(&state, &path)?;
+    Ok(saved::load(&dir(&state), &audio, &transcript.sentences))
+}
+
+fn dir(state: &AppState) -> std::path::PathBuf {
+    state.data_dir().join("explanations")
+}
+
+/// The track's key (its canonical path) and the transcript it shows.
+fn track(state: &AppState, path: &str) -> Result<(String, transcript::Transcript), String> {
+    let audio = state.audio(path)?.to_string_lossy().into_owned();
+    let transcript = transcript::for_track(state, path)?.ok_or("这个音频没有字幕")?;
+    Ok((audio, transcript))
+}
+
+/// Forgets a track's answers (its transcript was removed).
+pub fn forget(state: &AppState, audio: &str) {
+    let _ = saved::remove(&dir(state), audio);
 }
 
 pub async fn ask(
@@ -82,5 +117,11 @@ pub async fn ask(
         max_tokens: 2048,
     };
     let text = chat::complete(target, model, &prompt).await?;
-    reply::parse(&text, &sentences[index].text)
+    let mut explanation = reply::parse(&text, &sentences[index].text)?;
+    explanation.source = format!(
+        "{}{} · {model}",
+        if target.preset.local { "本机 " } else { "" },
+        target.preset.name
+    );
+    Ok(explanation)
 }

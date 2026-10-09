@@ -32,6 +32,9 @@ pub struct Explanation {
     pub words: Vec<Word>,
     #[serde(default)]
     pub points: Vec<Point>,
+    /// Who answered ("ChatGPT · gpt-6-luna"); filled in by the app, not the model.
+    #[serde(default)]
+    pub source: String,
 }
 
 /// `sentence` is what was asked about: a word the model lists must be in it.
@@ -40,6 +43,7 @@ pub(super) fn parse(reply: &str, sentence: &str) -> Result<Explanation, String> 
     let mut e = chat::json_object(reply)
         .and_then(|json| serde_json::from_str::<Explanation>(json).ok())
         .ok_or_else(unreadable)?;
+    e.source.clear();
     e.translation = e.translation.trim().to_string();
     if e.translation.is_empty() {
         return Err(unreadable());

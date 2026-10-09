@@ -91,6 +91,15 @@ export interface Explanation {
   translation: string;
   words: { word: string; reading: string; meaning: string }[];
   points: { point: string; note: string }[];
+  /** Who answered, e.g. "ChatGPT · gpt-6-luna" (本机 first when it ran on this Mac). */
+  source: string;
+}
+
+/** An answer kept from an earlier run, for the sentence as it was asked. */
+export interface SavedExplanation {
+  index: number;
+  text: string;
+  explanation: Explanation;
 }
 
 /** Sent while proofreading: how many parts of the transcript are done. */
@@ -222,6 +231,8 @@ export const api = {
   /** Asks the explanation model about one sentence; `text` must still be what it says. */
   explainSentence: (path: string, index: number, text: string) =>
     invoke<Explanation>("sentence_explain", { path, index, text }),
+  /** Answers kept for a track whose sentences still say the same. */
+  savedExplanations: (path: string) => invoke<SavedExplanation[]>("sentence_explanations", { path }),
   ai: {
     get: () => invoke<AiOverview>("ai_get"),
     choose: (feature: Feature, provider: string | null, model: string) =>

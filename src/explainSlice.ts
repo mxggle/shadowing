@@ -21,6 +21,8 @@ export interface ExplainState {
   /** Opens or closes the note under a sentence (default: the current one); asks the model the first time. */
   toggleExplain(index?: number): void;
   retryExplain(index: number): void;
+  /** Brings back the answers kept for a track (closed; what is already on screen stays). */
+  loadExplanations(path: string): Promise<void>;
 }
 
 type Get = () => AppState;
@@ -66,6 +68,18 @@ export function createExplainSlice(set: Set, get: Get): ExplainState {
       } else {
         void ask(current.path, index, text);
       }
+    },
+
+    async loadExplanations(path) {
+      const kept = await api.savedExplanations(path).catch(() => []);
+      set((s) => {
+        const explain = { ...s.explain };
+        for (const k of kept) {
+          const key = explainKey(path, k.index, k.text);
+          explain[key] ??= { open: false, state: "done", value: k.explanation };
+        }
+        return { explain };
+      });
     },
 
     retryExplain(index) {

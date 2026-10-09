@@ -89,7 +89,7 @@ fn fnv1a(bytes: &[u8]) -> u64 {
     })
 }
 
-fn stored_path(dir: &Path, audio: &str) -> PathBuf {
+pub(crate) fn stored_path(dir: &Path, audio: &str) -> PathBuf {
     dir.join(format!("{:016x}.json", fnv1a(audio.as_bytes())))
 }
 
@@ -275,6 +275,7 @@ pub async fn transcript_remove(
         .blocking_show();
     if confirmed {
         remove(&dir, &key).map_err(|e| e.to_string())?;
+        crate::explain::forget(&state, &key);
     }
     Ok(current(&state, &audio, &dir, &key))
 }

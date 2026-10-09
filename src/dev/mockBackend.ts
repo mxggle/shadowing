@@ -2,7 +2,7 @@
 // Simulates the Rust commands and player:* events; no real audio.
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { AiConfig, Explanation, Feature, Preset, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
+import type { AiConfig, Explanation, Feature, Preset, SavedExplanation, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
 import { fresh, samples, sampleTranscripts } from "./mockSamples";
 
 const root = "/Mock/日本語ポッドキャスト";
@@ -166,14 +166,16 @@ async function mockProofread(path: string): Promise<Suggestion[]> {
 
 // Explaining a sentence: a pause, then a demonstration answer (the third sentence fails once).
 let explainFailed = false;
-async function mockExplain(text: string): Promise<Explanation> {
+const keptExplanations = new Map<string, SavedExplanation[]>();
+async function mockExplain(path: string, index: number, text: string): Promise<Explanation> {
   if (!aiConfig.chat.provider) throw "还没有设置「句子解释」用的 AI 服务";
   await new Promise((r) => setTimeout(r, 900));
   if (text.includes("傘") && !explainFailed) {
     explainFailed = true;
     throw "请求超时了，请再试一次";
   }
-  return {
+  const value: Explanation = {
+    source: "本机 Ollama · gemma4:12b",
     translation: `（演示）${text.length} 个字的句子，翻译会写在这里。`,
     words: [
       { word: "散歩", reading: "さんぽ", meaning: "散步" },
@@ -181,6 +183,8 @@ async function mockExplain(text: string): Promise<Explanation> {
     ],
     points: [{ point: "〜ましょう", note: "提议一起做某事，「我们…吧」" }],
   };
+  keptExplanations.set(path, [...(keptExplanations.get(path) ?? []).filter((k) => k.index !== index), { index, text, explanation: value }]);
+  return value;
 }
 
 const player = { path: null as string | null, time: 0, duration: 0, playing: false, rate: 1, a: null as number | null, b: null as number | null, repeats: 0 };
@@ -253,7 +257,9 @@ export function installMockBackend() {
         case "transcript_proofread":
           return mockProofread(a.path);
         case "sentence_explain":
-          return mockExplain(a.text);
+          return mockExplain(a.path, a.index, a.text);
+        case "sentence_explanations":
+          return [...(keptExplanations.get(a.path) ?? [])];
         case "transcript_proofread_cancel":
           proofreading++;
           return;

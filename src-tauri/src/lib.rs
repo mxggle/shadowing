@@ -257,6 +257,7 @@ pub fn run() {
             proofread::transcript_proofread,
             proofread::transcript_proofread_cancel,
             explain::sentence_explain,
+            explain::sentence_explanations,
             smoke::smoke_mode,
             smoke::smoke_window,
             smoke::smoke_finish,
