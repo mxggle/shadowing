@@ -1,7 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type AiConfig, type Preset } from "../../lib/api";
-import { Button, fieldClass } from "../ui";
+import { Button, fieldClass, TextLink } from "../ui";
 
 /**
  * A saved key shows only as "sk-…abcd"; the key itself goes to Rust once and
@@ -39,7 +39,7 @@ export function KeyField({ preset, hint, onSaved }: { preset: Preset; hint?: str
     <div className="flex min-w-0 flex-col gap-1.5">
       {hint && !editing ? (
         <div className="flex min-w-0 items-center gap-2">
-          <span className="tabular truncate text-[13px]">{hint}</span>
+          <span className="tabular truncate font-mono text-[12px]">{hint}</span>
           <span className="truncate text-[12px] text-faint">已保存在钥匙串</span>
           <span className="ml-auto flex gap-1.5">
             <Button onClick={() => setEditing(true)}>更换</Button>
@@ -83,13 +83,10 @@ export function KeyField({ preset, hint, onSaved }: { preset: Preset; hint?: str
       )}
       {error && <p className="text-[12px] text-danger">{error}</p>}
       {preset.keyUrl && (!hint || editing) && (
-        <button
-          onClick={() => void api.ai.openKeyPage(preset.id)}
-          className="flex w-fit items-center gap-1 text-[12px] text-fg underline decoration-fg/30 underline-offset-2 hover:decoration-fg"
-        >
+        <TextLink onClick={() => void api.ai.openKeyPage(preset.id)} className="flex items-center gap-1 text-[12px]">
           去 {preset.name} 创建 API Key
           <ExternalLink size={12} />
-        </button>
+        </TextLink>
       )}
     </div>
   );

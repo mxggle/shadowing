@@ -1,29 +1,26 @@
-import { Pause, Play, Repeat, RotateCcw, RotateCw, SkipBack, SkipForward } from "lucide-react";
+import { Pause, Play, RotateCcw, RotateCw, SkipBack, SkipForward } from "lucide-react";
+import { useState } from "react";
 import { RATE_PRESETS } from "../audio/logic";
 import { useFlash } from "../hooks/useFlash";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
-import { useLoopPhase } from "./Loop";
+import { LoopStrip, useLoopPhase } from "./Loop";
 import { PlaybackMenu } from "./PlaybackMenu";
 import { Scrubber } from "./Scrubber";
-import { RoundButton } from "./ui";
+import { Key } from "./ui";
 
-/** Fixed bottom bar: timeline, loop button, transport, speed. Same in every state of the main area. */
+/**
+ * The deck: (the running loop, with a transcript), timeline, loop key,
+ * transport, speed. Same in every state of the main area.
+ */
 export function PlayerBar() {
-  const time = useApp((s) => s.time);
-  const duration = useApp((s) => s.duration);
   return (
-    <footer className="@container shrink-0 border-t border-line px-5 pt-2.5 pb-3">
-      <div className="flex items-center gap-3">
-        <span className="tabular w-12 font-mono text-[12px] text-muted">{formatTime(time)}</span>
-        <div className="min-w-0 flex-1">
-          <Scrubber />
-        </div>
-        <span className="tabular w-12 text-right font-mono text-[12px] text-faint">{formatTime(duration)}</span>
-      </div>
-      <div className="mt-1.5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+    <footer className="@container shrink-0 border-t border-line bg-deck px-5 pt-2.5 pb-3.5 shadow-[inset_0_1px_0_var(--raised)] dark:shadow-[inset_0_1px_0_oklch(100%_0_0/0.04)]">
+      <LoopStrip />
+      <Timeline />
+      <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <div className="min-w-0">
-          <LoopButton />
+          <LoopKey />
         </div>
         <Transport />
         <div className="flex min-w-0 items-center justify-end gap-1.5">
@@ -35,20 +32,41 @@ export function PlayerBar() {
   );
 }
 
-/** Walks the same cycle as the L key: set A → set B (loop starts) → off. Orange only while a loop exists. */
-function LoopButton() {
+/** Elapsed · track · total; click the total to see what's left instead. */
+function Timeline() {
+  const time = useApp((s) => s.time);
+  const duration = useApp((s) => s.duration);
+  const [remaining, setRemaining] = useState(false);
+  return (
+    <div className="flex items-center gap-3">
+      <span className="tabular w-[52px] font-mono text-[11px] text-muted">{formatTime(time)}</span>
+      <div className="min-w-0 flex-1">
+        <Scrubber />
+      </div>
+      <button
+        title={remaining ? "显示总时长" : "显示剩余时间"}
+        onClick={() => setRemaining(!remaining)}
+        className="tabular w-[52px] rounded text-right font-mono text-[11px] text-faint transition-colors hover:text-muted"
+      >
+        {remaining ? `−${formatTime(Math.max(0, duration - time))}` : formatTime(duration)}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Walks the same cycle as the L key: set A → set B (loop starts) → off. A
+ * latching key: it stays down while a loop runs, and its LED lights orange.
+ */
+function LoopKey() {
   const phase = useLoopPhase();
   const loopSentence = useApp((s) => s.loopSentence);
   const hasTrack = useApp((s) => !!s.current);
   const flashing = useFlash("loop");
   const look = {
-    idle: { label: "A–B 循环", title: "设起点 A (L)", style: "text-fg ring-1 ring-line ring-inset hover:bg-hover" },
-    armed: { label: "设终点 B", title: "设终点 B (L)", style: "bg-loop-soft text-loop-text ring-1 ring-loop/40 ring-inset" },
-    active: {
-      label: loopSentence === null ? "循环中" : `循环第 ${loopSentence + 1} 句`,
-      title: "取消循环 (L)",
-      style: "bg-loop text-white hover:brightness-110",
-    },
+    idle: { label: "A–B 循环", title: "听到句首按一下设起点 A (L)" },
+    armed: { label: "设终点 B", title: "听到句尾按一下设终点 B (L)" },
+    active: { label: loopSentence === null ? "循环中" : `循环第 ${loopSentence + 1} 句`, title: "取消循环 (L)" },
   }[phase];
   return (
     <button
@@ -60,12 +78,24 @@ function LoopButton() {
         useApp.getState().tip("abLoop");
       }}
       data-flash={flashing || undefined}
-      className={`flex h-8 max-w-full items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium whitespace-nowrap transition-[background-color,color,box-shadow,scale] duration-150 ease-snappy active:scale-[0.96] disabled:pointer-events-none disabled:opacity-35 data-[flash]:scale-[0.96] ${look.style}`}
+      className={`key flex h-9 max-w-full items-center gap-2 rounded-[10px] pr-3.5 pl-3 text-[13px] font-medium whitespace-nowrap disabled:pointer-events-none ${
+        phase === "idle" ? "text-fg/85 hover:text-fg" : "text-loop-text"
+      }`}
     >
-      <Repeat size={15} strokeWidth={2.2} className="shrink-0" />
+      <Led phase={phase} />
       <span className="truncate">{look.label}</span>
     </button>
   );
+}
+
+/** Off: a dark socket. Waiting for B: half lit. Looping: lit. Never blinks. */
+function Led({ phase }: { phase: "idle" | "armed" | "active" }) {
+  const look = {
+    idle: "bg-track shadow-recess",
+    armed: "bg-loop/45 shadow-[0_0_0_1px_var(--loop-line)]",
+    active: "bg-loop shadow-[var(--led-glow)]",
+  }[phase];
+  return <span aria-hidden className={`size-[7px] shrink-0 rounded-full transition-[background-color,box-shadow] duration-200 ${look}`} />;
 }
 
 function Transport() {
@@ -77,28 +107,28 @@ function Transport() {
   const disabled = !hasTrack;
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-2">
       {/* Track skipping gives way first on a narrow window; ↑ ↓ and the list still do it. */}
-      <span className="hidden @[540px]:contents">
-        <RoundButton title="上一首 (↑)" flash="prev" disabled={disabled} onClick={() => step(-1)}>
-          <SkipBack size={18} fill="currentColor" strokeWidth={1.5} />
-        </RoundButton>
+      <span className="hidden @[560px]:contents">
+        <Key title="上一首 (↑)" flash="prev" disabled={disabled} onClick={() => step(-1)} className="size-8 rounded-[9px]">
+          <SkipBack size={14} fill="currentColor" strokeWidth={1.5} />
+        </Key>
       </span>
-      <RoundButton title={`后退 ${seekStep} 秒 (←)`} flash="back" disabled={disabled} onClick={() => jump(-1)}>
+      <Key title={`后退 ${seekStep} 秒 (←)`} flash="back" disabled={disabled} onClick={() => jump(-1)} className="size-9 rounded-[10px]">
         <StepIcon icon={RotateCcw} seconds={seekStep} />
-      </RoundButton>
-      <RoundButton primary title="播放 / 暂停 (空格)" flash="toggle" disabled={!hasTracks} onClick={toggle} className="mx-1.5">
+      </Key>
+      <Key ink title="播放 / 暂停 (空格)" flash="toggle" disabled={!hasTracks} onClick={toggle} className="mx-1 h-11 w-[52px] rounded-[13px]">
         <span key={playing ? "pause" : "play"} className="grid animate-pop place-items-center">
-          {playing ? <Pause size={20} fill="currentColor" strokeWidth={0} /> : <Play size={20} fill="currentColor" strokeWidth={0} className="ml-0.5" />}
+          {playing ? <Pause size={19} fill="currentColor" strokeWidth={0} /> : <Play size={19} fill="currentColor" strokeWidth={0} className="ml-0.5" />}
         </span>
-      </RoundButton>
-      <RoundButton title={`前进 ${seekStep} 秒 (→)`} flash="forward" disabled={disabled} onClick={() => jump(1)}>
+      </Key>
+      <Key title={`前进 ${seekStep} 秒 (→)`} flash="forward" disabled={disabled} onClick={() => jump(1)} className="size-9 rounded-[10px]">
         <StepIcon icon={RotateCw} seconds={seekStep} />
-      </RoundButton>
-      <span className="hidden @[540px]:contents">
-        <RoundButton title="下一首 (↓)" flash="next" disabled={disabled} onClick={() => step(1)}>
-          <SkipForward size={18} fill="currentColor" strokeWidth={1.5} />
-        </RoundButton>
+      </Key>
+      <span className="hidden @[560px]:contents">
+        <Key title="下一首 (↓)" flash="next" disabled={disabled} onClick={() => step(1)} className="size-8 rounded-[9px]">
+          <SkipForward size={14} fill="currentColor" strokeWidth={1.5} />
+        </Key>
       </span>
     </div>
   );
@@ -108,27 +138,28 @@ function Transport() {
 function StepIcon({ icon: Icon, seconds }: { icon: typeof RotateCcw; seconds: number }) {
   return (
     <span className="relative grid place-items-center">
-      <Icon size={24} strokeWidth={1.6} />
-      <span className="tabular absolute pt-px text-[9px] font-bold">{seconds}</span>
+      <Icon size={21} strokeWidth={1.5} />
+      <span className="tabular absolute pt-px text-[8.5px] font-semibold tracking-[-0.02em]">{seconds}</span>
     </span>
   );
 }
 
-/** One-click speeds when the bar is wide enough; the menu next to it always has the fine control. */
+/** One-click speeds as a selector set into the deck; the menu next to it has the fine control. */
 function RatePresets() {
   const rate = useApp((s) => s.settings.rate);
   const setRate = useApp((s) => s.setRate);
   return (
-    <div className="hidden rounded-lg bg-hover p-0.5 @[640px]:flex" role="group" aria-label="常用速度">
+    <div className="well hidden rounded-[10px] p-[3px] @[660px]:flex" role="group" aria-label="常用速度">
       {RATE_PRESETS.map((p) => {
         const on = Math.abs(rate - p) < 0.001;
         return (
           <button
             key={p}
             aria-pressed={on}
+            title={`${p.toFixed(2)}×`}
             onClick={() => setRate(p)}
-            className={`tabular h-7 rounded-md px-2 font-mono text-[12px] transition-[background-color,color] duration-150 ${
-              on ? "bg-elevated text-fg shadow-[0_0_0_1px] shadow-line" : "text-muted hover:text-fg"
+            className={`tabular h-[26px] min-w-[38px] rounded-[7px] px-1.5 font-mono text-[11px] transition-[background-color,color,box-shadow] duration-150 ${
+              on ? "bg-raised font-medium text-fg shadow-cap" : "text-muted hover:text-fg"
             }`}
           >
             {p === 1 ? "1.0" : p}

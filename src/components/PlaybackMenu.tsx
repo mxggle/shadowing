@@ -18,15 +18,15 @@ export function PlaybackMenu() {
         title="播放设置：速度、跳转步长、连续播放"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-muted transition-[background-color,color,scale] duration-150 ease-snappy hover:bg-hover hover:text-fg active:scale-[0.96] ${
+        className={`flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-muted transition-[background-color,color,scale] duration-150 ease-snappy hover:bg-hover hover:text-fg active:scale-[0.96] ${
           open ? "bg-press text-fg" : ""
         }`}
       >
-        <span className={`tabular font-mono text-[13px] ${rate === 1 ? "" : "text-fg"}`}>{rate.toFixed(2)}×</span>
-        <SlidersHorizontal size={15} />
+        <span className={`tabular font-mono text-[12px] ${rate === 1 ? "" : "font-medium text-fg"}`}>{rate.toFixed(2)}×</span>
+        <SlidersHorizontal size={14} strokeWidth={1.8} />
       </button>
       {open && (
-        <div className="absolute right-0 bottom-full z-20 mb-2 w-72 origin-bottom-right animate-pop-in rounded-xl border border-line bg-elevated p-1.5 shadow-xl shadow-black/15">
+        <div className="absolute right-0 bottom-full z-20 mb-2.5 w-[288px] origin-bottom-right animate-pop-up divide-y divide-line rounded-[12px] bg-raised px-1 py-0.5 shadow-lift">
           <Row label="速度" hint="− / =">
             <RateControl />
           </Row>
@@ -44,12 +44,12 @@ export function PlaybackMenu() {
 
 function Row({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg px-2.5 py-2">
+    <div className="flex items-center justify-between gap-3 px-2.5 py-2.5">
       <div className="min-w-0">
-        <div className="text-[13px]">{label}</div>
-        <div className="text-[11px] text-faint">{hint}</div>
+        <div className="text-[13px] font-medium">{label}</div>
+        <div className="mt-px text-[11px] text-faint">{hint}</div>
       </div>
-      <div className="w-[120px] shrink-0">{children}</div>
+      <div className="w-[124px] shrink-0">{children}</div>
     </div>
   );
 }
@@ -66,7 +66,7 @@ function RateControl() {
       onDec={() => (setRate(rate - RATE_STEP), useApp.getState().tip("rate"))}
       onInc={() => (setRate(rate + RATE_STEP), useApp.getState().tip("rate"))}
     >
-      <button title="点击恢复 1.0×" onClick={() => setRate(1)} className="tabular h-8 w-full font-mono text-[13px] font-medium">
+      <button title="点击恢复 1.0×" onClick={() => setRate(1)} className="tabular h-7 w-full font-mono text-[12px] font-medium">
         {rate.toFixed(2)}×
       </button>
     </Stepper>
@@ -98,9 +98,9 @@ function SeekStepControl() {
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur();
           }}
-          className="tabular w-6 [appearance:textfield] rounded bg-transparent text-right font-mono text-[13px] font-medium outline-none focus:bg-canvas focus:ring-1 focus:ring-fg/30 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="tabular w-6 [appearance:textfield] rounded-[4px] bg-transparent text-right font-mono text-[12px] font-medium outline-none focus:bg-raised focus:ring-1 focus:ring-line-strong [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
-        <span className="ml-0.5 text-[12px] text-muted">秒</span>
+        <span className="ml-0.5 text-[11px] text-muted">秒</span>
       </label>
     </Stepper>
   );

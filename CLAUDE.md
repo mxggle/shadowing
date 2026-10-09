@@ -20,7 +20,8 @@ src/                      前端
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句），有单元测试
   lib/aiReady.ts          转写 / 解释是否已设置好、向导从哪一步继续，有单元测试
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板）、PlayerBar.tsx 底部播放条、
-                          Loop.tsx 循环面板 / 循环条、PlaybackMenu.tsx 速度等设置；settings/ 是设置面板；
+                          Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置；ui.tsx 共用的按键与表单件；
+                          settings/ 是设置面板；
                           guide/ 是引导：Welcome.tsx 欢迎页、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示
   dev/smoke.ts            应用内自测脚本（只在 smoke 模式加载）
 src-tauri/src/
@@ -64,8 +65,14 @@ src-tauri/src/
 - 所有对外网络请求都从 Rust 发出（不经 WebView）；前端只传服务 id，不传 URL 或 Key 去请求。
 - 新规则优先写成纯函数并加测试（TS 放 `*.test.ts`，Rust 放模块内 `#[cfg(test)]`）。
 - 用户可见文案用简体中文，直接写在组件里（暂不做 i18n）。
-- 界面颜色（`src/index.css` 的变量）：整体中性灰；主按钮用 `ink`；**橙色 `loop` 只表示“正在循环”**，不要用在别处。
-  时间、速度、计数用等宽数字（`font-mono tabular`）；文字不小于 11px；快捷键提示放在 tooltip 和 `?` 表里，不贴在控件上。
+- 界面风格“稿纸 + 播放台”（变量都在 `src/index.css`）：
+  - 主区是纸（`paper`），放要听要说的原文：原文和音频标题用衬线 `font-script`（日文明朝体），应用自己的中文标题用
+    `font-heading`（宋体），其余界面用系统无衬线。
+  - 底部播放条是一台小机器（`deck`）：可按的东西是凸起的按键（`key`，按下会沉 1px，快捷键触发时也一样），
+    主操作是唯一的实心按键（`key-ink`）；进度条、读数、输入框是凹进去的槽（`well`）；浮层用 `shadow-lift`。
+  - 整体中性灰（带极淡的暖色）；**橙色 `loop` 只表示“正在循环”**，不要用在别处。被选中 = 凸起的白色（列表、选择器）。
+  - 时间、速度、计数用等宽数字（`font-mono tabular`）；文字不小于 11px；快捷键提示放在 tooltip 和 `?` 表里，不贴在控件上；
+    要提到按键时用 `Kbd` 画成键帽。动效 ≤ 250ms、只缓出不回弹。
 - 不为旧项目（~/code/lingoloop）做任何兼容或迁移；参考它的思路可以，不搬它的结构。
 
 ## 验证

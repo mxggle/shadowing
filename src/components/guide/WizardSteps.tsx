@@ -114,17 +114,19 @@ function ChoiceCard({ icon: Icon, title, points, selected, recommended, onClick 
       role="radio"
       aria-checked={selected}
       onClick={onClick}
-      className={`flex flex-col items-start gap-2 rounded-xl border p-3.5 text-left transition-[background-color,border-color,scale] duration-150 ease-snappy active:scale-[0.98] ${
-        selected ? "border-fg/40 bg-press" : "border-line bg-panel hover:bg-hover"
+      className={`flex flex-col items-start gap-2.5 rounded-[14px] bg-raised p-4 text-left transition-[box-shadow,scale] duration-150 ease-snappy active:scale-[0.985] ${
+        selected ? "shadow-[0_0_0_1.5px_var(--ink)]" : "shadow-cap hover:shadow-[var(--cap),0_0_0_1px_var(--line-strong)]"
       }`}
     >
       <span className="flex w-full items-center gap-2">
-        <Icon size={16} className="text-muted" />
+        <Icon size={16} strokeWidth={1.8} className="text-muted" />
         <span className="text-[14px] font-semibold">{title}</span>
-        {recommended && <span className="rounded bg-hover px-1.5 py-px text-[11px] font-medium text-ok">推荐</span>}
-        {selected && <Check size={15} className="ml-auto text-fg" strokeWidth={2.5} />}
+        {recommended && <span className="rounded-[4px] px-1 text-[11px] leading-4 font-medium text-ok shadow-[inset_0_0_0_1px_currentColor]">推荐</span>}
+        <span className={`ml-auto grid size-[18px] place-items-center rounded-full ${selected ? "bg-ink text-on-ink" : "well"}`}>
+          {selected && <Check size={11} strokeWidth={3} />}
+        </span>
       </span>
-      <ul className="flex flex-col gap-1 text-[12px] text-muted">
+      <ul className="flex flex-col gap-1 text-[12px] leading-relaxed text-muted">
         {points.map((p) => (
           <li key={p} className="flex gap-1.5">
             <span className="text-faint">·</span>

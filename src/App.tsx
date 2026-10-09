@@ -47,13 +47,13 @@ export default function App() {
 
   return (
     <div
-      className="grid h-full grid-cols-[minmax(220px,280px)_1fr] grid-rows-[minmax(0,1fr)]"
+      className="grid h-full grid-cols-[minmax(216px,264px)_1fr] grid-rows-[minmax(0,1fr)]"
       // Buttons don't take focus on click, so Space/arrows stay global shortcuts.
       onMouseDown={(e) => (e.target as HTMLElement).closest("button") && e.preventDefault()}
     >
       <Library />
       <main className="flex min-w-0 flex-col">
-        <div data-tauri-drag-region className="flex h-[52px] shrink-0 items-center gap-0.5 pr-3 pl-5">
+        <div data-tauri-drag-region className="flex h-[52px] shrink-0 items-center gap-0.5 pr-3 pl-6">
           <Breadcrumb />
           <ShortcutHelp />
           <SettingsButton />
@@ -78,8 +78,8 @@ function Breadcrumb() {
     // pointer-events-none: drags on the text still reach the bar's drag region.
     <div className="pointer-events-none mr-auto flex min-w-0 items-center gap-1 text-[12px] text-faint">
       {parts.map((p, i) => (
-        <span key={i} className="flex min-w-0 items-center gap-1">
-          {i > 0 && <ChevronRight size={12} className="shrink-0" />}
+        <span key={i} className="flex min-w-0 items-center gap-1 last:text-muted">
+          {i > 0 && <ChevronRight size={12} strokeWidth={2} className="shrink-0 opacity-60" />}
           <span className="truncate">{p}</span>
         </span>
       ))}

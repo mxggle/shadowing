@@ -1,70 +1,115 @@
 @import "tailwindcss";
 
 /*
- * Colour tokens: one set of names, values swap with the system appearance.
- * The interface is neutral grey; "ink" is the strong neutral for primary
- * controls. Orange ("loop") appears only for A–B / sentence loops, so seeing
- * it always means "something is repeating". Don't use it for anything else.
+ * "Script and deck": the window is a practice desk. The upper area is paper
+ * holding the script (what you read and say, set in a serif); the player bar
+ * is the deck, a small instrument with raised keys, a recessed track and an
+ * LED. The sidebar is the shelf of recordings.
+ *
+ * One set of token names; values swap with the system appearance. Neutrals
+ * carry the faintest warm tint so paper doesn't feel clinical. Orange ("loop")
+ * appears only for A–B / sentence loops, so seeing it always means
+ * "something is repeating". Don't use it for anything else.
  */
 :root {
   color-scheme: light dark; /* native scrollbars and form controls follow the theme */
-  --canvas: #fbfbfa;
-  --sidebar: #f2f2f0;
-  --panel: #f4f4f2;
-  --elevated: #ffffff;
-  --line: rgb(0 0 0 / 0.08);
-  --fg: #191919;
-  --muted: #5f5f5f;
-  --faint: #767676;
-  --hover: rgb(0 0 0 / 0.045);
-  --press: rgb(0 0 0 / 0.08);
-  --track: rgb(0 0 0 / 0.09);
-  --played: rgb(0 0 0 / 0.5);
-  --ink: #191919;
-  --on-ink: #ffffff;
-  --focus: rgb(0 0 0 / 0.45);
-  --loop: #e4501c;
-  --loop-text: #bd3d0f;
-  --loop-soft: rgb(228 80 28 / 0.11);
-  --ok: #15803d;
-  --danger: #dc2626;
-  --danger-soft: rgb(220 38 38 / 0.08);
-  --warn: #b45309;
+
+  /* Surfaces */
+  --paper: oklch(98.9% 0.002 95);
+  --shelf: oklch(96.7% 0.003 95);
+  --deck: oklch(95.8% 0.003 95);
+  --raised: oklch(100% 0 0);
+  --sunken: oklch(94.2% 0.003 95);
+
+  /* Text: muted ≥ 6:1 and faint ≥ 4.5:1 on every surface above */
+  --fg: oklch(21% 0.004 95);
+  --muted: oklch(45% 0.004 95);
+  --faint: oklch(53% 0.004 95);
+
+  /* Lines and states */
+  --line: oklch(21% 0.004 95 / 0.09);
+  --line-strong: oklch(21% 0.004 95 / 0.16);
+  --hover: oklch(21% 0.004 95 / 0.045);
+  --press: oklch(21% 0.004 95 / 0.085);
+  --track: oklch(21% 0.004 95 / 0.11);
+  --played: oklch(21% 0.004 95 / 0.78);
+  --ink: oklch(21% 0.004 95);
+  --on-ink: oklch(99% 0.001 95);
+  --focus: oklch(21% 0.004 95 / 0.5);
+  --selection: oklch(21% 0.004 95 / 0.12);
+
+  --loop: oklch(63.5% 0.19 38);
+  --loop-text: oklch(52% 0.165 38);
+  --loop-soft: oklch(63.5% 0.19 38 / 0.09);
+  --loop-line: oklch(63.5% 0.19 38 / 0.38);
+  --ok: oklch(53% 0.13 150);
+  --danger: oklch(54% 0.2 27);
+  --danger-soft: oklch(54% 0.2 27 / 0.08);
+  --warn: oklch(55% 0.12 65);
+
+  /* Depth: keys sit up (cap), wells sit down (recess), popovers float (lift). */
+  --cap: inset 0 1px 0 oklch(100% 0 0 / 0.9), 0 0 0 1px oklch(21% 0.004 95 / 0.1), 0 1px 1px oklch(21% 0.004 95 / 0.06),
+    0 2px 3px -1px oklch(21% 0.004 95 / 0.08);
+  --cap-press: inset 0 1px 2px oklch(21% 0.004 95 / 0.16), 0 0 0 1px oklch(21% 0.004 95 / 0.11);
+  --cap-ink: inset 0 1px 0 oklch(100% 0 0 / 0.16), 0 0 0 1px oklch(0% 0 0 / 0.9), 0 1px 2px oklch(0% 0 0 / 0.2),
+    0 3px 6px -2px oklch(0% 0 0 / 0.28);
+  --cap-ink-press: inset 0 1px 3px oklch(0% 0 0 / 0.5), 0 0 0 1px oklch(0% 0 0 / 0.9);
+  --recess: inset 0 1px 2px oklch(21% 0.004 95 / 0.1), inset 0 0 0 1px oklch(21% 0.004 95 / 0.06);
+  --lift: 0 0 0 1px oklch(21% 0.004 95 / 0.07), 0 2px 4px oklch(21% 0.004 95 / 0.04),
+    0 12px 24px -6px oklch(21% 0.004 95 / 0.1), 0 32px 56px -16px oklch(21% 0.004 95 / 0.14);
+  --led-glow: 0 0 0 1px var(--loop-line), 0 0 6px oklch(63.5% 0.19 38 / 0.55);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --canvas: #161616;
-    --sidebar: #111111;
-    --panel: #1c1c1c;
-    --elevated: #242424;
-    --line: rgb(255 255 255 / 0.08);
-    --fg: #ececec;
-    --muted: #a6a6a6;
-    --faint: #808080;
-    --hover: rgb(255 255 255 / 0.06);
-    --press: rgb(255 255 255 / 0.1);
-    --track: rgb(255 255 255 / 0.12);
-    --played: rgb(255 255 255 / 0.6);
-    --ink: #ececec;
-    --on-ink: #161616;
-    --focus: rgb(255 255 255 / 0.5);
-    --loop: #ff6a3d;
-    --loop-text: #ff9b79;
-    --loop-soft: rgb(255 106 61 / 0.15);
-    --ok: #4ade80;
-    --danger: #f87171;
-    --danger-soft: rgb(248 113 113 / 0.1);
-    --warn: #fbbf24;
+    --paper: oklch(19.5% 0.004 95);
+    --shelf: oklch(16.8% 0.004 95);
+    --deck: oklch(22.5% 0.004 95);
+    --raised: oklch(28% 0.004 95);
+    --sunken: oklch(15.5% 0.004 95);
+
+    --fg: oklch(93.5% 0.003 95);
+    --muted: oklch(73% 0.003 95);
+    --faint: oklch(63% 0.003 95);
+
+    --line: oklch(100% 0 0 / 0.075);
+    --line-strong: oklch(100% 0 0 / 0.14);
+    --hover: oklch(100% 0 0 / 0.05);
+    --press: oklch(100% 0 0 / 0.09);
+    --track: oklch(100% 0 0 / 0.1);
+    --played: oklch(100% 0 0 / 0.72);
+    --ink: oklch(93.5% 0.003 95);
+    --on-ink: oklch(19.5% 0.004 95);
+    --focus: oklch(100% 0 0 / 0.5);
+    --selection: oklch(100% 0 0 / 0.16);
+
+    --loop: oklch(70% 0.17 42);
+    --loop-text: oklch(78% 0.125 45);
+    --loop-soft: oklch(70% 0.17 42 / 0.13);
+    --loop-line: oklch(70% 0.17 42 / 0.42);
+    --ok: oklch(74% 0.15 150);
+    --danger: oklch(70% 0.17 25);
+    --danger-soft: oklch(70% 0.17 25 / 0.1);
+    --warn: oklch(80% 0.13 80);
+
+    --cap: inset 0 1px 0 oklch(100% 0 0 / 0.075), 0 0 0 1px oklch(0% 0 0 / 0.5), 0 1px 2px oklch(0% 0 0 / 0.35);
+    --cap-press: inset 0 1px 3px oklch(0% 0 0 / 0.5), 0 0 0 1px oklch(0% 0 0 / 0.5);
+    --cap-ink: inset 0 -1px 0 oklch(0% 0 0 / 0.12), 0 0 0 1px oklch(0% 0 0 / 0.5), 0 2px 6px -1px oklch(0% 0 0 / 0.5);
+    --cap-ink-press: inset 0 1px 3px oklch(0% 0 0 / 0.3), 0 0 0 1px oklch(0% 0 0 / 0.5);
+    --recess: inset 0 1px 2px oklch(0% 0 0 / 0.5), inset 0 0 0 1px oklch(100% 0 0 / 0.04);
+    --lift: 0 0 0 1px oklch(100% 0 0 / 0.09), 0 16px 40px -8px oklch(0% 0 0 / 0.65);
+    --led-glow: 0 0 0 1px var(--loop-line), 0 0 7px oklch(70% 0.17 42 / 0.6);
   }
 }
 
 @theme inline {
-  --color-canvas: var(--canvas);
-  --color-sidebar: var(--sidebar);
-  --color-panel: var(--panel);
-  --color-elevated: var(--elevated);
+  --color-paper: var(--paper);
+  --color-shelf: var(--shelf);
+  --color-deck: var(--deck);
+  --color-raised: var(--raised);
+  --color-sunken: var(--sunken);
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-fg: var(--fg);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
@@ -77,35 +122,98 @@
   --color-loop: var(--loop);
   --color-loop-text: var(--loop-text);
   --color-loop-soft: var(--loop-soft);
+  --color-loop-line: var(--loop-line);
   --color-ok: var(--ok);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-warn: var(--warn);
+  --shadow-cap: var(--cap);
+  --shadow-recess: var(--recess);
+  --shadow-lift: var(--lift);
 }
 
 @theme {
+  /* Interface: the system face, so it reads as a Mac app. */
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans", sans-serif;
+  /* The script: what you listen to and say, set like a printed textbook. */
+  --font-script: ui-serif, "New York", "Hiragino Mincho ProN", "Songti SC", Georgia, serif;
+  /* The same voice for the app's own Chinese headings (Songti has every simplified form). */
+  --font-heading: ui-serif, "New York", "Songti SC", "STSong", Georgia, serif;
   /* Times, speeds and counts: fixed-width digits that don't jitter as they change. */
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
-  --ease-snappy: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Quick to respond, long gentle settle; never overshoots. */
+  --ease-snappy: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --animate-fade: fade 150ms ease-out;
-  --animate-fade-in: fade-in 180ms var(--ease-snappy);
-  --animate-pop: pop 160ms var(--ease-snappy);
-  --animate-pop-in: pop-in 140ms var(--ease-snappy);
+  --animate-fade: fade 160ms ease-out;
+  --animate-fade-in: fade-in 240ms var(--ease-snappy);
+  --animate-pop: pop 200ms var(--ease-snappy);
+  --animate-pop-in: pop-in 180ms var(--ease-snappy);
+  --animate-pop-up: pop-up 180ms var(--ease-snappy);
 
   @keyframes fade {
     from { opacity: 0; }
   }
   @keyframes fade-in {
-    from { opacity: 0; translate: 0 3px; }
+    from { opacity: 0; translate: 0 4px; }
   }
   @keyframes pop {
-    from { opacity: 0; scale: 0.6; }
+    from { opacity: 0; scale: 0.7; }
   }
   @keyframes pop-in {
-    from { opacity: 0; scale: 0.96; translate: 0 -4px; }
+    from { opacity: 0; scale: 0.97; translate: 0 -4px; }
   }
+  @keyframes pop-up {
+    from { opacity: 0; scale: 0.97; translate: 0 4px; }
+  }
+}
+
+/*
+ * A key on the deck: raised, and it travels down a pixel when pressed (by the
+ * pointer, or by its keyboard shortcut through data-flash).
+ */
+@utility key {
+  background-color: var(--raised);
+  box-shadow: var(--cap);
+  transition:
+    translate 90ms var(--ease-snappy),
+    box-shadow 90ms var(--ease-snappy),
+    background-color 150ms,
+    color 150ms,
+    opacity 150ms;
+  &:active:not(:disabled),
+  &[data-flash],
+  &[aria-pressed="true"] {
+    translate: 0 1px;
+    box-shadow: var(--cap-press);
+  }
+  &:disabled {
+    opacity: 0.4;
+  }
+}
+
+/* The one solid key on screen at a time: play, or a form's main action. */
+@utility key-ink {
+  background-color: var(--ink);
+  color: var(--on-ink);
+  box-shadow: var(--cap-ink);
+  transition:
+    translate 90ms var(--ease-snappy),
+    box-shadow 90ms var(--ease-snappy),
+    opacity 150ms;
+  &:active:not(:disabled),
+  &[data-flash] {
+    translate: 0 1px;
+    box-shadow: var(--cap-ink-press);
+  }
+  &:disabled {
+    opacity: 0.35;
+  }
+}
+
+/* A well set into the surface: tracks, readouts, inputs, selectors. */
+@utility well {
+  background-color: var(--sunken);
+  box-shadow: var(--recess);
 }
 
 html,
@@ -120,11 +228,18 @@ body {
   -webkit-user-select: none;
   user-select: none;
   cursor: default;
-  @apply bg-canvas text-fg antialiased;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  @apply bg-paper text-fg;
 }
 
 button {
   cursor: default;
+}
+
+::selection {
+  background: var(--selection);
 }
 
 :focus-visible {
@@ -141,7 +256,7 @@ button {
   display: flex;
   align-items: flex-end;
   gap: 2px;
-  height: 11px;
+  height: 10px;
 }
 .eq > span {
   width: 2px;

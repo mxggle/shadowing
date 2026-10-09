@@ -39,33 +39,33 @@ function WizardDialog() {
 
   return (
     <div
-      className="fixed inset-0 z-30 flex animate-fade justify-center bg-black/30 px-6 pt-[6vh] pb-6 dark:bg-black/50"
+      className="fixed inset-0 z-30 flex animate-fade justify-center bg-black/25 px-6 pt-[6vh] pb-6 dark:bg-black/50"
       onMouseDown={(e) => e.target === e.currentTarget && close()}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="wizard-title"
-        className="flex max-h-full w-full max-w-[640px] animate-pop-in flex-col self-start overflow-hidden rounded-2xl border border-line bg-elevated shadow-2xl shadow-black/25"
+        className="flex max-h-full w-full max-w-[660px] animate-pop-in flex-col self-start overflow-hidden rounded-[16px] bg-raised shadow-lift"
       >
-        <header className="flex h-12 shrink-0 items-center gap-4 border-b border-line pr-2.5 pl-5">
+        <header className="flex h-12 shrink-0 items-center gap-4 border-b border-line pr-2.5 pl-6">
           <h2 id="wizard-title" className="text-[14px] font-semibold">
             设置 AI <span className="ml-1 font-normal text-faint">可选</span>
           </h2>
           <ol className="flex items-center gap-1 text-[12px]">
             {STEPS.map((label, i) => (
               <li key={label} className="flex items-center gap-1">
-                {i > 0 && <span className="h-px w-3 bg-line" />}
+                {i > 0 && <span className="h-px w-3 bg-line-strong" />}
                 <button
                   onClick={() => setStep(i as 0 | 1 | 2)}
                   aria-current={i === step ? "step" : undefined}
-                  className={`flex h-6 items-center gap-1.5 rounded-md px-1.5 transition-colors ${
+                  className={`flex h-6 items-center gap-1.5 rounded-[6px] px-1.5 transition-colors ${
                     i === step ? "font-medium text-fg" : "text-faint hover:text-muted"
                   }`}
                 >
                   <span
-                    className={`tabular grid size-4 place-items-center rounded-full font-mono text-[11px] ${
-                      i === step ? "bg-ink text-on-ink" : "bg-hover"
+                    className={`tabular grid size-[18px] place-items-center rounded-full font-mono text-[11px] transition-colors ${
+                      i === step ? "bg-ink text-on-ink" : "well"
                     }`}
                   >
                     {i + 1}
@@ -80,13 +80,13 @@ function WizardDialog() {
           </IconButton>
         </header>
 
-        <div className="min-h-[300px] overflow-y-auto px-5 pt-4 pb-5">
+        <div className="min-h-[320px] overflow-y-auto px-6 pt-5 pb-6">
           {step === 0 && <TranscribeStep />}
           {step === 1 && <ChatStep />}
           {step === 2 && <TrialStep />}
         </div>
 
-        <footer className="flex shrink-0 items-center gap-2 border-t border-line px-5 py-3">
+        <footer className="flex shrink-0 items-center gap-2 border-t border-line bg-deck px-6 py-3">
           {step > 0 && <Button onClick={() => setStep((step - 1) as 0 | 1)}>上一步</Button>}
           <p className="min-w-0 flex-1 text-right text-[12px] text-faint">
             {downloading ? "模型会在后台继续下载" : step < 2 && !ready ? "可以先跳过，之后在设置（⌘,）里补上" : ""}

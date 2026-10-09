@@ -50,10 +50,10 @@ export function ProviderSetup({ feature, only, allowNone = true }: {
         {presets.map((p) => (
           <Chip key={p.id} selected={p.id === preset?.id} onClick={() => void pick(p.id)}>
             {p.name}
-            {p.local && p.api !== "builtin" && <span className="rounded border border-current/30 px-1 text-[11px] opacity-75">本机</span>}
-            {p.api === "responses" && <span className="rounded border border-current/30 px-1 text-[11px] opacity-75">预览</span>}
+            {p.local && p.api !== "builtin" && <Tag>本机</Tag>}
+            {p.api === "responses" && <Tag>预览</Tag>}
             {running[p.id] !== undefined && (
-              <span title={`正在运行，有 ${running[p.id]} 个模型`} className="size-1.5 rounded-full bg-ok" />
+              <span title={`正在运行，有 ${running[p.id]} 个模型`} className="size-1.5 rounded-full bg-ok shadow-[0_0_0_2px_color-mix(in_oklab,var(--ok)_20%,transparent)]" />
             )}
           </Chip>
         ))}
@@ -70,13 +70,17 @@ function Chip({ selected, children, onClick }: { selected: boolean; children: Re
       role="radio"
       aria-checked={selected}
       onClick={onClick}
-      className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] transition-[background-color,color,scale] duration-150 ease-snappy active:scale-[0.96] ${
-        selected ? "bg-ink font-medium text-on-ink" : "bg-hover text-fg hover:bg-press"
+      className={`flex h-8 items-center gap-1.5 rounded-[8px] px-3 text-[13px] ${
+        selected ? "key-ink font-medium" : "text-fg/85 shadow-[inset_0_0_0_1px_var(--line-strong)] transition-[background-color,color,scale] duration-150 ease-snappy hover:bg-hover hover:text-fg active:scale-[0.96]"
       }`}
     >
       {children}
     </button>
   );
+}
+
+function Tag({ children }: { children: React.ReactNode }) {
+  return <span className="rounded-[4px] px-1 text-[11px] leading-4 opacity-70 shadow-[inset_0_0_0_1px_currentColor]">{children}</span>;
 }
 
 type TestState =
@@ -146,7 +150,7 @@ function Details({ feature, preset, config }: { feature: Feature; preset: Preset
 
   const sends = feature === "transcribe" ? "转写时音频会上传到" : "要解释的句子会发送到";
   return (
-    <div className="mt-3 grid animate-fade-in grid-cols-[64px_1fr] items-start gap-x-3 gap-y-3 border-t border-line pt-3">
+    <div className="mt-4 grid animate-fade-in grid-cols-[64px_1fr] items-start gap-x-3 gap-y-3 border-t border-line pt-4">
       <p className="col-span-2 flex flex-col gap-1 text-[12px] text-muted">
         <span>{preset.note}</span>
         <span className="flex items-center gap-1.5 text-faint">
@@ -199,7 +203,7 @@ function Details({ feature, preset, config }: { feature: Feature; preset: Preset
         {(test.kind === "ok" || test.kind === "warn" || test.kind === "error") && <TestResult kind={test.kind} text={test.text} />}
       </div>
       {test.kind === "ok" && test.reply && (
-        <figure className="col-span-2 animate-fade-in rounded-lg border border-line bg-elevated px-3 py-2 text-[12px] leading-relaxed">
+        <figure className="col-span-2 animate-fade-in rounded-[10px] bg-raised px-3 py-2.5 text-[12px] leading-relaxed shadow-cap">
           <figcaption className="text-faint">示例：{test.sample}</figcaption>
           <p className="mt-1 whitespace-pre-wrap">{test.reply}</p>
         </figure>

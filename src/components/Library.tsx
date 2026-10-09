@@ -3,7 +3,7 @@ import { Check, ChevronRight, ChevronsDownUp, ChevronsUpDown, FolderOpen, Refres
 import { isFinished } from "../audio/logic";
 import type { FolderListing, Progress, Track } from "../lib/api";
 import { useApp } from "../store";
-import { IconButton } from "./ui";
+import { Button, IconButton } from "./ui";
 
 export function Library() {
   const folder = useApp((s) => s.folder);
@@ -14,16 +14,17 @@ export function Library() {
 function NoFolder() {
   const chooseFolder = useApp((s) => s.chooseFolder);
   return (
-    <aside className="flex min-h-0 flex-col border-r border-line bg-sidebar">
+    <aside className="flex min-h-0 flex-col border-r border-line bg-shelf">
       <div data-tauri-drag-region className="h-[52px] shrink-0" />
-      <div className="mx-3 mt-2 flex flex-col items-center gap-3 rounded-xl border border-dashed border-line px-4 py-6 text-center">
-        <p className="text-[13px] text-muted">还没有打开你的音频文件夹</p>
-        <button
-          onClick={() => void chooseFolder()}
-          className="flex h-8 items-center gap-1.5 rounded-lg bg-hover px-3 text-[13px] font-medium transition-[background-color,scale] duration-150 ease-snappy hover:bg-press active:scale-[0.96]"
-        >
-          <FolderOpen size={15} /> 打开文件夹
-        </button>
+      <div className="flex flex-col items-start gap-3 px-5 pt-3">
+        <p className="text-[13px] leading-relaxed text-muted">
+          你的音频会列在这里。
+          <br />
+          选一个放着 mp3、m4a 的文件夹。
+        </p>
+        <Button onClick={() => void chooseFolder()}>
+          <FolderOpen size={15} strokeWidth={1.8} /> 打开文件夹
+        </Button>
       </div>
     </aside>
   );
@@ -61,7 +62,7 @@ function FolderView({ folder }: { folder: FolderListing }) {
   };
 
   return (
-    <aside className="flex min-h-0 flex-col border-r border-line bg-sidebar">
+    <aside className="group/shelf flex min-h-0 flex-col border-r border-line bg-shelf">
       <div data-tauri-drag-region className="flex h-[52px] shrink-0 items-center justify-end gap-0.5 pr-2.5 pl-20">
         {named.length > 0 && (
           <IconButton
@@ -79,16 +80,16 @@ function FolderView({ folder }: { folder: FolderListing }) {
         </IconButton>
       </div>
 
-      <div className="flex items-baseline gap-2 px-4 pb-2" title={folder.root}>
-        <h2 className="min-w-0 truncate text-[13px] font-semibold">{folder.name}</h2>
-        <span className="tabular shrink-0 font-mono text-[12px] text-faint">{folder.tracks.length}</span>
+      <div className="flex items-baseline gap-2 px-5 pb-2" title={folder.root}>
+        <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold tracking-[-0.005em]">{folder.name}</h2>
+        <span className="tabular shrink-0 font-mono text-[11px] text-faint">{folder.tracks.length}</span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-4">
         {folder.tracks.length === 0 && (
-          <div className="mx-3 mt-2 rounded-xl border border-dashed border-line px-4 py-6 text-center text-[13px] text-muted">
-            这个文件夹里没有可播放的音频
-            <div className="mt-1 text-[12px] text-faint">支持 mp3、m4a、wav、flac 等格式</div>
+          <div className="px-5 pt-2 text-[13px] leading-relaxed text-muted">
+            这个文件夹里没有可播放的音频。
+            <div className="mt-1 text-[12px] text-faint">支持 mp3、m4a、wav、flac 等格式，子文件夹也会扫描。</div>
           </div>
         )}
         {groups.map(([dir, tracks]) => {
@@ -100,11 +101,11 @@ function FolderView({ folder }: { folder: FolderListing }) {
                   onClick={() => toggle(dir)}
                   aria-expanded={open}
                   title={dir}
-                  className="sticky top-0 z-10 flex w-full items-center gap-1 bg-sidebar px-3 pt-3 pb-1 text-left text-[12px] font-medium text-faint transition-colors hover:text-muted"
+                  className="sticky top-0 z-10 flex w-full items-center gap-1 bg-shelf pt-4 pr-5 pb-1.5 pl-3.5 text-left text-[12px] font-medium text-faint transition-colors hover:text-muted"
                 >
-                  <ChevronRight size={12} className={`shrink-0 transition-transform duration-200 ease-snappy ${open ? "rotate-90" : ""}`} />
+                  <ChevronRight size={12} strokeWidth={2.2} className={`shrink-0 transition-transform duration-200 ease-snappy ${open ? "rotate-90" : ""}`} />
                   <span className="min-w-0 flex-1 truncate">{dir}</span>
-                  <span className="tabular shrink-0 font-medium">{tracks.length}</span>
+                  <span className="tabular shrink-0 font-mono text-[11px] font-normal">{tracks.length}</span>
                 </button>
               )}
               {/* 0fr ↔ 1fr animates the group open/closed without measuring heights. */}
@@ -145,8 +146,8 @@ function TrackRow({ track }: { track: Track }) {
       onClick={() => open(track)}
       aria-current={active || undefined}
       title={track.name}
-      className={`mx-2 my-px flex h-8 w-[calc(100%-1rem)] items-center gap-2 rounded-lg px-2.5 text-left text-[13px] transition-[background-color,color] duration-150 ${
-        active ? "bg-press font-medium text-fg" : "text-fg/85 hover:bg-hover active:bg-press"
+      className={`mx-2.5 my-px flex h-[30px] w-[calc(100%-1.25rem)] items-center gap-2 rounded-[8px] pr-2.5 pl-2.5 text-left text-[13px] transition-[background-color,box-shadow,color] duration-150 ${
+        active ? "bg-raised font-medium text-fg shadow-cap" : "text-fg/80 hover:bg-hover hover:text-fg active:bg-press"
       }`}
     >
       <span className="min-w-0 flex-1 truncate">{track.name}</span>
@@ -157,7 +158,7 @@ function TrackRow({ track }: { track: Track }) {
 
 function NowPlayingBars({ paused }: { paused: boolean }) {
   return (
-    <span className="eq shrink-0 animate-fade" data-paused={paused || undefined} aria-label={paused ? "已暂停" : "正在播放"}>
+    <span className="eq mr-0.5 shrink-0 animate-fade text-fg" data-paused={paused || undefined} aria-label={paused ? "已暂停" : "正在播放"}>
       <span />
       <span />
       <span />
@@ -171,18 +172,22 @@ function ProgressMark({ progress }: { progress: Progress | undefined }) {
   if (isFinished(progress)) {
     return (
       <span title="已听完" className="shrink-0 text-faint">
-        <Check size={13} strokeWidth={2.5} />
+        <Check size={13} strokeWidth={2.4} />
       </span>
     );
   }
   const ratio = progress.position / progress.duration;
-  const r = 5;
-  const c = 2 * Math.PI * r;
+  // A pie rather than a ring: at this size a filled wedge reads at a glance.
+  const r = 5.5;
+  const angle = ratio * 2 * Math.PI;
+  const x = (7 + r * Math.sin(angle)).toFixed(2);
+  const y = (7 - r * Math.cos(angle)).toFixed(2);
+  const wedge = `M7 7V1.5A${r} ${r} 0 ${angle > Math.PI ? 1 : 0} 1 ${x} ${y}Z`;
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" className="shrink-0 -rotate-90 text-faint" aria-label={`已听 ${Math.round(ratio * 100)}%`}>
+    <svg width="14" height="14" viewBox="0 0 14 14" className="shrink-0 text-faint" aria-label={`已听 ${Math.round(ratio * 100)}%`}>
       <title>{`已听 ${Math.round(ratio * 100)}%`}</title>
-      <circle cx="7" cy="7" r={r} fill="none" stroke="currentColor" strokeOpacity={0.3} strokeWidth="2" />
-      <circle cx="7" cy="7" r={r} fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray={c} strokeDashoffset={c * (1 - ratio)} strokeLinecap="round" />
+      <circle cx="7" cy="7" r="6.25" fill="none" stroke="currentColor" strokeOpacity={0.45} strokeWidth="1.25" />
+      <path d={wedge} fill="currentColor" fillOpacity={0.75} />
     </svg>
   );
 }

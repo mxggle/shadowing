@@ -1,25 +1,34 @@
 import { FileUp, Play, Repeat, Trash2 } from "lucide-react";
-import { memo, useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { memo, useEffect, useRef, useState, type RefObject } from "react";
 import type { Sentence } from "../lib/api";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { IconButton } from "./ui";
 
-/** Sentence list: text is selectable; the play button plays from a sentence, the loop button (or S) repeats it. */
+/**
+ * The script: one row per sentence. The text is selectable; the time on the
+ * left turns into a play button, the loop button on the right (or S) repeats
+ * the sentence.
+ */
 export function SentenceList() {
   const sentences = useApp((s) => s.transcript?.sentences ?? []);
   const active = useApp((s) => (s.transcript ? sentenceIndexAt(s.transcript.sentences, s.time) : -1));
   const loopSentence = useApp((s) => s.loopSentence);
   const voices = speakerCount(sentences) > 1;
   const list = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = useState(false);
   useFollow(list, active);
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
-      <Header />
-      <div ref={list} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="mx-auto w-full max-w-[760px] px-8 pb-6">
+      <Header scrolled={scrolled} />
+      <div
+        ref={list}
+        onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]"
+      >
+        <div className="mx-auto w-full max-w-[760px] px-8 pt-2 pb-12">
           {sentences.map((sentence, i) => (
             <Row
               key={i}
@@ -37,33 +46,37 @@ export function SentenceList() {
   );
 }
 
-function Header() {
+/** Count, voices and where the text came from; a hairline appears once the list scrolls under it. */
+function Header({ scrolled }: { scrolled: boolean }) {
   const transcript = useApp((s) => s.transcript);
   const { importTranscript, removeTranscript } = useApp.getState();
   if (!transcript) return null;
   const voices = speakerCount(transcript.sentences);
   return (
-    <div className="mx-auto flex h-11 w-full max-w-[760px] shrink-0 items-center gap-2 px-10">
-      <span className="min-w-0 truncate text-[12px] text-faint" title={`[ ] 换句，S 循环本句 · ${transcript.origin}`}>
-        <span className="tabular font-mono">{transcript.sentences.length}</span> 句
-        {voices > 1 && (
-          <>
-            {" · "}
-            <span className="tabular font-mono">{voices}</span> 人
-          </>
-        )}{" "}
-        · {transcript.origin}
-      </span>
-      <span className="ml-auto flex shrink-0 gap-0.5">
-        <IconButton title="导入其他字幕文件" onClick={() => void importTranscript()}>
-          <FileUp size={15} />
-        </IconButton>
-        {transcript.source !== "sidecar" && (
-          <IconButton title="移除字幕" onClick={() => void removeTranscript()}>
-            <Trash2 size={15} />
+    <div className={`shrink-0 border-b transition-colors duration-200 ${scrolled ? "border-line" : "border-transparent"}`}>
+      <div className="mx-auto flex h-10 w-full max-w-[760px] items-center gap-2 pr-8 pl-10">
+        <p className="flex min-w-0 items-center gap-1.5 text-[12px] text-faint" title={`[ ] 换句，S 循环本句 · ${transcript.origin}`}>
+          <span className="shrink-0">
+            <span className="tabular font-mono text-muted">{transcript.sentences.length}</span> 句
+          </span>
+          {voices > 1 && (
+            <span className="shrink-0">
+              · <span className="tabular font-mono text-muted">{voices}</span> 人
+            </span>
+          )}
+          <span className="truncate">· {transcript.origin}</span>
+        </p>
+        <span className="ml-auto flex shrink-0 gap-0.5">
+          <IconButton title="导入其他字幕文件" onClick={() => void importTranscript()}>
+            <FileUp size={15} strokeWidth={1.8} />
           </IconButton>
-        )}
-      </span>
+          {transcript.source !== "sidecar" && (
+            <IconButton title="移除字幕" onClick={() => void removeTranscript()}>
+              <Trash2 size={15} strokeWidth={1.8} />
+            </IconButton>
+          )}
+        </span>
+      </div>
     </div>
   );
 }
@@ -81,68 +94,88 @@ const Row = memo(function Row({ index, sentence, active, looping, voices, turn }
   turn: boolean;
 }) {
   const { playSentence, toggleSentenceLoop } = useApp.getState();
-  const tone = looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover";
-  const columns = voices ? "grid-cols-[3.5rem_1.75rem_1fr_auto_auto]" : "grid-cols-[3.5rem_1fr_auto_auto]";
+  const tone = looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";
+  const lit = active || looping;
+  const columns = voices ? "grid-cols-[3.25rem_1.75rem_1fr_auto]" : "grid-cols-[3.25rem_1fr_auto]";
   return (
     <div
       data-index={index}
-      className={`group grid ${columns} items-start gap-1 rounded-lg py-2 pr-1 pl-2 transition-colors duration-150 [contain-intrinsic-size:auto_48px] [content-visibility:auto] ${tone} ${turn && index > 0 ? "mt-2" : ""}`}
+      className={`group grid ${columns} items-start gap-x-2 rounded-[12px] py-2 pr-1.5 pl-2 transition-colors duration-200 [contain-intrinsic-size:auto_48px] [content-visibility:auto] ${tone} ${turn && index > 0 ? "mt-3" : "mt-0.5"}`}
     >
-      <span className={`tabular pt-[5px] font-mono text-[12px] ${looping ? "text-loop-text" : active ? "text-fg" : "text-faint"}`}>
-        {formatTime(sentence.start)}
-      </span>
+      <div className="flex flex-col items-start">
+        <button
+          title="从这一句播放"
+          onClick={() => playSentence(index)}
+          className="relative flex h-[30px] w-full items-center rounded-[6px] text-left"
+        >
+          <span
+            className={`tabular font-mono text-[11px] transition-opacity duration-150 group-hover:opacity-0 ${
+              looping ? "text-loop-text" : active ? "text-fg" : "text-faint"
+            }`}
+          >
+            {formatTime(sentence.start)}
+          </span>
+          <span className={`absolute inset-y-0 left-0 grid place-items-center opacity-0 transition-opacity duration-150 group-hover:opacity-100 ${looping ? "text-loop-text" : "text-fg"}`}>
+            <span className="grid size-[22px] place-items-center rounded-full bg-raised shadow-cap">
+              <Play size={10} fill="currentColor" strokeWidth={0} className="ml-px" />
+            </span>
+          </span>
+        </button>
+        {lit && <Meter sentence={sentence} looping={looping} />}
+      </div>
       {voices && (
-        <span className="pt-[3px]">
+        <span className="flex h-[30px] items-center">
           {turn && sentence.speaker !== undefined && (
             <span
               title={`说话人 ${speakerName(sentence.speaker)}`}
-              className={`grid h-5 w-5 place-items-center rounded-[5px] bg-press font-mono text-[11px] font-medium ${active || looping ? "text-fg" : "text-muted"}`}
+              className={`well grid size-5 place-items-center rounded-[5px] font-mono text-[11px] font-medium ${lit ? "text-fg" : "text-muted"}`}
             >
               {speakerName(sentence.speaker)}
             </span>
           )}
         </span>
       )}
-      <p className={`cursor-text text-[16px] leading-relaxed break-words select-text ${active || looping ? "text-fg" : "text-muted"}`}>
+      <p
+        className={`cursor-text font-script text-[18px] leading-[30px] break-words select-text transition-colors duration-200 ${
+          lit ? "text-fg" : "text-muted"
+        }`}
+      >
         {sentence.text}
       </p>
-      <RowButton title="从这一句播放" onClick={() => playSentence(index)}>
-        <Play size={13} fill="currentColor" strokeWidth={0} className="ml-px" />
-      </RowButton>
-      <RowButton
-        title={looping ? "取消循环 (S)" : "循环这一句 (S)"}
-        pressed={looping}
-        onClick={() => {
-          toggleSentenceLoop(index);
-          useApp.getState().tip("sentenceLoop");
-        }}
-      >
-        <Repeat size={14} strokeWidth={2.2} />
-      </RowButton>
+      <span className="flex h-[30px] items-center">
+        <button
+          title={looping ? "取消循环 (S)" : "循环这一句 (S)"}
+          aria-pressed={looping}
+          onClick={() => {
+            toggleSentenceLoop(index);
+            useApp.getState().tip("sentenceLoop");
+          }}
+          className={`grid size-[28px] place-items-center rounded-[8px] transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${
+            looping
+              ? "text-loop hover:bg-loop-soft"
+              : "text-muted opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100"
+          }`}
+        >
+          <Repeat size={14} strokeWidth={2.1} />
+        </button>
+      </span>
     </div>
   );
 });
 
-/** Small row action: shown while the row is hovered (or focused); stays lit while `pressed`. */
-function RowButton({ title, pressed, onClick, children }: {
-  title: string;
-  pressed?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
+/** How far through the sentence playback is: a short line under its time. */
+function Meter({ sentence, looping }: { sentence: Sentence; looping: boolean }) {
+  const ratio = useApp((s) => {
+    const span = sentence.end - sentence.start;
+    return span > 0 ? Math.round(Math.min(1, Math.max(0, (s.time - sentence.start) / span)) * 60) / 60 : 0;
+  });
   return (
-    <button
-      title={title}
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={`grid size-7 place-items-center rounded-md transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${
-        pressed
-          ? "text-loop"
-          : "text-muted opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100"
-      }`}
-    >
-      {children}
-    </button>
+    <span className="mt-0.5 h-[2px] w-7 animate-fade overflow-hidden rounded-full bg-track">
+      <span
+        className={`block h-full origin-left rounded-full transition-[scale] duration-100 ease-linear ${looping ? "bg-loop" : "bg-fg/70"}`}
+        style={{ scale: `${ratio} 1` }}
+      />
+    </span>
   );
 }
 
@@ -169,17 +202,32 @@ function useFollow(list: RefObject<HTMLDivElement | null>, active: number) {
     const el = list.current;
     if (!el || active < 0) return;
     if (Date.now() - userScrolledAt.current < PAUSE_AFTER_USER_SCROLL_MS) return;
-    const row = el.querySelector<HTMLElement>(`[data-index="${active}"]`);
-    if (!row) return;
-    const box = el.getBoundingClientRect();
-    const r = row.getBoundingClientRect();
-    // Comfortable band: upper part of the list, with room to see what's coming.
-    if (r.top >= box.top + box.height * 0.1 && r.bottom <= box.bottom - box.height * 0.4) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el.scrollTo({
-      top: el.scrollTop + (r.top - box.top) - box.height * 0.3,
-      behavior: first.current || reduced ? "auto" : "smooth",
-    });
+    /** Scrolls the row into the comfortable band; false when it's already there. */
+    const place = (behavior: ScrollBehavior) => {
+      const row = el.querySelector<HTMLElement>(`[data-index="${active}"]`);
+      if (!row) return false;
+      const box = el.getBoundingClientRect();
+      const r = row.getBoundingClientRect();
+      // Upper part of the list, with room to see what's coming.
+      if (r.top >= box.top + box.height * 0.1 && r.bottom <= box.bottom - box.height * 0.4) return false;
+      el.scrollTo({ top: el.scrollTop + (r.top - box.top) - box.height * 0.3, behavior });
+      return true;
+    };
+    const jump = first.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     first.current = false;
+    if (!place(jump ? "auto" : "smooth") || !jump) return;
+    // Rows off screen are laid out at an estimated height (content-visibility)
+    // and the first layout may still be settling: hold the row in place while
+    // sizes change, until the learner scrolls or it's had a moment to settle.
+    const settle = new ResizeObserver(() => {
+      if (Date.now() - userScrolledAt.current > PAUSE_AFTER_USER_SCROLL_MS) place("auto");
+    });
+    settle.observe(el);
+    if (el.firstElementChild) settle.observe(el.firstElementChild);
+    const stop = window.setTimeout(() => settle.disconnect(), 1500);
+    return () => {
+      settle.disconnect();
+      window.clearTimeout(stop);
+    };
   }, [list, active]);
 }

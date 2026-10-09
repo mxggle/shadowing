@@ -21,7 +21,7 @@ export function SettingsButton() {
   }, [setOpen]);
   return (
     <IconButton title="设置 (⌘,)" active={open} onClick={() => setOpen(true)}>
-      <Gear size={16} />
+      <Gear size={16} strokeWidth={1.8} />
     </IconButton>
   );
 }
@@ -52,16 +52,16 @@ export function SettingsDialog() {
   if (!open || !ready) return null;
   return (
     <div
-      className="fixed inset-0 z-30 flex animate-fade justify-center bg-black/30 px-6 dark:bg-black/50 pt-[7vh] pb-6"
+      className="fixed inset-0 z-30 flex animate-fade justify-center bg-black/25 px-6 pt-[7vh] pb-6 dark:bg-black/50"
       onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
-        className="flex max-h-full w-full max-w-[620px] animate-pop-in flex-col self-start overflow-hidden rounded-2xl border border-line bg-elevated shadow-2xl shadow-black/25"
+        className="flex max-h-full w-full max-w-[640px] animate-pop-in flex-col self-start overflow-hidden rounded-[16px] bg-raised shadow-lift"
       >
-        <header className="flex h-12 shrink-0 items-center justify-between border-b border-line pr-2.5 pl-5">
+        <header className="flex h-12 shrink-0 items-center justify-between border-b border-line pr-2.5 pl-6">
           <h2 id="settings-title" className="text-[14px] font-semibold">
             设置
           </h2>
@@ -69,9 +69,9 @@ export function SettingsDialog() {
             <X size={16} />
           </IconButton>
         </header>
-        <div className="overflow-y-auto px-5 pt-4 pb-5">
-          <h3 className="text-[13px] font-semibold">入门</h3>
-          <div className="mt-2 mb-6 flex flex-col divide-y divide-line rounded-xl border border-line bg-panel">
+        <div className="overflow-y-auto px-6 pt-5 pb-6">
+          <h3 className="text-[12px] font-medium text-faint">入门</h3>
+          <div className="mt-1 flex flex-col divide-y divide-line">
             <GuideRow
               title="示例练习"
               description="用一段约 30 秒的示例音频，练一遍播放、放慢、循环和跟读。"
@@ -85,17 +85,17 @@ export function SettingsDialog() {
               onClick={() => useApp.getState().setWizardOpen(true)}
             />
           </div>
-          <h3 className="text-[13px] font-semibold">
-            AI 功能 <span className="ml-1 font-normal text-faint">可选</span>
-          </h3>
-          <p className="mt-1 text-[12px] leading-relaxed text-muted">
-            不设置也能正常播放、循环和使用字幕。API Key 保存在 macOS 钥匙串里，只在这台 Mac 上使用。
-          </p>
-          <div className="mt-4 flex flex-col gap-4">
+          <div className="mt-5 border-t border-line pt-6">
+            <h3 className="text-[12px] font-medium text-faint">AI 功能（可选）</h3>
+            <p className="mt-1 text-[12px] leading-relaxed text-muted">
+              不设置也能正常播放、循环和使用字幕。API Key 保存在 macOS 钥匙串里，只在这台 Mac 上使用。
+            </p>
+          </div>
+          <div className="mt-2 flex flex-col">
             {FEATURES.map((f) => (
-              <section key={f.feature} className="rounded-xl border border-line bg-panel p-4">
-                <h4 className="text-[13px] font-semibold">{f.title}</h4>
-                <p className="mt-0.5 text-[12px] text-muted">{f.description}</p>
+              <section key={f.feature} className="border-t border-line pt-5 pb-6 first:border-t-0">
+                <h4 className="text-[14px] font-semibold">{f.title}</h4>
+                <p className="mt-0.5 text-[12px] leading-relaxed text-muted">{f.description}</p>
                 <ProviderSetup feature={f.feature} />
               </section>
             ))}
@@ -108,10 +108,10 @@ export function SettingsDialog() {
 
 function GuideRow({ title, description, action, onClick }: { title: string; description: string; action: string; onClick: () => void }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
+    <div className="flex items-center gap-4 py-3">
       <div className="min-w-0 flex-1">
         <h4 className="text-[13px] font-medium">{title}</h4>
-        <p className="mt-0.5 text-[12px] text-muted">{description}</p>
+        <p className="mt-0.5 text-[12px] leading-relaxed text-muted">{description}</p>
       </div>
       <Button onClick={onClick}>{action}</Button>
     </div>

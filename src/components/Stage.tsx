@@ -1,27 +1,21 @@
 import { AlertCircle } from "lucide-react";
 import { useApp } from "../store";
 import { PracticeCoach } from "./guide/PracticeCoach";
-import { LoopPanel, LoopStrip } from "./Loop";
+import { LoopPanel } from "./Loop";
 import { TranscribeCard } from "./TranscribeCard";
 import { SentenceList } from "./Transcript";
+import { Kbd } from "./ui";
 
 /**
- * Main area above the player bar: what you're practising. With a transcript
- * that's the sentence list; without one it's the A–B loop.
+ * Main area above the deck: what you're practising. With a transcript that's
+ * the sentence list; without one it's the A–B loop.
  */
 export function Stage() {
   const hasTrack = useApp((s) => !!s.current);
   const hasTranscript = useApp((s) => !!s.transcript?.sentences.length);
   const coaching = useApp((s) => s.practicing && !!s.current && s.current.path === s.sample?.path);
 
-  if (!hasTrack) {
-    return (
-      <div className="flex min-h-0 flex-1 animate-fade-in flex-col justify-center px-10">
-        <h1 className="text-[28px] font-semibold tracking-tight text-muted">选择一个音频开始练习</h1>
-        <p className="mt-2 text-[14px] text-faint">从左侧列表点选，或按空格播放第一首。</p>
-      </div>
-    );
-  }
+  if (!hasTrack) return <Empty />;
 
   if (hasTranscript) {
     return (
@@ -29,7 +23,6 @@ export function Stage() {
         <TrackTitle />
         {coaching && <PracticeCoach />}
         <SentenceList />
-        <LoopStrip />
       </div>
     );
   }
@@ -37,9 +30,42 @@ export function Stage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <TrackTitle />
-      <div className="mx-auto flex w-full max-w-[760px] flex-col gap-10 px-10 pt-8 pb-10">
+      <div className="mx-auto flex w-full max-w-[760px] flex-col px-10 pt-9 pb-10">
         <LoopPanel />
         <TranscribeCard />
+      </div>
+    </div>
+  );
+}
+
+const KEYS: [string[], string][] = [
+  [["空格"], "播放 / 暂停"],
+  [["L"], "设 A、设 B，反复听一段"],
+  [["S"], "循环当前句（有字幕时）"],
+  [["−", "="], "放慢 / 加快"],
+];
+
+/** Nothing picked yet: how to start, and the four keys that matter most. */
+function Empty() {
+  return (
+    <div className="flex min-h-0 flex-1 animate-fade-in flex-col justify-center px-10 pb-8">
+      <div className="mx-auto w-full max-w-[560px]">
+        <h1 className="font-heading text-[26px] leading-tight font-semibold tracking-[-0.01em]">选一段音频，开始跟读。</h1>
+        <p className="mt-2 text-[14px] leading-relaxed text-muted">从左边的列表点一个，或者直接按空格播放第一个。</p>
+        <dl className="mt-8 grid max-w-[360px] grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2.5 border-t border-line pt-5 text-[13px]">
+          {KEYS.map(([keys, label]) => (
+            <div key={label} className="contents">
+              <dt className="flex gap-1">
+                {keys.map((k) => (
+                  <Kbd key={k} className="min-w-[24px] px-1.5">
+                    {k}
+                  </Kbd>
+                ))}
+              </dt>
+              <dd className="text-muted">{label}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
     </div>
   );
@@ -49,12 +75,15 @@ function TrackTitle() {
   const current = useApp((s) => s.current)!;
   const error = useApp((s) => s.error);
   return (
-    <div key={current.path} className="mx-auto w-full max-w-[760px] shrink-0 animate-fade-in px-10 pt-2">
-      <h1 className="line-clamp-2 text-[28px] leading-tight font-semibold tracking-tight break-words" title={current.name}>
+    <div key={current.path} className="mx-auto w-full max-w-[760px] shrink-0 animate-fade-in px-10 pt-1">
+      <h1
+        className="line-clamp-2 font-script text-[28px] leading-[1.22] font-semibold tracking-[-0.012em] break-words text-balance"
+        title={current.name}
+      >
         {current.name}
       </h1>
       {error && (
-        <p className="mt-3 flex w-fit max-w-full items-start gap-1.5 rounded-lg bg-danger-soft px-3 py-1.5 text-[13px] text-danger">
+        <p className="mt-3 flex w-fit max-w-full items-start gap-1.5 rounded-[8px] bg-danger-soft px-3 py-1.5 text-[13px] text-danger">
           <AlertCircle size={15} className="mt-0.5 shrink-0" />
           <span className="break-words">{error}</span>
         </p>

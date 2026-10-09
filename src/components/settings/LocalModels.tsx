@@ -26,7 +26,7 @@ export function LocalModels() {
   if (!local) return null;
   const chosenModel = local.models.find((m) => m.id === chosen);
   return (
-    <div className="mt-3 flex animate-fade-in flex-col gap-2 border-t border-line pt-3">
+    <div className="mt-4 flex animate-fade-in flex-col gap-2 border-t border-line pt-4">
       <p className="text-[12px] text-muted">
         在这台 Mac 上用 Whisper 转写：免费、可离线，音频不会离开本机。
         <span className="text-faint">
@@ -62,12 +62,12 @@ function Row({ model, selected, recommended, onSelect }: {
       aria-checked={selected}
       tabIndex={-1}
       onClick={onSelect}
-      className={`flex flex-col gap-1.5 rounded-lg px-3 py-2 transition-colors duration-150 ${
-        selected ? "bg-press ring-1 ring-fg/15 ring-inset" : "hover:bg-hover"
+      className={`flex flex-col gap-1.5 rounded-[10px] px-3 py-2.5 transition-[background-color,box-shadow] duration-150 ${
+        selected ? "bg-raised shadow-cap" : "hover:bg-hover"
       }`}
     >
       <div className="flex items-center gap-2">
-        <span className={`grid size-4 shrink-0 place-items-center rounded-full border ${selected ? "border-ink bg-ink" : "border-fg/25"}`}>
+        <span className={`grid size-4 shrink-0 place-items-center rounded-full ${selected ? "bg-ink" : "well"}`}>
           {selected && <span className="size-1.5 rounded-full bg-on-ink" />}
         </span>
         <span className={`text-[13px] ${selected ? "font-medium" : ""}`}>{model.name}</span>
@@ -139,8 +139,8 @@ function Action({ model, running, disabled }: { model: LocalModel; running: bool
 function Progress({ done, total }: { done: number; total: number }) {
   return (
     <div className="flex items-center gap-2 pl-6">
-      <div className="h-1 flex-1 overflow-hidden rounded-full bg-track">
-        <div className="h-full rounded-full bg-ink transition-[width] duration-300" style={{ width: `${Math.max(2, (done / total) * 100)}%` }} />
+      <div className="well h-[5px] flex-1 overflow-hidden rounded-full">
+        <div className="h-full rounded-full bg-played transition-[width] duration-300" style={{ width: `${Math.max(2, (done / total) * 100)}%` }} />
       </div>
       <span className="tabular shrink-0 font-mono text-[11px] text-faint">
         {formatBytes(done)} / {formatBytes(total)}
@@ -150,6 +150,6 @@ function Progress({ done, total }: { done: number; total: number }) {
 }
 
 function Badge({ tone, children }: { tone: "ok" | "warn" | "danger"; children: React.ReactNode }) {
-  const color = { ok: "bg-hover text-ok", warn: "bg-hover text-warn", danger: "bg-danger-soft text-danger" }[tone];
-  return <span className={`shrink-0 rounded px-1.5 py-px text-[11px] font-medium ${color}`}>{children}</span>;
+  const color = { ok: "text-ok", warn: "text-warn", danger: "text-danger" }[tone];
+  return <span className={`shrink-0 rounded-[4px] px-1 text-[11px] leading-4 font-medium shadow-[inset_0_0_0_1px_currentColor] ${color}`}>{children}</span>;
 }
