@@ -65,7 +65,7 @@ export default function App() {
         <div
           data-tauri-drag-region
           className={`flex h-[52px] shrink-0 items-center gap-0.5 pr-3 transition-[padding] duration-200 ease-snappy ${
-            shelfOpen ? "pl-6" : "pl-20"
+            shelfOpen ? "pl-6" : "pl-[84px]"
           }`}
         >
           {!shelfOpen && (

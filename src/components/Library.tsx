@@ -11,7 +11,7 @@ export function ShelfToggle() {
   const toggle = useApp((s) => s.toggleShelf);
   return (
     <IconButton title={open ? "收起左侧列表 (⌘B)" : "展开左侧列表 (⌘B)"} aria-expanded={open} onClick={toggle}>
-      {open ? <PanelLeftClose size={16} strokeWidth={1.8} /> : <PanelLeftOpen size={16} strokeWidth={1.8} />}
+      {open ? <PanelLeftClose /> : <PanelLeftOpen />}
     </IconButton>
   );
 }
@@ -83,14 +83,14 @@ function FolderView({ folder }: { folder: FolderListing }) {
             title={allCollapsed ? "展开全部" : "折叠全部"}
             onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(named.map(([d]) => d)))}
           >
-            {allCollapsed ? <ChevronsUpDown size={15} /> : <ChevronsDownUp size={15} />}
+            {allCollapsed ? <ChevronsUpDown /> : <ChevronsDownUp />}
           </IconButton>
         )}
         <IconButton title="重新扫描" disabled={scanning} onClick={() => void onRescan()}>
-          <RefreshCw size={15} className={scanning ? "animate-spin" : ""} />
+          <RefreshCw className={scanning ? "animate-spin" : ""} />
         </IconButton>
         <IconButton title="打开其他文件夹" onClick={() => void chooseFolder()}>
-          <FolderOpen size={15} />
+          <FolderOpen />
         </IconButton>
       </div>
 

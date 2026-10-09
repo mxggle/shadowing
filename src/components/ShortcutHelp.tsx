@@ -70,7 +70,7 @@ export function ShortcutHelp() {
   return (
     <div ref={root} className="relative">
       <IconButton title="键盘快捷键 (?)" active={open} aria-expanded={open} onClick={() => setOpen(!open)}>
-        <Keyboard size={16} strokeWidth={1.8} />
+        <Keyboard />
       </IconButton>
       {open && (
         <div className="absolute top-full right-0 z-20 mt-2 w-[272px] origin-top-right animate-pop-in rounded-[12px] bg-raised px-3.5 pt-3 pb-3.5 shadow-lift">

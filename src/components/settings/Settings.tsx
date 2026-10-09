@@ -21,7 +21,7 @@ export function SettingsButton() {
   }, [setOpen]);
   return (
     <IconButton title="设置 (⌘,)" active={open} onClick={() => setOpen(true)}>
-      <Gear size={16} strokeWidth={1.8} />
+      <Gear />
     </IconButton>
   );
 }
@@ -66,7 +66,7 @@ export function SettingsDialog() {
             设置
           </h2>
           <IconButton title="关闭 (Esc)" onClick={() => setOpen(false)}>
-            <X size={16} />
+            <X />
           </IconButton>
         </header>
         <div className="scrollbar-none overflow-y-auto px-6 pt-5 pb-6">

@@ -17,7 +17,7 @@ export function IconButton({ active, flash, className = "", ...rest }: ButtonPro
     <button
       {...rest}
       data-flash={flashing || undefined}
-      className={`${ghost} grid h-7 min-w-7 place-items-center rounded-[7px] px-1.5 ${
+      className={`${ghost} grid h-7 min-w-7 place-items-center rounded-[7px] px-1.5 [&>svg]:size-4 [&>svg]:[stroke-width:1.75] ${
         active ? "bg-press text-fg" : "text-muted hover:bg-hover hover:text-fg data-[flash]:bg-press"
       } ${className}`}
     />

@@ -76,7 +76,7 @@ function WizardDialog() {
             ))}
           </ol>
           <IconButton className="ml-auto" title="以后再说 (Esc)" onClick={close}>
-            <X size={16} />
+            <X />
           </IconButton>
         </header>
 

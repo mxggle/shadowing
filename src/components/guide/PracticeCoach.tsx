@@ -141,7 +141,7 @@ function Finished() {
           </p>
         </div>
         <IconButton title="关闭" onClick={endPractice}>
-          <X size={15} />
+          <X />
         </IconButton>
       </header>
       <div className="mt-3 flex flex-wrap items-center gap-2 pl-[34px]">

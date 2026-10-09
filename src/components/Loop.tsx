@@ -57,7 +57,7 @@ export function LoopPanel() {
         {phase === "active" && <PassInfo className="text-[12px]" />}
         {phase !== "idle" && (
           <IconButton className="ml-auto" title="取消循环 (Esc)" onClick={clearLoop}>
-            <X size={15} />
+            <X />
           </IconButton>
         )}
       </header>
@@ -156,7 +156,7 @@ export function LoopStrip() {
       <span className="ml-auto flex min-w-0 items-center gap-1">
         {phase === "active" && <PassInfo className="truncate text-[11px]" />}
         <IconButton title="取消循环 (Esc)" onClick={clearLoop}>
-          <X size={14} />
+          <X />
         </IconButton>
       </span>
     </div>

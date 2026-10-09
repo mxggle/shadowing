@@ -68,11 +68,11 @@ function Header({ scrolled }: { scrolled: boolean }) {
         </p>
         <span className="ml-auto flex shrink-0 gap-0.5">
           <IconButton title="导入其他字幕文件" onClick={() => void importTranscript()}>
-            <FileUp size={15} strokeWidth={1.8} />
+            <FileUp />
           </IconButton>
           {transcript.source !== "sidecar" && (
             <IconButton title="移除字幕" onClick={() => void removeTranscript()}>
-              <Trash2 size={15} strokeWidth={1.8} />
+              <Trash2 />
             </IconButton>
           )}
         </span>
