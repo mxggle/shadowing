@@ -250,6 +250,7 @@ pub fn run() {
             transcript::transcript_get,
             transcript::transcript_import,
             transcript::transcript_remove,
+            transcript::transcript_edit,
             smoke::smoke_mode,
             smoke::smoke_window,
             smoke::smoke_finish,

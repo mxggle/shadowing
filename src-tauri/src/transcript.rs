@@ -21,7 +21,8 @@ pub struct Sentence {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Source {
-    /// Chosen in the import dialog and saved in app data.
+    /// Saved in app data from a subtitle file: chosen in the import dialog,
+    /// or an edited copy of the one next to the audio.
     Imported,
     /// Found next to the audio file; read fresh each time, never copied.
     Sidecar,
@@ -36,6 +37,16 @@ pub struct Transcript {
     /// File name it came from, or "Groq · whisper-large-v3".
     pub origin: String,
     pub sentences: Vec<Sentence>,
+    /// Some sentence text was corrected by hand.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub edited: bool,
+}
+
+/// New text for one sentence; its times and speaker stay as they are.
+#[derive(Debug, Deserialize)]
+pub struct Edit {
+    pub index: usize,
+    pub text: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -59,6 +70,7 @@ pub fn read_subtitle(path: &Path, source: Source) -> Result<Transcript, String> 
         source,
         origin,
         sentences,
+        edited: false,
     })
 }
 
@@ -128,15 +140,65 @@ fn authorize(state: &AppState, path: &str) -> Result<(PathBuf, String, PathBuf),
     Ok((audio, key, state.data_dir().join("transcripts")))
 }
 
+/// What a track shows: the transcript saved for it, else a subtitle file next to it.
+fn current(state: &AppState, audio: &Path, dir: &Path, key: &str) -> Option<Transcript> {
+    load(dir, key).or_else(|| {
+        find_sidecar(audio)
+            .and_then(|p| state.allowed(&p))
+            .and_then(|p| read_subtitle(&p, Source::Sidecar).ok())
+    })
+}
+
 #[tauri::command]
 pub fn transcript_get(state: State<AppState>, path: String) -> Result<Option<Transcript>, String> {
     let (audio, key, dir) = authorize(&state, &path)?;
-    if let Some(t) = load(&dir, &key) {
-        return Ok(Some(t));
+    Ok(current(&state, &audio, &dir, &key))
+}
+
+/// Puts corrected text into sentences, all or nothing. Line breaks become
+/// spaces; a sentence can't be emptied (its time would be left without words).
+fn apply_edits(transcript: &mut Transcript, edits: &[Edit]) -> Result<(), String> {
+    let mut texts = Vec::with_capacity(edits.len());
+    for edit in edits {
+        if edit.index >= transcript.sentences.len() {
+            return Err("字幕已经变了，请重新打开这个音频".into());
+        }
+        let lines: Vec<&str> = edit
+            .text
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .collect();
+        if lines.is_empty() {
+            return Err("句子不能为空".into());
+        }
+        texts.push(lines.join(" "));
     }
-    Ok(find_sidecar(&audio)
-        .and_then(|p| state.allowed(&p))
-        .and_then(|p| read_subtitle(&p, Source::Sidecar).ok()))
+    for (edit, text) in edits.iter().zip(texts) {
+        transcript.sentences[edit.index].text = text;
+    }
+    if !edits.is_empty() {
+        // The copy in app data is now the app's own; the file beside the audio stays untouched.
+        if transcript.source == Source::Sidecar {
+            transcript.source = Source::Imported;
+        }
+        transcript.edited = true;
+    }
+    Ok(())
+}
+
+/// Corrected text for some sentences, saved in app data (never into a subtitle file).
+#[tauri::command]
+pub fn transcript_edit(
+    state: State<AppState>,
+    path: String,
+    edits: Vec<Edit>,
+) -> Result<Transcript, String> {
+    let (audio, key, dir) = authorize(&state, &path)?;
+    let mut transcript = current(&state, &audio, &dir, &key).ok_or("这个音频没有字幕")?;
+    apply_edits(&mut transcript, &edits)?;
+    save(&dir, &key, &transcript).map_err(|e| format!("无法保存修改：{e}"))?;
+    Ok(transcript)
 }
 
 /// Native picker for an SRT/VTT file; the choice is saved for this track.
@@ -172,9 +234,17 @@ pub async fn transcript_remove(
     path: String,
 ) -> Result<Option<Transcript>, String> {
     let (audio, key, dir) = authorize(&state, &path)?;
+    let mut message = match find_sidecar(&audio).and_then(|p| state.allowed(&p)) {
+        Some(_) => "会换回音频旁的字幕文件。",
+        None => "之后可以重新导入。",
+    }
+    .to_string();
+    if load(&dir, &key).is_some_and(|t| t.edited) {
+        message.push_str("你做的修改不会保留。");
+    }
     let confirmed = app
         .dialog()
-        .message("之后可以重新导入。")
+        .message(message)
         .title("移除这个音频的字幕？")
         .kind(MessageDialogKind::Warning)
         .buttons(MessageDialogButtons::OkCancelCustom(
@@ -185,73 +255,9 @@ pub async fn transcript_remove(
     if confirmed {
         remove(&dir, &key).map_err(|e| e.to_string())?;
     }
-    Ok(load(&dir, &key).or_else(|| {
-        find_sidecar(&audio)
-            .and_then(|p| state.allowed(&p))
-            .and_then(|p| read_subtitle(&p, Source::Sidecar).ok())
-    }))
+    Ok(current(&state, &audio, &dir, &key))
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn transcript(text: &str) -> Transcript {
-        Transcript {
-            source: Source::Imported,
-            origin: "a.srt".into(),
-            sentences: vec![Sentence {
-                start: 1.0,
-                end: 2.0,
-                text: text.into(),
-                speaker: None,
-            }],
-        }
-    }
-
-    #[test]
-    fn save_load_remove_round_trip() {
-        let dir = tempfile::tempdir().unwrap();
-        assert!(load(dir.path(), "/m/a.mp3").is_none());
-        save(dir.path(), "/m/a.mp3", &transcript("hi")).unwrap();
-        assert_eq!(
-            load(dir.path(), "/m/a.mp3").unwrap().sentences[0].text,
-            "hi"
-        );
-        assert!(load(dir.path(), "/m/b.mp3").is_none());
-        remove(dir.path(), "/m/a.mp3").unwrap();
-        remove(dir.path(), "/m/a.mp3").unwrap(); // already gone is fine
-        assert!(load(dir.path(), "/m/a.mp3").is_none());
-    }
-
-    #[test]
-    fn sidecar_prefers_exact_name_then_language_tags() {
-        let dir = tempfile::tempdir().unwrap();
-        let d = dir.path();
-        let audio = d.join("ep1.mp3");
-        for f in [
-            "ep1.mp3",
-            "ep1.5.mp3",
-            "ep10.srt",
-            "ep1.notes.txt",
-            "ep1.5.srt",
-        ] {
-            fs::write(d.join(f), b"x").unwrap();
-        }
-        assert!(find_sidecar(&audio).is_none());
-        fs::write(d.join("ep1.ja.vtt"), b"x").unwrap();
-        assert_eq!(find_sidecar(&audio).unwrap(), d.join("ep1.ja.vtt"));
-        fs::write(d.join("ep1.SRT"), b"x").unwrap();
-        assert_eq!(find_sidecar(&audio).unwrap(), d.join("ep1.SRT"));
-        assert!(find_sidecar(&d.join("ep2.mp3")).is_none());
-    }
-
-    #[test]
-    fn reads_subtitle_with_origin() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("lesson.srt");
-        fs::write(&path, "1\n00:00:00,500 --> 00:00:01,000\nこんにちは\n").unwrap();
-        let t = read_subtitle(&path, Source::Sidecar).unwrap();
-        assert_eq!((t.origin.as_str(), t.sentences.len()), ("lesson.srt", 1));
-    }
-}
+#[path = "transcript_tests.rs"]
+mod tests;

@@ -1,24 +1,30 @@
-import { FileUp, Play, Repeat, Trash2 } from "lucide-react";
+import { FileUp, PenLine, Play, Repeat, Replace, Trash2 } from "lucide-react";
 import { memo, useEffect, useRef, useState, type RefObject } from "react";
 import type { Sentence } from "../lib/api";
+import { splitMatches } from "../lib/edits";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
+import { ReplaceBar } from "./ReplaceBar";
+import { SentenceEditor } from "./SentenceEditor";
 import { IconButton } from "./ui";
 
 /**
  * The script: one row per sentence. The text is selectable; the time on the
  * left turns into a play button, the loop button on the right (or S) repeats
- * the sentence.
+ * the sentence, and the pen (or E) corrects its text.
  */
 export function SentenceList() {
   const sentences = useApp((s) => s.transcript?.sentences ?? []);
   const active = useApp((s) => (s.transcript ? sentenceIndexAt(s.transcript.sentences, s.time) : -1));
   const loopSentence = useApp((s) => s.loopSentence);
+  const editing = useApp((s) => s.editing?.index ?? null);
+  const find = useApp((s) => s.replace?.find ?? "");
   const voices = speakerCount(sentences) > 1;
   const list = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
-  useFollow(list, active);
+  // Hold the list still while a sentence is corrected or matches are looked through.
+  useFollow(list, active, editing !== null || !!find);
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
@@ -36,6 +42,8 @@ export function SentenceList() {
               sentence={sentence}
               active={i === active}
               looping={i === loopSentence}
+              editing={i === editing}
+              find={find}
               voices={voices}
               turn={voices && startsTurn(sentences, i)}
             />
@@ -49,7 +57,8 @@ export function SentenceList() {
 /** Count, voices and where the text came from; a hairline appears once the list scrolls under it. */
 function Header({ scrolled }: { scrolled: boolean }) {
   const transcript = useApp((s) => s.transcript);
-  const { importTranscript, removeTranscript } = useApp.getState();
+  const replacing = useApp((s) => !!s.replace);
+  const { importTranscript, removeTranscript, openReplace, closeReplace } = useApp.getState();
   if (!transcript) return null;
   const voices = speakerCount(transcript.sentences);
   return (
@@ -65,8 +74,12 @@ function Header({ scrolled }: { scrolled: boolean }) {
             </span>
           )}
           <span className="truncate">· {transcript.origin}</span>
+          {transcript.edited && <span className="shrink-0">· 已修改</span>}
         </p>
         <span className="ml-auto flex shrink-0 gap-0.5">
+          <IconButton title="查找和替换 (⌘F)" active={replacing} onClick={() => (replacing ? closeReplace() : openReplace())}>
+            <Replace />
+          </IconButton>
           <IconButton title="导入其他字幕文件" onClick={() => void importTranscript()}>
             <FileUp />
           </IconButton>
@@ -77,6 +90,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
           )}
         </span>
       </div>
+      <ReplaceBar />
     </div>
   );
 }
@@ -85,15 +99,18 @@ function Header({ scrolled }: { scrolled: boolean }) {
  * One sentence. With more than one voice (`voices`), a column names the
  * speaker where their turn starts (`turn`), like a script, and turns get a little air between them.
  */
-const Row = memo(function Row({ index, sentence, active, looping, voices, turn }: {
+const Row = memo(function Row({ index, sentence, active, looping, editing, find, voices, turn }: {
   index: number;
   sentence: Sentence;
   active: boolean;
   looping: boolean;
+  editing: boolean;
+  /** Text to mark in the sentence (from the replace bar). */
+  find: string;
   voices: boolean;
   turn: boolean;
 }) {
-  const { playSentence, toggleSentenceLoop } = useApp.getState();
+  const { playSentence, toggleSentenceLoop, editSentence } = useApp.getState();
   const tone = looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";
   const lit = active || looping;
   const columns = voices ? "grid-cols-[3.25rem_1.75rem_1fr_auto]" : "grid-cols-[3.25rem_1fr_auto]";
@@ -135,14 +152,37 @@ const Row = memo(function Row({ index, sentence, active, looping, voices, turn }
           )}
         </span>
       )}
-      <p
-        className={`cursor-text font-script text-[18px] leading-[30px] break-words select-text transition-colors duration-200 ${
-          lit ? "text-fg" : "text-muted"
-        }`}
-      >
-        {sentence.text}
-      </p>
+      {editing ? (
+        <SentenceEditor />
+      ) : (
+        <p
+          className={`cursor-text font-script text-[18px] leading-[30px] break-words select-text transition-colors duration-200 ${
+            lit ? "text-fg" : "text-muted"
+          }`}
+        >
+          {find
+            ? splitMatches(sentence.text, find).map((piece, k) =>
+                piece.match ? (
+                  <mark key={k} className="rounded-[3px] bg-press text-fg shadow-[0_0_0_2px_var(--press)]">
+                    {piece.text}
+                  </mark>
+                ) : (
+                  piece.text
+                ),
+              )
+            : sentence.text}
+        </p>
+      )}
       <span className="flex h-[30px] items-center">
+        {!editing && (
+          <button
+            title="修改这一句 (E)"
+            onClick={() => editSentence(index)}
+            className="grid size-[28px] place-items-center rounded-[8px] text-muted opacity-0 transition-[opacity,background-color,color,scale] duration-150 group-hover:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100 active:scale-90"
+          >
+            <PenLine size={14} strokeWidth={2.1} />
+          </button>
+        )}
         <button
           title={looping ? "取消循环 (S)" : "循环这一句 (S)"}
           aria-pressed={looping}
@@ -181,10 +221,18 @@ function Meter({ sentence, looping }: { sentence: Sentence; looping: boolean }) 
 
 const PAUSE_AFTER_USER_SCROLL_MS = 3000;
 
-/** Keeps the playing sentence in view, but leaves the list alone while you browse it. */
-function useFollow(list: RefObject<HTMLDivElement | null>, active: number) {
+/**
+ * Keeps the playing sentence in view, but leaves the list alone while you
+ * browse it, or while `paused` (following picks up at the next sentence).
+ */
+function useFollow(list: RefObject<HTMLDivElement | null>, active: number, paused: boolean) {
   const userScrolledAt = useRef(0);
   const first = useRef(true);
+  const hold = useRef(paused);
+
+  useEffect(() => {
+    hold.current = paused;
+  }, [paused]);
 
   useEffect(() => {
     const el = list.current;
@@ -200,7 +248,7 @@ function useFollow(list: RefObject<HTMLDivElement | null>, active: number) {
 
   useEffect(() => {
     const el = list.current;
-    if (!el || active < 0) return;
+    if (!el || active < 0 || hold.current) return;
     if (Date.now() - userScrolledAt.current < PAUSE_AFTER_USER_SCROLL_MS) return;
     /** Scrolls the row into the comfortable band; false when it's already there. */
     const place = (behavior: ScrollBehavior) => {

@@ -118,6 +118,7 @@ pub fn transcribe_start(
                         source: Source::Transcribed,
                         origin,
                         sentences,
+                        edited: false,
                     };
                     let saved = if keep {
                         transcript::save(&dir, &key, &transcript)

@@ -186,6 +186,28 @@ async function scenario() {
     check("moving the loop resets the count", app().repeats === 0, `repeats ${app().repeats}`);
     check("[ moves the loop to sentence 1", app().loopSentence === 0 && app().loop.a === 0, `A ${app().loop.a}`);
     app().clearLoop();
+
+    // Corrections are saved as the app's own copy (the .srt stays as it is) and can be undone.
+    const first = transcript.sentences[0].text;
+    app().editSentence(0);
+    app().setDraft(first.replace("brown", "red"));
+    await app().saveEdit();
+    let saved = await api.getTranscript(english.path);
+    check(
+      "corrected sentence saved in the app",
+      saved?.source === "imported" && !!saved.edited && saved.sentences[0].text.includes("quick red fox"),
+      saved?.sentences[0].text,
+    );
+    app().openReplace("you");
+    app().setReplace({ with: "we" });
+    await app().replaceAll();
+    saved = await api.getTranscript(english.path);
+    check("replace all changes every match", saved?.sentences[1].text.match(/\bwe\b/g)?.length === 2, saved?.sentences[1].text);
+    await app().undoEdit();
+    await app().undoEdit();
+    saved = await api.getTranscript(english.path);
+    check("undo puts both changes back", saved?.sentences[0].text === first && saved.sentences[1].text === transcript.sentences[1].text, saved?.sentences[0].text);
+    app().closeReplace();
   }
 
   // 9. AI settings round-trip through Rust (smoke runs use an in-memory key store, no network).

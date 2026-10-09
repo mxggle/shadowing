@@ -58,12 +58,20 @@ export interface Sentence {
   speaker?: number;
 }
 
+/** New text for one sentence (by its index in the transcript); times and speaker stay. */
+export interface SentenceEdit {
+  index: number;
+  text: string;
+}
+
 export interface Transcript {
   /** Saved in the app ("imported", "transcribed"), or read from a subtitle file next to the audio ("sidecar"). */
   source: "imported" | "sidecar" | "transcribed";
   /** File name it came from, or "Groq · whisper-large-v3". */
   origin: string;
   sentences: Sentence[];
+  /** Some sentence text was corrected by hand. */
+  edited?: boolean;
 }
 
 export type Feature = "transcribe" | "chat";
@@ -178,6 +186,8 @@ export const api = {
   importTranscript: (path: string) => invoke<Transcript | null>("transcript_import", { path }),
   /** Asks first; returns what the track falls back to. */
   removeTranscript: (path: string) => invoke<Transcript | null>("transcript_remove", { path }),
+  /** Corrected sentence text, saved in the app (a subtitle file next to the audio stays as it is). */
+  editTranscript: (path: string, edits: SentenceEdit[]) => invoke<Transcript>("transcript_edit", { path, edits }),
   ai: {
     get: () => invoke<AiOverview>("ai_get"),
     choose: (feature: Feature, provider: string | null, model: string) =>

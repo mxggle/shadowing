@@ -14,9 +14,18 @@ export function useShortcuts() {
       if (isTypingTarget(e.target)) return;
       const s = useApp.getState();
       if (s.settingsOpen || s.wizardOpen) return;
-      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "b") {
-        e.preventDefault();
-        s.toggleShelf();
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
+        const command: Record<string, (() => void) | false> = {
+          b: s.toggleShelf,
+          // Find in the sentences, starting from any text selected in them.
+          f: !!s.transcript && (() => s.openReplace(window.getSelection()?.toString().trim() || undefined)),
+          z: s.undo.length > 0 && (() => void s.undoEdit()),
+        };
+        const run = command[e.key.toLowerCase()];
+        if (run) {
+          e.preventDefault();
+          run();
+        }
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -28,11 +37,13 @@ export function useShortcuts() {
         ArrowDown: [() => s.step(1), "next"],
         l: [s.cycleLoop, "loop"],
         L: [s.cycleLoop, "loop"],
-        Escape: [s.clearLoop],
+        Escape: [s.replace ? s.closeReplace : s.clearLoop],
         "[": [() => s.stepSentence(-1), "prevSentence"],
         "]": [() => s.stepSentence(1), "nextSentence"],
         s: [() => s.toggleSentenceLoop(), "sentenceLoop"],
         S: [() => s.toggleSentenceLoop(), "sentenceLoop"],
+        e: [() => s.editSentence()],
+        E: [() => s.editSentence()],
         "-": [() => s.setRate(s.settings.rate - RATE_STEP), "slower"],
         "=": [() => s.setRate(s.settings.rate + RATE_STEP), "faster"],
       };

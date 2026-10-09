@@ -2,7 +2,7 @@
 // Simulates the Rust commands and player:* events; no real audio.
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { AiConfig, Feature, Preset, Snapshot, Track, Transcript } from "../lib/api";
+import type { AiConfig, Feature, Preset, SentenceEdit, Snapshot, Track, Transcript } from "../lib/api";
 import { fresh, samples, sampleTranscripts } from "./mockSamples";
 
 const root = "/Mock/日本語ポッドキャスト";
@@ -211,6 +211,15 @@ export function installMockBackend() {
         case "transcript_remove":
           transcripts.delete(a.path);
           return null;
+        case "transcript_edit": {
+          const t = transcripts.get(a.path);
+          if (!t) throw "这个音频没有字幕";
+          const sentences = [...t.sentences];
+          for (const e of a.edits as SentenceEdit[]) sentences[e.index] = { ...sentences[e.index], text: e.text.trim() };
+          const edited: Transcript = { ...t, sentences, edited: true, source: t.source === "sidecar" ? "imported" : t.source };
+          transcripts.set(a.path, edited);
+          return edited;
+        }
         case "ai_get":
           return { presets, config: aiConfig };
         case "ai_choose":
