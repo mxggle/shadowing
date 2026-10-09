@@ -65,7 +65,7 @@ function WizardDialog() {
                 >
                   <span
                     className={`tabular grid size-[18px] place-items-center rounded-full font-mono text-[11px] transition-colors ${
-                      i === step ? "bg-ink text-on-ink" : "well"
+                      i === step ? "bg-ink text-on-ink" : "tint"
                     }`}
                   >
                     {i + 1}
@@ -80,7 +80,7 @@ function WizardDialog() {
           </IconButton>
         </header>
 
-        <div className="min-h-[320px] overflow-y-auto px-6 pt-5 pb-6">
+        <div className="scrollbar-none min-h-[320px] overflow-y-auto px-6 pt-5 pb-6">
           {step === 0 && <TranscribeStep />}
           {step === 1 && <ChatStep />}
           {step === 2 && <TrialStep />}

@@ -1,7 +1,7 @@
-// Small shared building blocks. Two kinds of pressable thing: quiet "ghost"
-// buttons for chrome (icon buttons, links), and raised keys for the things you
-// play with. Keys travel down a pixel when pressed, including when their
-// keyboard shortcut fires (`flash`), so feedback looks the same either way.
+// Small shared building blocks, all flat. Two kinds of pressable thing: quiet
+// "ghost" buttons (no fill until hovered) for chrome and transport, and filled
+// buttons (`btn`, `btn-ink`) for actions. Both shrink a little when pressed,
+// including when their keyboard shortcut fires (`flash`).
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { useFlash, type FlashId } from "../hooks/useFlash";
 
@@ -24,30 +24,32 @@ export function IconButton({ active, flash, className = "", ...rest }: ButtonPro
   );
 }
 
-/** A raised deck key. `ink` is the play key: the one solid key on the deck. */
-export function Key({ ink, flash, className = "", ...rest }: ButtonProps & { ink?: boolean }) {
+/** A transport button on the deck. `ink` is play: the one solid button there. */
+export function DeckButton({ ink, flash, className = "", ...rest }: ButtonProps & { ink?: boolean }) {
   const flashing = useFlash(flash);
   return (
     <button
       {...rest}
       data-flash={flashing || undefined}
-      className={`grid place-items-center ${ink ? "key-ink" : "key text-fg/80 hover:text-fg"} disabled:pointer-events-none ${className}`}
+      className={`grid place-items-center disabled:pointer-events-none ${
+        ink ? "btn-ink" : `${ghost} text-fg/75 hover:bg-hover hover:text-fg active:bg-press data-[flash]:bg-press data-[flash]:text-fg`
+      } ${className}`}
     />
   );
 }
 
-/** A keyboard key, drawn as a small keycap. */
+/** A keyboard key, drawn as a small outlined key. */
 export function Kbd({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <kbd
-      className={`inline-grid h-[19px] min-w-[19px] place-items-center rounded-[5px] bg-raised px-1 font-sans text-[11px] leading-none font-medium text-muted shadow-[inset_0_-1px_0_var(--line-strong),0_0_0_1px_var(--line)] ${className}`}
+      className={`inline-grid h-[19px] min-w-[19px] place-items-center rounded-[5px] px-1 font-sans text-[11px] leading-none font-medium text-muted shadow-[inset_0_0_0_1px_var(--line-strong)] ${className}`}
     >
       {children}
     </kbd>
   );
 }
 
-/** − value + set into a well; used by the speed and step controls. */
+/** − value + on a tinted strip; used by the speed and step controls. */
 export function Stepper({ children, onDec, onInc, decTitle, incTitle, decFlash, incFlash }: {
   children: ReactNode;
   onDec: () => void;
@@ -58,7 +60,7 @@ export function Stepper({ children, onDec, onInc, decTitle, incTitle, decFlash, 
   incFlash?: FlashId;
 }) {
   return (
-    <div className="well flex h-8 items-center rounded-[9px] p-0.5">
+    <div className="tint flex h-8 items-center rounded-[9px] p-0.5">
       <StepButton title={decTitle} onClick={onDec} flash={decFlash}>
         −
       </StepButton>
@@ -76,7 +78,7 @@ function StepButton({ flash, ...rest }: ButtonProps) {
     <button
       {...rest}
       data-flash={flashing || undefined}
-      className="key grid h-7 w-7 shrink-0 place-items-center rounded-[7px] text-[15px] leading-none text-muted hover:text-fg"
+      className={`${ghost} grid h-7 w-7 shrink-0 place-items-center rounded-[7px] text-[15px] leading-none text-muted hover:bg-hover hover:text-fg active:bg-press data-[flash]:bg-press data-[flash]:text-fg`}
     />
   );
 }
@@ -88,10 +90,10 @@ export function Switch({ on, onChange, label }: { on: boolean; onChange: (on: bo
       aria-checked={on}
       aria-label={label}
       onClick={() => onChange(!on)}
-      className={`relative h-[22px] w-[38px] shrink-0 rounded-full shadow-recess transition-colors duration-200 ${on ? "bg-ink" : "bg-track"}`}
+      className={`relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors duration-200 ${on ? "bg-ink" : "bg-track"}`}
     >
       <span
-        className={`absolute top-[3px] left-[3px] size-4 rounded-full shadow-cap transition-[translate,background-color] duration-200 ease-snappy ${
+        className={`absolute top-[3px] left-[3px] size-4 rounded-full shadow-[0_1px_2px_oklch(0%_0_0/0.18)] transition-[translate,background-color] duration-200 ease-snappy ${
           on ? "translate-x-4 bg-white dark:bg-on-ink" : "bg-white"
         }`}
       />
@@ -99,13 +101,13 @@ export function Switch({ on, onChange, label }: { on: boolean; onChange: (on: bo
   );
 }
 
-/** Text button: `primary` is the solid main action of a form; plain is a raised key. */
+/** Text button: `primary` is the solid main action of a form; plain is a tinted fill. */
 export function Button({ primary, className = "", ...rest }: ButtonProps & { primary?: boolean }) {
   return (
     <button
       {...rest}
       className={`flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-[8px] px-3 text-[13px] font-medium whitespace-nowrap disabled:pointer-events-none ${
-        primary ? "key-ink" : "key text-fg"
+        primary ? "btn-ink" : "btn text-fg"
       } ${className}`}
     />
   );
@@ -121,6 +123,6 @@ export function TextLink({ className = "", ...rest }: ButtonHTMLAttributes<HTMLB
   );
 }
 
-/** Shared look for text inputs and selects: a shallow well that lifts to the paper when focused. */
+/** Shared look for text inputs and selects: a tinted field that gains an outline and focus ring. */
 export const fieldClass =
-  "h-8 w-full min-w-0 rounded-[8px] bg-sunken px-2.5 text-[13px] shadow-recess select-text outline-none transition-[background-color,box-shadow] duration-150 placeholder:text-faint focus:bg-raised focus:shadow-[0_0_0_1px_var(--line-strong),0_0_0_4px_var(--hover)]";
+  "h-8 w-full min-w-0 rounded-[8px] bg-fill px-2.5 text-[13px] select-text outline-none transition-[background-color,box-shadow] duration-150 placeholder:text-faint focus:bg-raised focus:shadow-[inset_0_0_0_1px_var(--line-strong),0_0_0_3px_var(--hover)]";

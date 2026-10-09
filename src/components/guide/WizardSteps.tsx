@@ -114,15 +114,15 @@ function ChoiceCard({ icon: Icon, title, points, selected, recommended, onClick 
       role="radio"
       aria-checked={selected}
       onClick={onClick}
-      className={`flex flex-col items-start gap-2.5 rounded-[14px] bg-raised p-4 text-left transition-[box-shadow,scale] duration-150 ease-snappy active:scale-[0.985] ${
-        selected ? "shadow-[0_0_0_1.5px_var(--ink)]" : "shadow-cap hover:shadow-[var(--cap),0_0_0_1px_var(--line-strong)]"
+      className={`flex flex-col items-start gap-2.5 rounded-[14px] p-4 text-left transition-[background-color,box-shadow,scale] duration-150 ease-snappy active:scale-[0.985] ${
+        selected ? "shadow-[inset_0_0_0_1.5px_var(--ink)]" : "shadow-[inset_0_0_0_1px_var(--line-strong)] hover:bg-hover"
       }`}
     >
       <span className="flex w-full items-center gap-2">
         <Icon size={16} strokeWidth={1.8} className="text-muted" />
         <span className="text-[14px] font-semibold">{title}</span>
         {recommended && <span className="rounded-[4px] px-1 text-[11px] leading-4 font-medium text-ok shadow-[inset_0_0_0_1px_currentColor]">推荐</span>}
-        <span className={`ml-auto grid size-[18px] place-items-center rounded-full ${selected ? "bg-ink text-on-ink" : "well"}`}>
+        <span className={`ml-auto grid size-[18px] place-items-center rounded-full ${selected ? "bg-ink text-on-ink" : "border-[1.5px] border-line-strong"}`}>
           {selected && <Check size={11} strokeWidth={3} />}
         </span>
       </span>

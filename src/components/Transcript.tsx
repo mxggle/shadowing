@@ -26,7 +26,7 @@ export function SentenceList() {
       <div
         ref={list}
         onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]"
+        className="scrollbar-none min-h-0 flex-1 overflow-y-auto overscroll-contain [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]"
       >
         <div className="mx-auto w-full max-w-[760px] px-8 pt-2 pb-12">
           {sentences.map((sentence, i) => (
@@ -115,8 +115,8 @@ const Row = memo(function Row({ index, sentence, active, looping, voices, turn }
           >
             {formatTime(sentence.start)}
           </span>
-          <span className={`absolute inset-y-0 left-0 grid place-items-center opacity-0 transition-opacity duration-150 group-hover:opacity-100 ${looping ? "text-loop-text" : "text-fg"}`}>
-            <span className="grid size-[22px] place-items-center rounded-full bg-raised shadow-cap">
+          <span className="absolute inset-y-0 left-0 grid place-items-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+            <span className="grid size-[22px] place-items-center rounded-full bg-ink text-on-ink">
               <Play size={10} fill="currentColor" strokeWidth={0} className="ml-px" />
             </span>
           </span>
@@ -128,7 +128,7 @@ const Row = memo(function Row({ index, sentence, active, looping, voices, turn }
           {turn && sentence.speaker !== undefined && (
             <span
               title={`说话人 ${speakerName(sentence.speaker)}`}
-              className={`well grid size-5 place-items-center rounded-[5px] font-mono text-[11px] font-medium ${lit ? "text-fg" : "text-muted"}`}
+              className={`tint grid size-5 place-items-center rounded-[5px] font-mono text-[11px] font-medium ${lit ? "text-fg" : "text-muted"}`}
             >
               {speakerName(sentence.speaker)}
             </span>

@@ -1,10 +1,13 @@
 @import "tailwindcss";
 
 /*
- * "Script and deck": the window is a practice desk. The upper area is paper
- * holding the script (what you read and say, set in a serif); the player bar
- * is the deck, a small instrument with raised keys, a recessed track and an
- * LED. The sidebar is the shelf of recordings.
+ * "Script and deck": the upper area is paper holding the script (what you
+ * read and say, set in a serif); the player bar below is the deck with every
+ * control. The sidebar is the shelf of recordings.
+ *
+ * Flat throughout: surfaces differ by tone, controls by a translucent fill
+ * that darkens on hover and press. No bevels, inner shadows or glows; only
+ * floating layers (popovers, dialogs) cast a shadow.
  *
  * One set of token names; values swap with the system appearance. Neutrals
  * carry the faintest warm tint so paper doesn't feel clinical. Orange ("loop")
@@ -12,25 +15,25 @@
  * "something is repeating". Don't use it for anything else.
  */
 :root {
-  color-scheme: light dark; /* native scrollbars and form controls follow the theme */
+  color-scheme: light dark; /* native form controls follow the theme */
 
   /* Surfaces */
   --paper: oklch(98.9% 0.002 95);
   --shelf: oklch(96.7% 0.003 95);
-  --deck: oklch(95.8% 0.003 95);
+  --deck: oklch(97.4% 0.002 95);
   --raised: oklch(100% 0 0);
-  --sunken: oklch(94.2% 0.003 95);
 
   /* Text: muted ≥ 6:1 and faint ≥ 4.5:1 on every surface above */
   --fg: oklch(21% 0.004 95);
   --muted: oklch(45% 0.004 95);
   --faint: oklch(53% 0.004 95);
 
-  /* Lines and states */
+  /* Lines and fills. Fills are translucent so they read the same on any surface. */
   --line: oklch(21% 0.004 95 / 0.09);
   --line-strong: oklch(21% 0.004 95 / 0.16);
-  --hover: oklch(21% 0.004 95 / 0.045);
-  --press: oklch(21% 0.004 95 / 0.085);
+  --fill: oklch(21% 0.004 95 / 0.055);
+  --hover: oklch(21% 0.004 95 / 0.05);
+  --press: oklch(21% 0.004 95 / 0.09);
   --track: oklch(21% 0.004 95 / 0.11);
   --played: oklch(21% 0.004 95 / 0.78);
   --ink: oklch(21% 0.004 95);
@@ -47,26 +50,16 @@
   --danger-soft: oklch(54% 0.2 27 / 0.08);
   --warn: oklch(55% 0.12 65);
 
-  /* Depth: keys sit up (cap), wells sit down (recess), popovers float (lift). */
-  --cap: inset 0 1px 0 oklch(100% 0 0 / 0.9), 0 0 0 1px oklch(21% 0.004 95 / 0.1), 0 1px 1px oklch(21% 0.004 95 / 0.06),
-    0 2px 3px -1px oklch(21% 0.004 95 / 0.08);
-  --cap-press: inset 0 1px 2px oklch(21% 0.004 95 / 0.16), 0 0 0 1px oklch(21% 0.004 95 / 0.11);
-  --cap-ink: inset 0 1px 0 oklch(100% 0 0 / 0.16), 0 0 0 1px oklch(0% 0 0 / 0.9), 0 1px 2px oklch(0% 0 0 / 0.2),
-    0 3px 6px -2px oklch(0% 0 0 / 0.28);
-  --cap-ink-press: inset 0 1px 3px oklch(0% 0 0 / 0.5), 0 0 0 1px oklch(0% 0 0 / 0.9);
-  --recess: inset 0 1px 2px oklch(21% 0.004 95 / 0.1), inset 0 0 0 1px oklch(21% 0.004 95 / 0.06);
-  --lift: 0 0 0 1px oklch(21% 0.004 95 / 0.07), 0 2px 4px oklch(21% 0.004 95 / 0.04),
-    0 12px 24px -6px oklch(21% 0.004 95 / 0.1), 0 32px 56px -16px oklch(21% 0.004 95 / 0.14);
-  --led-glow: 0 0 0 1px var(--loop-line), 0 0 6px oklch(63.5% 0.19 38 / 0.55);
+  /* Floating layers only. */
+  --lift: 0 0 0 1px oklch(21% 0.004 95 / 0.07), 0 12px 32px -8px oklch(21% 0.004 95 / 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --paper: oklch(19.5% 0.004 95);
     --shelf: oklch(16.8% 0.004 95);
-    --deck: oklch(22.5% 0.004 95);
-    --raised: oklch(28% 0.004 95);
-    --sunken: oklch(15.5% 0.004 95);
+    --deck: oklch(21% 0.004 95);
+    --raised: oklch(26% 0.004 95);
 
     --fg: oklch(93.5% 0.003 95);
     --muted: oklch(73% 0.003 95);
@@ -74,9 +67,10 @@
 
     --line: oklch(100% 0 0 / 0.075);
     --line-strong: oklch(100% 0 0 / 0.14);
-    --hover: oklch(100% 0 0 / 0.05);
-    --press: oklch(100% 0 0 / 0.09);
-    --track: oklch(100% 0 0 / 0.1);
+    --fill: oklch(100% 0 0 / 0.065);
+    --hover: oklch(100% 0 0 / 0.055);
+    --press: oklch(100% 0 0 / 0.1);
+    --track: oklch(100% 0 0 / 0.11);
     --played: oklch(100% 0 0 / 0.72);
     --ink: oklch(93.5% 0.003 95);
     --on-ink: oklch(19.5% 0.004 95);
@@ -92,13 +86,7 @@
     --danger-soft: oklch(70% 0.17 25 / 0.1);
     --warn: oklch(80% 0.13 80);
 
-    --cap: inset 0 1px 0 oklch(100% 0 0 / 0.075), 0 0 0 1px oklch(0% 0 0 / 0.5), 0 1px 2px oklch(0% 0 0 / 0.35);
-    --cap-press: inset 0 1px 3px oklch(0% 0 0 / 0.5), 0 0 0 1px oklch(0% 0 0 / 0.5);
-    --cap-ink: inset 0 -1px 0 oklch(0% 0 0 / 0.12), 0 0 0 1px oklch(0% 0 0 / 0.5), 0 2px 6px -1px oklch(0% 0 0 / 0.5);
-    --cap-ink-press: inset 0 1px 3px oklch(0% 0 0 / 0.3), 0 0 0 1px oklch(0% 0 0 / 0.5);
-    --recess: inset 0 1px 2px oklch(0% 0 0 / 0.5), inset 0 0 0 1px oklch(100% 0 0 / 0.04);
-    --lift: 0 0 0 1px oklch(100% 0 0 / 0.09), 0 16px 40px -8px oklch(0% 0 0 / 0.65);
-    --led-glow: 0 0 0 1px var(--loop-line), 0 0 7px oklch(70% 0.17 42 / 0.6);
+    --lift: 0 0 0 1px oklch(100% 0 0 / 0.09), 0 16px 40px -8px oklch(0% 0 0 / 0.6);
   }
 }
 
@@ -107,9 +95,9 @@
   --color-shelf: var(--shelf);
   --color-deck: var(--deck);
   --color-raised: var(--raised);
-  --color-sunken: var(--sunken);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+  --color-fill: var(--fill);
   --color-fg: var(--fg);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
@@ -127,8 +115,6 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-warn: var(--warn);
-  --shadow-cap: var(--cap);
-  --shadow-recess: var(--recess);
   --shadow-lift: var(--lift);
 }
 
@@ -168,52 +154,61 @@
 }
 
 /*
- * A key on the deck: raised, and it travels down a pixel when pressed (by the
- * pointer, or by its keyboard shortcut through data-flash).
+ * A filled button: a light tint that darkens on hover and press. Pressing
+ * (by pointer, or by its keyboard shortcut through data-flash) also shrinks
+ * it slightly, so a shortcut is visible where the button lives.
  */
-@utility key {
-  background-color: var(--raised);
-  box-shadow: var(--cap);
+@utility btn {
+  background-color: var(--fill);
   transition:
-    translate 90ms var(--ease-snappy),
-    box-shadow 90ms var(--ease-snappy),
     background-color 150ms,
     color 150ms,
-    opacity 150ms;
+    opacity 150ms,
+    scale 150ms var(--ease-snappy);
+  &:hover {
+    background-color: var(--press);
+  }
   &:active:not(:disabled),
-  &[data-flash],
-  &[aria-pressed="true"] {
-    translate: 0 1px;
-    box-shadow: var(--cap-press);
+  &[data-flash] {
+    background-color: var(--track);
+    scale: 0.96;
   }
   &:disabled {
     opacity: 0.4;
   }
 }
 
-/* The one solid key on screen at a time: play, or a form's main action. */
-@utility key-ink {
+/* The one solid button in view: play, or a form's main action. */
+@utility btn-ink {
   background-color: var(--ink);
   color: var(--on-ink);
-  box-shadow: var(--cap-ink);
   transition:
-    translate 90ms var(--ease-snappy),
-    box-shadow 90ms var(--ease-snappy),
-    opacity 150ms;
+    opacity 150ms,
+    scale 150ms var(--ease-snappy);
+  &:hover {
+    opacity: 0.86;
+  }
   &:active:not(:disabled),
   &[data-flash] {
-    translate: 0 1px;
-    box-shadow: var(--cap-ink-press);
+    opacity: 0.78;
+    scale: 0.96;
   }
   &:disabled {
     opacity: 0.35;
   }
 }
 
-/* A well set into the surface: tracks, readouts, inputs, selectors. */
-@utility well {
-  background-color: var(--sunken);
-  box-shadow: var(--recess);
+/* A flat tinted area: readouts, selectors, inputs, badges. */
+@utility tint {
+  background-color: var(--fill);
+}
+
+/* Scroll areas that don't need a visible bar (they fade at the edge instead). */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 html,

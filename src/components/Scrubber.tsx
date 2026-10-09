@@ -5,7 +5,7 @@ import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 
 /**
- * Progress track set into the deck, with the A–B region drawn on it. Under the
+ * Progress track with the A–B region drawn on it. Under the
  * pointer it shows the time and, with a transcript, the sentence you'd land
  * in. Seeks on release.
  */
@@ -51,7 +51,7 @@ export function Scrubber() {
       }}
       onPointerCancel={() => setDrag(null)}
     >
-      <div className="well absolute inset-x-0 top-1/2 h-[5px] -translate-y-1/2 overflow-hidden rounded-full transition-[height] duration-150 ease-snappy group-hover:h-[7px] group-data-[active]:h-[7px]">
+      <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-track transition-[height] duration-150 ease-snappy group-hover:h-1.5 group-data-[active]:h-1.5">
         <div className="h-full rounded-full bg-played" style={{ width: `${pct(shown)}%` }} />
       </div>
 
@@ -68,13 +68,11 @@ export function Scrubber() {
         />
       )}
 
-      {/* A fader cap that rises out of the track while you're on it. */}
+      {/* The handle appears while you're on the track. */}
       <div
-        className="pointer-events-none absolute top-1/2 h-[15px] w-[9px] -translate-1/2 scale-y-0 rounded-[3px] bg-raised opacity-0 shadow-cap transition-[scale,opacity] duration-150 ease-snappy group-hover:scale-y-100 group-hover:opacity-100 group-data-[active]:scale-y-100 group-data-[active]:opacity-100"
+        className="pointer-events-none absolute top-1/2 size-3 -translate-1/2 scale-50 rounded-full bg-ink opacity-0 transition-[scale,opacity] duration-150 ease-snappy group-hover:scale-100 group-hover:opacity-100 group-data-[active]:scale-100 group-data-[active]:opacity-100"
         style={{ left: `${pct(shown)}%` }}
-      >
-        <span className="absolute inset-x-[3.5px] inset-y-[4px] rounded-full bg-line-strong" />
-      </div>
+      />
 
       {tip !== null && <Tip time={tip} left={pct(tip)} />}
     </div>

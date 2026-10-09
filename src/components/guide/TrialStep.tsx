@@ -74,7 +74,7 @@ export function TrialStep() {
         {job?.state === "done" && (
           <>
             用了 {seconds.toFixed(1)} 秒，识别出 {job.transcript.sentences.length} 句：
-            <ol className="well mt-2 flex flex-col gap-1.5 rounded-[10px] px-3 py-2.5">
+            <ol className="tint mt-2 flex flex-col gap-1.5 rounded-[10px] px-3 py-2.5">
               {job.transcript.sentences.slice(0, 4).map((s, i) => (
                 <li key={i} className="flex gap-2 text-[12px]">
                   <span className="tabular shrink-0 font-mono text-faint">{formatTime(s.start)}</span>
@@ -95,7 +95,7 @@ export function TrialStep() {
           <>
             {explain.value.modelFound ? `用了 ${(explain.value.millis / 1000).toFixed(1)} 秒回答：` : "连接成功，但没有找到选中的模型，请回到上一步确认名称。"}
             {explain.value.reply && (
-              <figure className="well mt-2 rounded-[10px] px-3 py-2.5 text-[12px] leading-relaxed">
+              <figure className="tint mt-2 rounded-[10px] px-3 py-2.5 text-[12px] leading-relaxed">
                 <figcaption className="text-faint">例句：{explain.value.sample}</figcaption>
                 <p className="mt-1 whitespace-pre-wrap text-fg">{explain.value.reply}</p>
               </figure>
@@ -121,7 +121,7 @@ export function TrialStep() {
 
 function Row({ title, status, children }: { title: string; status: "off" | "idle" | "running" | "ok" | "error"; children: React.ReactNode }) {
   const icon = {
-    off: <span className="size-2 rounded-full bg-track shadow-recess" />,
+    off: <span className="size-2 rounded-full bg-track" />,
     idle: <span className="size-2 rounded-full bg-faint/60" />,
     running: <LoaderCircle size={15} className="animate-spin text-muted" />,
     ok: <Check size={15} strokeWidth={2.5} className="text-ok" />,

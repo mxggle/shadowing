@@ -26,7 +26,7 @@ export function Welcome() {
   }
 
   return (
-    <div data-tauri-drag-region className="flex h-full items-center justify-center overflow-y-auto bg-paper px-10 py-12">
+    <div data-tauri-drag-region className="scrollbar-none flex h-full items-center justify-center overflow-y-auto bg-paper px-10 py-12">
       <div className="grid w-full max-w-[880px] animate-fade-in items-center gap-14 min-[880px]:grid-cols-[1fr_360px]">
         <div className="flex flex-col items-start">
           <p className="text-[13px] font-semibold tracking-[0.01em] text-muted">Shadowing</p>
@@ -43,7 +43,7 @@ export function Welcome() {
           {first ? (
             <>
               <h2 className="mt-9 text-[13px] font-medium text-muted">你在学哪种语言？</h2>
-              <div role="radiogroup" aria-label="学习语言" className="well mt-2.5 flex gap-1 rounded-[11px] p-1">
+              <div role="radiogroup" aria-label="学习语言" className="tint mt-2.5 flex gap-1 rounded-[11px] p-1">
                 {LANGUAGES.map(([code, label]) => {
                   const on = guide.language === code;
                   return (
@@ -53,7 +53,7 @@ export function Welcome() {
                       aria-checked={on}
                       onClick={() => pickLanguage(code)}
                       className={`h-8 rounded-[8px] px-4 text-[13px] transition-[background-color,color,box-shadow] duration-150 ${
-                        on ? "bg-raised font-medium text-fg shadow-cap" : "text-muted hover:text-fg"
+                        on ? "bg-raised font-medium text-fg shadow-[0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
                       }`}
                     >
                       {label}
@@ -90,7 +90,7 @@ function BigButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       {...props}
-      className="key-ink mt-8 flex h-11 items-center gap-2 rounded-[12px] px-5 text-[14px] font-medium disabled:pointer-events-none"
+      className="btn-ink mt-8 flex h-11 items-center gap-2 rounded-[12px] px-5 text-[14px] font-medium disabled:pointer-events-none"
     />
   );
 }
@@ -115,7 +115,7 @@ const PREVIEW: Record<"ja" | "en", [string, string][]> = {
 function Preview({ language }: { language: "ja" | "en" }) {
   const lines = PREVIEW[language];
   return (
-    <figure aria-hidden className="pointer-events-none hidden overflow-hidden rounded-[18px] bg-raised shadow-cap min-[880px]:block">
+    <figure aria-hidden className="pointer-events-none hidden overflow-hidden rounded-[18px] bg-raised shadow-[0_0_0_1px_var(--line-strong)] min-[880px]:block">
       <div key={language} className="flex animate-fade flex-col gap-1 px-3 pt-4 pb-3">
         {lines.map(([time, text], i) => {
           const looping = i === 1;
@@ -135,14 +135,14 @@ function Preview({ language }: { language: "ja" | "en" }) {
         })}
       </div>
       <div className="flex items-center gap-2 border-t border-line bg-deck px-4 py-3">
-        <span className="key flex h-7 items-center gap-1.5 rounded-[8px] px-2.5 text-[11px] font-medium text-loop-text" aria-pressed="true">
-          <span className="size-[6px] rounded-full bg-loop shadow-[var(--led-glow)]" />
+        <span className="flex h-7 items-center gap-1.5 rounded-[8px] bg-loop-soft px-2.5 text-[11px] font-medium text-loop-text">
+          <span className="size-[7px] rounded-full bg-loop" />
           循环第 2 句
         </span>
-        <span className="key-ink ml-auto grid h-8 w-10 place-items-center rounded-[10px]">
+        <span className="btn-ink ml-auto grid size-8 place-items-center rounded-full">
           <Pause size={13} fill="currentColor" strokeWidth={0} />
         </span>
-        <span className="well ml-auto rounded-[8px] px-2 py-1 font-mono text-[10.5px] text-fg">0.75×</span>
+        <span className="tint ml-auto rounded-[8px] px-2 py-1 font-mono text-[10.5px] text-fg">0.75×</span>
       </div>
     </figure>
   );

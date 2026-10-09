@@ -92,7 +92,7 @@ function TranscribeForm({ onClose }: { onClose: () => void }) {
   const destination = preset.local ? null : preset.baseUrl ? preset.name : "你填写的地址";
 
   return (
-    <div ref={box} className="mt-4 flex max-w-[560px] scroll-mb-6 animate-fade-in flex-col gap-3.5 rounded-[14px] bg-raised p-4 shadow-cap">
+    <div ref={box} className="mt-4 flex max-w-[560px] scroll-mb-6 animate-fade-in flex-col gap-3.5 rounded-[14px] p-4 shadow-[inset_0_0_0_1px_var(--line-strong)]">
       <div className="grid grid-cols-[48px_1fr] items-center gap-x-3 gap-y-3">
         <span className="text-[12px] font-medium text-muted">语言</span>
         <div className="flex items-center gap-2">
@@ -171,7 +171,7 @@ function Progress({ job }: { job: Extract<TranscribeStatus, { state: "running" }
           {stopping ? "正在取消…" : "取消"}
         </Button>
       </div>
-      <div className="well mt-3 h-[5px] overflow-hidden rounded-full">
+      <div className="mt-3 h-1 overflow-hidden rounded-full bg-track">
         <div
           className="h-full rounded-full bg-played transition-[width] duration-500 ease-out"
           style={{ width: `${Math.max(3, share * 100)}%` }}

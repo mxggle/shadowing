@@ -49,7 +49,7 @@ export function PracticeCoach() {
 
   return (
     <section aria-label="示例练习" className="mx-auto w-full max-w-[760px] shrink-0 px-8 pt-3 pb-1">
-      <div className="animate-fade-in rounded-[14px] bg-raised px-4 pt-3 pb-3.5 shadow-cap">
+      <div className="animate-fade-in rounded-[14px] px-4 pt-3 pb-3.5 shadow-[inset_0_0_0_1px_var(--line-strong)]">
         {next ? (
           <>
             <header className="flex items-center gap-3">

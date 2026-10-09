@@ -78,8 +78,8 @@ export function LoopPanel() {
 }
 
 /**
- * One loop boundary as a readout window set into the page. Empty, it says what
- * pressing L will do; `next` outlines the one L sets next.
+ * One loop boundary as a tinted readout. Empty, it says what pressing L will
+ * do; `next` outlines the one L sets next.
  */
 function Readout({ label, value, next, onNudge }: {
   label: string;
@@ -91,7 +91,7 @@ function Readout({ label, value, next, onNudge }: {
   const outline = next ? (label === "B" ? "outline-loop-line" : "outline-line-strong") : "outline-transparent";
   return (
     <div
-      className={`well relative flex h-[84px] min-w-0 items-center justify-center rounded-[14px] outline-1 outline-offset-[3px] outline-dashed transition-[outline-color] duration-200 ${outline}`}
+      className={`tint relative flex h-[84px] min-w-0 items-center justify-center rounded-[14px] outline-1 outline-offset-[3px] outline-dashed transition-[outline-color] duration-200 ${outline}`}
     >
       <span className={`absolute top-2.5 left-3 text-[11px] font-semibold ${set ? "text-loop" : next ? "text-fg" : "text-faint"}`}>
         {label}
@@ -129,7 +129,7 @@ function Nudge({ label, d, onNudge, small }: { label: string; d: number; onNudge
 
 /**
  * With a transcript the sentences take the main area; the loop shows as a
- * small display window on top of the deck instead.
+ * slim readout on top of the deck instead.
  */
 export function LoopStrip() {
   const phase = useLoopPhase();
@@ -140,7 +140,7 @@ export function LoopStrip() {
   if (phase === "idle" || !hasTranscript) return null;
 
   return (
-    <div className="well mb-2.5 flex h-9 animate-fade-in items-center gap-3 rounded-[10px] pr-1 pl-3.5">
+    <div className="tint mb-2.5 flex h-9 animate-fade-in items-center gap-3 rounded-[10px] pr-1 pl-3.5">
       <span className="shrink-0 text-[12px] font-medium whitespace-nowrap text-loop-text">
         {loopSentence !== null ? `第 ${loopSentence + 1} 句` : "A–B"}
       </span>

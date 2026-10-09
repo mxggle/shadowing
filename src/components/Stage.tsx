@@ -28,7 +28,7 @@ export function Stage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+    <div className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto">
       <TrackTitle />
       <div className="mx-auto flex w-full max-w-[760px] flex-col px-10 pt-9 pb-10">
         <LoopPanel />

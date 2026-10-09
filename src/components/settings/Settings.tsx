@@ -69,7 +69,7 @@ export function SettingsDialog() {
             <X size={16} />
           </IconButton>
         </header>
-        <div className="overflow-y-auto px-6 pt-5 pb-6">
+        <div className="scrollbar-none overflow-y-auto px-6 pt-5 pb-6">
           <h3 className="text-[12px] font-medium text-faint">入门</h3>
           <div className="mt-1 flex flex-col divide-y divide-line">
             <GuideRow

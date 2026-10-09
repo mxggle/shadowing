@@ -63,11 +63,11 @@ function Row({ model, selected, recommended, onSelect }: {
       tabIndex={-1}
       onClick={onSelect}
       className={`flex flex-col gap-1.5 rounded-[10px] px-3 py-2.5 transition-[background-color,box-shadow] duration-150 ${
-        selected ? "bg-raised shadow-cap" : "hover:bg-hover"
+        selected ? "bg-hover" : "hover:bg-hover/60"
       }`}
     >
       <div className="flex items-center gap-2">
-        <span className={`grid size-4 shrink-0 place-items-center rounded-full ${selected ? "bg-ink" : "well"}`}>
+        <span className={`grid size-4 shrink-0 place-items-center rounded-full ${selected ? "bg-ink" : "border-[1.5px] border-line-strong"}`}>
           {selected && <span className="size-1.5 rounded-full bg-on-ink" />}
         </span>
         <span className={`text-[13px] ${selected ? "font-medium" : ""}`}>{model.name}</span>
@@ -139,7 +139,7 @@ function Action({ model, running, disabled }: { model: LocalModel; running: bool
 function Progress({ done, total }: { done: number; total: number }) {
   return (
     <div className="flex items-center gap-2 pl-6">
-      <div className="well h-[5px] flex-1 overflow-hidden rounded-full">
+      <div className="h-1 flex-1 overflow-hidden rounded-full bg-track">
         <div className="h-full rounded-full bg-played transition-[width] duration-300" style={{ width: `${Math.max(2, (done / total) * 100)}%` }} />
       </div>
       <span className="tabular shrink-0 font-mono text-[11px] text-faint">

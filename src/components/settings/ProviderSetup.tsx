@@ -71,7 +71,7 @@ function Chip({ selected, children, onClick }: { selected: boolean; children: Re
       aria-checked={selected}
       onClick={onClick}
       className={`flex h-8 items-center gap-1.5 rounded-[8px] px-3 text-[13px] ${
-        selected ? "key-ink font-medium" : "text-fg/85 shadow-[inset_0_0_0_1px_var(--line-strong)] transition-[background-color,color,scale] duration-150 ease-snappy hover:bg-hover hover:text-fg active:scale-[0.96]"
+        selected ? "btn-ink font-medium" : "text-fg/85 shadow-[inset_0_0_0_1px_var(--line-strong)] transition-[background-color,color,scale] duration-150 ease-snappy hover:bg-hover hover:text-fg active:scale-[0.96]"
       }`}
     >
       {children}
@@ -203,7 +203,7 @@ function Details({ feature, preset, config }: { feature: Feature; preset: Preset
         {(test.kind === "ok" || test.kind === "warn" || test.kind === "error") && <TestResult kind={test.kind} text={test.text} />}
       </div>
       {test.kind === "ok" && test.reply && (
-        <figure className="col-span-2 animate-fade-in rounded-[10px] bg-raised px-3 py-2.5 text-[12px] leading-relaxed shadow-cap">
+        <figure className="tint col-span-2 animate-fade-in rounded-[10px] px-3 py-2.5 text-[12px] leading-relaxed">
           <figcaption className="text-faint">示例：{test.sample}</figcaption>
           <p className="mt-1 whitespace-pre-wrap">{test.reply}</p>
         </figure>

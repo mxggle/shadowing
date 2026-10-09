@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useApp } from "../../store";
 
-/** A key named on its own in a tip ("按 S 循环"), drawn as a keycap. */
+/** A key named on its own in a tip ("按 S 循环"), drawn as a key. */
 const KEY = /(?<=^|\s)([A-Z[\]−=-])(?=\s|$)/;
 
 /** One-off tip floating just above the deck (see `tip()` in guideSlice). */

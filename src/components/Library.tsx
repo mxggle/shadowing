@@ -85,7 +85,7 @@ function FolderView({ folder }: { folder: FolderListing }) {
         <span className="tabular shrink-0 font-mono text-[11px] text-faint">{folder.tracks.length}</span>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+      <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto pb-6 [mask-image:linear-gradient(to_bottom,black_calc(100%-24px),transparent)]">
         {folder.tracks.length === 0 && (
           <div className="px-5 pt-2 text-[13px] leading-relaxed text-muted">
             这个文件夹里没有可播放的音频。
@@ -147,7 +147,7 @@ function TrackRow({ track }: { track: Track }) {
       aria-current={active || undefined}
       title={track.name}
       className={`mx-2.5 my-px flex h-[30px] w-[calc(100%-1.25rem)] items-center gap-2 rounded-[8px] pr-2.5 pl-2.5 text-left text-[13px] transition-[background-color,box-shadow,color] duration-150 ${
-        active ? "bg-raised font-medium text-fg shadow-cap" : "text-fg/80 hover:bg-hover hover:text-fg active:bg-press"
+        active ? "bg-press font-medium text-fg" : "text-fg/80 hover:bg-hover hover:text-fg active:bg-press"
       }`}
     >
       <span className="min-w-0 flex-1 truncate">{track.name}</span>
