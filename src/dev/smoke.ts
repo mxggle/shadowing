@@ -240,6 +240,8 @@ async function scenario() {
     made?.source === "transcribed" && made.sentences.map((x) => x.text).join(" | ") === "Fake sentence one. | Fake two.",
     made ? `${made.origin}: ${made.sentences.map((x) => `${x.text}@${x.start.toFixed(2)}–${x.end.toFixed(2)}`).join(" ")}` : "none",
   );
+  const unsure = made?.sentences[0]?.unsure;
+  check("an unsure word is underlined", JSON.stringify(unsure) === "[[5,13]]", JSON.stringify(unsure));
   const stored = await api.getTranscript(untranscribed.path);
   check("transcript saved for next time", stored?.source === "transcribed");
 

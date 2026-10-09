@@ -30,6 +30,8 @@ const lines = [
 ];
 // Who says each line when a transcription tells voices apart: a dialogue with uneven turns.
 const turns = [0, 1, 1, 0, 1, 0, 0, 1, 0, 1];
+// What a transcription was unsure of, by sentence: 傘, 予報, ピクニック.
+const unsure: Record<number, [number, number][]> = { 3: [[0, 1]], 10: [[2, 4]], 20: [[8, 13]] };
 const mockTranscript = (origin: string, count: number, speakers = false): Transcript => ({
   source: "imported",
   origin,
@@ -37,7 +39,7 @@ const mockTranscript = (origin: string, count: number, speakers = false): Transc
     start: 2 + i * 6,
     end: 2 + i * 6 + 4.2,
     text: lines[i % lines.length],
-    ...(speakers ? { speaker: turns[i % turns.length] } : {}),
+    ...(speakers ? { speaker: turns[i % turns.length], unsure: unsure[i] } : {}),
   })),
 });
 const transcripts = new Map<string, Transcript>([
@@ -215,7 +217,9 @@ export function installMockBackend() {
           const t = transcripts.get(a.path);
           if (!t) throw "这个音频没有字幕";
           const sentences = [...t.sentences];
-          for (const e of a.edits as SentenceEdit[]) sentences[e.index] = { ...sentences[e.index], text: e.text.trim() };
+          for (const e of a.edits as SentenceEdit[]) {
+            sentences[e.index] = { ...sentences[e.index], text: e.text.trim(), unsure: e.unsure?.length ? e.unsure : undefined };
+          }
           const edited: Transcript = { ...t, sentences, edited: true, source: t.source === "sidecar" ? "imported" : t.source };
           transcripts.set(a.path, edited);
           return edited;

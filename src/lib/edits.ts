@@ -71,7 +71,11 @@ export function matchingSentences(sentences: Sentence[], find: string): number[]
   return sentences.flatMap((s, i) => (matchRanges(s.text, find).length ? [i] : []));
 }
 
-/** Edits that put `replace` in place of every `find`; a sentence that would be left empty is skipped. */
+/**
+ * Edits that put `replace` in place of every `find`; a sentence that would be
+ * left empty is skipped. Underlines move with the text around them; one that
+ * touches a replaced word goes (that word has been dealt with).
+ */
 export function replaceEdits(sentences: Sentence[], find: string, replace: string): SentenceEdit[] {
   return sentences.flatMap((s, index) => {
     const ranges = matchRanges(s.text, find);
@@ -83,19 +87,44 @@ export function replaceEdits(sentences: Sentence[], find: string, replace: strin
       at = end;
     }
     text += s.text.slice(at);
-    return text.trim() ? [{ index, text }] : [];
+    const lead = text.length - text.trimStart().length;
+    text = text.trim();
+    if (!text) return [];
+    const unsure = (s.unsure ?? []).flatMap(([a, b]): [number, number][] => {
+      let shift = -lead;
+      for (const [start, end] of ranges) {
+        if (b <= start) break;
+        if (a < end) return [];
+        shift += replace.length - (end - start);
+      }
+      return a + shift >= 0 && b + shift <= text.length ? [[a + shift, b + shift]] : [];
+    });
+    return [{ index, text, unsure }];
   });
 }
 
-/** The text in pieces, marking the matches of `find` (for highlighting). */
-export function splitMatches(text: string, find: string): { text: string; match: boolean }[] {
-  const pieces: { text: string; match: boolean }[] = [];
-  let at = 0;
-  for (const [start, end] of matchRanges(text, find)) {
-    if (start > at) pieces.push({ text: text.slice(at, start), match: false });
-    pieces.push({ text: text.slice(start, end), match: true });
-    at = end;
+export interface TextPiece {
+  text: string;
+  /** Matches what the replace bar is looking for. */
+  match: boolean;
+  /** The transcriber was unsure of it. */
+  unsure: boolean;
+}
+
+/** The text in pieces for display: matches of `find`, and what the transcriber was unsure of. */
+export function textPieces(text: string, find: string, unsure: [number, number][] = []): TextPiece[] {
+  const matches = matchRanges(text, find);
+  const cuts = new Set([0, text.length]);
+  for (const [a, b] of [...matches, ...unsure]) cuts.add(a).add(b);
+  const points = [...cuts].filter((x) => x >= 0 && x <= text.length).sort((x, y) => x - y);
+  const within = (ranges: [number, number][], at: number) => ranges.some(([a, b]) => a <= at && at < b);
+  const pieces: TextPiece[] = [];
+  for (let i = 0; i + 1 < points.length; i++) {
+    const [a, b] = [points[i], points[i + 1]];
+    const piece = { text: text.slice(a, b), match: within(matches, a), unsure: within(unsure, a) };
+    const last = pieces[pieces.length - 1];
+    if (last && last.match === piece.match && last.unsure === piece.unsure) last.text += piece.text;
+    else pieces.push(piece);
   }
-  if (at < text.length || !pieces.length) pieces.push({ text: text.slice(at), match: false });
-  return pieces;
+  return pieces.length ? pieces : [{ text, match: false, unsure: false }];
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Sentence } from "./api";
-import { changedWord, matchingSentences, matchRanges, replaceEdits, splitMatches } from "./edits";
+import { changedWord, matchingSentences, matchRanges, replaceEdits, textPieces } from "./edits";
 
 const s = (text: string): Sentence => ({ start: 0, end: 1, text });
 
@@ -64,10 +64,17 @@ describe("replaceEdits", () => {
   it("replaces every occurrence in each sentence that has it", () => {
     expect(matchingSentences(list, "寝蔵")).toEqual([0, 2, 3]);
     expect(replaceEdits(list, "寝蔵", "寝相")).toEqual([
-      { index: 0, text: "ねえ、寝相アートって知ってる?" },
-      { index: 2, text: "寝相アート?寝相" },
-      { index: 3, text: "寝相" },
+      { index: 0, text: "ねえ、寝相アートって知ってる?", unsure: [] },
+      { index: 2, text: "寝相アート?寝相", unsure: [] },
+      { index: 3, text: "寝相", unsure: [] },
     ]);
+  });
+
+  it("moves underlines with the text, and drops the ones on a replaced word", () => {
+    const marked: Sentence = { ...s("寝蔵の写真を撮った寝蔵アート"), unsure: [[1, 2], [5, 6], [9, 10]] };
+    expect(replaceEdits([marked], "寝蔵", "寝相の")).toEqual([{ index: 0, text: "寝相のの写真を撮った寝相のアート", unsure: [[6, 7]] }]);
+    const lead: Sentence = { ...s("えー 本当に"), unsure: [[3, 5]] };
+    expect(replaceEdits([lead], "えー", "")).toEqual([{ index: 0, text: "本当に", unsure: [[0, 2]] }]);
   });
 
   it("never leaves a sentence empty", () => {
@@ -75,15 +82,23 @@ describe("replaceEdits", () => {
   });
 });
 
-describe("splitMatches", () => {
+describe("textPieces", () => {
+  const piece = (text: string, match = false, unsure = false) => ({ text, match, unsure });
+
   it("marks the matches for highlighting", () => {
-    expect(splitMatches("ん?寝蔵アート?", "寝蔵")).toEqual([
-      { text: "ん?", match: false },
-      { text: "寝蔵", match: true },
-      { text: "アート?", match: false },
+    expect(textPieces("ん?寝蔵アート?", "寝蔵")).toEqual([piece("ん?"), piece("寝蔵", true), piece("アート?")]);
+    expect(textPieces("寝蔵", "寝蔵")).toEqual([piece("寝蔵", true)]);
+    expect(textPieces("なし", "寝蔵")).toEqual([piece("なし")]);
+    expect(textPieces("", "")).toEqual([piece("")]);
+  });
+
+  it("marks what the transcriber was unsure of, overlapping matches or not", () => {
+    expect(textPieces("ねえ、寝蔵アート", "", [[4, 5]])).toEqual([piece("ねえ、寝"), piece("蔵", false, true), piece("アート")]);
+    expect(textPieces("ねえ、寝蔵アート", "寝蔵", [[4, 5]])).toEqual([
+      piece("ねえ、"),
+      piece("寝", true),
+      piece("蔵", true, true),
+      piece("アート"),
     ]);
-    expect(splitMatches("寝蔵", "寝蔵")).toEqual([{ text: "寝蔵", match: true }]);
-    expect(splitMatches("なし", "寝蔵")).toEqual([{ text: "なし", match: false }]);
-    expect(splitMatches("", "")).toEqual([{ text: "", match: false }]);
   });
 });

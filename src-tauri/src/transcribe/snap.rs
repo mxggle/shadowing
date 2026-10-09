@@ -125,6 +125,7 @@ mod tests {
             end,
             text: String::new(),
             speaker: None,
+            unsure: Vec::new(),
         }
     }
 

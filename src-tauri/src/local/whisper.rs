@@ -134,7 +134,11 @@ fn collect(ctx: &WhisperContext, state: &WhisperState) -> Result<Verbose, String
             let bytes = tok.to_bytes().map_err(|e| e.to_string())?.to_vec();
             // -1 when DTW is off for this model.
             let at = if data.t_dtw >= 0 { data.t_dtw } else { data.t0 };
-            tokens.push((bytes, at));
+            tokens.push(Token {
+                bytes,
+                at,
+                p: data.p,
+            });
         }
         let n = tokens.len();
         out.words
@@ -150,28 +154,40 @@ fn collect(ctx: &WhisperContext, state: &WhisperState) -> Result<Verbose, String
     Ok(out)
 }
 
-/// Tokens with the time each starts at → words lasting until the next one
-/// starts (the last until the segment ends). Tokens can split a character (most
-/// CJK characters are 3 bytes): bytes are glued together until they form valid text.
-fn words_from_tokens(tokens: Vec<(Vec<u8>, i64)>, segment_end: i64) -> Vec<Word> {
+struct Token {
+    bytes: Vec<u8>,
+    /// Where it starts, in centiseconds.
+    at: i64,
+    /// How sure the model was of it, 0–1.
+    p: f32,
+}
+
+/// Tokens → words lasting until the next one starts (the last until the
+/// segment ends), as sure as their least sure token. Tokens can split a character
+/// (most CJK characters are 3 bytes): bytes are glued together until they form valid text.
+fn words_from_tokens(tokens: Vec<Token>, segment_end: i64) -> Vec<Word> {
     let mut words = Vec::new();
     let mut pending: Vec<u8> = Vec::new();
     let mut start = 0;
     let mut last = 0;
-    for (k, (bytes, at)) in tokens.iter().enumerate() {
+    let mut p = 1.0f32;
+    for (k, token) in tokens.iter().enumerate() {
         if pending.is_empty() {
-            start = (*at).max(last);
+            start = token.at.max(last);
+            p = 1.0;
         }
-        pending.extend_from_slice(bytes);
+        pending.extend_from_slice(&token.bytes);
+        p = p.min(token.p);
         if let Ok(text) = std::str::from_utf8(&pending) {
             let end = tokens
                 .get(k + 1)
-                .map_or(segment_end, |next| next.1)
+                .map_or(segment_end, |next| next.at)
                 .max(start);
             words.push(Word {
                 word: text.to_string(),
                 start: secs(start),
                 end: secs(end),
+                probability: Some(f64::from(p)),
             });
             last = end;
             pending.clear();
@@ -187,20 +203,36 @@ mod tests {
     #[test]
     fn split_characters_are_glued_back_together() {
         let ni = "日".as_bytes(); // 3 bytes, split across two tokens
+        let token = |bytes: &[u8], at, p| Token {
+            bytes: bytes.to_vec(),
+            at,
+            p,
+        };
         let tokens = vec![
-            (b" Hello".to_vec(), 10),
-            (ni[..2].to_vec(), 50),
-            (ni[2..].to_vec(), 60),
-            ("本".as_bytes().to_vec(), 70),
+            token(b" Hello", 10, 0.9),
+            token(&ni[..2], 50, 0.8),
+            token(&ni[2..], 60, 0.3),
+            token("本".as_bytes(), 70, 1.0),
         ];
         let words = words_from_tokens(tokens, 80);
         let got: Vec<_> = words
             .iter()
-            .map(|w| (w.word.as_str(), w.start, w.end))
+            .map(|w| {
+                (
+                    w.word.as_str(),
+                    w.start,
+                    w.end,
+                    w.probability.unwrap() as f32,
+                )
+            })
             .collect();
         assert_eq!(
             got,
-            [(" Hello", 0.1, 0.5), ("日", 0.5, 0.7), ("本", 0.7, 0.8)]
+            [
+                (" Hello", 0.1, 0.5, 0.9),
+                ("日", 0.5, 0.7, 0.3),
+                ("本", 0.7, 0.8, 1.0)
+            ]
         );
     }
 }

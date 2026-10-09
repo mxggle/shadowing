@@ -212,7 +212,8 @@ fn real_print_srt() {
 }
 
 /// SHADOWING_AUDIO=<file>[;<file>…] SHADOWING_LANG=<ja, or empty to detect>:
-/// sentences and speakers the way the app makes them.
+/// sentences and speakers the way the app makes them, with what would be
+/// underlined as unsure in 〔〕.
 #[test]
 #[ignore]
 fn real_speakers() {
@@ -245,7 +246,29 @@ fn real_speakers() {
         );
         for s in &sentences {
             let who = s.speaker.map_or('-', |n| (b'A' + n) as char);
-            println!("  {:6.2}–{:6.2} {who} {}", s.start, s.end, s.text);
+            println!(
+                "  {:6.2}–{:6.2} {who} {}",
+                s.start,
+                s.end,
+                bracket_unsure(s)
+            );
         }
     }
+}
+
+/// The text with its unsure parts (UTF-16 ranges) in 〔〕.
+fn bracket_unsure(s: &crate::transcript::Sentence) -> String {
+    let units: Vec<u16> = s.text.encode_utf16().collect();
+    let mut out = Vec::new();
+    let mut at = 0;
+    for &[a, b] in &s.unsure {
+        let (a, b) = (a as usize, b as usize);
+        out.extend_from_slice(&units[at..a]);
+        out.extend("〔".encode_utf16());
+        out.extend_from_slice(&units[a..b]);
+        out.extend("〕".encode_utf16());
+        at = b;
+    }
+    out.extend_from_slice(&units[at..]);
+    String::from_utf16_lossy(&out)
 }

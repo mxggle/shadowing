@@ -17,7 +17,8 @@ REPLY = {
     ],
     "words": [
         {"word": "Fake", "start": 0.3, "end": 0.6},
-        {"word": "sentence", "start": 0.6, "end": 0.9},
+        # Some servers say how sure they were of each word; this one is a likely mishearing.
+        {"word": "sentence", "start": 0.6, "end": 0.9, "probability": 0.2},
         {"word": "one", "start": 0.9, "end": 1.2},
         {"word": "Fake", "start": 1.5, "end": 2.0},
         {"word": "two", "start": 2.0, "end": 2.5},

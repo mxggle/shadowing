@@ -75,6 +75,7 @@ pub fn parse(text: &str) -> Result<Vec<Sentence>, String> {
             end,
             text,
             speaker: None,
+            unsure: Vec::new(),
         });
     }
     out.sort_by(|a, b| a.start.total_cmp(&b.start));

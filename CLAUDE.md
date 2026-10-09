@@ -22,7 +22,8 @@ src/                      前端
   lib/aiReady.ts          转写 / 解释是否已设置好、向导从哪一步继续，有单元测试
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置；ui.tsx 共用的按键与表单件；
-                          Transcript.tsx 句子列表，SentenceEditor.tsx 改一句、ReplaceBar.tsx 查找和替换；
+                          Transcript.tsx 句子列表，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
+                          SentenceEditor.tsx 改一句、ReplaceBar.tsx 查找和替换；
                           settings/ 是设置面板；
                           guide/ 是引导：Welcome.tsx 欢迎页、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示
   dev/smoke.ts            应用内自测脚本（只在 smoke 模式加载）
@@ -36,7 +37,8 @@ src-tauri/src/
   subtitles.rs            SRT / WebVTT 解析
   transcribe/             转写：pcm.rs 解码成 16 kHz 单声道、chunk.rs 在停顿处切块、cloud.rs 上传、
                           sentences.rs 把 Whisper 结果变成带时间的句子（没有标点时按 Whisper 分段断句）、
-                          long.rs 过长的句子在逗号或停顿处切开、snap.rs 把句子边界对齐到真实停顿；
+                          long.rs 过长的句子在逗号或停顿处切开、snap.rs 把句子边界对齐到真实停顿、
+                          doubt.rs 把 Whisper 没把握的字标成句子里要画虚线的范围；
                           commands.rs 一次一个任务（转写 → 区分说话人），进度发 transcribe:status
   local/                  本机转写（仅 Apple Silicon）：models.rs 模型清单（固定 commit + sha256）与内存适配、
                           download.rs 可续传并校验的下载、whisper.rs whisper.cpp（Metal，DTW 词时间，自动识别时先判断语言）

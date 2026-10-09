@@ -6,6 +6,7 @@
 pub mod chunk;
 pub mod cloud;
 pub mod commands;
+mod doubt;
 mod long;
 pub mod pcm;
 pub mod sentences;

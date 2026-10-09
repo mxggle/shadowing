@@ -11,6 +11,7 @@ fn transcript(text: &str) -> Transcript {
             end: 2.0,
             text: text.into(),
             speaker: None,
+            unsure: Vec::new(),
         }],
         edited: false,
     }
@@ -20,6 +21,7 @@ fn edit(index: usize, text: &str) -> Edit {
     Edit {
         index,
         text: text.into(),
+        unsure: Vec::new(),
     }
 }
 
@@ -36,6 +38,18 @@ fn edits_change_only_the_text_and_make_the_copy_the_apps_own() {
         ("寝相アート って？", 1.0, 2.0, Some(1))
     );
     assert_eq!((t.source, t.edited), (Source::Imported, true));
+}
+
+#[test]
+fn edits_keep_only_underlines_that_fit_the_new_text() {
+    let mut t = transcript("寝蔵アート");
+    t.sentences[0].unsure = vec![[1, 2]];
+    apply_edits(&mut t, &[edit(0, "寝相アート")]).unwrap();
+    assert!(t.sentences[0].unsure.is_empty());
+    let mut kept = edit(0, "寝相アートと𠮷");
+    kept.unsure = vec![[2, 5], [6, 8], [7, 9], [3, 3]];
+    apply_edits(&mut t, &[kept]).unwrap();
+    assert_eq!(t.sentences[0].unsure, [[2, 5], [6, 8]]);
 }
 
 #[test]

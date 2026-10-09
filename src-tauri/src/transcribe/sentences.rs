@@ -4,6 +4,7 @@
 //! When the text comes back without punctuation (common for Japanese without a
 //! language hint), Whisper's own segment breaks — one per utterance — stand in for it.
 
+use super::doubt;
 use super::long::Long;
 use crate::subtitles::is_cjk;
 use crate::transcript::Sentence;
@@ -33,6 +34,10 @@ pub struct Word {
     pub word: String,
     pub start: f64,
     pub end: f64,
+    /// How sure the model was, 0–1: whisper.cpp here, and some self-hosted
+    /// servers; OpenAI and Groq don't send it.
+    #[serde(default)]
+    pub probability: Option<f64>,
 }
 
 /// Whisper's own rule of thumb for text invented over silence or music.
@@ -81,6 +86,7 @@ pub fn build(pieces: Vec<(f64, Verbose)>, db: &[f32]) -> Vec<Sentence> {
 
     let text = join_segments(&segments);
     let mut clock = Clock::new(words.iter().map(|w| (w.word.as_str(), w.start, w.end)));
+    let unsure = doubt::per_letter(&words);
     if clock.0.is_empty() {
         clock = Clock::new(segments.iter().map(|s| (s.text.as_str(), s.start, s.end)));
     }
@@ -109,6 +115,7 @@ pub fn build(pieces: Vec<(f64, Verbose)>, db: &[f32]) -> Vec<Sentence> {
         out[i].start = out[i].start.max(out[i - 1].start);
         out[i].end = out[i].end.max(out[i].start + 0.05);
     }
+    doubt::mark(&mut out, &unsure, scale);
     out
 }
 
@@ -116,7 +123,7 @@ pub(super) fn counts(c: char) -> bool {
     c.is_alphanumeric()
 }
 
-fn letters(s: &str) -> usize {
+pub(super) fn letters(s: &str) -> usize {
     s.chars().filter(|c| counts(*c)).count()
 }
 

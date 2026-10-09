@@ -16,6 +16,10 @@ pub struct Sentence {
     /// Who says it (0 = the first voice heard), when a transcription found more than one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub speaker: Option<u8>,
+    /// Parts of `text` the transcriber was unsure of, to underline: [start, end)
+    /// in UTF-16 units (as JavaScript counts them).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unsure: Vec<[u32; 2]>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -47,6 +51,10 @@ pub struct Transcript {
 pub struct Edit {
     pub index: usize,
     pub text: String,
+    /// Underlines that still apply to the new text (the app works out where
+    /// they moved to); none when left out.
+    #[serde(default)]
+    pub unsure: Vec<[u32; 2]>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -175,7 +183,15 @@ fn apply_edits(transcript: &mut Transcript, edits: &[Edit]) -> Result<(), String
         texts.push(lines.join(" "));
     }
     for (edit, text) in edits.iter().zip(texts) {
-        transcript.sentences[edit.index].text = text;
+        let length = text.encode_utf16().count() as u32;
+        let sentence = &mut transcript.sentences[edit.index];
+        sentence.unsure = edit
+            .unsure
+            .iter()
+            .copied()
+            .filter(|&[a, b]| a < b && b <= length)
+            .collect();
+        sentence.text = text;
     }
     if !edits.is_empty() {
         // The copy in app data is now the app's own; the file beside the audio stays untouched.

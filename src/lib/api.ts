@@ -56,12 +56,16 @@ export interface Sentence {
   text: string;
   /** Who says it (0 = the first voice heard); only set when a transcription heard more than one. */
   speaker?: number;
+  /** Parts of the text the transcriber was unsure of: [start, end) string offsets. */
+  unsure?: [number, number][];
 }
 
 /** New text for one sentence (by its index in the transcript); times and speaker stay. */
 export interface SentenceEdit {
   index: number;
   text: string;
+  /** Underlines that still apply to the new text; none when left out. */
+  unsure?: [number, number][];
 }
 
 export interface Transcript {

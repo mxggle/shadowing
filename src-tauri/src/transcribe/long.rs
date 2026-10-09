@@ -35,6 +35,7 @@ impl Long<'_> {
             end,
             text: text.to_string(),
             speaker: None,
+            unsure: Vec::new(),
         });
     }
 

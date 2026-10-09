@@ -1,12 +1,12 @@
 import { FileUp, PenLine, Play, Repeat, Replace, Trash2 } from "lucide-react";
 import { memo, useEffect, useRef, useState, type RefObject } from "react";
 import type { Sentence } from "../lib/api";
-import { splitMatches } from "../lib/edits";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { ReplaceBar } from "./ReplaceBar";
 import { SentenceEditor } from "./SentenceEditor";
+import { SentenceText, UnsureCount } from "./SentenceText";
 import { IconButton } from "./ui";
 
 /**
@@ -75,6 +75,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
           )}
           <span className="truncate">· {transcript.origin}</span>
           {transcript.edited && <span className="shrink-0">· 已修改</span>}
+          <UnsureCount />
         </p>
         <span className="ml-auto flex shrink-0 gap-0.5">
           <IconButton title="查找和替换 (⌘F)" active={replacing} onClick={() => (replacing ? closeReplace() : openReplace())}>
@@ -160,17 +161,7 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
             lit ? "text-fg" : "text-muted"
           }`}
         >
-          {find
-            ? splitMatches(sentence.text, find).map((piece, k) =>
-                piece.match ? (
-                  <mark key={k} className="rounded-[3px] bg-press text-fg shadow-[0_0_0_2px_var(--press)]">
-                    {piece.text}
-                  </mark>
-                ) : (
-                  piece.text
-                ),
-              )
-            : sentence.text}
+          <SentenceText text={sentence.text} find={find} unsure={sentence.unsure} />
         </p>
       )}
       <span className="flex h-[30px] items-center">

@@ -52,7 +52,11 @@ export interface TranscriptState {
   editSentence(i?: number): void;
   setDraft(text: string): void;
   cancelEdit(): void;
-  /** Saves the open correction; if the old word is also in other sentences, offers to replace it there. */
+  /**
+   * Saves the open correction, which also clears the sentence's underlines (it has
+   * been checked, even if left as it was). If the old word is also in other
+   * sentences, offers to replace it there.
+   */
   saveEdit(): Promise<void>;
   /** Opens the replace bar, looking for `find` (default: what it had). */
   openReplace(find?: string): void;
@@ -112,9 +116,16 @@ export function createTranscriptSlice(
     const path = get().current?.path;
     const before = get().transcript;
     if (!path || !before || !edits.length) return null;
-    const previous = edits.map(({ index }) => ({ index, text: before.sentences[index].text }));
-    const texts = new Map(edits.map((e) => [e.index, e.text.trim()]));
-    set({ transcript: { ...before, sentences: before.sentences.map((s, i) => (texts.has(i) ? { ...s, text: texts.get(i)! } : s)) } });
+    const previous = edits.map(({ index }) => {
+      const { text, unsure = [] } = before.sentences[index];
+      return { index, text, unsure };
+    });
+    const changed = new Map(edits.map((e) => [e.index, e]));
+    const sentences = before.sentences.map((s, i) => {
+      const e = changed.get(i);
+      return e ? { ...s, text: e.text.trim(), unsure: e.unsure?.length ? e.unsure : undefined } : s;
+    });
+    set({ transcript: { ...before, sentences } });
     try {
       const transcript = await api.editTranscript(path, edits);
       if (get().current?.path !== path) return null;
@@ -254,8 +265,9 @@ export function createTranscriptSlice(
       set({ editing: null });
       if (open.path !== get().current?.path) return saveQuietly(open);
       const text = open.text.trim();
-      if (!text || text === open.original) return;
-      const previous = await commit([{ index: open.index, text }]);
+      const underlined = !!sentences()[open.index]?.unsure?.length;
+      if (!text || (text === open.original && !underlined)) return;
+      const previous = await commit([{ index: open.index, text, unsure: [] }]);
       remember(previous);
       const after = sentences()[open.index]?.text;
       const change = previous && after !== undefined ? changedWord(open.original, after) : null;

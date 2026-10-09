@@ -18,6 +18,7 @@ fn words(list: &[(&str, f64, f64)]) -> Vec<Word> {
             word: w.into(),
             start,
             end,
+            probability: None,
         })
         .collect()
 }
