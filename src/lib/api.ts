@@ -78,6 +78,21 @@ export interface Transcript {
   edited?: boolean;
 }
 
+/** A word the AI thinks was misheard, shown under its sentence until accepted or ignored. */
+export interface Suggestion {
+  index: number;
+  from: string;
+  to: string;
+  reason: string;
+}
+
+/** Sent while proofreading: how many parts of the transcript are done. */
+export interface ProofreadProgress {
+  path: string;
+  done: number;
+  total: number;
+}
+
 export type Feature = "transcribe" | "chat";
 
 /** A service the app can use (fixed list, defined in Rust: src-tauri/src/ai/providers.rs). */
@@ -192,6 +207,11 @@ export const api = {
   removeTranscript: (path: string) => invoke<Transcript | null>("transcript_remove", { path }),
   /** Corrected sentence text, saved in the app (a subtitle file next to the audio stays as it is). */
   editTranscript: (path: string, edits: SentenceEdit[]) => invoke<Transcript>("transcript_edit", { path, edits }),
+  proofread: {
+    /** Asks the explanation model for misheard words; changes nothing. Progress: `proofread:progress`. */
+    start: (path: string) => invoke<Suggestion[]>("transcript_proofread", { path }),
+    cancel: () => invoke<void>("transcript_proofread_cancel"),
+  },
   ai: {
     get: () => invoke<AiOverview>("ai_get"),
     choose: (feature: Feature, provider: string | null, model: string) =>

@@ -1,9 +1,10 @@
 import { FileUp, PenLine, Play, Repeat, Replace, Trash2 } from "lucide-react";
-import { memo, useEffect, useRef, useState, type RefObject } from "react";
-import type { Sentence } from "../lib/api";
+import { memo, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import type { Sentence, Suggestion } from "../lib/api";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
+import { ProofreadBar, ProofreadButton, SuggestionNote } from "./Proofread";
 import { ReplaceBar } from "./ReplaceBar";
 import { SentenceEditor } from "./SentenceEditor";
 import { SentenceText, UnsureCount } from "./SentenceText";
@@ -20,6 +21,12 @@ export function SentenceList() {
   const loopSentence = useApp((s) => s.loopSentence);
   const editing = useApp((s) => s.editing?.index ?? null);
   const find = useApp((s) => s.replace?.find ?? "");
+  const proofread = useApp((s) => s.proofread);
+  const suggestions = useMemo(() => {
+    const byRow = new Map<number, Suggestion[]>();
+    if (proofread?.state === "done") for (const s of proofread.suggestions) byRow.set(s.index, [...(byRow.get(s.index) ?? []), s]);
+    return byRow;
+  }, [proofread]);
   const voices = speakerCount(sentences) > 1;
   const list = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
@@ -44,6 +51,7 @@ export function SentenceList() {
               looping={i === loopSentence}
               editing={i === editing}
               find={find}
+              suggestions={suggestions.get(i)}
               voices={voices}
               turn={voices && startsTurn(sentences, i)}
             />
@@ -81,6 +89,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
           <IconButton title="查找和替换 (⌘F)" active={replacing} onClick={() => (replacing ? closeReplace() : openReplace())}>
             <Replace />
           </IconButton>
+          <ProofreadButton />
           <IconButton title="导入其他字幕文件" onClick={() => void importTranscript()}>
             <FileUp />
           </IconButton>
@@ -92,6 +101,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
         </span>
       </div>
       <ReplaceBar />
+      <ProofreadBar />
     </div>
   );
 }
@@ -100,7 +110,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
  * One sentence. With more than one voice (`voices`), a column names the
  * speaker where their turn starts (`turn`), like a script, and turns get a little air between them.
  */
-const Row = memo(function Row({ index, sentence, active, looping, editing, find, voices, turn }: {
+const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, voices, turn }: {
   index: number;
   sentence: Sentence;
   active: boolean;
@@ -108,6 +118,8 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
   editing: boolean;
   /** Text to mark in the sentence (from the replace bar). */
   find: string;
+  /** What the AI proofreading would change in this sentence. */
+  suggestions?: Suggestion[];
   voices: boolean;
   turn: boolean;
 }) {
@@ -153,17 +165,20 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
           )}
         </span>
       )}
-      {editing ? (
-        <SentenceEditor />
-      ) : (
-        <p
-          className={`cursor-text font-script text-[18px] leading-[30px] break-words select-text transition-colors duration-200 ${
-            lit ? "text-fg" : "text-muted"
-          }`}
-        >
-          <SentenceText text={sentence.text} find={find} unsure={sentence.unsure} />
-        </p>
-      )}
+      <div className="min-w-0">
+        {editing ? (
+          <SentenceEditor />
+        ) : (
+          <p
+            className={`cursor-text font-script text-[18px] leading-[30px] break-words select-text transition-colors duration-200 ${
+              lit ? "text-fg" : "text-muted"
+            }`}
+          >
+            <SentenceText text={sentence.text} find={find} unsure={sentence.unsure} fixes={suggestions?.map((s) => s.from)} />
+          </p>
+        )}
+        {suggestions?.map((s) => <SuggestionNote key={`${s.from}→${s.to}`} suggestion={s} />)}
+      </div>
       <span className="flex h-[30px] items-center">
         {!editing && (
           <button

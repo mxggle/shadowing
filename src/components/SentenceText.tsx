@@ -4,12 +4,17 @@ import { useApp } from "../store";
 const UNSURE_TITLE = "转写时没把握，可能听错了。按 E 改正；没错的话按 E 再按 ↩，虚线就会去掉";
 
 /**
- * A sentence's text: what the replace bar looks for is highlighted, and what
- * the transcriber was unsure of has a dotted underline.
+ * A sentence's text: what the replace bar looks for (and what an AI suggestion
+ * would change, `fixes`) is highlighted, and what the transcriber was unsure of
+ * has a dotted underline.
  */
-export function SentenceText({ text, find, unsure }: { text: string; find: string; unsure?: [number, number][] }) {
-  if (!find && !unsure?.length) return text;
-  return textPieces(text, find, unsure).map((piece, k) => {
+export function SentenceText({ text, find, unsure, fixes }: { text: string; find: string; unsure?: [number, number][]; fixes?: string[] }) {
+  if (!find && !unsure?.length && !fixes?.length) return text;
+  const fixed = (fixes ?? []).flatMap((from): [number, number][] => {
+    const at = text.indexOf(from);
+    return at < 0 ? [] : [[at, at + from.length]];
+  });
+  return textPieces(text, find, unsure, fixed).map((piece, k) => {
     if (!piece.match && !piece.unsure) return piece.text;
     const Tag = piece.match ? "mark" : "span";
     return (

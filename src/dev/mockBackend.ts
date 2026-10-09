@@ -2,7 +2,7 @@
 // Simulates the Rust commands and player:* events; no real audio.
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { AiConfig, Feature, Preset, SentenceEdit, Snapshot, Track, Transcript } from "../lib/api";
+import type { AiConfig, Feature, Preset, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
 import { fresh, samples, sampleTranscripts } from "./mockSamples";
 
 const root = "/Mock/日本語ポッドキャスト";
@@ -146,6 +146,24 @@ function mockTranscribe(path: string, language: string, keep: boolean) {
   }
 }
 
+// Proofreading: two parts of fake progress, then a couple of demonstration suggestions.
+let proofreading = 0;
+async function mockProofread(path: string): Promise<Suggestion[]> {
+  if (!aiConfig.chat.provider) throw "还没有设置「句子解释」用的 AI 服务";
+  const run = ++proofreading;
+  for (const done of [0, 1]) {
+    void emit("proofread:progress", { path, done, total: 2 });
+    await new Promise((r) => setTimeout(r, 1200));
+    if (run !== proofreading) throw "已取消";
+  }
+  const sentences = transcripts.get(path)?.sentences ?? [];
+  const at = (word: string) => sentences.findIndex((s) => s.text.includes(word));
+  return [
+    { index: at("傘"), from: "傘", to: "笠", reason: "（演示）读音相同的另一个字" },
+    { index: at("公園"), from: "公園", to: "講演", reason: "（演示）前后说的是去听讲座" },
+  ].filter((s) => s.index >= 0);
+}
+
 const player = { path: null as string | null, time: 0, duration: 0, playing: false, rate: 1, a: null as number | null, b: null as number | null, repeats: 0 };
 let seq = 0;
 const status = () => ({ path: player.path, time: player.time, duration: player.duration, playing: player.playing, repeats: player.repeats, seq: ++seq });
@@ -213,6 +231,11 @@ export function installMockBackend() {
         case "transcript_remove":
           transcripts.delete(a.path);
           return null;
+        case "transcript_proofread":
+          return mockProofread(a.path);
+        case "transcript_proofread_cancel":
+          proofreading++;
+          return;
         case "transcript_edit": {
           const t = transcripts.get(a.path);
           if (!t) throw "这个音频没有字幕";

@@ -157,10 +157,15 @@ fn current(state: &AppState, audio: &Path, dir: &Path, key: &str) -> Option<Tran
     })
 }
 
+/// The transcript a track shows, for an audio path the app may read.
+pub fn for_track(state: &AppState, path: &str) -> Result<Option<Transcript>, String> {
+    let (audio, key, dir) = authorize(state, path)?;
+    Ok(current(state, &audio, &dir, &key))
+}
+
 #[tauri::command]
 pub fn transcript_get(state: State<AppState>, path: String) -> Result<Option<Transcript>, String> {
-    let (audio, key, dir) = authorize(&state, &path)?;
-    Ok(current(&state, &audio, &dir, &key))
+    for_track(&state, &path)
 }
 
 /// Puts corrected text into sentences, all or nothing. Line breaks become

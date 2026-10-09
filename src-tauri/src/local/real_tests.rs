@@ -250,25 +250,8 @@ fn real_speakers() {
                 "  {:6.2}–{:6.2} {who} {}",
                 s.start,
                 s.end,
-                bracket_unsure(s)
+                crate::proofread::marked(s)
             );
         }
     }
-}
-
-/// The text with its unsure parts (UTF-16 ranges) in 〔〕.
-fn bracket_unsure(s: &crate::transcript::Sentence) -> String {
-    let units: Vec<u16> = s.text.encode_utf16().collect();
-    let mut out = Vec::new();
-    let mut at = 0;
-    for &[a, b] in &s.unsure {
-        let (a, b) = (a as usize, b as usize);
-        out.extend_from_slice(&units[at..a]);
-        out.extend("〔".encode_utf16());
-        out.extend_from_slice(&units[a..b]);
-        out.extend("〕".encode_utf16());
-        at = b;
-    }
-    out.extend_from_slice(&units[at..]);
-    String::from_utf16_lossy(&out)
 }

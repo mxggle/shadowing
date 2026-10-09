@@ -3,10 +3,12 @@ import { AudioEngine } from "./audio/engine";
 import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, type Loop } from "./audio/logic";
 import { listen } from "@tauri-apps/api/event";
 import { api, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
+import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
+import { createProofreadSlice, type ProofreadState } from "./proofreadSlice";
 import { createTranscriptSlice, type TranscriptState } from "./transcriptSlice";
 
-export interface AppState extends TranscriptState, GuideState {
+export interface AppState extends TranscriptState, CorrectState, ProofreadState, GuideState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -146,6 +148,8 @@ export const useApp = create<AppState>((set, get) => {
     settingsOpen: false,
     shelfOpen: loadShelfOpen(),
     ...createTranscriptSlice(set, get, engine, applyLoop),
+    ...createCorrectSlice(set, get),
+    ...createProofreadSlice(set, get),
     ...createGuideSlice(set, get, engine),
 
     async init() {

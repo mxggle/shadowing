@@ -79,28 +79,39 @@ export function matchingSentences(sentences: Sentence[], find: string): number[]
 export function replaceEdits(sentences: Sentence[], find: string, replace: string): SentenceEdit[] {
   return sentences.flatMap((s, index) => {
     const ranges = matchRanges(s.text, find);
-    if (!ranges.length) return [];
-    let text = "";
-    let at = 0;
-    for (const [start, end] of ranges) {
-      text += s.text.slice(at, start) + replace;
-      at = end;
-    }
-    text += s.text.slice(at);
-    const lead = text.length - text.trimStart().length;
-    text = text.trim();
-    if (!text) return [];
-    const unsure = (s.unsure ?? []).flatMap(([a, b]): [number, number][] => {
-      let shift = -lead;
-      for (const [start, end] of ranges) {
-        if (b <= start) break;
-        if (a < end) return [];
-        shift += replace.length - (end - start);
-      }
-      return a + shift >= 0 && b + shift <= text.length ? [[a + shift, b + shift]] : [];
-    });
-    return [{ index, text, unsure }];
+    const edit = ranges.length ? splice(s, index, ranges, replace) : null;
+    return edit ? [edit] : [];
   });
+}
+
+/** The edit that puts `to` in place of the first `from` in a sentence; null when it's no longer there. */
+export function fixEdit(sentence: Sentence, index: number, from: string, to: string): SentenceEdit | null {
+  const at = from ? sentence.text.indexOf(from) : -1;
+  return at < 0 ? null : splice(sentence, index, [[at, at + from.length]], to);
+}
+
+/** `replace` in place of each range (sorted, apart); null if that would leave the sentence empty. */
+function splice(s: Sentence, index: number, ranges: [number, number][], replace: string): SentenceEdit | null {
+  let text = "";
+  let at = 0;
+  for (const [start, end] of ranges) {
+    text += s.text.slice(at, start) + replace;
+    at = end;
+  }
+  text += s.text.slice(at);
+  const lead = text.length - text.trimStart().length;
+  text = text.trim();
+  if (!text) return null;
+  const unsure = (s.unsure ?? []).flatMap(([a, b]): [number, number][] => {
+    let shift = -lead;
+    for (const [start, end] of ranges) {
+      if (b <= start) break;
+      if (a < end) return [];
+      shift += replace.length - (end - start);
+    }
+    return a + shift >= 0 && b + shift <= text.length ? [[a + shift, b + shift]] : [];
+  });
+  return { index, text, unsure };
 }
 
 export interface TextPiece {
@@ -111,9 +122,12 @@ export interface TextPiece {
   unsure: boolean;
 }
 
-/** The text in pieces for display: matches of `find`, and what the transcriber was unsure of. */
-export function textPieces(text: string, find: string, unsure: [number, number][] = []): TextPiece[] {
-  const matches = matchRanges(text, find);
+/**
+ * The text in pieces for display: matches of `find` (and any `also` ranges,
+ * such as words a suggestion would change), and what the transcriber was unsure of.
+ */
+export function textPieces(text: string, find: string, unsure: [number, number][] = [], also: [number, number][] = []): TextPiece[] {
+  const matches = [...matchRanges(text, find), ...also];
   const cuts = new Set([0, text.length]);
   for (const [a, b] of [...matches, ...unsure]) cuts.add(a).add(b);
   const points = [...cuts].filter((x) => x >= 0 && x <= text.length).sort((x, y) => x - y);

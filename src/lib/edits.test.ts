@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Sentence } from "./api";
-import { changedWord, matchingSentences, matchRanges, replaceEdits, textPieces } from "./edits";
+import { changedWord, fixEdit, matchingSentences, matchRanges, replaceEdits, textPieces } from "./edits";
 
 const s = (text: string): Sentence => ({ start: 0, end: 1, text });
 
@@ -82,6 +82,23 @@ describe("replaceEdits", () => {
   });
 });
 
+describe("fixEdit", () => {
+  it("puts the fix in place, keeping underlines elsewhere and dropping the one it covers", () => {
+    const sentence: Sentence = { ...s("私、これが来たいなー。"), unsure: [[0, 1], [5, 6]] };
+    expect(fixEdit(sentence, 3, "来たい", "着たい")).toEqual({ index: 3, text: "私、これが着たいなー。", unsure: [[0, 1]] });
+    expect(fixEdit({ ...s("寝蔵アート、寝蔵"), unsure: [[7, 8]] }, 0, "寝蔵", "寝相の")).toEqual({
+      index: 0,
+      text: "寝相のアート、寝蔵",
+      unsure: [[8, 9]],
+    });
+  });
+
+  it("gives nothing when the words are no longer there", () => {
+    expect(fixEdit(s("私、これが着たいなー。"), 3, "来たい", "着たい")).toBeNull();
+    expect(fixEdit(s("それ"), 0, "", "x")).toBeNull();
+  });
+});
+
 describe("textPieces", () => {
   const piece = (text: string, match = false, unsure = false) => ({ text, match, unsure });
 
@@ -100,5 +117,9 @@ describe("textPieces", () => {
       piece("蔵", true, true),
       piece("アート"),
     ]);
+  });
+
+  it("marks extra ranges like matches", () => {
+    expect(textPieces("これが来たいなー", "", [], [[3, 6]])).toEqual([piece("これが"), piece("来たい", true), piece("なー")]);
   });
 });

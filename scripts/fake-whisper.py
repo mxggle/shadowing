@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Tiny OpenAI-compatible transcription server for `npm run smoke`.
 
-Answers /v1/models and /v1/audio/transcriptions with a fixed verbose_json,
-so the real app can be tested end to end without a network or API key.
+Answers /v1/models, /v1/audio/transcriptions (a fixed verbose_json) and
+/v1/chat/completions (a fixed proofreading reply), so the real app can be
+tested end to end without a network or API key.
 Usage: scripts/fake-whisper.py <port>
 """
 import json
@@ -25,6 +26,10 @@ REPLY = {
     ],
 }
 
+# The fix comes back only if the request marked the unsure word (see REPLY) as 〔sentence〕;
+# the second one (no change) must be dropped by the app.
+FIXES = '{"fixes": [{"id": 0, "from": "sentence", "to": "sentinel", "reason": "测试"}, {"id": 1, "from": "Fake", "to": "Fake"}]}'
+
 
 class Handler(BaseHTTPRequestHandler):
     def reply(self, body):
@@ -40,6 +45,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = self.rfile.read(int(self.headers.get("content-length", 0)))
+        if self.path.endswith("/chat/completions"):
+            content = FIXES if "〔sentence〕".encode() in body else '{"fixes": []}'
+            self.reply({"choices": [{"message": {"role": "assistant", "content": content}}]})
+            return
         ok = b"verbose_json" in body and b"audio/wav" in body
         if not ok:
             self.send_response(400)

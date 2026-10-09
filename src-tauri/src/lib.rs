@@ -3,6 +3,7 @@ mod audio;
 mod guide;
 mod library;
 mod local;
+mod proofread;
 mod smoke;
 mod speakers;
 mod store;
@@ -214,6 +215,7 @@ pub fn run() {
             app.manage(ai::secrets::Secrets(store));
             app.manage(transcribe::commands::Jobs::default());
             app.manage(local::Downloads::default());
+            app.manage(proofread::Proofreading::default());
             let sink = std::sync::Arc::new(audio::TauriSink(app.handle().clone()));
             app.manage(audio::Player::new(sink));
             Ok(())
@@ -251,6 +253,8 @@ pub fn run() {
             transcript::transcript_import,
             transcript::transcript_remove,
             transcript::transcript_edit,
+            proofread::transcript_proofread,
+            proofread::transcript_proofread_cancel,
             smoke::smoke_mode,
             smoke::smoke_window,
             smoke::smoke_finish,
