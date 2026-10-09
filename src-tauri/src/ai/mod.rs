@@ -134,6 +134,19 @@ impl Target {
     }
 }
 
+/// The service and model chosen under 「句子解释」, ready to call.
+pub async fn chat_target(state: &AppState, secrets: &Secrets) -> Result<(Target, String), String> {
+    let choice = state.read(|d| d.ai.choice(Feature::Chat).clone());
+    let id = choice
+        .provider
+        .ok_or("还没有设置「句子解释」用的 AI 服务")?;
+    if choice.model.is_empty() {
+        return Err("还没有选择「句子解释」用的模型".into());
+    }
+    let target = Target::resolve(state, secrets, &id)?.ready(secrets).await?;
+    Ok((target, choice.model))
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiOverview {

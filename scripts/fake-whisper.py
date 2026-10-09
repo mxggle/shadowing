@@ -2,7 +2,7 @@
 """Tiny OpenAI-compatible transcription server for `npm run smoke`.
 
 Answers /v1/models, /v1/audio/transcriptions (a fixed verbose_json) and
-/v1/chat/completions (a fixed proofreading reply), so the real app can be
+/v1/chat/completions (a fixed proofreading or explanation reply), so the real app can be
 tested end to end without a network or API key.
 Usage: scripts/fake-whisper.py <port>
 """
@@ -26,6 +26,9 @@ REPLY = {
     ],
 }
 
+# An explanation comes back for a request that asks for one sentence to be explained.
+EXPLANATION = '{"translation": "测试译文", "words": [{"word": "sentinel", "reading": "", "meaning": "哨兵"}], "points": []}'
+
 # The fix comes back only if the request marked the unsure word (see REPLY) as 〔sentence〕;
 # the second one (no change) must be dropped by the app.
 FIXES = '{"fixes": [{"id": 0, "from": "sentence", "to": "sentinel", "reason": "测试"}, {"id": 1, "from": "Fake", "to": "Fake"}]}'
@@ -46,6 +49,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         body = self.rfile.read(int(self.headers.get("content-length", 0)))
         if self.path.endswith("/chat/completions"):
+            if b"Sentence to explain" in body:
+                self.reply({"choices": [{"message": {"role": "assistant", "content": EXPLANATION}}]})
+                return
             content = FIXES if "〔sentence〕".encode() in body else '{"fixes": []}'
             self.reply({"choices": [{"message": {"role": "assistant", "content": content}}]})
             return

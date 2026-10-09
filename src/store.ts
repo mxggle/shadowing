@@ -4,11 +4,12 @@ import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition
 import { listen } from "@tauri-apps/api/event";
 import { api, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
+import { createExplainSlice, type ExplainState } from "./explainSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
 import { createProofreadSlice, type ProofreadState } from "./proofreadSlice";
 import { createTranscriptSlice, type TranscriptState } from "./transcriptSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ProofreadState, GuideState {
+export interface AppState extends TranscriptState, CorrectState, ProofreadState, ExplainState, GuideState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -150,6 +151,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createTranscriptSlice(set, get, engine, applyLoop),
     ...createCorrectSlice(set, get),
     ...createProofreadSlice(set, get),
+    ...createExplainSlice(set, get),
     ...createGuideSlice(set, get, engine),
 
     async init() {

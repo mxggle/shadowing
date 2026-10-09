@@ -86,6 +86,13 @@ export interface Suggestion {
   reason: string;
 }
 
+/** What the explanation model says about one sentence (Simplified Chinese; `reading` only for Japanese). */
+export interface Explanation {
+  translation: string;
+  words: { word: string; reading: string; meaning: string }[];
+  points: { point: string; note: string }[];
+}
+
 /** Sent while proofreading: how many parts of the transcript are done. */
 export interface ProofreadProgress {
   path: string;
@@ -212,6 +219,9 @@ export const api = {
     start: (path: string) => invoke<Suggestion[]>("transcript_proofread", { path }),
     cancel: () => invoke<void>("transcript_proofread_cancel"),
   },
+  /** Asks the explanation model about one sentence; `text` must still be what it says. */
+  explainSentence: (path: string, index: number, text: string) =>
+    invoke<Explanation>("sentence_explain", { path, index, text }),
   ai: {
     get: () => invoke<AiOverview>("ai_get"),
     choose: (feature: Feature, provider: string | null, model: string) =>

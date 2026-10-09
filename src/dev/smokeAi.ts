@@ -65,4 +65,17 @@ export async function aiScenario({ check, waitFor, tracks }: Kit) {
   if (found[0]) await app().acceptSuggestion(found[0]);
   const fixed = (await api.getTranscript(untranscribed.path))?.sentences[0];
   check("accepted fix saved, its underline gone", fixed?.text === "Fake sentinel one." && !fixed.unsure?.length, JSON.stringify(fixed));
+
+  // 12. Explaining a sentence: the note shows the model's answer, and sentence 1
+  // is sent with a line either side of it.
+  app().toggleExplain(1);
+  await waitFor(() => Object.values(app().explain).some((e) => e.state !== "running"), 10000);
+  const note = Object.values(app().explain)[0];
+  check(
+    "a sentence is explained",
+    note?.open && note.state === "done" && note.value.translation === "测试译文" && note.value.words[0]?.word === "sentinel",
+    JSON.stringify(app().explain),
+  );
+  app().toggleExplain(1);
+  check("closing keeps the answer for later", Object.values(app().explain).every((e) => !e.open && e.state === "done"));
 }

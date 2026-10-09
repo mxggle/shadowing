@@ -9,9 +9,8 @@ mod reply;
 mod tests;
 
 use crate::ai::chat::{self, Prompt};
-use crate::ai::providers::Feature;
 use crate::ai::secrets::Secrets;
-use crate::ai::Target;
+use crate::ai::{self, Target};
 use crate::transcript::{self, Sentence};
 use crate::AppState;
 pub use reply::Suggestion;
@@ -151,16 +150,7 @@ pub async fn transcript_proofread(
     path: String,
 ) -> Result<Vec<Suggestion>, String> {
     let transcript = transcript::for_track(&state, &path)?.ok_or("这个音频没有字幕")?;
-    let choice = state.read(|d| d.ai.choice(Feature::Chat).clone());
-    let id = choice
-        .provider
-        .ok_or("还没有设置「句子解释」用的 AI 服务")?;
-    if choice.model.is_empty() {
-        return Err("还没有选择「句子解释」用的模型".into());
-    }
-    let target = Target::resolve(&state, &secrets, &id)?
-        .ready(&secrets)
-        .await?;
+    let (target, model) = ai::chat_target(&state, &secrets).await?;
 
     let cancel = Arc::new(AtomicBool::new(false));
     if let Some(earlier) = running.0.lock().unwrap().replace(cancel.clone()) {
@@ -177,7 +167,7 @@ pub async fn transcript_proofread(
         };
         let _ = app.emit("proofread:progress", progress);
         let (_, part) = tokio::select! {
-            r = ask(&target, &choice.model, sentences, own.clone()) => r?,
+            r = ask(&target, &model, sentences, own.clone()) => r?,
             _ = cancelled(&cancel) => return Err(crate::transcribe::CANCELLED.into()),
         };
         found.extend(part);

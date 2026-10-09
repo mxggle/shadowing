@@ -1,9 +1,11 @@
-import { FileUp, PenLine, Play, Repeat, Replace, Trash2 } from "lucide-react";
+import { FileUp, Languages, PenLine, Play, Repeat, Replace, Trash2 } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { Sentence, Suggestion } from "../lib/api";
+import { explainKey, type Explain } from "../explainSlice";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
+import { ExplainNote } from "./Explain";
 import { ProofreadBar, ProofreadButton, SuggestionNote } from "./Proofread";
 import { ReplaceBar } from "./ReplaceBar";
 import { SentenceEditor } from "./SentenceEditor";
@@ -27,6 +29,8 @@ export function SentenceList() {
     if (proofread?.state === "done") for (const s of proofread.suggestions) byRow.set(s.index, [...(byRow.get(s.index) ?? []), s]);
     return byRow;
   }, [proofread]);
+  const path = useApp((s) => s.current?.path);
+  const explain = useApp((s) => s.explain);
   const voices = speakerCount(sentences) > 1;
   const list = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
@@ -52,6 +56,7 @@ export function SentenceList() {
               editing={i === editing}
               find={find}
               suggestions={suggestions.get(i)}
+              explain={path ? explain[explainKey(path, i, sentence.text)] : undefined}
               voices={voices}
               turn={voices && startsTurn(sentences, i)}
             />
@@ -110,7 +115,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
  * One sentence. With more than one voice (`voices`), a column names the
  * speaker where their turn starts (`turn`), like a script, and turns get a little air between them.
  */
-const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, voices, turn }: {
+const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, voices, turn }: {
   index: number;
   sentence: Sentence;
   active: boolean;
@@ -120,10 +125,13 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
   find: string;
   /** What the AI proofreading would change in this sentence. */
   suggestions?: Suggestion[];
+  /** The note asking the model to explain this sentence, once asked. */
+  explain?: Explain;
   voices: boolean;
   turn: boolean;
 }) {
-  const { playSentence, toggleSentenceLoop, editSentence } = useApp.getState();
+  const { playSentence, toggleSentenceLoop, editSentence, toggleExplain } = useApp.getState();
+  const explaining = !!explain?.open;
   const tone = looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";
   const lit = active || looping;
   const columns = voices ? "grid-cols-[3.25rem_1.75rem_1fr_auto]" : "grid-cols-[3.25rem_1fr_auto]";
@@ -178,8 +186,19 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
           </p>
         )}
         {suggestions?.map((s) => <SuggestionNote key={`${s.from}→${s.to}`} suggestion={s} />)}
+        {explain?.open && <ExplainNote index={index} entry={explain} />}
       </div>
       <span className="flex h-[30px] items-center">
+        <button
+          title={explaining ? "收起解释 (I)" : "解释这一句 (I)"}
+          aria-pressed={explaining}
+          onClick={() => toggleExplain(index)}
+          className={`grid size-[28px] place-items-center rounded-[8px] transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${
+            explaining ? "bg-press text-fg" : "text-muted opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100"
+          }`}
+        >
+          <Languages size={14} strokeWidth={2.1} />
+        </button>
         {!editing && (
           <button
             title="修改这一句 (E)"

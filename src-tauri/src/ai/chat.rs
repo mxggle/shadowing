@@ -70,6 +70,12 @@ pub async fn complete(target: &Target, model: &str, prompt: &Prompt<'_>) -> Resu
     }
 }
 
+/// The JSON object in a reply, even when wrapped in ``` fences or a sentence of prose.
+pub fn json_object(reply: &str) -> Option<&str> {
+    let (a, b) = (reply.find('{')?, reply.rfind('}')?);
+    (a < b).then(|| &reply[a..=b])
+}
+
 fn unreadable(name: &str) -> String {
     format!("{name} 的回复无法识别，或者回答为空（可能被截断）")
 }

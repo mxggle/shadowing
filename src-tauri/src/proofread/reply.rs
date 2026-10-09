@@ -2,6 +2,7 @@
 //! exact, word-level fixes: the model never touches times, sentence breaks, or
 //! anything it can't point to precisely.
 
+use crate::ai::chat;
 use crate::transcript::Sentence;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -48,16 +49,10 @@ impl Fix {
 
 /// The JSON in a reply, even when wrapped in ``` fences or a sentence of prose.
 pub(super) fn parse(reply: &str) -> Result<Vec<Fix>, String> {
-    let unreadable = || "AI 的回复不是要求的格式，可以再试一次或换一个模型".to_string();
-    let (Some(a), Some(b)) = (reply.find('{'), reply.rfind('}')) else {
-        return Err(unreadable());
-    };
-    if a > b {
-        return Err(unreadable());
-    }
-    serde_json::from_str::<Reply>(&reply[a..=b])
+    chat::json_object(reply)
+        .and_then(|json| serde_json::from_str::<Reply>(json).ok())
         .map(|r| r.fixes)
-        .map_err(|_| unreadable())
+        .ok_or_else(|| "AI 的回复不是要求的格式，可以再试一次或换一个模型".to_string())
 }
 
 /// Text as sent, without the 〔 〕 that mark what the transcriber was unsure of.

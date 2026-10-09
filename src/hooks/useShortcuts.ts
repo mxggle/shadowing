@@ -42,6 +42,8 @@ export function useShortcuts() {
         "]": [() => s.stepSentence(1), "nextSentence"],
         s: [() => s.toggleSentenceLoop(), "sentenceLoop"],
         S: [() => s.toggleSentenceLoop(), "sentenceLoop"],
+        i: [() => s.toggleExplain()],
+        I: [() => s.toggleExplain()],
         e: [() => s.editSentence()],
         E: [() => s.editSentence()],
         "-": [() => s.setRate(s.settings.rate - RATE_STEP), "slower"],

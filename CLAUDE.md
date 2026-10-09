@@ -17,14 +17,14 @@ src/                      前端
   audio/engine.ts         原生播放器的薄客户端：发命令、收 player:* 事件
   audio/logic.ts          纯函数规则（循环、恢复位置、速度），有单元测试
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，改字幕在 correctSlice.ts，
-                          AI 校对在 proofreadSlice.ts，引导部分在 guideSlice.ts）
+                          AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts）
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句），有单元测试
   lib/edits.ts            改字幕的规则（改动取整词、查找匹配、全部替换），有单元测试
   lib/aiReady.ts          转写 / 解释是否已设置好、向导从哪一步继续，有单元测试
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置；ui.tsx 共用的按键与表单件；
                           Transcript.tsx 句子列表，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
-                          SentenceEditor.tsx 改一句、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
+                          Explain.tsx 句子下的解释块、SentenceEditor.tsx 改一句、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
                           settings/ 是设置面板；
                           guide/ 是引导：Welcome.tsx 欢迎页、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示
   dev/smoke.ts            应用内自测脚本（只在 smoke 模式加载）
@@ -36,6 +36,7 @@ src-tauri/src/
   transcript.rs           每个音频的字幕：app data 里的 transcripts/，或音频旁的同名 .srt/.vtt
                           （改过的字幕只存 app data 里的副本，不改写音频旁的文件）
   subtitles.rs            SRT / WebVTT 解析
+  explain/                解释这一句：把一句（带前后几句）发给「句子解释」的模型，reply.rs 只留下译文、生词、语法点并封顶
   proofread/              AI 校对：把字幕（没把握的字用〔〕标出）发给「句子解释」的模型，reply.rs 只留下能精确套用的小改动
   transcribe/             转写：pcm.rs 解码成 16 kHz 单声道、chunk.rs 在停顿处切块、cloud.rs 上传、
                           sentences.rs 把 Whisper 结果变成带时间的句子（没有标点时按 Whisper 分段断句）、

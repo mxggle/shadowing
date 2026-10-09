@@ -2,7 +2,7 @@
 // Simulates the Rust commands and player:* events; no real audio.
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { AiConfig, Feature, Preset, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
+import type { AiConfig, Explanation, Feature, Preset, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
 import { fresh, samples, sampleTranscripts } from "./mockSamples";
 
 const root = "/Mock/日本語ポッドキャスト";
@@ -164,6 +164,25 @@ async function mockProofread(path: string): Promise<Suggestion[]> {
   ].filter((s) => s.index >= 0);
 }
 
+// Explaining a sentence: a pause, then a demonstration answer (the third sentence fails once).
+let explainFailed = false;
+async function mockExplain(text: string): Promise<Explanation> {
+  if (!aiConfig.chat.provider) throw "还没有设置「句子解释」用的 AI 服务";
+  await new Promise((r) => setTimeout(r, 900));
+  if (text.includes("傘") && !explainFailed) {
+    explainFailed = true;
+    throw "请求超时了，请再试一次";
+  }
+  return {
+    translation: `（演示）${text.length} 个字的句子，翻译会写在这里。`,
+    words: [
+      { word: "散歩", reading: "さんぽ", meaning: "散步" },
+      { word: "天気", reading: "てんき", meaning: "天气" },
+    ],
+    points: [{ point: "〜ましょう", note: "提议一起做某事，「我们…吧」" }],
+  };
+}
+
 const player = { path: null as string | null, time: 0, duration: 0, playing: false, rate: 1, a: null as number | null, b: null as number | null, repeats: 0 };
 let seq = 0;
 const status = () => ({ path: player.path, time: player.time, duration: player.duration, playing: player.playing, repeats: player.repeats, seq: ++seq });
@@ -233,6 +252,8 @@ export function installMockBackend() {
           return null;
         case "transcript_proofread":
           return mockProofread(a.path);
+        case "sentence_explain":
+          return mockExplain(a.text);
         case "transcript_proofread_cancel":
           proofreading++;
           return;

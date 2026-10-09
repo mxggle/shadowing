@@ -28,7 +28,7 @@ export function SettingsButton() {
 
 const FEATURES: { feature: Feature; title: string; description: string }[] = [
   { feature: "transcribe", title: "转写", description: "把没有字幕的音频变成带时间的句子，就能点句循环。" },
-  { feature: "chat", title: "句子解释", description: "现在用于 AI 校对字幕（找出可能听错的字）；翻译句子、讲解语法、查词在下一版本启用。" },
+  { feature: "chat", title: "句子解释", description: "用于解释句子（翻译、生词、语法）和 AI 校对字幕（找出可能听错的字）。" },
 ];
 
 export function SettingsDialog() {

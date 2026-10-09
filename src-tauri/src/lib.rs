@@ -1,5 +1,6 @@
 mod ai;
 mod audio;
+mod explain;
 mod guide;
 mod library;
 mod local;
@@ -255,6 +256,7 @@ pub fn run() {
             transcript::transcript_edit,
             proofread::transcript_proofread,
             proofread::transcript_proofread_cancel,
+            explain::sentence_explain,
             smoke::smoke_mode,
             smoke::smoke_window,
             smoke::smoke_finish,

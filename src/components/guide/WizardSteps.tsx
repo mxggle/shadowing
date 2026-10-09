@@ -71,7 +71,7 @@ export function ChatStep() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-[13px] leading-relaxed text-muted">
-        句子解释用大语言模型翻译句子、讲解语法、查词。这个功能在下一个版本启用，现在设置好，到时就能直接用。
+        句子解释用大语言模型翻译句子、讲解生词和语法，也用来校对字幕里可能听错的字。
       </p>
       <div className="grid grid-cols-2 gap-2.5">
         <ChoiceCard
