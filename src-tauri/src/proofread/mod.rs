@@ -2,6 +2,8 @@
 //! transcript were most likely misheard. It only suggests; the learner accepts
 //! or ignores each one, and accepting is an ordinary, undoable edit.
 
+#[cfg(test)]
+mod real_tests;
 mod reply;
 #[cfg(test)]
 mod tests;
@@ -36,7 +38,7 @@ Lines are "id: text". Reply with JSON only, no other text:
 {"fixes": [{"id": 12, "from": "公園", "to": "講演", "reason": "前后说的是去听讲座，应为「講演」"}]}
 - from: the shortest piece of that line to replace, copied exactly (without 〔 〕), that appears in the line only once
 - to: what it should say
-- reason: in Simplified Chinese, under 30 characters
+- reason: written in Simplified Chinese whatever the transcript's language (the learner reads Chinese), under 30 characters
 If nothing needs fixing, reply {"fixes": []}"#;
 
 /// Characters of the learner's text per request; most lessons fit in one.
@@ -77,7 +79,7 @@ pub fn marked(s: &Sentence) -> String {
 }
 
 /// Consecutive runs of sentences of about `CHUNK_CHARS` characters each.
-fn chunks(sentences: &[Sentence]) -> Vec<Range<usize>> {
+pub fn chunks(sentences: &[Sentence]) -> Vec<Range<usize>> {
     let mut out = Vec::new();
     let mut start = 0;
     let mut size = 0;
@@ -112,6 +114,24 @@ fn user_message(sentences: &[Sentence], own: &Range<usize>) -> String {
     }
     out.push_str(&lines.join("\n"));
     out
+}
+
+/// Asks about one chunk (`own`) of the sentences: the model's reply as it came,
+/// and the suggestions that survive `reply::check`.
+pub async fn ask(
+    target: &Target,
+    model: &str,
+    sentences: &[Sentence],
+    own: Range<usize>,
+) -> Result<(String, Vec<Suggestion>), String> {
+    let prompt = Prompt {
+        system: SYSTEM,
+        user: &user_message(sentences, &own),
+        max_tokens: 8192,
+    };
+    let text = chat::complete(target, model, &prompt).await?;
+    let found = reply::check(sentences, own, reply::parse(&text)?);
+    Ok((text, found))
 }
 
 async fn cancelled(flag: &AtomicBool) {
@@ -156,16 +176,11 @@ pub async fn transcript_proofread(
             total: parts.len(),
         };
         let _ = app.emit("proofread:progress", progress);
-        let prompt = Prompt {
-            system: SYSTEM,
-            user: &user_message(sentences, own),
-            max_tokens: 8192,
-        };
-        let text = tokio::select! {
-            r = chat::complete(&target, &choice.model, &prompt) => r?,
+        let (_, part) = tokio::select! {
+            r = ask(&target, &choice.model, sentences, own.clone()) => r?,
             _ = cancelled(&cancel) => return Err(crate::transcribe::CANCELLED.into()),
         };
-        found.extend(reply::check(sentences, own.clone(), reply::parse(&text)?));
+        found.extend(part);
     }
     Ok(found)
 }
