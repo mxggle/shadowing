@@ -26,13 +26,25 @@ pub fn guide_save(state: State<AppState>, guide: Guide) -> Result<(), String> {
 }
 
 /// Where the bundled samples live (inside the .app, or beside the debug binary).
+///
+/// Tauri only treats a binary as a dev build when its folder sits under a directory
+/// literally named `target`, so with a custom `CARGO_TARGET_DIR` (e.g. `shared-target`)
+/// `resource_dir` points into a missing `Contents/Resources`. Debug builds therefore
+/// also look beside the binary and in the source tree.
 pub fn samples_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
-    app.path()
-        .resource_dir()
-        .ok()?
-        .join("samples")
-        .canonicalize()
-        .ok()
+    let mut candidates = vec![app.path().resource_dir().ok()?.join("samples")];
+    if cfg!(debug_assertions) {
+        if let Some(beside) = std::env::current_exe()
+            .ok()
+            .and_then(|exe| Some(exe.parent()?.join("samples")))
+        {
+            candidates.push(beside);
+        }
+        candidates.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("samples"));
+    }
+    candidates
+        .into_iter()
+        .find_map(|dir| dir.canonicalize().ok())
 }
 
 /// The sample clip for a learning language; anything but Japanese gets English.
