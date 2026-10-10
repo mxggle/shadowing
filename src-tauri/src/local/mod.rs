@@ -129,7 +129,9 @@ pub fn local_download(
     if dest.is_file() {
         return Ok(());
     }
-    let need = model.size - download::partial_len(&dest);
+    // `saturating_sub`: a `.part` larger than the model (a bad server reply) is removed by
+    // `download` itself; here it must not wrap around into an absurd "need".
+    let need = model.size.saturating_sub(download::partial_len(&dest));
     if let Some(free) = models::free_bytes(&dest) {
         if free < need + DISK_MARGIN {
             let gb = |b: u64| b as f64 / 1e9;
