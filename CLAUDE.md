@@ -112,3 +112,13 @@ npm run app                           # 开发模式启动应用
 
 - 直接在 `main` 上小步提交，Conventional Commits（`feat:` `fix:` `docs:` `chore:` `test:`）。
 - 每个可体验的交付一个提交，提交前跑 `npm run check`。
+- 用户可见的变化同时写进 [CHANGELOG.md](CHANGELOG.md) 的「未发布」。
+
+## 发布
+
+1. 从 `main` 开 `release/vX.Y.Z` 分支：把「未发布」改成版本号和日期，五处版本号一起改
+   （`package.json`、`package-lock.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`src-tauri/tauri.conf.json`），
+   提交 `chore(release): vX.Y.Z`，跑 `npm run check`，开 PR 合并（rebase，保留每个小提交）。
+2. 在合并后的 `main` 上打附注标签 `vX.Y.Z` 并推送；`npm run tauri build -- --bundles app` 构建，
+   用 `ditto -c -k --keepParent Shadowing.app Shadowing-X.Y.Z-macos-arm64.zip` 打包。
+3. `gh release create vX.Y.Z <zip> --title "Shadowing X.Y.Z"`，说明取自 CHANGELOG，并保留安装步骤（未签名、`xattr` 去隔离）。
