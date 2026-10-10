@@ -16,7 +16,6 @@ use crate::ai::Target;
 use crate::store::Persisted;
 use crate::{transcript, AppState};
 use std::path::PathBuf;
-use std::sync::Mutex;
 use std::time::Instant;
 
 fn app_data() -> PathBuf {
@@ -30,11 +29,8 @@ async fn real_explain() {
     let copy = tempfile::tempdir().unwrap();
     let state_path = copy.path().join("state.json");
     std::fs::copy(app_data().join("state.json"), &state_path).unwrap();
-    let state = AppState {
-        data: Mutex::new(Persisted::load(&state_path)),
-        state_path,
-        samples: None,
-    };
+    let data = Persisted::load(&state_path);
+    let state = AppState::new(state_path, data, None);
     let secrets = Secrets(Box::new(Keychain::new().unwrap()));
     let choice = state.read(|d| d.ai.choice(Feature::Chat).clone());
     let id = choice

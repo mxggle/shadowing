@@ -2,8 +2,11 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{mpsc, Arc, Mutex};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -88,14 +91,87 @@ impl Persisted {
     }
 }
 
-/// Temp file + rename, so a crash never leaves half a file.
+/// Writes numbered snapshots of the state to disk, either right away (`now`, so the
+/// caller sees errors) or on a background thread (`later`, for frequent small changes
+/// such as playback progress). An older snapshot never overwrites a newer one.
+pub struct Saver {
+    disk: Arc<Disk>,
+    later: mpsc::Sender<(u64, Persisted)>,
+}
+
+struct Disk {
+    path: PathBuf,
+    written: Mutex<u64>,
+}
+
+impl Disk {
+    fn write(&self, version: u64, data: &Persisted) -> std::io::Result<()> {
+        let mut written = self.written.lock().unwrap();
+        if version <= *written {
+            return Ok(());
+        }
+        data.save(&self.path)?;
+        *written = version;
+        Ok(())
+    }
+}
+
+impl Saver {
+    pub fn new(path: PathBuf) -> Self {
+        let disk = Arc::new(Disk {
+            path,
+            written: Mutex::new(0),
+        });
+        let (later, queue) = mpsc::channel::<(u64, Persisted)>();
+        let d = disk.clone();
+        // If the thread can't start, `later` falls back to writing in place.
+        let _ = std::thread::Builder::new()
+            .name("state-saver".into())
+            .spawn(move || {
+                while let Ok(mut next) = queue.recv() {
+                    while let Ok(newer) = queue.try_recv() {
+                        next = newer; // only the latest matters
+                    }
+                    if let Err(e) = d.write(next.0, &next.1) {
+                        eprintln!("state.json not saved: {e}");
+                    }
+                }
+            });
+        Self { disk, later }
+    }
+
+    pub fn now(&self, version: u64, data: &Persisted) -> std::io::Result<()> {
+        self.disk.write(version, data)
+    }
+
+    pub fn later(&self, version: u64, data: Persisted) {
+        if let Err(mpsc::SendError((version, data))) = self.later.send((version, data)) {
+            if let Err(e) = self.disk.write(version, &data) {
+                eprintln!("state.json not saved: {e}");
+            }
+        }
+    }
+}
+
+/// Temp file + fsync + rename, so a crash or power loss never leaves half a file
+/// (or an empty one). Each write has its own temp name, so two writers to the
+/// same file can't install each other's partial bytes.
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir)?;
     }
-    let tmp = path.with_extension("tmp");
-    fs::write(&tmp, bytes)?;
-    fs::rename(tmp, path)
+    let n = NEXT.fetch_add(1, Ordering::Relaxed);
+    let tmp = path.with_extension(format!("tmp-{}-{n}", std::process::id()));
+    let written = File::create(&tmp).and_then(|mut f| {
+        f.write_all(bytes)?;
+        f.sync_all()
+    });
+    let renamed = written.and_then(|()| fs::rename(&tmp, path));
+    if renamed.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    renamed
 }
 
 #[cfg(test)]
@@ -153,6 +229,53 @@ mod tests {
         )
         .unwrap();
         assert_eq!(Persisted::load(&path).settings.play_mode, PlayMode::One);
+    }
+
+    #[test]
+    fn concurrent_atomic_writes_leave_one_whole_file_and_no_temp_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t.json");
+        let writers: Vec<_> = (0..8u8)
+            .map(|i| {
+                let path = path.clone();
+                std::thread::spawn(move || {
+                    for _ in 0..20 {
+                        write_atomic(&path, &vec![b'a' + i; 64 * 1024]).unwrap();
+                    }
+                })
+            })
+            .collect();
+        for w in writers {
+            w.join().unwrap();
+        }
+        let bytes = fs::read(&path).unwrap();
+        assert_eq!(bytes.len(), 64 * 1024);
+        assert!(bytes.iter().all(|&b| b == bytes[0]), "mixed writers");
+        let names: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        assert_eq!(names, ["t.json"]);
+    }
+
+    #[test]
+    fn saver_never_lets_an_older_snapshot_win() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("state.json");
+        let saver = Saver::new(path.clone());
+        let with_rate = |rate| {
+            let mut p = Persisted::default();
+            p.settings.rate = rate;
+            p
+        };
+        for v in 1..=50u64 {
+            saver.later(v, with_rate(v as f64 / 100.0));
+        }
+        saver.now(51, &with_rate(0.75)).unwrap();
+        saver.later(40, with_rate(0.1)); // late arrival of an old snapshot
+        saver.now(51, &with_rate(0.75)).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        assert_eq!(Persisted::load(&path).settings.rate, 0.75);
     }
 
     #[test]

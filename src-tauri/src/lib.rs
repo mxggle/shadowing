@@ -16,20 +16,34 @@ use library::FolderListing;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
-use store::{Persisted, Progress, Settings};
+use store::{Persisted, Progress, Saver, Settings};
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 pub struct AppState {
     state_path: PathBuf,
     data: Mutex<Persisted>,
+    /// Bumped (under the `data` lock) by every change, so the saver can tell snapshots apart.
+    version: AtomicU64,
+    saver: Saver,
     /// Bundled sample clips (read-only), playable without choosing a folder.
     pub samples: Option<PathBuf>,
 }
 
 impl AppState {
+    pub fn new(state_path: PathBuf, data: Persisted, samples: Option<PathBuf>) -> Self {
+        Self {
+            saver: Saver::new(state_path.clone()),
+            state_path,
+            data: Mutex::new(data),
+            version: AtomicU64::new(0),
+            samples,
+        }
+    }
+
     /// The single approved folder (canonical). Media requests outside it are refused.
     pub fn root(&self) -> Option<PathBuf> {
         self.data.lock().unwrap().folder.clone()
@@ -62,10 +76,40 @@ impl AppState {
         f(&self.data.lock().unwrap())
     }
 
+    /// Changes the state and writes it to disk before returning (errors reach the caller).
+    /// The write happens outside the state lock, so other commands aren't held up by the disk.
     pub fn update(&self, f: impl FnOnce(&mut Persisted)) -> Result<(), String> {
+        let (version, snapshot) = self.change(f);
+        self.saver
+            .now(version, &snapshot)
+            .map_err(|e| e.to_string())
+    }
+
+    /// For frequent small changes (playback progress): the state changes now, the
+    /// file is written shortly after on a background thread.
+    pub fn update_soon(&self, f: impl FnOnce(&mut Persisted)) {
+        let (version, snapshot) = self.change(f);
+        self.saver.later(version, snapshot);
+    }
+
+    /// Writes anything `update_soon` hasn't yet (on quit).
+    pub fn flush(&self) {
+        let (version, snapshot) = {
+            let data = self.data.lock().unwrap();
+            (self.version.load(Ordering::SeqCst), data.clone())
+        };
+        if let Err(e) = self.saver.now(version, &snapshot) {
+            eprintln!("state.json not saved: {e}");
+        }
+    }
+
+    fn change(&self, f: impl FnOnce(&mut Persisted)) -> (u64, Persisted) {
         let mut data = self.data.lock().unwrap();
         f(&mut data);
-        data.save(&self.state_path).map_err(|e| e.to_string())
+        (
+            self.version.fetch_add(1, Ordering::SeqCst) + 1,
+            data.clone(),
+        )
     }
 }
 
@@ -88,7 +132,8 @@ fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
-#[tauri::command]
+// `async`: scanning a large or network folder must not freeze the window.
+#[tauri::command(async)]
 fn get_snapshot(state: State<AppState>) -> Snapshot {
     let data = state.data.lock().unwrap().clone();
     let (folder, missing_folder) = match &data.folder {
@@ -126,7 +171,7 @@ async fn choose_folder(
     Ok(Some(listing))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn rescan_folder(state: State<AppState>) -> Result<Option<FolderListing>, String> {
     match state.root() {
         Some(root) => library::scan(&root).map(Some).map_err(|e| e.to_string()),
@@ -144,7 +189,8 @@ fn save_progress(
     if !position.is_finite() || !duration.is_finite() {
         return Ok(());
     }
-    state.update(|d| {
+    // Saved every couple of seconds while playing: never wait for the disk here.
+    state.update_soon(|d| {
         d.progress.insert(
             path,
             Progress {
@@ -153,7 +199,8 @@ fn save_progress(
                 updated_at: now_secs(),
             },
         );
-    })
+    });
+    Ok(())
 }
 
 #[tauri::command]
@@ -199,11 +246,11 @@ pub fn run() {
                     (path, data)
                 }
             };
-            app.manage(AppState {
+            app.manage(AppState::new(
                 state_path,
-                data: Mutex::new(data),
-                samples: guide::samples_dir(app.handle()),
-            });
+                data,
+                guide::samples_dir(app.handle()),
+            ));
             // Smoke runs never touch the real Keychain.
             let store: Box<dyn ai::secrets::SecretStore> = match ai::secrets::Keychain::new() {
                 Ok(keychain) if !smoke_run => Box::new(keychain),
@@ -272,6 +319,13 @@ pub fn run() {
             audio::commands::player_unload,
             audio::commands::player_status
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                if let Some(state) = app.try_state::<AppState>() {
+                    state.flush();
+                }
+            }
+        });
 }
