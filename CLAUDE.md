@@ -6,7 +6,7 @@ Shadowing：macOS 优先的 Tauri 2 桌面应用，用于本地音频的反复�
 ## 技术栈
 
 - 前端：React 19 + TypeScript + Vite 8 + Tailwind 4 + Zustand 5，图标用 lucide-react。
-- 后端：Rust（Tauri 2）。构建需要 cmake（whisper.cpp），`brew install cmake`。**音频播放完全在 Rust**（`src-tauri/src/audio/`）：解码、变速、A–B 循环、输出都不经过 WebView。
+- 后端：Rust（Tauri 2），版本固定在 `rust-toolchain.toml`（本地和 CI 一致，升级时一并修新的 clippy 提示）。构建需要 cmake（whisper.cpp），`brew install cmake`。**音频播放完全在 Rust**（`src-tauri/src/audio/`）：解码、变速、A–B 循环、输出都不经过 WebView。
 - 持久化：Rust 侧一个 JSON 文件（app data 目录下的 `state.json`，原子写入）。**API Key / token 只存 macOS 钥匙串**（`ai/secrets.rs`），state.json 里只有 `sk-…abcd` 这样的提示。
 
 ## 结构
