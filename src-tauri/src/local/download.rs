@@ -13,6 +13,9 @@ use std::time::Duration;
 pub const CANCELLED: &str = "已取消";
 /// Big files on slow lines: hours, not the 30 s used for API calls.
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(6 * 3600);
+/// A connection that stops sending (sleep, Wi-Fi drop without a reset) is given up after this.
+const STALL: Duration = Duration::from_secs(60);
+const STALLED: &str = "下载停住了（1 分钟没有收到数据），请检查网络后重试，会从断点继续";
 
 pub fn part_path(dest: &Path) -> PathBuf {
     let mut name = dest.file_name().unwrap_or_default().to_os_string();
@@ -58,7 +61,10 @@ pub async fn download(
         if have > 0 {
             req = req.header(reqwest::header::RANGE, format!("bytes={have}-"));
         }
-        let mut res = req.send().await.map_err(|e| net_error(&e))?;
+        let mut res = tokio::select! {
+            r = req.send() => r.map_err(|e| net_error(&e))?,
+            _ = cancelled(cancel) => return Err(CANCELLED.into()),
+        };
         let status = res.status().as_u16();
         if status == 200 && have > 0 {
             // Server ignored the range: start over.
@@ -76,10 +82,18 @@ pub async fn download(
             .open(&part)
             .map_err(|e| format!("无法写入模型文件：{e}"))?;
         progress(have, spec.size);
-        while let Some(chunk) = res.chunk().await.map_err(|e| net_error(&e))? {
-            if cancel.load(Ordering::Relaxed) {
-                return Err(CANCELLED.into());
-            }
+        // Cancel is checked while waiting for bytes too, not only when they arrive.
+        loop {
+            let next = tokio::select! {
+                r = tokio::time::timeout(STALL, res.chunk()) => r,
+                _ = cancelled(cancel) => return Err(CANCELLED.into()),
+            };
+            let Some(chunk) = next
+                .map_err(|_| STALLED.to_string())?
+                .map_err(|e| net_error(&e))?
+            else {
+                break;
+            };
             file.write_all(&chunk)
                 .map_err(|e| format!("无法写入模型文件：{e}"))?;
             hasher.update(&chunk);
@@ -114,6 +128,12 @@ fn net_error(e: &reqwest::Error) -> String {
         "下载中断：无法连接到 Hugging Face，请检查网络后重试（已下载的部分会保留）".into()
     } else {
         format!("下载中断：{e}（已下载的部分会保留）")
+    }
+}
+
+async fn cancelled(flag: &AtomicBool) {
+    while !flag.load(Ordering::Relaxed) {
+        tokio::time::sleep(Duration::from_millis(200)).await;
     }
 }
 
@@ -213,6 +233,7 @@ mod tests {
         let (url, _) = server();
         let dir = tempfile::tempdir().unwrap();
         let dest = dir.path().join("m.bin");
+        fs::write(part_path(&dest), &BODY[..10]).unwrap();
         let spec = Spec {
             url: &url,
             dest: &dest,
@@ -223,6 +244,50 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err, CANCELLED);
-        assert!(!dest.exists() && part_path(&dest).exists());
+        assert!(!dest.exists());
+        assert_eq!(fs::read(part_path(&dest)).unwrap(), &BODY[..10]);
+    }
+
+    /// The server sends a few bytes, then nothing (a dropped Wi-Fi without a reset).
+    #[tokio::test]
+    async fn cancel_works_while_the_connection_is_stalled() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/model.bin", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut line = String::new();
+            while reader.read_line(&mut line).is_ok_and(|n| n > 0) && line != "\r\n" {
+                line.clear();
+            }
+            let head = format!("HTTP/1.1 200 OK\r\ncontent-length: {}\r\n\r\n", BODY.len());
+            let _ = stream.write_all(head.as_bytes());
+            let _ = stream.write_all(&BODY[..10]);
+            let _ = stream.flush();
+            std::thread::sleep(Duration::from_secs(30));
+        });
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("m.bin");
+        let spec = Spec {
+            url: &url,
+            dest: &dest,
+            size: BODY.len() as u64,
+            sha256: &sha(BODY),
+        };
+        let cancel = Arc::new(AtomicBool::new(false));
+        let flag = cancel.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(500));
+            flag.store(true, Ordering::Relaxed);
+        });
+        let started = std::time::Instant::now();
+        let err = download(&spec, &cancel, |_, _| {}).await.unwrap_err();
+        assert_eq!(err, CANCELLED);
+        assert!(
+            started.elapsed() < Duration::from_secs(3),
+            "{:?}",
+            started.elapsed()
+        );
+        assert_eq!(fs::read(part_path(&dest)).unwrap(), &BODY[..10]);
     }
 }
