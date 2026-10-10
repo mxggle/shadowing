@@ -45,6 +45,13 @@ tempfile = "3"
 hound = "3.5"
 tokio = { version = "1", features = ["macros", "rt", "net", "io-util"] }
 
+# Smaller download: 38 MB → 25.5 MB binary, 12.8 MB → 10.4 MB zip (measured on v0.2.0).
+# Not `panic = "abort"`: audio/decode.rs catches decoder panics with catch_unwind.
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+
 # DSP is ~10x slower unoptimised; keep `tauri dev` builds usable.
 [profile.dev.package.signalsmith-stretch]
 opt-level = 3
