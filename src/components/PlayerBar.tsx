@@ -1,18 +1,17 @@
 import { Pause, Play, RotateCcw, RotateCw, SkipBack, SkipForward } from "lucide-react";
 import { useState } from "react";
-import { RATE_PRESETS } from "../audio/logic";
 import { useFlash } from "../hooks/useFlash";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { LoopStrip, useLoopPhase } from "./Loop";
 import { PlaybackMenu } from "./PlaybackMenu";
-import { PlayModeButton } from "./PlayMode";
 import { Scrubber } from "./Scrubber";
 import { DeckButton } from "./ui";
 
 /**
- * The deck: (the running loop, with a transcript), timeline, loop key,
- * transport, play mode, speed. Same in every state of the main area.
+ * The deck: (the running loop, with a transcript), timeline, then three
+ * zones: practice (the loop key), transport, and how it plays (one settings
+ * key with the speed). Same in every state of the main area.
  */
 export function PlayerBar() {
   return (
@@ -24,9 +23,7 @@ export function PlayerBar() {
           <LoopKey />
         </div>
         <Transport />
-        <div className="flex min-w-0 items-center justify-end gap-1.5">
-          <PlayModeButton />
-          <RatePresets />
+        <div className="flex min-w-0 justify-end">
           <PlaybackMenu />
         </div>
       </div>
@@ -66,9 +63,11 @@ function LoopKey() {
   const hasTrack = useApp((s) => !!s.current);
   const flashing = useFlash("loop");
   const look = {
-    idle: { label: "A–B 循环", title: "听到句首按一下设起点 A (L)" },
-    armed: { label: "设终点 B", title: "听到句尾按一下设终点 B (L)" },
-    active: { label: loopSentence === null ? "循环中" : `循环第 ${loopSentence + 1} 句`, title: "取消循环 (L)" },
+    idle: { label: "A–B 循环", short: "A–B", title: "听到句首按一下设起点 A (L)" },
+    armed: { label: "设终点 B", short: "设 B", title: "听到句尾按一下设终点 B (L)" },
+    active: loopSentence === null
+      ? { label: "循环中", short: "循环中", title: "取消循环 (L)" }
+      : { label: `循环第 ${loopSentence + 1} 句`, short: `第 ${loopSentence + 1} 句`, title: "取消循环 (L)" },
   }[phase];
   return (
     <button
@@ -80,7 +79,7 @@ function LoopKey() {
         useApp.getState().tip("abLoop");
       }}
       data-flash={flashing || undefined}
-      className={`flex h-9 max-w-full items-center gap-2 rounded-[10px] pr-3.5 pl-3 text-[13px] font-medium whitespace-nowrap transition-[background-color,color,scale] duration-150 ease-snappy active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40 data-[flash]:scale-[0.96] ${
+      className={`flex h-8 max-w-full items-center gap-2 rounded-[8px] pr-3 pl-[11px] text-[13px] font-medium whitespace-nowrap transition-[background-color,color,scale] duration-150 ease-snappy active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40 data-[flash]:scale-[0.96] ${
         {
           idle: "btn text-fg/85 hover:text-fg",
           armed: "text-loop-text outline-1 -outline-offset-1 outline-loop-line outline-dashed hover:bg-loop-soft",
@@ -89,7 +88,8 @@ function LoopKey() {
       }`}
     >
       <Dot phase={phase} />
-      <span className="truncate">{look.label}</span>
+      <span className="truncate @[480px]:hidden">{look.short}</span>
+      <span className="hidden truncate @[480px]:inline">{look.label}</span>
     </button>
   );
 }
@@ -147,31 +147,5 @@ function StepIcon({ icon: Icon, seconds }: { icon: typeof RotateCcw; seconds: nu
       <Icon size={22} strokeWidth={1.5} />
       <span className="tabular absolute pt-px text-[8.5px] font-semibold tracking-[-0.02em]">{seconds}</span>
     </span>
-  );
-}
-
-/** One-click speeds as a segmented control; the menu next to it has the fine control. */
-function RatePresets() {
-  const rate = useApp((s) => s.settings.rate);
-  const setRate = useApp((s) => s.setRate);
-  return (
-    <div className="tint hidden rounded-[10px] p-[3px] @[660px]:flex" role="group" aria-label="常用速度">
-      {RATE_PRESETS.map((p) => {
-        const on = Math.abs(rate - p) < 0.001;
-        return (
-          <button
-            key={p}
-            aria-pressed={on}
-            title={`${p.toFixed(2)}×`}
-            onClick={() => setRate(p)}
-            className={`tabular h-[26px] min-w-[38px] rounded-[7px] px-1.5 font-mono text-[11px] transition-[background-color,color,box-shadow] duration-150 ${
-              on ? "bg-raised font-medium text-fg shadow-[0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
-            }`}
-          >
-            {p === 1 ? "1.0" : p}
-          </button>
-        );
-      })}
-    </div>
   );
 }
