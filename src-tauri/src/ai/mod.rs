@@ -60,6 +60,7 @@ impl AiConfig {
     pub fn base_url(&self, preset: &Preset) -> String {
         self.base_urls
             .get(preset.id)
+            .filter(|_| preset.url_editable())
             .cloned()
             .unwrap_or_else(|| preset.base_url.to_string())
     }
@@ -190,6 +191,9 @@ pub fn ai_set_base_url(
     url: String,
 ) -> Result<AiConfig, String> {
     let preset = preset(&provider)?;
+    if !preset.url_editable() {
+        return Err(format!("{} 的地址不能修改", preset.name));
+    }
     let url = normalize_url(&url)?.filter(|u| u != preset.base_url);
     state.update(|d| match url {
         Some(url) => drop(d.ai.base_urls.insert(provider, url)),
@@ -277,6 +281,20 @@ mod tests {
         cfg.base_urls
             .insert("ollama".into(), "http://10.0.0.2:11434/v1".into());
         assert_eq!(cfg.base_url(ollama), "http://10.0.0.2:11434/v1");
+    }
+
+    #[test]
+    fn fixed_cloud_services_ignore_an_address_override() {
+        let mut cfg = AiConfig::default();
+        for id in ["openai", "anthropic", "chatgpt"] {
+            let preset = providers::find(id).unwrap();
+            assert!(!preset.url_editable(), "{id}");
+            cfg.base_urls
+                .insert(id.into(), "https://elsewhere.example/v1".into());
+            assert_eq!(cfg.base_url(preset), preset.base_url, "{id}");
+        }
+        assert!(providers::find("custom-chat").unwrap().url_editable());
+        assert!(providers::find("ollama").unwrap().url_editable());
     }
 
     #[test]

@@ -7,8 +7,11 @@ use super::Target;
 use serde_json::{json, Value};
 use std::time::Duration;
 
-/// A local model may need to load into memory first; give it time.
-const TIMEOUT: Duration = Duration::from_secs(120);
+/// Time for a short answer. Replies aren't streamed, so the whole answer has to arrive
+/// within the limit; a long one (`max_tokens`) gets more, and a model on this Mac
+/// (slower, and it may first have to load into memory) gets double.
+const BASE_TIMEOUT: Duration = Duration::from_secs(120);
+const TOKENS_PER_SEC: u64 = 20;
 
 pub struct Prompt<'a> {
     pub system: &'a str,
@@ -16,8 +19,20 @@ pub struct Prompt<'a> {
     pub max_tokens: u32,
 }
 
+fn timeout(target: &Target, prompt: &Prompt<'_>) -> Duration {
+    let t = BASE_TIMEOUT.max(Duration::from_secs(
+        u64::from(prompt.max_tokens) / TOKENS_PER_SEC,
+    ));
+    if target.preset.local {
+        t * 2
+    } else {
+        t
+    }
+}
+
 pub async fn complete(target: &Target, model: &str, prompt: &Prompt<'_>) -> Result<String, String> {
     let ep = target.endpoint();
+    let wait = timeout(target, prompt);
     let name = target.preset.name;
     match target.preset.api {
         Api::OpenAi => {
@@ -36,7 +51,7 @@ pub async fn complete(target: &Target, model: &str, prompt: &Prompt<'_>) -> Resu
             });
             body[limit] = json!(prompt.max_tokens);
             let text = ep
-                .send(ep.post("/chat/completions").json(&body).timeout(TIMEOUT))
+                .send(ep.post("/chat/completions").json(&body).timeout(wait))
                 .await?;
             openai_text(&text).ok_or_else(|| unreadable(name))
         }
@@ -48,7 +63,7 @@ pub async fn complete(target: &Target, model: &str, prompt: &Prompt<'_>) -> Resu
                 "messages": [{ "role": "user", "content": prompt.user }],
             });
             let text = ep
-                .send(ep.post("/messages").json(&body).timeout(TIMEOUT))
+                .send(ep.post("/messages").json(&body).timeout(wait))
                 .await?;
             anthropic_text(&text).ok_or_else(|| unreadable(name))
         }
@@ -62,7 +77,7 @@ pub async fn complete(target: &Target, model: &str, prompt: &Prompt<'_>) -> Resu
                 "stream": true,
             });
             let text = ep
-                .send(ep.post("/responses").json(&body).timeout(TIMEOUT))
+                .send(ep.post("/responses").json(&body).timeout(wait))
                 .await?;
             super::chatgpt::read_stream(&text)
         }

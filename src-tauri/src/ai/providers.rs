@@ -58,6 +58,13 @@ pub struct Preset {
 }
 
 impl Preset {
+    /// Whether the user may point this service at another address: servers on this Mac
+    /// and custom ones. A fixed cloud service (and an account sign-in, whose token is
+    /// only for that service) always uses its own address, so a key can't be sent elsewhere.
+    pub fn url_editable(&self) -> bool {
+        self.key != KeyPolicy::Account && (self.local || self.base_url.is_empty())
+    }
+
     pub fn default_model(&self, feature: Feature) -> Option<&'static str> {
         match feature {
             Feature::Transcribe => self.transcribe_model,
