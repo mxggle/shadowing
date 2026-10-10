@@ -101,16 +101,19 @@ pub fn transcribe_start(
                     .and_then(|mut t| run(&job, &mut t, transcribing)),
             };
             // A trial run only shows that transcription works; skip the extra wait.
-            let result = result.and_then(|mut sentences| {
+            let result = result.map(|mut sentences| {
                 if keep {
                     let total = sentences.last().map_or(0.0, |s| s.end);
                     let finding = progress(Step::Speakers);
                     finding(0.0, total);
-                    crate::speakers::find(&models, &audio, &mut sentences, &cancel, |done| {
-                        finding(done, total)
-                    })?;
+                    // Cancelling here skips the speakers, not the finished transcript:
+                    // `find` only fails when cancelled and leaves the sentences unlabelled.
+                    let _skipped =
+                        crate::speakers::find(&models, &audio, &mut sentences, &cancel, |done| {
+                            finding(done, total)
+                        });
                 }
-                Ok(sentences)
+                sentences
             });
             let status = match result {
                 Ok(sentences) => {
