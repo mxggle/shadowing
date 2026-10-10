@@ -1,0 +1,88 @@
+# Builds Shadowing.app and zips it.
+# - Pushing a tag vX.Y.Z: checks the tag matches the app version, then creates a DRAFT release with the zip and
+#   notes from CHANGELOG.md (or adds the zip to a release that already exists). Review the draft, then publish it.
+# - Running it by hand (Actions → Release → Run workflow): only builds, and keeps the zip as a workflow artifact.
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: release
+
+      - name: Version
+        id: version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version=$(scripts/check-version.sh "$GITHUB_REF_NAME")
+          else
+            version=$(scripts/check-version.sh)
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "zip=Shadowing-$version-macos-arm64.zip" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+
+      - name: Build the app
+        run: npm run tauri build -- --bundles app
+
+      - name: Zip
+        id: zip
+        env:
+          ZIP: ${{ steps.version.outputs.zip }}
+        run: |
+          app=src-tauri/target/release/bundle/macos/Shadowing.app
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")" = "${{ steps.version.outputs.version }}"
+          lipo -archs "$app/Contents/MacOS/shadowing"
+          ditto -c -k --keepParent "$app" "$ZIP"
+          echo "sha256=$(shasum -a 256 "$ZIP" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Keep the zip (manual runs)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.zip }}
+          path: ${{ steps.version.outputs.zip }}
+          retention-days: 14
+
+      - name: Draft the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ZIP: ${{ steps.version.outputs.zip }}
+          SHA: ${{ steps.zip.outputs.sha256 }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists; replacing its zip."
+            gh release upload "$TAG" "$ZIP" --clobber
+          else
+            scripts/release-notes.sh "$VERSION" "$SHA" > notes.md
+            gh release create "$TAG" "$ZIP" --draft --verify-tag --title "Shadowing $VERSION" --notes-file notes.md
+          fi

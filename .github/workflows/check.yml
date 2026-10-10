@@ -1,0 +1,49 @@
+# Runs `npm run check` (tsc + vite build + vitest + cargo fmt/clippy/test) on every PR and every push to main.
+# macOS on Apple Silicon, the only platform the app ships for; whisper.cpp needs Metal and cmake.
+name: Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Tools
+        run: |
+          cmake --version | head -1 || brew install cmake
+          node --version
+          rustc --version
+
+      - run: npm ci
+
+      - name: Versions agree
+        run: scripts/check-version.sh
+
+      - run: npm run check

@@ -116,9 +116,14 @@ npm run app                           # 开发模式启动应用
 
 ## 发布
 
-1. 从 `main` 开 `release/vX.Y.Z` 分支：把「未发布」改成版本号和日期，五处版本号一起改
-   （`package.json`、`package-lock.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`src-tauri/tauri.conf.json`），
-   提交 `chore(release): vX.Y.Z`，跑 `npm run check`，开 PR 合并（rebase，保留每个小提交）。
-2. 在合并后的 `main` 上打附注标签 `vX.Y.Z` 并推送；`npm run tauri build -- --bundles app` 构建，
-   用 `ditto -c -k --keepParent Shadowing.app Shadowing-X.Y.Z-macos-arm64.zip` 打包。
-3. `gh release create vX.Y.Z <zip> --title "Shadowing X.Y.Z"`，说明取自 CHANGELOG，并保留安装步骤（未签名、`xattr` 去隔离）。
+1. 从 `main` 开 `release/vX.Y.Z` 分支：把 CHANGELOG 的「未发布」改成版本号和日期，五处版本号一起改
+   （`package.json`、`package-lock.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`src-tauri/tauri.conf.json`，
+   `scripts/check-version.sh` 检查它们一致），提交 `chore(release): vX.Y.Z`，开 PR，CI 绿了再合并（rebase，保留每个小提交）。
+2. 在合并后的 `main` 上打附注标签 `vX.Y.Z` 并推送。`.github/workflows/release.yml` 会构建 `Shadowing-X.Y.Z-macos-arm64.zip`，
+   建一个**草稿** Release，说明由 `scripts/release-notes.sh` 从 CHANGELOG 生成（含安装步骤和 SHA-256）。
+3. 在 GitHub 上看草稿：补上“已知限制 / 还没验证”，下载 zip 打开一次，再点发布。
+
+## CI
+
+- `.github/workflows/check.yml`：每个 PR 和推到 `main` 时在 macOS（Apple Silicon）上跑 `scripts/check-version.sh` 和 `npm run check`。
+- `.github/workflows/release.yml`：推送 `v*.*.*` 标签时出草稿 Release；手动运行只构建，zip 留在 Actions 的产物里 14 天。
