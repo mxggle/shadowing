@@ -168,7 +168,8 @@ function Progress({ job }: { job: Extract<TranscribeStatus, { state: "running" }
             useApp.getState().cancelTranscribe();
           }}
         >
-          {stopping ? "正在取消…" : "取消"}
+          {/* The transcript is done by then: stopping keeps it, without speakers. */}
+          {speakers ? (stopping ? "正在跳过…" : "跳过") : stopping ? "正在取消…" : "取消"}
         </Button>
       </div>
       <div className="mt-3 h-1 overflow-hidden rounded-full bg-track">

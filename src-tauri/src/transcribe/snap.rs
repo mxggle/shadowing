@@ -59,15 +59,27 @@ pub fn snap(sentences: &mut [Sentence], db: &[f32]) {
         if i + 1 < sentences.len() {
             let n = &sentences[i + 1];
             let lo = (n.start - LATER_END).max(sentences[i].end - TAIL);
-            let hi = (n.start + LATER_START).min(n.end - 0.1);
+            // If this end just moved onto a later pause, look for the next start after it too.
+            let hi = (n.start + LATER_START)
+                .max(sentences[i].end + LATER_START)
+                .min(n.end - 0.1);
             if let Some((_, quiet_to)) = longest_pause(db, lo, hi) {
                 sentences[i + 1].start = quiet_to;
             }
         }
     }
-    for i in 1..sentences.len() {
-        sentences[i].start = sentences[i].start.max(sentences[i - 1].start);
+    for i in 0..sentences.len() {
+        if i > 0 {
+            sentences[i].start = sentences[i].start.max(sentences[i - 1].start);
+        }
         sentences[i].end = sentences[i].end.max(sentences[i].start + 0.05);
+    }
+    // Never overlap the next sentence: looping one would start inside the other.
+    for i in 0..sentences.len().saturating_sub(1) {
+        let next = sentences[i + 1].start;
+        if sentences[i].end > next {
+            sentences[i].end = next.max(sentences[i].start + 0.05);
+        }
     }
 }
 
@@ -176,6 +188,23 @@ mod tests {
         let mut v = [s(0.0, 1.45), s(2.2, 3.2)];
         snap(&mut v, &db);
         assert_eq!(round(&v)[0], (0.0, 1.78));
+    }
+
+    #[test]
+    fn a_moved_end_never_overlaps_the_next_sentence() {
+        // Two sentences split proportionally inside one segment (no word times):
+        // the real pause is at 2.0–2.3 s, well after the guessed boundary at 1.5 s.
+        let db = track(&[
+            (0.2, -70.0),
+            (1.8, -20.0),
+            (0.3, -65.0),
+            (1.1, -22.0),
+            (1.0, -70.0),
+        ]);
+        let mut v = [s(0.2, 1.5), s(1.5, 3.2)];
+        snap(&mut v, &db);
+        assert!(v[0].end <= v[1].start, "{:?}", round(&v));
+        assert_eq!(round(&v), [(0.2, 2.08), (2.3, 3.48)]);
     }
 
     #[test]
