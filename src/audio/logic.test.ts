@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, shouldJumpToA } from "./logic";
+import { clampRate, clampSeekStep, cycleLoop, nextPlayMode, NO_LOOP, nudgeLoop, resumePosition, shouldJumpToA, trackAfter } from "./logic";
 
 describe("loop", () => {
   it("cycles A → B → clear", () => {
@@ -55,5 +55,35 @@ describe("seek step", () => {
     expect(clampSeekStep(0)).toBe(1);
     expect(clampSeekStep(600)).toBe(60);
     expect(clampSeekStep(NaN)).toBe(5);
+  });
+});
+
+describe("play mode", () => {
+  it("at the end of a track", () => {
+    expect(trackAfter("next", 0, 3, 1, true)).toBe(1);
+    expect(trackAfter("next", 2, 3, 1, true)).toBeNull();
+    expect(trackAfter("list", 2, 3, 1, true)).toBe(0);
+    expect(trackAfter("one", 1, 3, 1, true)).toBeNull();
+    expect(trackAfter("once", 1, 3, 1, true)).toBeNull();
+  });
+
+  it("when skipping by hand", () => {
+    expect(trackAfter("one", 1, 3, 1, false)).toBe(2);
+    expect(trackAfter("once", 1, 3, -1, false)).toBe(0);
+    expect(trackAfter("next", 0, 3, -1, false)).toBeNull();
+    expect(trackAfter("list", 0, 3, -1, false)).toBe(2);
+    expect(trackAfter("list", 0, 1, 1, true)).toBe(0);
+  });
+
+  it("never moves off a clip outside the folder", () => {
+    expect(trackAfter("list", -1, 3, 1, true)).toBeNull();
+    expect(trackAfter("next", 0, 0, 1, true)).toBeNull();
+  });
+
+  it("cycles through every mode", () => {
+    expect(nextPlayMode("next")).toBe("list");
+    expect(nextPlayMode("list")).toBe("one");
+    expect(nextPlayMode("one")).toBe("once");
+    expect(nextPlayMode("once")).toBe("next");
   });
 });

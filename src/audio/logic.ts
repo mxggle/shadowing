@@ -42,6 +42,28 @@ export function nudgeLoop(loop: Loop, which: "a" | "b", delta: number, duration:
   return { ...loop, b };
 }
 
+/** What happens when a track plays to its end. */
+export type PlayMode = "once" | "next" | "list" | "one";
+
+/** Order the mode button walks through: the default first, then the two repeats, then stop. */
+export const PLAY_MODES: PlayMode[] = ["next", "list", "one", "once"];
+
+export const nextPlayMode = (mode: PlayMode): PlayMode => PLAY_MODES[(PLAY_MODES.indexOf(mode) + 1) % PLAY_MODES.length];
+
+/**
+ * Index of the track to open after `index` of `count`, or null to stay put.
+ * `ended`: the track played to its end (otherwise the user pressed next / previous).
+ * An index of -1 is a clip outside the folder (the sample), which never moves on.
+ */
+export function trackAfter(mode: PlayMode, index: number, count: number, direction: 1 | -1, ended: boolean): number | null {
+  if (index < 0 || count === 0) return null;
+  if (ended && (mode === "once" || mode === "one")) return null;
+  const next = index + direction;
+  if (next >= 0 && next < count) return next;
+  // Only "repeat the list" wraps around; manual skipping wraps too, like a music player.
+  return mode === "list" ? (next + count) % count : null;
+}
+
 const RESUME_REWIND = 2;
 const FINISHED_MARGIN = 3;
 

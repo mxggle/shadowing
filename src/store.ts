@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { AudioEngine } from "./audio/engine";
-import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, type Loop } from "./audio/logic";
+import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, trackAfter, type Loop, type PlayMode } from "./audio/logic";
 import { listen } from "@tauri-apps/api/event";
 import { api, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
@@ -46,9 +46,10 @@ export interface AppState extends TranscriptState, CorrectState, ProofreadState,
   seekBy(delta: number): void;
   /** Jump back (-1) or forward (+1) by the configured step. */
   jump(direction: 1 | -1): void;
-  step(direction: 1 | -1): void;
+  /** Previous / next track; `ended` when the current one just played to its end. */
+  step(direction: 1 | -1, ended?: boolean): void;
   setRate(rate: number): void;
-  setAutoAdvance(on: boolean): void;
+  setPlayMode(mode: PlayMode): void;
   setSeekStep(seconds: number): void;
   setTranscribeLanguage(language: string): void;
   cycleLoop(): void;
@@ -83,8 +84,8 @@ export const useApp = create<AppState>((set, get) => {
     },
     onEnded: () => {
       saveProgress(true);
-      const { settings, loop } = get();
-      if (settings.autoAdvance && loop.b === null) get().step(1);
+      // An A–B or sentence loop never reaches the end, so this is the whole track finishing.
+      if (get().loop.b === null) get().step(1, true);
     },
     onError: (error) => set({ error, playing: false }),
   });
@@ -135,7 +136,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, autoAdvance: true, seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "" },
     current: null,
     playing: false,
     time: 0,
@@ -243,13 +244,16 @@ export const useApp = create<AppState>((set, get) => {
       get().seekBy(direction * get().settings.seekStep);
     },
 
-    step(direction) {
-      const { folder, current } = get();
-      if (!folder || !current) return;
-      const i = folder.tracks.findIndex((t) => t.path === current.path);
-      if (i < 0) return; // the sample clip isn't part of the folder
-      const next = folder.tracks[i + direction];
-      if (next) get().open(next, true);
+    step(direction, ended = false) {
+      const { folder, current, settings } = get();
+      if (!current) return;
+      const tracks = folder?.tracks ?? [];
+      // -1 for the sample clip, which isn't part of the folder.
+      const i = tracks.findIndex((t) => t.path === current.path);
+      const next = trackAfter(settings.playMode, i, tracks.length, direction, ended);
+      // Starting the same track again (repeat one, or a one-track list): the engine restarts it from 0.
+      if (ended && (settings.playMode === "one" || next === i)) engine.play();
+      else if (next !== null) get().open(tracks[next], true);
     },
 
     setRate(rate) {
@@ -258,8 +262,8 @@ export const useApp = create<AppState>((set, get) => {
       persistSettings({ rate: r });
     },
 
-    setAutoAdvance(autoAdvance) {
-      persistSettings({ autoAdvance });
+    setPlayMode(playMode) {
+      persistSettings({ playMode });
     },
 
     setSeekStep(seconds) {

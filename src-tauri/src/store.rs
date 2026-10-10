@@ -9,7 +9,11 @@ use std::path::{Path, PathBuf};
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub rate: f64,
-    pub auto_advance: bool,
+    /// What happens when a track plays to its end.
+    pub play_mode: PlayMode,
+    /// Read from files written before `play_mode` existed; never written back.
+    #[serde(skip_serializing)]
+    auto_advance: Option<bool>,
     /// Seconds jumped by ← → and the rewind/forward buttons.
     pub seek_step: f64,
     /// Last language picked for transcription ("" = detect).
@@ -20,11 +24,25 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             rate: 1.0,
-            auto_advance: true,
+            play_mode: PlayMode::Next,
+            auto_advance: None,
             seek_step: 5.0,
             transcribe_language: String::new(),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PlayMode {
+    /// Stop at the end of the track.
+    Once,
+    /// Play the folder in order, stop after the last track.
+    Next,
+    /// Play the folder in order, then start over.
+    List,
+    /// Repeat the current track.
+    One,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,11 +71,16 @@ impl Persisted {
         let Ok(text) = fs::read_to_string(path) else {
             return Self::default();
         };
-        serde_json::from_str(&text).unwrap_or_else(|err| {
+        let mut state: Self = serde_json::from_str(&text).unwrap_or_else(|err| {
             eprintln!("state file unreadable ({err}); starting fresh");
             let _ = fs::rename(path, path.with_extension("corrupt.json"));
             Self::default()
-        })
+        });
+        // The old on/off "continuous play" switch: off meant stop after each track.
+        if state.settings.auto_advance.take() == Some(false) {
+            state.settings.play_mode = PlayMode::Once;
+        }
+        state
     }
 
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
@@ -105,9 +128,31 @@ mod tests {
     fn older_files_get_new_setting_defaults() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("state.json");
-        fs::write(&path, r#"{"settings":{"rate":0.8,"autoAdvance":false}}"#).unwrap();
+        fs::write(&path, r#"{"settings":{"rate":0.8}}"#).unwrap();
         let s = Persisted::load(&path).settings;
-        assert_eq!((s.rate, s.auto_advance, s.seek_step), (0.8, false, 5.0));
+        assert_eq!(
+            (s.rate, s.play_mode, s.seek_step),
+            (0.8, PlayMode::Next, 5.0)
+        );
+    }
+
+    #[test]
+    fn old_continuous_play_switch_becomes_a_play_mode() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("state.json");
+        fs::write(&path, r#"{"settings":{"autoAdvance":false}}"#).unwrap();
+        let loaded = Persisted::load(&path);
+        assert_eq!(loaded.settings.play_mode, PlayMode::Once);
+        // Saved back without the old field.
+        loaded.save(&path).unwrap();
+        let text = fs::read_to_string(&path).unwrap();
+        assert!(text.contains(r#""playMode": "once""#) && !text.contains("autoAdvance"));
+        fs::write(
+            &path,
+            r#"{"settings":{"autoAdvance":true,"playMode":"one"}}"#,
+        )
+        .unwrap();
+        assert_eq!(Persisted::load(&path).settings.play_mode, PlayMode::One);
     }
 
     #[test]

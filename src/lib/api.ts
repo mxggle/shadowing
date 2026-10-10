@@ -1,5 +1,6 @@
 // The only module that talks to Rust. Everything else imports from here.
 import { invoke } from "@tauri-apps/api/core";
+import type { PlayMode } from "../audio/logic";
 
 export interface Track {
   path: string;
@@ -16,7 +17,8 @@ export interface FolderListing {
 
 export interface Settings {
   rate: number;
-  autoAdvance: boolean;
+  /** What happens when a track plays to its end. */
+  playMode: PlayMode;
   /** Seconds jumped by ← → and the rewind/forward buttons. */
   seekStep: number;
   /** Last language picked for transcription ("" = detect). */
