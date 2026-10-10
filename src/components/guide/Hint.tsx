@@ -1,8 +1,6 @@
 import { X } from "lucide-react";
+import { hintPieces } from "../../lib/hint";
 import { useApp } from "../../store";
-
-/** A key named on its own in a tip ("按 S 循环"), drawn as a key. */
-const KEY = /(?<=^|\s)([A-Z[\]−=-])(?=\s|$)/;
 
 /** One-off tip floating just above the deck (see `tip()` in guideSlice). */
 export function Hint() {
@@ -15,13 +13,13 @@ export function Hint() {
         className="absolute bottom-3 left-1/2 z-10 flex w-max max-w-[calc(100%-2rem)] -translate-x-1/2 animate-pop-up items-center gap-2.5 rounded-[10px] bg-ink py-1.5 pr-1.5 pl-3.5 text-[13px] text-on-ink shadow-lift"
       >
         <span>
-          {hint.split(KEY).map((part, i) =>
-            i % 2 ? (
+          {hintPieces(hint).map((part, i) =>
+            part.key ? (
               <kbd key={i} className="mx-px inline-grid h-[18px] min-w-[18px] place-items-center rounded-[4px] bg-on-ink/15 px-1 font-sans text-[11px] font-medium">
-                {part}
+                {part.text}
               </kbd>
             ) : (
-              part
+              part.text
             ),
           )}
         </span>

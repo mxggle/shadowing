@@ -67,6 +67,8 @@ function loadShelfOpen(): boolean {
 }
 
 const SAVE_EVERY_MS = 2000;
+/** Holding = or typing a seek step changes settings many times a second; write once it settles. */
+const SETTINGS_SETTLE_MS = 400;
 /** Exposed for the debug smoke test only. */
 export let debugEngine: AudioEngine | null = null;
 let lastSaved = { path: "", position: -1 };
@@ -102,9 +104,15 @@ export const useApp = create<AppState>((set, get) => {
     if (get().playing) saveProgress(false);
   }, SAVE_EVERY_MS);
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") saveProgress(true);
+    if (document.visibilityState === "hidden") {
+      saveProgress(true);
+      flushSettings();
+    }
   });
-  window.addEventListener("pagehide", () => saveProgress(true));
+  window.addEventListener("pagehide", () => {
+    saveProgress(true);
+    flushSettings();
+  });
 
   function saveProgress(force: boolean) {
     const { current } = get();
@@ -119,10 +127,18 @@ export const useApp = create<AppState>((set, get) => {
     void api.saveProgress(current.path, position, duration);
   }
 
+  let settingsTimer: number | null = null;
   function persistSettings(patch: Partial<Settings>) {
-    const settings = { ...get().settings, ...patch };
-    set({ settings });
-    void api.saveSettings(settings);
+    set({ settings: { ...get().settings, ...patch } });
+    if (settingsTimer !== null) window.clearTimeout(settingsTimer);
+    settingsTimer = window.setTimeout(flushSettings, SETTINGS_SETTLE_MS);
+  }
+
+  function flushSettings() {
+    if (settingsTimer === null) return;
+    window.clearTimeout(settingsTimer);
+    settingsTimer = null;
+    void api.saveSettings(get().settings);
   }
 
   /** `sentence`: which transcript sentence this loop repeats, if any. */
@@ -175,7 +191,8 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     setSettingsOpen(settingsOpen) {
-      set({ settingsOpen });
+      // One overlay at a time: ⌘, while the AI wizard is open replaces it (as the wizard replaces settings).
+      set(settingsOpen ? { settingsOpen, wizardOpen: false } : { settingsOpen });
     },
     toggleShelf() {
       const shelfOpen = !get().shelfOpen;
