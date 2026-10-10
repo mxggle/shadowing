@@ -94,9 +94,15 @@ impl Loopback {
         Ok(Self { listener, port })
     }
 
-    /// Waits for `GET {path}?…`, answers with a small page and returns the query.
-    /// Other requests (favicon…) get a 404 and waiting continues.
-    pub fn wait(&self, path: &str, service: &str) -> Result<HashMap<String, String>, String> {
+    /// Waits for `GET {path}?…&state={state}`, answers with a small page and returns the query.
+    /// Other requests (favicon…) get a 404, and a callback with another `state` (not from
+    /// this sign-in, e.g. another program on this Mac) gets a 400; waiting continues.
+    pub fn wait(
+        &self,
+        path: &str,
+        state: &str,
+        service: &str,
+    ) -> Result<HashMap<String, String>, String> {
         let deadline = Instant::now() + WAIT;
         loop {
             if CANCEL.load(Ordering::Relaxed) {
@@ -133,6 +139,12 @@ impl Loopback {
                 continue;
             }
             let query: HashMap<String, String> = url.query_pairs().into_owned().collect();
+            if query.get("state").map(String::as_str) != Some(state) {
+                let _ = stream.write_all(
+                    b"HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+                );
+                continue;
+            }
             let ok = query.contains_key("code");
             let page = format!(
                 "<!doctype html><meta charset=utf-8><title>Shadowing</title>\
@@ -203,9 +215,12 @@ mod tests {
                 reply
             };
             assert!(get("/favicon.ico").starts_with("HTTP/1.1 404"));
+            // Someone else's callback doesn't end this sign-in.
+            assert!(get("/callback?code=evil&state=other").starts_with("HTTP/1.1 400"));
+            assert!(get("/callback?code=evil").starts_with("HTTP/1.1 400"));
             assert!(get("/callback?code=abc%2B1&state=xyz").contains("已连接 Test"));
         });
-        let q = lb.wait("/callback", "Test").unwrap();
+        let q = lb.wait("/callback", "xyz", "Test").unwrap();
         assert_eq!((q["code"].as_str(), q["state"].as_str()), ("abc+1", "xyz"));
     }
 }

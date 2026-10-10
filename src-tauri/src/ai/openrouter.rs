@@ -33,10 +33,12 @@ pub async fn ai_sign_in_openrouter(
     .map_err(|e| e.to_string())?;
     oauth::open_browser(url.as_str())?;
 
-    let query =
-        tauri::async_runtime::spawn_blocking(move || loopback.wait("/callback", "OpenRouter"))
-            .await
-            .map_err(|e| e.to_string())??;
+    let expected = csrf.clone();
+    let query = tauri::async_runtime::spawn_blocking(move || {
+        loopback.wait("/callback", &expected, "OpenRouter")
+    })
+    .await
+    .map_err(|e| e.to_string())??;
     if query.get("state") != Some(&csrf) {
         return Err("登录回调不匹配，请重试".into());
     }
