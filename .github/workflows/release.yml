@@ -1,12 +1,21 @@
 # Builds Shadowing.app and zips it.
 # - Pushing a tag vX.Y.Z: checks the tag matches the app version, then creates a DRAFT release with the zip and
 #   notes from CHANGELOG.md (or adds the zip to a release that already exists). Review the draft, then publish it.
-# - Running it by hand (Actions → Release → Run workflow): only builds, and keeps the zip as a workflow artifact.
+# - Running it by hand (Actions → Release → Run workflow), or a PR that touches the version or the release
+#   tooling (release/vX.Y.Z PRs, changes to this file): only builds, and keeps the zip as a workflow artifact.
 name: Release
 
 on:
   push:
     tags: ["v*.*.*"]
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - scripts/check-version.sh
+      - scripts/release-notes.sh
+      - rust-toolchain.toml
+      - src-tauri/tauri.conf.json
+      - CHANGELOG.md
   workflow_dispatch:
 
 permissions:
