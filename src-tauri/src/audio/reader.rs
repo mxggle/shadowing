@@ -253,6 +253,11 @@ impl Reader {
             }
             return false;
         };
+        if r.end <= lp.a {
+            // A lies past the real end (the file is shorter than its header said):
+            // there is nothing to loop back to, so play on into the end.
+            return self.abandon_wrap(fifo);
+        }
         let xf = self
             .xf
             .min(((lp.b - lp.a) / 2) as usize)

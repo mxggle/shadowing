@@ -15,8 +15,15 @@ pub fn player_load(
     start_at: f64,
     autoplay: bool,
 ) -> Result<Status, String> {
-    let file = state.audio(&path)?;
-    player.load(path, file, start_at, autoplay)?;
+    let loaded = state
+        .audio(&path)
+        .and_then(|file| player.load(path, file, start_at, autoplay));
+    if let Err(e) = loaded {
+        // Stop the previous track too: the window now shows the one that failed,
+        // so anything still playing could no longer be seen or paused.
+        player.unload()?;
+        return Err(e);
+    }
     Ok(player.status())
 }
 
