@@ -79,7 +79,17 @@ export class AudioEngine {
     this.path = path;
     this.status = { path, time: startAt, duration: 0, playing: false, repeats: 0, seq: this.lastSeq };
     this.statusAt = performance.now();
-    await this.command("player_load", { path, startAt, autoplay });
+    this.inflight++;
+    try {
+      this.apply(await invoke<PlayerStatus>("player_load", { path, startAt, autoplay }));
+    } catch (err) {
+      // Rust unloaded the player; follow it so its (path-less) statuses are accepted again.
+      this.path = null;
+      this.status = { ...this.status, path: null, time: 0, playing: false };
+      this.events.onError(String(err));
+    } finally {
+      this.inflight--;
+    }
   }
 
   unload() {

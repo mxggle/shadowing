@@ -181,3 +181,42 @@ fn loop_waits_for_region_and_survives_threaded_feed() {
         "stayed in the loop"
     );
 }
+
+/// A file shorter than its header says, with the loop's A set past the real end:
+/// the RAM region ends before A. This used to index out of range in the audio
+/// callback (a process abort); now it just plays into the end.
+#[test]
+fn loop_starting_past_the_real_end_plays_to_the_end() {
+    let dir = tempfile::tempdir().unwrap();
+    let (path, n) = ramp_wav(dir.path(), SR, 2.0);
+    let n64 = n as u64;
+    let dec = Decoder::open(&path).unwrap();
+    let claimed = n64 * 2; // e.g. a truncated MP3 whose Xing header counts the full file
+    let start = n64 - SR as u64 / 10;
+    let mut rig = Rig::with_feed(
+        &path,
+        SR,
+        2,
+        claimed,
+        Box::new(DirectFeed::new(dec)),
+        SR,
+        1.0,
+        start,
+    );
+    let (a, b) = (n64 + SR as u64 / 20, n64 + SR as u64 / 2);
+    rig.set_loop(a, b, 7);
+    let (out, _) = rig.render(SR as usize / 2, 256);
+    let idx = indices(&out, n);
+    let played: Vec<f64> = idx.iter().copied().filter(|v| !v.is_nan()).collect();
+    assert!(!played.is_empty(), "played the last tenth of a second");
+    assert!(
+        played
+            .iter()
+            .all(|&v| v >= start as f64 - 1.0 && v < n as f64),
+        "never jumped"
+    );
+    assert!(
+        idx[idx.len() - 100..].iter().all(|v| v.is_nan()),
+        "silent after the end"
+    );
+}
