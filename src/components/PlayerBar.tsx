@@ -6,12 +6,13 @@ import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { LoopStrip, useLoopPhase } from "./Loop";
 import { PlaybackMenu } from "./PlaybackMenu";
+import { PlayModeButton } from "./PlayMode";
 import { Scrubber } from "./Scrubber";
 import { DeckButton } from "./ui";
 
 /**
  * The deck: (the running loop, with a transcript), timeline, loop key,
- * transport, speed. Same in every state of the main area.
+ * transport, play mode, speed. Same in every state of the main area.
  */
 export function PlayerBar() {
   return (
@@ -24,6 +25,7 @@ export function PlayerBar() {
         </div>
         <Transport />
         <div className="flex min-w-0 items-center justify-end gap-1.5">
+          <PlayModeButton />
           <RatePresets />
           <PlaybackMenu />
         </div>

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { RATE_STEP } from "../audio/logic";
+import { nextPlayMode, RATE_STEP } from "../audio/logic";
 import { useApp } from "../store";
 import { flash, type FlashId } from "./useFlash";
 
@@ -46,6 +46,8 @@ export function useShortcuts() {
         I: [() => s.toggleExplain()],
         e: [() => s.editSentence()],
         E: [() => s.editSentence()],
+        r: [() => s.setPlayMode(nextPlayMode(s.settings.playMode)), "playMode"],
+        R: [() => s.setPlayMode(nextPlayMode(s.settings.playMode)), "playMode"],
         "-": [() => s.setRate(s.settings.rate - RATE_STEP), "slower"],
         "=": [() => s.setRate(s.settings.rate + RATE_STEP), "faster"],
       };

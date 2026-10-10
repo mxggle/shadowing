@@ -212,7 +212,7 @@ export function installMockBackend() {
     folder: fresh ? null : { root, name: "日本語ポッドキャスト", tracks },
     missingFolder: null,
     lastTrack: fresh ? null : tracks[1].path,
-    settings: { rate: 0.85, autoAdvance: true, seekStep: 5, transcribeLanguage: "" },
+    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "" },
     progress: {
       [tracks[0].path]: { position: 178, duration: 180, updatedAt: 0 },
       [tracks[1].path]: { position: 64, duration: 200, updatedAt: 0 },
@@ -232,6 +232,8 @@ export function installMockBackend() {
         case "player_pause":
         case "player_toggle":
           player.playing = cmd === "player_toggle" ? !player.playing : cmd === "player_play";
+          // Like the engine: playing after the end starts over.
+          if (player.playing && player.time >= player.duration) player.time = 0;
           return status();
         case "player_seek":
           player.time = a.time;

@@ -158,6 +158,14 @@ async function scenario() {
   const advanced = await waitFor(() => app().current?.path === tracks[1].path, 4000);
   check("auto-advance to next track at end", advanced, `now ${app().current?.name}`);
 
+  // 7b. Repeat one: the same track starts over and keeps playing.
+  app().setPlayMode("one");
+  await waitFor(() => engine.duration > 0, 3000);
+  app().seek(engine.duration - 0.5);
+  const restarted = await waitFor(() => engine.time > 0.2 && engine.time < 3 && !engine.paused, 4000);
+  check("repeat one starts the track over", restarted && app().current?.path === tracks[1].path, `now ${app().current?.name} t=${engine.time.toFixed(2)}`);
+  app().setPlayMode("next");
+
   // 8. A subtitle file next to the audio becomes its transcript; a sentence loop repeats it.
   const english = tracks.find((t) => t.name === "02 English VBR")!;
   app().open(english, true);

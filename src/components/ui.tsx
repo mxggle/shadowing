@@ -83,24 +83,6 @@ function StepButton({ flash, ...rest }: ButtonProps) {
   );
 }
 
-export function Switch({ on, onChange, label }: { on: boolean; onChange: (on: boolean) => void; label: string }) {
-  return (
-    <button
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={() => onChange(!on)}
-      className={`relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors duration-200 ${on ? "bg-ink" : "bg-track"}`}
-    >
-      <span
-        className={`absolute top-[3px] left-[3px] size-4 rounded-full shadow-[0_1px_2px_oklch(0%_0_0/0.18)] transition-[translate,background-color] duration-200 ease-snappy ${
-          on ? "translate-x-4 bg-white dark:bg-on-ink" : "bg-white"
-        }`}
-      />
-    </button>
-  );
-}
-
 /** Text button: `primary` is the solid main action of a form; plain is a tinted fill. */
 export function Button({ primary, className = "", ...rest }: ButtonProps & { primary?: boolean }) {
   return (

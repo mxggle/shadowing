@@ -3,19 +3,21 @@ import { useRef, useState } from "react";
 import { RATE_STEP, SEEK_STEP_MAX, SEEK_STEP_MIN } from "../audio/logic";
 import { useDismiss } from "../hooks/useDismiss";
 import { useApp } from "../store";
-import { Stepper, Switch } from "./ui";
+import { PLAY_MODE_LOOK, PlayModePicker } from "./PlayMode";
+import { Stepper } from "./ui";
 
-/** Speed button in the player bar; opens the playback settings (speed, jump step, auto-advance). */
+/** Speed button in the player bar; opens the playback settings (speed, jump step, play mode). */
 export function PlaybackMenu() {
   const [open, setOpen] = useState(false);
   const rate = useApp((s) => s.settings.rate);
+  const playMode = useApp((s) => s.settings.playMode);
   const root = useRef<HTMLDivElement>(null);
   useDismiss(open, () => setOpen(false), root);
 
   return (
     <div ref={root} className="relative">
       <button
-        title="播放设置：速度、跳转步长、连续播放"
+        title="播放设置：速度、跳转步长、播放顺序"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         className={`flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-muted transition-[background-color,color,scale] duration-150 ease-snappy hover:bg-hover hover:text-fg active:scale-[0.96] ${
@@ -33,8 +35,8 @@ export function PlaybackMenu() {
           <Row label="跳转步长" hint="← / →">
             <SeekStepControl />
           </Row>
-          <Row label="连续播放" hint="播完自动下一首">
-            <AutoAdvance />
+          <Row label="播放顺序" hint={`${PLAY_MODE_LOOK[playMode].label} · R`}>
+            <PlayModePicker />
           </Row>
         </div>
       )}
@@ -103,15 +105,5 @@ function SeekStepControl() {
         <span className="ml-0.5 text-[11px] text-muted">秒</span>
       </label>
     </Stepper>
-  );
-}
-
-function AutoAdvance() {
-  const on = useApp((s) => s.settings.autoAdvance);
-  const set = useApp((s) => s.setAutoAdvance);
-  return (
-    <div className="flex h-8 items-center justify-end">
-      <Switch on={on} onChange={set} label="连续播放" />
-    </div>
   );
 }
