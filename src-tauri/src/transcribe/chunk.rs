@@ -38,7 +38,9 @@ const WINDOW: usize = 20;
 /// Sample index at the middle of the quietest 0.4 s in `samples[from..]`.
 pub fn quietest_point(samples: &[f32], from: usize) -> usize {
     let energy: Vec<f32> = samples[from.min(samples.len())..]
-        .chunks_exact(FRAME)
+        .as_chunks::<FRAME>()
+        .0
+        .iter()
         .map(|f| f.iter().map(|s| s * s).sum())
         .collect();
     if energy.len() < WINDOW {
