@@ -10,6 +10,8 @@ export function formatTime(seconds: number): string {
 
 /** 75.34 -> "1:15.3" — for A/B markers where tenths matter. */
 export function formatPrecise(seconds: number): string {
-  const tenths = Math.floor((seconds % 1) * 10);
-  return `${formatTime(seconds)}.${tenths}`;
+  if (!Number.isFinite(seconds) || seconds < 0) seconds = 0;
+  // Round to tenths first: 12.6 % 1 is 0.5999…, which would floor to "12.5".
+  const tenths = Math.round(seconds * 10);
+  return `${formatTime(Math.floor(tenths / 10))}.${tenths % 10}`;
 }

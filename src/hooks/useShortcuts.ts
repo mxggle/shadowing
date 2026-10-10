@@ -8,6 +8,9 @@ export const isTypingTarget = (target: EventTarget | null) => {
   return !!el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
 };
 
+/** Keys that step or nudge, so holding them down keeps going. Toggles (Space, L, S, R…) fire once per press. */
+const REPEATS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "[", "]", "-", "="]);
+
 export function useShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -54,6 +57,7 @@ export function useShortcuts() {
       const entry = actions[e.key];
       if (!entry) return;
       e.preventDefault();
+      if (e.repeat && !REPEATS.has(e.key)) return;
       entry[0]();
       if (entry[1]) flash(entry[1]);
     };
