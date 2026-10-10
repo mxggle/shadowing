@@ -79,8 +79,14 @@ export function resumePosition(p: Progress | undefined): number {
 export const RATE_MIN = 0.5;
 export const RATE_MAX = 2;
 export const RATE_STEP = 0.05;
-/** One-click speeds in the player bar. */
+/** One-click speeds in the playback menu. */
 export const RATE_PRESETS = [0.75, 0.85, 1, 1.25];
+
+/** Speed as the deck shows it: "1.0×", "0.85×", "0.9×", "2.0×". */
+export function formatRate(rate: number): string {
+  const r = Math.round(rate * 100) / 100;
+  return `${Number.isInteger(r) ? r.toFixed(1) : r}×`;
+}
 
 export function clampRate(rate: number): number {
   return Math.round(clamp(rate, RATE_MIN, RATE_MAX) / RATE_STEP) * RATE_STEP;

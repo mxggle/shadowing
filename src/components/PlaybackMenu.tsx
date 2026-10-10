@@ -1,41 +1,57 @@
-import { SlidersHorizontal } from "lucide-react";
+import { ChevronUp } from "lucide-react";
 import { useRef, useState } from "react";
-import { RATE_STEP, SEEK_STEP_MAX, SEEK_STEP_MIN } from "../audio/logic";
+import { formatRate, RATE_PRESETS, RATE_STEP, SEEK_STEP_MAX, SEEK_STEP_MIN } from "../audio/logic";
 import { useDismiss } from "../hooks/useDismiss";
+import { useFlash } from "../hooks/useFlash";
 import { useApp } from "../store";
 import { PLAY_MODE_LOOK, PlayModePicker } from "./PlayMode";
 import { Stepper } from "./ui";
 
-/** Speed button in the player bar; opens the playback settings (speed, jump step, play mode). */
+/**
+ * The deck's one settings key: shows the speed (and the play mode when it
+ * isn't plain "in order"), opens speed presets, fine speed, jump step and
+ * play mode. Their shortcuts press it, so the change is seen where it lives.
+ */
 export function PlaybackMenu() {
   const [open, setOpen] = useState(false);
   const rate = useApp((s) => s.settings.rate);
   const playMode = useApp((s) => s.settings.playMode);
   const root = useRef<HTMLDivElement>(null);
   useDismiss(open, () => setOpen(false), root);
+  const flashing = [useFlash("slower"), useFlash("faster"), useFlash("playMode")].some(Boolean);
+  const { icon: ModeIcon, label: modeLabel } = PLAY_MODE_LOOK[playMode];
+  const showMode = playMode !== "next";
 
   return (
     <div ref={root} className="relative">
       <button
-        title="播放设置：速度、跳转步长、播放顺序"
+        title={`播放设置：速度、跳转步长、播放顺序${showMode ? `\n现在：${modeLabel}` : ""}`}
+        aria-label={`播放设置，速度 ${formatRate(rate)}${showMode ? `，${modeLabel}` : ""}`}
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className={`flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-muted transition-[background-color,color,scale] duration-150 ease-snappy hover:bg-hover hover:text-fg active:scale-[0.96] ${
-          open ? "bg-press text-fg" : ""
-        }`}
+        data-flash={flashing || undefined}
+        className={`flex h-8 items-center gap-1.5 rounded-[8px] pr-2 pl-2.5 text-fg ${open ? "bg-press" : "btn"}`}
       >
-        <span className={`tabular font-mono text-[12px] ${rate === 1 ? "" : "font-medium text-fg"}`}>{rate.toFixed(2)}×</span>
-        <SlidersHorizontal size={14} strokeWidth={1.8} />
+        {showMode && (
+          <>
+            <ModeIcon size={15} strokeWidth={1.8} aria-hidden />
+            <span aria-hidden className="h-3.5 w-px bg-line-strong" />
+          </>
+        )}
+        <span className="tabular font-mono text-[12px] font-medium">{formatRate(rate)}</span>
+        <ChevronUp size={12} strokeWidth={2} aria-hidden className={`opacity-55 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute right-0 bottom-full z-20 mb-2.5 w-[288px] origin-bottom-right animate-pop-up divide-y divide-line rounded-[12px] bg-raised px-1 py-0.5 shadow-lift">
-          <Row label="速度" hint="− / =">
-            <RateControl />
-          </Row>
+        <div
+          role="dialog"
+          aria-label="播放设置"
+          className="absolute right-0 bottom-full z-20 mb-2.5 w-[288px] origin-bottom-right animate-pop-up divide-y divide-line rounded-[12px] bg-raised px-1 py-0.5 shadow-lift"
+        >
+          <SpeedSection />
           <Row label="跳转步长" hint="← / →">
             <SeekStepControl />
           </Row>
-          <Row label="播放顺序" hint={`${PLAY_MODE_LOOK[playMode].label} · R`}>
+          <Row label="播放顺序" hint={`${modeLabel} · R`}>
             <PlayModePicker />
           </Row>
         </div>
@@ -56,22 +72,48 @@ function Row({ label, hint, children }: { label: string; hint: string; children:
   );
 }
 
-function RateControl() {
+/** Presets for one click, then − value + for the 0.05 steps in between. */
+function SpeedSection() {
   const rate = useApp((s) => s.settings.rate);
   const setRate = useApp((s) => s.setRate);
   return (
-    <Stepper
-      decTitle="减速 (−)"
-      incTitle="加速 (=)"
-      decFlash="slower"
-      incFlash="faster"
-      onDec={() => (setRate(rate - RATE_STEP), useApp.getState().tip("rate"))}
-      onInc={() => (setRate(rate + RATE_STEP), useApp.getState().tip("rate"))}
-    >
-      <button title="点击恢复 1.0×" onClick={() => setRate(1)} className="tabular h-7 w-full font-mono text-[12px] font-medium">
-        {rate.toFixed(2)}×
-      </button>
-    </Stepper>
+    <div className="px-2.5 pt-3 pb-3">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[13px] font-medium">速度</span>
+        <span className="text-[11px] text-faint">− / =</span>
+      </div>
+      <div className="tint mt-2.5 grid grid-cols-4 gap-0.5 rounded-[10px] p-[3px]" role="group" aria-label="常用速度">
+        {RATE_PRESETS.map((p) => {
+          const on = Math.abs(rate - p) < 0.001;
+          return (
+            <button
+              key={p}
+              aria-pressed={on}
+              onClick={() => setRate(p)}
+              className={`tabular h-7 rounded-[7px] font-mono text-[12px] transition-[background-color,color,box-shadow] duration-150 ${
+                on ? "bg-raised font-medium text-fg shadow-[0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
+              }`}
+            >
+              {formatRate(p).slice(0, -1)}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-2">
+        <Stepper
+          decTitle="减速 (−)"
+          incTitle="加速 (=)"
+          decFlash="slower"
+          incFlash="faster"
+          onDec={() => (setRate(rate - RATE_STEP), useApp.getState().tip("rate"))}
+          onInc={() => (setRate(rate + RATE_STEP), useApp.getState().tip("rate"))}
+        >
+          <button title="点击恢复 1.0×" onClick={() => setRate(1)} className="tabular h-7 w-full font-mono text-[12px] font-medium">
+            {rate.toFixed(2)}×
+          </button>
+        </Stepper>
+      </div>
+    </div>
   );
 }
 

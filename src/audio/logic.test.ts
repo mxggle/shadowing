@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampRate, clampSeekStep, cycleLoop, nextPlayMode, NO_LOOP, nudgeLoop, resumePosition, shouldJumpToA, trackAfter } from "./logic";
+import { clampRate, clampSeekStep, cycleLoop, formatRate, nextPlayMode, NO_LOOP, nudgeLoop, resumePosition, shouldJumpToA, trackAfter } from "./logic";
 
 describe("loop", () => {
   it("cycles A → B → clear", () => {
@@ -45,6 +45,14 @@ describe("rate", () => {
     expect(clampRate(0.1)).toBe(0.5);
     expect(clampRate(3)).toBe(2);
     expect(clampRate(0.87)).toBeCloseTo(0.85);
+  });
+
+  it("shows whole speeds with one decimal and drops trailing zeros otherwise", () => {
+    expect(formatRate(1)).toBe("1.0×");
+    expect(formatRate(2)).toBe("2.0×");
+    expect(formatRate(0.85)).toBe("0.85×");
+    expect(formatRate(0.9000000001)).toBe("0.9×");
+    expect(formatRate(0.75)).toBe("0.75×");
   });
 });
 
