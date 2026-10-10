@@ -5,6 +5,8 @@
 
 ## [未发布]
 
+## [0.3.0] - 2026-10-11
+
 ### 变更
 - 转写进行到“区分说话人”时，按钮从“取消”改为“跳过”：保留已完成的字幕，只是不分说话人（原来会丢掉整份转写）。
 - 内置云服务（OpenAI、Anthropic、Gemini、ChatGPT 账号等）的地址不能再修改，只有本机服务和自定义服务可以填地址，Key 不会被发到别处。
@@ -49,6 +51,7 @@
 - 修改字幕、查找和全部替换、AI 校对、解释这一句（译文、生词、语法点，答案会保存）。
 - 第一次打开有示例练习和 AI 设置向导。
 
-[未发布]: https://github.com/mxggle/shadowing/compare/v0.2.0...HEAD
+[未发布]: https://github.com/mxggle/shadowing/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/mxggle/shadowing/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/mxggle/shadowing/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/mxggle/shadowing/releases/tag/v0.1.0
