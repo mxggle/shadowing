@@ -6,10 +6,11 @@ import { api, type AiConfig, type AiOverview, type DownloadStatus, type FolderLi
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createExplainSlice, type ExplainState } from "./explainSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
+import { createPracticeSlice, type PracticeState } from "./practiceSlice";
 import { createProofreadSlice, type ProofreadState } from "./proofreadSlice";
 import { createTranscriptSlice, type TranscriptState } from "./transcriptSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ProofreadState, ExplainState, GuideState {
+export interface AppState extends TranscriptState, CorrectState, ProofreadState, ExplainState, GuideState, PracticeState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -30,14 +31,11 @@ export interface AppState extends TranscriptState, CorrectState, ProofreadState,
   /** Latest model download update. */
   download: DownloadStatus | null;
   settingsOpen: boolean;
-  /** The 学习记录 sheet (practice time). */
-  statsOpen: boolean;
   /** Whether the recordings sidebar is shown; remembered between launches. */
   shelfOpen: boolean;
 
   init(): Promise<void>;
   setSettingsOpen(open: boolean): void;
-  setStatsOpen(open: boolean): void;
   toggleShelf(): void;
   setAiConfig(config: AiConfig): void;
   setLocal(local: LocalOverview): void;
@@ -155,7 +153,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [] },
     current: null,
     playing: false,
     time: 0,
@@ -167,13 +165,13 @@ export const useApp = create<AppState>((set, get) => {
     local: null,
     download: null,
     settingsOpen: false,
-    statsOpen: false,
     shelfOpen: loadShelfOpen(),
     ...createTranscriptSlice(set, get, engine, applyLoop),
     ...createCorrectSlice(set, get),
     ...createProofreadSlice(set, get),
     ...createExplainSlice(set, get),
     ...createGuideSlice(set, get, engine),
+    ...createPracticeSlice(set, get, persistSettings),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
@@ -190,6 +188,7 @@ export const useApp = create<AppState>((set, get) => {
       });
       engine.setRate(snap.settings.rate);
       void get().restoreJob();
+      void get().refreshToday();
       const last = snap.folder?.tracks.find((t) => t.path === snap.lastTrack);
       if (last) get().open(last, false);
     },
@@ -197,9 +196,6 @@ export const useApp = create<AppState>((set, get) => {
     setSettingsOpen(settingsOpen) {
       // One overlay at a time: ⌘, while the AI wizard is open replaces it (as the wizard replaces settings).
       set(settingsOpen ? { settingsOpen, wizardOpen: false, statsOpen: false } : { settingsOpen });
-    },
-    setStatsOpen(statsOpen) {
-      set(statsOpen ? { statsOpen, settingsOpen: false, wizardOpen: false } : { statsOpen });
     },
     toggleShelf() {
       const shelfOpen = !get().shelfOpen;

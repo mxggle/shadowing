@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PracticeSession } from "./api";
-import { byDay, dayKey, longestStreak, durationParts, formatDuration, level, streak, summarize, topAudios } from "./practice";
+import { byDay, dayKey, goalOn, longestStreak, durationParts, formatDuration, level, metGoal, streak, summarize, topAudios, withGoal } from "./practice";
 
 const at = (y: number, m: number, d: number, h: number, min = 0) => new Date(y, m - 1, d, h, min).getTime();
 const MIN = 60_000;
@@ -28,6 +28,7 @@ describe("practice days", () => {
     const now = at(2026, 10, 11, 20);
     const s = summarize(
       [session(at(2026, 9, 1, 9), 50), session(at(2026, 10, 5, 9), 20, 10), session(at(2026, 10, 11, 9), 15, 12)],
+      [],
       now,
     );
     expect(s.today).toEqual({ active: 15 * MIN, played: 12 * MIN });
@@ -36,30 +37,47 @@ describe("practice days", () => {
   });
 });
 
+describe("daily goal", () => {
+  it("applies from the day it was set; earlier days keep theirs", () => {
+    const goals = withGoal(withGoal([], "2026-10-05", 30), "2026-10-11", 10);
+    expect([goalOn(goals, "2026-10-01"), goalOn(goals, "2026-10-05"), goalOn(goals, "2026-10-10"), goalOn(goals, "2026-10-11")]).toEqual([15, 30, 30, 10]);
+    // Changed again the same day: one entry, the last choice.
+    expect(withGoal(goals, "2026-10-11", 20)).toEqual([{ since: "2026-10-05", minutes: 30 }, { since: "2026-10-11", minutes: 20 }]);
+  });
+
+  it("is met at its minutes; with no goal, a minute is enough", () => {
+    expect([metGoal(14.9 * MIN, 15), metGoal(15 * MIN, 15), metGoal(30_000, 0), metGoal(MIN, 0)]).toEqual([false, true, false, true]);
+  });
+});
+
 describe("streak", () => {
+  // 10-minute goal throughout.
+  const goals = withGoal([], "2026-01-01", 10);
   const days = byDay([
     session(at(2026, 10, 8, 9), 10),
     session(at(2026, 10, 9, 9), 10),
     session(at(2026, 10, 10, 23, 30), 10), // late evening, still the 10th
   ]);
 
-  it("ends yesterday while today has no practice yet", () => {
-    expect(streak(days, at(2026, 10, 11, 8))).toBe(3);
+  it("ends yesterday while today isn't done yet", () => {
+    expect(streak(days, goals, at(2026, 10, 11, 8))).toBe(3);
   });
 
   it("is broken by a missed day", () => {
-    expect(streak(days, at(2026, 10, 12, 8))).toBe(0);
+    expect(streak(days, goals, at(2026, 10, 12, 8))).toBe(0);
+  });
+
+  it("only counts days that met their goal", () => {
+    const short = byDay([session(at(2026, 10, 9, 9), 10), session(at(2026, 10, 10, 9), 8), session(at(2026, 10, 11, 9), 10)]);
+    expect(streak(short, goals, at(2026, 10, 11, 20))).toBe(1);
+    // A higher goal from today on doesn't undo the days before it.
+    expect(streak(days, withGoal(goals, "2026-10-11", 60), at(2026, 10, 11, 8))).toBe(3);
   });
 
   it("remembers the longest run, across months", () => {
     const run = (d: number) => session(at(2026, 9, d, 9), 10);
-    expect(longestStreak(byDay([run(1), run(29), run(30), session(at(2026, 10, 1, 9), 10), session(at(2026, 10, 9, 9), 10)]))).toBe(3);
-    expect(longestStreak(days)).toBe(3);
-  });
-
-  it("ignores a day with under a minute", () => {
-    const short = byDay([session(at(2026, 10, 10, 9), 0.5), session(at(2026, 10, 11, 9), 10)]);
-    expect(streak(short, at(2026, 10, 11, 20))).toBe(1);
+    expect(longestStreak(byDay([run(1), run(29), run(30), session(at(2026, 10, 1, 9), 10), session(at(2026, 10, 9, 9), 10)]), goals)).toBe(3);
+    expect(longestStreak(days, goals)).toBe(3);
   });
 });
 

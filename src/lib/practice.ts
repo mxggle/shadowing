@@ -1,11 +1,14 @@
 // Practice time per day, streaks and totals, from the sessions Rust records
 // (see src-tauri/src/practice/clock.rs for what counts as practice).
-import type { PracticeSession } from "./api";
+import type { GoalChange, PracticeSession } from "./api";
 
 /** A late session (until 4:00) still counts for the day before, as in Anki: night owls keep their streak. */
 export const DAY_START_HOUR = 4;
-/** A day counts towards the streak with at least this much practice. */
-export const STREAK_MIN_MS = 60_000;
+const MIN = 60_000;
+/** Until the learner picks one: short enough to do every day. */
+export const DEFAULT_GOAL_MINUTES = 15;
+/** 0 = no goal: then any day with a minute of practice counts. */
+export const GOAL_CHOICES = [0, 5, 10, 15, 20, 30, 45, 60];
 
 export interface DayTotal {
   /** Ms practised (playing plus short pauses). */
@@ -41,6 +44,24 @@ export function shiftDay(ms: number, days: number): number {
   return d.getTime();
 }
 
+/** The goal (minutes) for a practice day: the latest change made on or before it. */
+export function goalOn(goals: GoalChange[], key: string): number {
+  let minutes = DEFAULT_GOAL_MINUTES;
+  for (const g of goals) if (g.since <= key) minutes = g.minutes;
+  return minutes;
+}
+
+/** A new goal from `key` on; days before keep the goal they had. */
+export function withGoal(goals: GoalChange[], key: string, minutes: number): GoalChange[] {
+  // Changing it twice in a day keeps only the last one.
+  return [...goals.filter((g) => g.since < key), { since: key, minutes }];
+}
+
+/** Whether a day's practice reaches its goal (with no goal: at least a minute). */
+export function metGoal(active: number, goalMinutes: number): boolean {
+  return active >= Math.max(1, goalMinutes) * MIN;
+}
+
 /** Totals per practice day; a session crossing 4:00 is split, its playback shared out in proportion. */
 export function byDay(sessions: PracticeSession[]): Map<string, DayTotal> {
   const days = new Map<string, DayTotal>();
@@ -61,25 +82,28 @@ export function byDay(sessions: PracticeSession[]): Map<string, DayTotal> {
   return days;
 }
 
-/** Days in a row with practice, ending today, or yesterday while today hasn't started. */
-export function streak(days: Map<string, DayTotal>, now: number): number {
-  const practised = (ms: number) => (days.get(dayKey(ms))?.active ?? 0) >= STREAK_MIN_MS;
-  let day = practised(now) ? now : shiftDay(now, -1);
+/** Days in a row that met their goal, ending today, or yesterday while today isn't done yet. */
+export function streak(days: Map<string, DayTotal>, goals: GoalChange[], now: number): number {
+  const met = (ms: number) => {
+    const key = dayKey(ms);
+    return metGoal(days.get(key)?.active ?? 0, goalOn(goals, key));
+  };
+  let day = met(now) ? now : shiftDay(now, -1);
   let count = 0;
-  while (practised(day)) {
+  while (met(day)) {
     count++;
     day = shiftDay(day, -1);
   }
   return count;
 }
 
-/** The longest run of days in a row with practice, ever. */
-export function longestStreak(days: Map<string, DayTotal>): number {
-  const practised = [...days].filter(([, d]) => d.active >= STREAK_MIN_MS).map(([k]) => k).sort();
+/** The longest run of days in a row that met their goal, ever. */
+export function longestStreak(days: Map<string, DayTotal>, goals: GoalChange[]): number {
+  const met = [...days].filter(([k, d]) => metGoal(d.active, goalOn(goals, k))).map(([k]) => k).sort();
   let best = 0;
   let run = 0;
   let prev = "";
-  for (const key of practised) {
+  for (const key of met) {
     const [y, m, d] = key.split("-").map(Number);
     run = prev && dateKey(new Date(y, m - 1, d - 1)) === prev ? run + 1 : 1;
     best = Math.max(best, run);
@@ -94,11 +118,15 @@ export interface Summary {
   /** Today and the 6 days before it. */
   week: DayTotal;
   total: DayTotal;
+  /** Today's goal in minutes (0 = none). */
+  goal: number;
+  /** How many of the last 7 days met their goal. */
+  weekMet: number;
   streak: number;
   longestStreak: number;
 }
 
-export function summarize(sessions: PracticeSession[], now: number): Summary {
+export function summarize(sessions: PracticeSession[], goals: GoalChange[], now: number): Summary {
   const days = byDay(sessions);
   const sum = (keys: string[]) =>
     keys.reduce((acc, k) => {
@@ -111,8 +139,10 @@ export function summarize(sessions: PracticeSession[], now: number): Summary {
     today: sum([dayKey(now)]),
     week: sum(week),
     total: sum([...days.keys()]),
-    streak: streak(days, now),
-    longestStreak: longestStreak(days),
+    goal: goalOn(goals, dayKey(now)),
+    weekMet: week.filter((k) => metGoal(days.get(k)?.active ?? 0, goalOn(goals, k))).length,
+    streak: streak(days, goals, now),
+    longestStreak: longestStreak(days, goals),
   };
 }
 
@@ -150,7 +180,7 @@ export function durationParts(ms: number): [string, string][] {
 
 /** Heatmap shade 0–4 for a day's practice: none, under 10, 20, 40 minutes, more. */
 export function level(active: number): number {
-  const minutes = active / 60_000;
+  const minutes = active / MIN;
   if (minutes < 1) return 0;
   if (minutes < 10) return 1;
   if (minutes < 20) return 2;

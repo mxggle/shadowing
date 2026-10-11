@@ -151,6 +151,16 @@ async function scenario() {
     played >= 8000 && practice.every((s) => s.played <= s.end - s.start),
     `${practice.length} sessions, played ${(played / 1000).toFixed(1)}s`,
   );
+  // The daily goal is saved (settings settle after 400 ms) and today's total reaches the top bar.
+  app().setDailyGoal(20);
+  await app().refreshToday();
+  await sleep(600);
+  const goals = (await api.getSnapshot()).settings.dailyGoals;
+  check(
+    "daily goal saved, today's practice loaded",
+    goals.at(-1)?.minutes === 20 && (app().todayMs ?? 0) >= played,
+    `goals ${JSON.stringify(goals)}, today ${((app().todayMs ?? 0) / 1000).toFixed(1)}s`,
+  );
   app().open(tracks[0], false);
   await sleep(500);
   app().open(long, false);

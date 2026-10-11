@@ -1,26 +1,17 @@
 // 学习记录: how long you practised, today and over time. The numbers come from
 // sessions Rust records while you play (src-tauri/src/practice); this sheet only
 // sums them per day (src/lib/practice.ts).
-import { ChartColumn, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api, type PracticeSession } from "../lib/api";
 import { durationParts, formatDuration, shiftDay, summarize, topAudios } from "../lib/practice";
 import { useApp } from "../store";
 import { IconButton } from "./ui";
 import { DailyBars, Heatmap } from "./PracticeCharts";
+import { GoalRow } from "./PracticeGoal";
 
 /** While the sheet is open, the running session keeps growing; refresh this often. */
 const REFRESH_MS = 15_000;
-
-export function PracticeButton() {
-  const open = useApp((s) => s.statsOpen);
-  const setOpen = useApp((s) => s.setStatsOpen);
-  return (
-    <IconButton title="学习记录" active={open} onClick={() => setOpen(true)}>
-      <ChartColumn />
-    </IconButton>
-  );
-}
 
 export function PracticeDialog() {
   const open = useApp((s) => s.statsOpen);
@@ -30,11 +21,13 @@ export function PracticeDialog() {
 
   useEffect(() => {
     if (!open) return;
-    const load = () =>
+    const load = () => {
+      void useApp.getState().refreshToday();
       void api.practice.log().then((s) => {
         setSessions(s);
         setNow(Date.now());
       });
+    };
     load();
     const timer = window.setInterval(load, REFRESH_MS);
     // Capture phase: Esc closes the sheet instead of also clearing the loop.
@@ -78,7 +71,8 @@ export function PracticeDialog() {
 }
 
 function Records({ sessions, now }: { sessions: PracticeSession[]; now: number }) {
-  const summary = useMemo(() => summarize(sessions, now), [sessions, now]);
+  const goals = useApp((s) => s.settings.dailyGoals);
+  const summary = useMemo(() => summarize(sessions, goals, now), [sessions, goals, now]);
   const { today, week, total, days } = summary;
   const practisedDays = [...days.values()].filter((d) => d.active >= 60_000).length;
 
@@ -89,11 +83,13 @@ function Records({ sessions, now }: { sessions: PracticeSession[]; now: number }
         <Figure label="最近 7 天" ms={week.active} note={`日均 ${formatDuration(week.active / 7)}`} />
         <Figure label="累计" ms={total.active} note={`${practisedDays} 天`} />
         <div>
-          <div className="text-[12px] text-faint">连续</div>
+          <div className="text-[12px] text-faint">{summary.goal ? "连续达标" : "连续"}</div>
           <Big parts={[[String(summary.streak), "天"]]} />
           <div className="text-[12px] text-muted">最长 {summary.longestStreak} 天</div>
         </div>
       </div>
+
+      <GoalRow weekMet={summary.weekMet} />
 
       {sessions.length === 0 ? (
         <p className="mt-6 rounded-[10px] bg-fill px-4 py-3 text-[13px] leading-relaxed text-muted">
@@ -102,10 +98,10 @@ function Records({ sessions, now }: { sessions: PracticeSession[]; now: number }
       ) : (
         <>
           <Section title="最近 14 天" legend>
-            <DailyBars days={days} now={now} />
+            <DailyBars days={days} goals={goals} now={now} />
           </Section>
           <Section title="近半年">
-            <Heatmap days={days} now={now} />
+            <Heatmap days={days} goals={goals} now={now} />
           </Section>
           <TopAudios sessions={sessions} now={now} />
         </>
@@ -113,7 +109,7 @@ function Records({ sessions, now }: { sessions: PracticeSession[]; now: number }
 
       <p className="mt-6 border-t border-line pt-4 text-[12px] leading-relaxed text-muted">
         怎么算：音频播放的时间都算；暂停后 90 秒内又有操作（继续播放、点句子、看解释），中间跟读、思考的时间也算；
-        更久没有动静就当作离开，那段时间不算。每天从凌晨 4 点算起。记录只存在这台 Mac 上。
+        更久没有动静就当作离开，那段时间不算。每天从凌晨 4 点算起；连续天数只算达到当天目标的日子，改目标只影响今天和以后。记录只存在这台 Mac 上。
       </p>
     </>
   );
