@@ -23,6 +23,15 @@ export interface Settings {
   seekStep: number;
   /** Last language picked for transcription ("" = detect). */
   transcribeLanguage: string;
+  /** Daily practice goal as changes over time (see goalOn in lib/practice.ts). */
+  dailyGoals: GoalChange[];
+}
+
+export interface GoalChange {
+  /** First practice day ("2026-10-11") this goal applies to. */
+  since: string;
+  /** Minutes a day; 0 = no goal. */
+  minutes: number;
 }
 
 export interface Progress {
@@ -284,7 +293,8 @@ export const api = {
   practice: {
     /** The learner did something in the window: keeps a paused session counting. */
     ping: () => invoke<void>("practice_ping"),
-    log: () => invoke<PracticeSession[]>("practice_log"),
+    /** All sessions, or with `since` (Unix ms) only those still going at or after it. */
+    log: (since?: number) => invoke<PracticeSession[]>("practice_log", { since: since ?? null }),
   },
   smokeMode: () => invoke<boolean>("smoke_mode"),
   smokeWindow: (minimized: boolean) => invoke<void>("smoke_window", { minimized }),

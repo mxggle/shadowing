@@ -2,7 +2,8 @@
 // pauses kept apart), and half a year as a calendar heatmap. One hue (ink),
 // darker = more; hover any day for its numbers.
 import { useRef, useState, type ReactNode } from "react";
-import { dayKey, formatDuration, level, shiftDay, type DayTotal } from "../lib/practice";
+import type { GoalChange } from "../lib/api";
+import { dayKey, formatDuration, goalOn, level, metGoal, shiftDay, type DayTotal } from "../lib/practice";
 
 const MIN = 60_000;
 const WEEKDAYS = "日一二三四五六";
@@ -12,12 +13,14 @@ const dateLabel = (ms: number) => {
   return `${d.getMonth() + 1}月${d.getDate()}日 周${WEEKDAYS[d.getDay()]}`;
 };
 
-function dayTip(ms: number, day: DayTotal | undefined): ReactNode {
+function dayTip(ms: number, day: DayTotal | undefined, goals: GoalChange[]): ReactNode {
+  const goal = goalOn(goals, dayKey(ms));
   return (
     <>
       <div className="text-faint">{dateLabel(ms)}</div>
       <div className="mt-0.5 font-medium text-fg">{day ? formatDuration(day.active) : "没有练习"}</div>
       {day && day.active >= MIN && <div className="text-muted">其中播放 {formatDuration(day.played)}</div>}
+      {goal > 0 && day && metGoal(day.active, goal) && <div className="text-muted">达到当天目标（{goal} 分钟）</div>}
     </>
   );
 }
@@ -49,13 +52,18 @@ function scaleTop(maxMinutes: number): number {
   return Math.ceil(maxMinutes / 60) * 60;
 }
 
-export function DailyBars({ days, now }: { days: Map<string, DayTotal>; now: number }) {
+type ChartProps = { days: Map<string, DayTotal>; goals: GoalChange[]; now: number };
+
+export function DailyBars({ days, goals, now }: ChartProps) {
   const { box, show, hide, view } = useTip();
   const list = Array.from({ length: 14 }, (_, i) => {
     const ms = shiftDay(now, i - 13);
     return { ms, day: days.get(dayKey(ms)) };
   });
-  const top = scaleTop(Math.max(...list.map((d) => (d.day?.active ?? 0) / MIN)));
+  // Today's goal as a line across: past days were mostly on the same one, and the tooltip says which they met.
+  const goal = goalOn(goals, dayKey(now));
+  // Headroom over the goal keeps its line (and label) clear of the top line.
+  const top = scaleTop(Math.max(goal * 1.25, ...list.map((d) => (d.day?.active ?? 0) / MIN)));
   const pct = (ms: number) => `${Math.min(100, (ms / MIN / top) * 100)}%`;
 
   return (
@@ -63,16 +71,15 @@ export function DailyBars({ days, now }: { days: Map<string, DayTotal>; now: num
       <div className="flex gap-3">
         <div className="relative h-[120px] flex-1">
           {/* Scale lines: recessive, labelled on the right. */}
-          {[1, 0.5].map((f) => (
-            <div key={f} className="absolute inset-x-0 border-t border-dashed border-line" style={{ bottom: `${f * 100}%` }} />
-          ))}
+          <div className="absolute inset-x-0 top-0 border-t border-dashed border-line" />
+          {goal > 0 && <div className="absolute inset-x-0 z-[1] border-t border-dashed border-fg/45" style={{ bottom: `${(goal / top) * 100}%` }} />}
           <div className="absolute inset-x-0 bottom-0 border-t border-line-strong" />
           <div className="absolute inset-0 flex items-end">
             {list.map(({ ms, day }) => (
               <div
                 key={ms}
                 className="group flex h-full flex-1 cursor-default flex-col items-center justify-end px-[3px]"
-                onPointerEnter={(e) => show(e.currentTarget, dayTip(ms, day))}
+                onPointerEnter={(e) => show(e.currentTarget, dayTip(ms, day, goals))}
                 onPointerLeave={hide}
               >
                 {day && (
@@ -88,7 +95,11 @@ export function DailyBars({ days, now }: { days: Map<string, DayTotal>; now: num
         </div>
         <div className="relative w-9 text-[11px] text-faint">
           <span className="tabular absolute -translate-y-1/2 font-mono" style={{ top: 0 }}>{formatScale(top)}</span>
-          <span className="tabular absolute -translate-y-1/2 font-mono" style={{ top: "50%" }}>{formatScale(top / 2)}</span>
+          {goal > 0 && (
+            <span className="absolute translate-y-1/2 text-muted" style={{ bottom: `${(goal / top) * 100}%` }}>
+              目标
+            </span>
+          )}
         </div>
       </div>
       <div className="mr-12 flex pt-1.5">
@@ -108,7 +119,7 @@ const formatScale = (minutes: number) => (minutes >= 60 && minutes % 60 === 0 ? 
 const SHADES = ["bg-fill", "bg-ink/20", "bg-ink/40", "bg-ink/62", "bg-ink/85"];
 const WEEKS = 26;
 
-export function Heatmap({ days, now }: { days: Map<string, DayTotal>; now: number }) {
+export function Heatmap({ days, goals, now }: ChartProps) {
   const { box, show, hide, view } = useTip();
   const today = shiftDay(now, 0);
   const sinceMonday = (new Date(today).getDay() + 6) % 7;
@@ -141,7 +152,7 @@ export function Heatmap({ days, now }: { days: Map<string, DayTotal>; now: numbe
                   className={`aspect-square rounded-[3px] ${future ? "invisible" : SHADES[level(day?.active ?? 0)]} ${
                     ms === today ? "shadow-[0_0_0_1.5px_var(--raised),0_0_0_2.5px_var(--line-strong)]" : ""
                   }`}
-                  onPointerEnter={(e) => !future && show(e.currentTarget, dayTip(ms, day))}
+                  onPointerEnter={(e) => !future && show(e.currentTarget, dayTip(ms, day, goals))}
                   onPointerLeave={hide}
                 />
               );

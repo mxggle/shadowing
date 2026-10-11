@@ -21,6 +21,18 @@ pub struct Settings {
     pub seek_step: f64,
     /// Last language picked for transcription ("" = detect).
     pub transcribe_language: String,
+    /// Daily practice goal, as changes over time (the frontend reads it per day,
+    /// so a new goal never rewrites past days). Empty = the default goal.
+    pub daily_goals: Vec<GoalChange>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GoalChange {
+    /// First practice day ("2026-10-11") this goal applies to.
+    pub since: String,
+    /// Minutes a day; 0 = no goal.
+    pub minutes: u32,
 }
 
 impl Default for Settings {
@@ -31,6 +43,7 @@ impl Default for Settings {
             auto_advance: None,
             seek_step: 5.0,
             transcribe_language: String::new(),
+            daily_goals: Vec::new(),
         }
     }
 }
@@ -210,6 +223,7 @@ mod tests {
             (s.rate, s.play_mode, s.seek_step),
             (0.8, PlayMode::Next, 5.0)
         );
+        assert!(s.daily_goals.is_empty());
     }
 
     #[test]

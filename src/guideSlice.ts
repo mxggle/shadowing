@@ -31,6 +31,8 @@ export interface GuideState {
   endPractice(): void;
   setWizardOpen(open: boolean): void;
   tip(id: TipId): void;
+  /** Shows a short message in the same place as tips, for a few seconds. */
+  say(text: string): void;
   dismissHint(): void;
 }
 
@@ -83,7 +85,11 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
       const { guide } = get();
       if (guide.tips.includes(id)) return;
       get().saveGuide({ tips: [...guide.tips, id] });
-      set({ hint: TIPS[id] });
+      get().say(TIPS[id]);
+    },
+
+    say(text) {
+      set({ hint: text });
       window.clearTimeout(hintTimer);
       hintTimer = window.setTimeout(() => set({ hint: null }), HINT_MS);
     },

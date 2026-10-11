@@ -133,11 +133,14 @@ pub fn practice_ping(practice: State<Arc<Practice>>) {
     practice.activity();
 }
 
-/// Every session so far, oldest first, including the one running now.
+/// Sessions oldest first, including the one running now; with `since` (Unix ms),
+/// only those still going at or after it (today's, for the goal in the top bar).
 #[tauri::command]
-pub fn practice_log(practice: State<Arc<Practice>>) -> Vec<Session> {
+pub fn practice_log(practice: State<Arc<Practice>>, since: Option<u64>) -> Vec<Session> {
     let guard = practice.clock.lock().unwrap_or_else(|e| e.into_inner());
-    guard.0.sessions()
+    let mut sessions = guard.0.sessions();
+    sessions.retain(|s| s.end >= since.unwrap_or(0));
+    sessions
 }
 
 #[cfg(test)]

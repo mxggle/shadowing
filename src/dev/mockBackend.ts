@@ -194,6 +194,12 @@ const push = () => void emit("player:status", status());
 
 setInterval(() => {
   if (!player.playing) return;
+  // Practice time like Rust's clock, sped up 60× so the goal ring visibly fills (a second plays as a minute).
+  const live = practiceLog.at(-1);
+  if (live && live.audio === player.path && Date.now() - live.end < 90_000) {
+    live.end += 3000;
+    live.played += 3000;
+  } else if (player.path) practiceLog.push({ audio: player.path, start: Date.now(), end: Date.now(), played: 0 });
   const next = player.time + 0.05 * player.rate;
   if (player.a !== null && player.b !== null && player.time < player.b && next >= player.b) {
     player.time = player.a;
@@ -231,7 +237,7 @@ export function installMockBackend() {
     folder: fresh ? null : { root, name: "日本語ポッドキャスト", tracks },
     missingFolder: null,
     lastTrack: fresh ? null : tracks[1].path,
-    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "" },
+    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }] },
     progress: {
       [tracks[0].path]: { position: 178, duration: 180, updatedAt: 0 },
       [tracks[1].path]: { position: 64, duration: 200, updatedAt: 0 },
@@ -370,7 +376,7 @@ export function installMockBackend() {
         case "transcribe_running":
           return job?.path ?? null;
         case "practice_log":
-          return practiceLog;
+          return a.since ? practiceLog.filter((s) => s.end >= a.since) : practiceLog;
         case "practice_ping":
           return null;
         case "smoke_mode":
