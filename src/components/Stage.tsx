@@ -1,4 +1,5 @@
 import { AlertCircle } from "lucide-react";
+import { formatDuration } from "../lib/practice";
 import { useApp } from "../store";
 import { PracticeCoach } from "./guide/PracticeCoach";
 import { LoopPanel } from "./Loop";
@@ -82,6 +83,7 @@ function TrackTitle() {
       >
         {current.name}
       </h1>
+      <TrackPractice />
       {error && (
         <p className="mt-3 flex w-fit max-w-full items-start gap-1.5 rounded-[8px] bg-danger-soft px-3 py-1.5 text-[13px] text-danger">
           <AlertCircle size={15} className="mt-0.5 shrink-0" />
@@ -89,5 +91,16 @@ function TrackTitle() {
         </p>
       )}
     </div>
+  );
+}
+
+/** How long this audio has been practised in all, once there's at least a minute. */
+function TrackPractice() {
+  const ms = useApp((s) => s.trackMs);
+  if (ms < 60_000) return null;
+  return (
+    <p className="mt-1 text-[12px] text-faint" title="练这段音频的时间（播放和中间的跟读），详见学习记录">
+      已练 <span className="tabular text-muted">{formatDuration(ms)}</span>
+    </p>
   );
 }

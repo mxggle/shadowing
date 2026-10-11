@@ -293,8 +293,9 @@ export const api = {
   practice: {
     /** The learner did something in the window: keeps a paused session counting. */
     ping: () => invoke<void>("practice_ping"),
-    /** All sessions, or with `since` (Unix ms) only those still going at or after it. */
-    log: (since?: number) => invoke<PracticeSession[]>("practice_log", { since: since ?? null }),
+    /** All sessions; `since` (Unix ms) keeps those still going at or after it, `audio` those on one audio. */
+    log: (filter: { since?: number; audio?: string } = {}) =>
+      invoke<PracticeSession[]>("practice_log", { since: filter.since ?? null, audio: filter.audio ?? null }),
   },
   smokeMode: () => invoke<boolean>("smoke_mode"),
   smokeWindow: (minimized: boolean) => invoke<void>("smoke_window", { minimized }),
