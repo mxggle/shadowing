@@ -30,11 +30,14 @@ export interface AppState extends TranscriptState, CorrectState, ProofreadState,
   /** Latest model download update. */
   download: DownloadStatus | null;
   settingsOpen: boolean;
+  /** The 学习记录 sheet (practice time). */
+  statsOpen: boolean;
   /** Whether the recordings sidebar is shown; remembered between launches. */
   shelfOpen: boolean;
 
   init(): Promise<void>;
   setSettingsOpen(open: boolean): void;
+  setStatsOpen(open: boolean): void;
   toggleShelf(): void;
   setAiConfig(config: AiConfig): void;
   setLocal(local: LocalOverview): void;
@@ -164,6 +167,7 @@ export const useApp = create<AppState>((set, get) => {
     local: null,
     download: null,
     settingsOpen: false,
+    statsOpen: false,
     shelfOpen: loadShelfOpen(),
     ...createTranscriptSlice(set, get, engine, applyLoop),
     ...createCorrectSlice(set, get),
@@ -192,7 +196,10 @@ export const useApp = create<AppState>((set, get) => {
 
     setSettingsOpen(settingsOpen) {
       // One overlay at a time: ⌘, while the AI wizard is open replaces it (as the wizard replaces settings).
-      set(settingsOpen ? { settingsOpen, wizardOpen: false } : { settingsOpen });
+      set(settingsOpen ? { settingsOpen, wizardOpen: false, statsOpen: false } : { settingsOpen });
+    },
+    setStatsOpen(statsOpen) {
+      set(statsOpen ? { statsOpen, settingsOpen: false, wizardOpen: false } : { statsOpen });
     },
     toggleShelf() {
       const shelfOpen = !get().shelfOpen;

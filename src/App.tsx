@@ -5,9 +5,11 @@ import { Hint } from "./components/guide/Hint";
 import { Welcome } from "./components/guide/Welcome";
 import { Library, ShelfToggle } from "./components/Library";
 import { PlayerBar } from "./components/PlayerBar";
+import { PracticeButton, PracticeDialog } from "./components/Practice";
 import { SettingsButton, SettingsDialog } from "./components/settings/Settings";
 import { ShortcutHelp } from "./components/ShortcutHelp";
 import { Stage } from "./components/Stage";
+import { usePracticePing } from "./hooks/usePracticePing";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { api, isTauri } from "./lib/api";
 import { useApp } from "./store";
@@ -20,6 +22,7 @@ export default function App() {
   const practicing = useApp((s) => s.practicing);
   const shelfOpen = useApp((s) => s.shelfOpen);
   useShortcuts();
+  usePracticePing();
 
   useEffect(() => {
     if (!isTauri() || booted) return;
@@ -75,6 +78,7 @@ export default function App() {
             </>
           )}
           <Breadcrumb />
+          <PracticeButton />
           <ShortcutHelp />
           <SettingsButton />
         </div>
@@ -83,6 +87,7 @@ export default function App() {
         <PlayerBar />
       </main>
       <SettingsDialog />
+      <PracticeDialog />
       <AiWizard />
     </div>
   );

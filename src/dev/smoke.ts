@@ -143,6 +143,14 @@ async function scenario() {
   const saved = snap.progress[long.path];
   check("progress saved on pause", !!saved && Math.abs(saved.position - 200.5) < 1.5, `saved=${saved?.position.toFixed(2)}`);
   check("last track remembered", snap.lastTrack === long.path);
+  // Practice time comes from the player in Rust, so the minimized loop above counts too.
+  const practice = (await api.practice.log()).filter((s) => s.audio === long.path);
+  const played = practice.reduce((sum, s) => sum + s.played, 0);
+  check(
+    "practice time recorded from playback",
+    played >= 8000 && practice.every((s) => s.played <= s.end - s.start),
+    `${practice.length} sessions, played ${(played / 1000).toFixed(1)}s`,
+  );
   app().open(tracks[0], false);
   await sleep(500);
   app().open(long, false);

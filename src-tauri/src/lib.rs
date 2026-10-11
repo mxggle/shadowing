@@ -4,6 +4,7 @@ mod explain;
 mod guide;
 mod library;
 mod local;
+mod practice;
 mod proofread;
 mod smoke;
 mod speakers;
@@ -264,7 +265,14 @@ pub fn run() {
             app.manage(transcribe::commands::Jobs::default());
             app.manage(local::Downloads::default());
             app.manage(proofread::Proofreading::default());
-            let sink = std::sync::Arc::new(audio::TauriSink(app.handle().clone()));
+            let practice = std::sync::Arc::new(practice::Practice::open(
+                &app.state::<AppState>().data_dir(),
+            ));
+            app.manage(practice.clone());
+            let sink = std::sync::Arc::new(practice::Watch {
+                inner: audio::TauriSink(app.handle().clone()),
+                practice,
+            });
             app.manage(audio::Player::new(sink));
             Ok(())
         })
@@ -305,6 +313,8 @@ pub fn run() {
             proofread::transcript_proofread_cancel,
             explain::sentence_explain,
             explain::sentence_explanations,
+            practice::practice_ping,
+            practice::practice_log,
             smoke::smoke_mode,
             smoke::smoke_window,
             smoke::smoke_finish,
@@ -325,6 +335,9 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 if let Some(state) = app.try_state::<AppState>() {
                     state.flush();
+                }
+                if let Some(practice) = app.try_state::<std::sync::Arc<practice::Practice>>() {
+                    practice.flush();
                 }
             }
         });
