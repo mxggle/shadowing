@@ -235,7 +235,8 @@ export const useApp = create<AppState>((set, get) => {
       // Picking one of your own tracks ends the practice on the sample.
       if (get().practicing && track.path !== get().sample?.path) set({ practicing: false });
       const start = resumePosition(get().progress[track.path]);
-      set({ current: track, time: start, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null });
+      set({ current: track, time: start, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, trackMs: 0 });
+      void get().refreshToday();
       void get().loadTranscript(track.path);
       void engine.load(track.path, start, autoplay).then(() => engine.setRate(get().settings.rate));
       void api.setLastTrack(track.path);

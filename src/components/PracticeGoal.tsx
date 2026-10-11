@@ -51,9 +51,19 @@ export function PracticeButton() {
     : met
       ? `学习记录 · 今天的目标完成了（练了 ${formatDuration(todayMs)}）`
       : `学习记录 · 今天 ${Math.floor(todayMs / 60_000)} / ${goal} 分钟`;
+  const minutes = Math.floor(todayMs / 60_000);
+  // Today's minutes beside the mark, so the day's progress is readable without opening the sheet.
+  const readout = !loaded ? null : goal && !met ? `${minutes}/${goal}` : minutes > 0 ? `${minutes}` : null;
   return (
     <IconButton title={title} aria-label={title} active={open} onClick={() => setOpen(true)}>
-      {goal > 0 && loaded ? <GoalMark ratio={todayMs / (goal * 60_000)} met={met} size={16} /> : <ChartColumn />}
+      <span className="flex items-center gap-1.5">
+        {goal > 0 && loaded ? <GoalMark ratio={todayMs / (goal * 60_000)} met={met} size={16} /> : <ChartColumn size={16} strokeWidth={1.75} />}
+        {readout && (
+          <span className="text-[12px]">
+            <span className="tabular font-mono">{readout}</span> 分
+          </span>
+        )}
+      </span>
     </IconButton>
   );
 }

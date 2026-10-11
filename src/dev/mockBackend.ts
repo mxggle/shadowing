@@ -376,7 +376,7 @@ export function installMockBackend() {
         case "transcribe_running":
           return job?.path ?? null;
         case "practice_log":
-          return a.since ? practiceLog.filter((s) => s.end >= a.since) : practiceLog;
+          return practiceLog.filter((s) => s.end >= (a.since ?? 0) && (!a.audio || s.audio === a.audio));
         case "practice_ping":
           return null;
         case "smoke_mode":

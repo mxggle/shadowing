@@ -157,9 +157,9 @@ async function scenario() {
   await sleep(600);
   const goals = (await api.getSnapshot()).settings.dailyGoals;
   check(
-    "daily goal saved, today's practice loaded",
-    goals.at(-1)?.minutes === 20 && (app().todayMs ?? 0) >= played,
-    `goals ${JSON.stringify(goals)}, today ${((app().todayMs ?? 0) / 1000).toFixed(1)}s`,
+    "daily goal saved, today's and this audio's practice loaded",
+    goals.at(-1)?.minutes === 20 && (app().todayMs ?? 0) >= played && app().trackMs >= played,
+    `goals ${JSON.stringify(goals)}, today ${((app().todayMs ?? 0) / 1000).toFixed(1)}s, audio ${(app().trackMs / 1000).toFixed(1)}s`,
   );
   app().open(tracks[0], false);
   await sleep(500);

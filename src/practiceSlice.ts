@@ -12,7 +12,10 @@ export interface PracticeState {
   statsOpen: boolean;
   /** Ms practised today; null until first loaded. */
   todayMs: number | null;
+  /** Ms ever practised on the open audio. */
+  trackMs: number;
   setStatsOpen(open: boolean): void;
+  /** Reloads today's total and the open audio's (also right after opening one). */
   refreshToday(): Promise<void>;
   /** Minutes a day from today on (0 = no goal); earlier days keep theirs. */
   setDailyGoal(minutes: number): void;
@@ -37,6 +40,7 @@ export function createPracticeSlice(set: Set, get: Get, persistSettings: (patch:
   return {
     statsOpen: false,
     todayMs: null,
+    trackMs: 0,
 
     setStatsOpen(statsOpen) {
       set(statsOpen ? { statsOpen, settingsOpen: false, wizardOpen: false } : { statsOpen });
@@ -45,7 +49,11 @@ export function createPracticeSlice(set: Set, get: Get, persistSettings: (patch:
     async refreshToday() {
       const now = Date.now();
       const day = dayKey(now);
-      const todayMs = byDay(await api.practice.log(dayStart(now))).get(day)?.active ?? 0;
+      const audio = get().current?.path;
+      const [today, track] = await Promise.all([api.practice.log({ since: dayStart(now) }), audio ? api.practice.log({ audio }) : []]);
+      const todayMs = byDay(today).get(day)?.active ?? 0;
+      // Opened another audio while this was loading: its total comes with the next refresh.
+      if (get().current?.path === audio) set({ trackMs: track.reduce((sum, s) => sum + s.end - s.start, 0) });
       const { goal, met } = metNow(todayMs);
       if (met && seen.day === day && !seen.met) get().say(`今天的 ${goal} 分钟目标完成了。`);
       seen = { day, met };
