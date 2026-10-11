@@ -16,7 +16,7 @@ export function useShortcuts() {
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return;
       const s = useApp.getState();
-      if (s.settingsOpen || s.wizardOpen) return;
+      if (s.settingsOpen || s.wizardOpen || s.statsOpen) return;
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
         const command: Record<string, (() => void) | false> = {
           b: s.toggleShelf,

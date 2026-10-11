@@ -52,6 +52,16 @@ export interface Snapshot {
   guide: Guide;
 }
 
+/** A stretch of practice on one audio (see src-tauri/src/practice/clock.rs). */
+export interface PracticeSession {
+  audio: string;
+  /** Unix ms of the first and last activity; all of it counts. */
+  start: number;
+  end: number;
+  /** Ms of that the audio was playing. */
+  played: number;
+}
+
 export interface Sentence {
   start: number;
   end: number;
@@ -270,6 +280,11 @@ export const api = {
     start: (path: string, language: string, keep = true) => invoke<void>("transcribe_start", { path, language, keep }),
     cancel: () => invoke<void>("transcribe_cancel"),
     running: () => invoke<string | null>("transcribe_running"),
+  },
+  practice: {
+    /** The learner did something in the window: keeps a paused session counting. */
+    ping: () => invoke<void>("practice_ping"),
+    log: () => invoke<PracticeSession[]>("practice_log"),
   },
   smokeMode: () => invoke<boolean>("smoke_mode"),
   smokeWindow: (minimized: boolean) => invoke<void>("smoke_window", { minimized }),

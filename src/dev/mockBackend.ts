@@ -2,7 +2,7 @@
 // Simulates the Rust commands and player:* events; no real audio.
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { AiConfig, Explanation, Feature, Preset, SavedExplanation, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
+import type { AiConfig, Explanation, Feature, PracticeSession, Preset, SavedExplanation, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
 import { fresh, samples, sampleTranscripts } from "./mockSamples";
 
 const root = "/Mock/日本語ポッドキャスト";
@@ -207,6 +207,25 @@ setInterval(() => {
   push();
 }, 50);
 
+// Five months of practice: most days 5–45 minutes, some days off, today in progress. Empty with ?fresh.
+const practiceLog: PracticeSession[] = [];
+{
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const today = new Date();
+  for (let back = 150; back >= 0; back--) {
+    if (fresh || (back > 0 && rand() < (back > 60 ? 0.45 : 0.2))) continue;
+    const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() - back, 7 + Math.floor(rand() * 14));
+    let start = Math.min(day.getTime(), Date.now() - 30 * 60_000);
+    for (let n = 1 + Math.floor(rand() * 3); n > 0; n--) {
+      const length = (4 + rand() * 25) * 60_000;
+      const audio = tracks[Math.floor(rand() * rand() * tracks.length)].path;
+      practiceLog.push({ audio, start, end: start + length, played: length * (0.55 + rand() * 0.35) });
+      start += length + (20 + rand() * 120) * 60_000;
+    }
+  }
+}
+
 export function installMockBackend() {
   const snapshot: Snapshot = {
     folder: fresh ? null : { root, name: "日本語ポッドキャスト", tracks },
@@ -350,6 +369,10 @@ export function installMockBackend() {
           return;
         case "transcribe_running":
           return job?.path ?? null;
+        case "practice_log":
+          return practiceLog;
+        case "practice_ping":
+          return null;
         case "smoke_mode":
           return false;
         default:

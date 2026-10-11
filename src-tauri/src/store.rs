@@ -91,12 +91,12 @@ impl Persisted {
     }
 }
 
-/// Writes numbered snapshots of the state to disk, either right away (`now`, so the
+/// Writes numbered snapshots of a JSON file to disk, either right away (`now`, so the
 /// caller sees errors) or on a background thread (`later`, for frequent small changes
 /// such as playback progress). An older snapshot never overwrites a newer one.
-pub struct Saver {
+pub struct Saver<T = Persisted> {
     disk: Arc<Disk>,
-    later: mpsc::Sender<(u64, Persisted)>,
+    later: mpsc::Sender<(u64, T)>,
 }
 
 struct Disk {
@@ -105,24 +105,24 @@ struct Disk {
 }
 
 impl Disk {
-    fn write(&self, version: u64, data: &Persisted) -> std::io::Result<()> {
+    fn write<T: Serialize>(&self, version: u64, data: &T) -> std::io::Result<()> {
         let mut written = self.written.lock().unwrap();
         if version <= *written {
             return Ok(());
         }
-        data.save(&self.path)?;
+        write_atomic(&self.path, &serde_json::to_vec_pretty(data)?)?;
         *written = version;
         Ok(())
     }
 }
 
-impl Saver {
+impl<T: Serialize + Send + 'static> Saver<T> {
     pub fn new(path: PathBuf) -> Self {
         let disk = Arc::new(Disk {
             path,
             written: Mutex::new(0),
         });
-        let (later, queue) = mpsc::channel::<(u64, Persisted)>();
+        let (later, queue) = mpsc::channel::<(u64, T)>();
         let d = disk.clone();
         // If the thread can't start, `later` falls back to writing in place.
         let _ = std::thread::Builder::new()
@@ -133,21 +133,21 @@ impl Saver {
                         next = newer; // only the latest matters
                     }
                     if let Err(e) = d.write(next.0, &next.1) {
-                        eprintln!("state.json not saved: {e}");
+                        eprintln!("{} not saved: {e}", d.path.display());
                     }
                 }
             });
         Self { disk, later }
     }
 
-    pub fn now(&self, version: u64, data: &Persisted) -> std::io::Result<()> {
+    pub fn now(&self, version: u64, data: &T) -> std::io::Result<()> {
         self.disk.write(version, data)
     }
 
-    pub fn later(&self, version: u64, data: Persisted) {
+    pub fn later(&self, version: u64, data: T) {
         if let Err(mpsc::SendError((version, data))) = self.later.send((version, data)) {
             if let Err(e) = self.disk.write(version, &data) {
-                eprintln!("state.json not saved: {e}");
+                eprintln!("{} not saved: {e}", self.disk.path.display());
             }
         }
     }
