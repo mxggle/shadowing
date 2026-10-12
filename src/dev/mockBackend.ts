@@ -96,7 +96,7 @@ const localModels = [
   { id: "small-q5_1", name: "Small", size: 190e6, memoryGb: 0.6, note: "很快、很小，但日语错误较多，适合先试试", downloaded: false, partial: 0, fit: "good" as const },
 ];
 let downloading: { id: string; timer: number; cancelled: boolean } | null = null;
-const localOverview = () => ({ supported: true, ramGb: 16, freeBytes: 120e9, recommended: "large-v3-turbo-q8_0", models: localModels, downloading: downloading?.id ?? null });
+const localOverview = () => ({ supported: true, chip: "Apple M2 Pro", ramGb: 16, freeBytes: 120e9, recommended: "large-v3-turbo-q8_0", reason: "16 GB 内存，选比压缩版略准的 Turbo", models: localModels, downloading: downloading?.id ?? null });
 function mockDownload(id: string) {
   if (downloading) throw "已经有一个模型在下载";
   const m = localModels.find((x) => x.id === id)!;

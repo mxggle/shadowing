@@ -1,29 +1,21 @@
-import { FolderOpen, Pause, Play, Repeat } from "lucide-react";
+import { FolderOpen, Pause, Repeat } from "lucide-react";
 import { useApp } from "../../store";
 import { TextLink } from "../ui";
-
-const LANGUAGES: [string, string][] = [
-  ["ja", "日语"],
-  ["en", "英语"],
-  ["other", "其他语言"],
-];
+import { Onboarding } from "./Onboarding";
 
 /**
- * Shown while no folder is open. The first time it asks what you're learning
- * and offers a one-minute practice on a sample clip; afterwards it's just
- * "open a folder" (with the practice still a click away).
+ * Shown while no folder is open. The first time it is the onboarding;
+ * afterwards it's just "open a folder" (with the practice still a click away).
  */
 export function Welcome() {
   const guide = useApp((s) => s.guide);
-  const missing = useApp((s) => s.missingFolder);
-  const { chooseFolder, startPractice, saveGuide, setTranscribeLanguage } = useApp.getState();
-  const first = !guide.welcomed;
+  return guide.welcomed ? <Returning /> : <Onboarding />;
+}
 
-  function pickLanguage(language: string) {
-    saveGuide({ language });
-    // Also the default for transcribing (until one is picked there).
-    if (!useApp.getState().settings.transcribeLanguage && language !== "other") setTranscribeLanguage(language);
-  }
+function Returning() {
+  const guide = useApp((s) => s.guide);
+  const missing = useApp((s) => s.missingFolder);
+  const { chooseFolder, startPractice } = useApp.getState();
 
   return (
     <div data-tauri-drag-region className="scrollbar-none flex h-full items-center justify-center overflow-y-auto bg-paper px-10 py-12">
@@ -39,46 +31,12 @@ export function Welcome() {
           {missing && (
             <p className="mt-4 rounded-[8px] bg-danger-soft px-3 py-1.5 text-[12px] break-all text-danger">上次的文件夹无法打开：{missing}</p>
           )}
-
-          {first ? (
-            <>
-              <h2 className="mt-9 text-[13px] font-medium text-muted">你在学哪种语言？</h2>
-              <div role="radiogroup" aria-label="学习语言" className="tint mt-2.5 flex gap-1 rounded-[11px] p-1">
-                {LANGUAGES.map(([code, label]) => {
-                  const on = guide.language === code;
-                  return (
-                    <button
-                      key={code}
-                      role="radio"
-                      aria-checked={on}
-                      onClick={() => pickLanguage(code)}
-                      className={`h-8 rounded-[8px] px-4 text-[13px] transition-[background-color,color,box-shadow] duration-150 ${
-                        on ? "bg-raised font-medium text-fg shadow-[0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-              <BigButton disabled={!guide.language} onClick={() => void startPractice()}>
-                <Play size={15} fill="currentColor" strokeWidth={0} /> 用示例练一下
-              </BigButton>
-              <p className="mt-2.5 text-[12px] text-faint">约 1 分钟：播放、放慢、循环一句、跟读。</p>
-              <TextLink className="mt-7" onClick={() => void chooseFolder()}>
-                跳过，直接打开我的音频文件夹
-              </TextLink>
-            </>
-          ) : (
-            <>
-              <BigButton onClick={() => void chooseFolder()}>
-                <FolderOpen size={16} strokeWidth={1.9} /> 打开文件夹
-              </BigButton>
-              <TextLink className="mt-5" onClick={() => void startPractice()}>
-                先用示例练一下
-              </TextLink>
-            </>
-          )}
+          <BigButton onClick={() => void chooseFolder()}>
+            <FolderOpen size={16} strokeWidth={1.9} /> 打开文件夹
+          </BigButton>
+          <TextLink className="mt-5" onClick={() => void startPractice()}>
+            先用示例练一下
+          </TextLink>
         </div>
         <Preview language={guide.language === "en" ? "en" : "ja"} />
       </div>
@@ -86,7 +44,7 @@ export function Welcome() {
   );
 }
 
-function BigButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function BigButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       {...props}
@@ -112,7 +70,7 @@ const PREVIEW: Record<"ja" | "en", [string, string][]> = {
  * What practising looks like, drawn with the real pieces: a script with the
  * middle sentence looping, and the deck below it. Not interactive.
  */
-function Preview({ language }: { language: "ja" | "en" }) {
+export function Preview({ language }: { language: "ja" | "en" }) {
   const lines = PREVIEW[language];
   return (
     <figure aria-hidden className="pointer-events-none hidden overflow-hidden rounded-[18px] bg-raised shadow-[0_0_0_1px_var(--line-strong)] min-[880px]:block">

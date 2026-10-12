@@ -91,12 +91,84 @@ pub fn fit(model: &Model, ram_gb: f64) -> Fit {
     }
 }
 
-/// The one model to suggest first: accurate enough for Japanese, quick, fits.
-pub fn recommended(ram_gb: f64) -> &'static str {
-    if ram_gb >= 12.0 {
-        "large-v3-turbo-q8_0"
+/// Room left on the disk after a download, so the Mac isn't filled to the brim.
+pub const DISK_MARGIN: u64 = 500 * 1024 * 1024;
+
+/// Strongest first: where the recommendation steps down to when disk space is short.
+const BY_STRENGTH: [&str; 4] = [
+    "large-v3",
+    "large-v3-turbo-q8_0",
+    "large-v3-turbo-q5_0",
+    "small-q5_1",
+];
+
+/// The one model to suggest first, and why, for this chip, memory and free disk.
+/// Turbo is accurate enough for Japanese and quick; only Max / Ultra chips with
+/// plenty of memory get the full Large v3, and a nearly full disk steps down.
+pub fn recommend(ram_gb: f64, chip: &str, free: Option<u64>) -> (&'static str, String) {
+    let ram = ram_gb.round();
+    let big_chip = chip.contains("Max") || chip.contains("Ultra");
+    let (wanted, why) = if big_chip && ram_gb >= 32.0 {
+        (
+            "large-v3",
+            format!("{chip} + {ram} GB 内存，跑得动最准的模型"),
+        )
+    } else if ram_gb >= 12.0 {
+        (
+            "large-v3-turbo-q8_0",
+            format!("{ram} GB 内存，选比压缩版略准的 Turbo"),
+        )
     } else {
-        "large-v3-turbo-q5_0"
+        (
+            "large-v3-turbo-q5_0",
+            format!("{ram} GB 内存，选又快又省内存的压缩版"),
+        )
+    };
+    let Some(free) = free else {
+        return (wanted, why);
+    };
+    let fits = |id: &&&str| find(id).is_some_and(|m| m.size + DISK_MARGIN <= free);
+    let start = BY_STRENGTH.iter().position(|id| *id == wanted).unwrap_or(0);
+    match BY_STRENGTH[start..].iter().find(fits) {
+        Some(&id) if id == wanted => (id, why),
+        Some(&id) => (id, format!("可用空间只有 {}，选了小一点的模型", gb(free))),
+        None => (
+            wanted,
+            format!("可用空间只有 {}，需要先清理出一些空间", gb(free)),
+        ),
+    }
+}
+
+fn gb(bytes: u64) -> String {
+    format!("{:.1} GB", bytes as f64 / 1e9)
+}
+
+/// The chip's name, like "Apple M2 Pro".
+pub fn chip() -> String {
+    let mut buf = [0u8; 128];
+    let mut len = buf.len();
+    // SAFETY: the buffer and its length match; sysctl writes at most `len` bytes.
+    let rc = unsafe {
+        libc::sysctlbyname(
+            c"machdep.cpu.brand_string".as_ptr(),
+            buf.as_mut_ptr().cast(),
+            &mut len,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    let name = if rc == 0 {
+        String::from_utf8_lossy(&buf[..len])
+            .trim_end_matches('\0')
+            .trim()
+            .to_string()
+    } else {
+        String::new()
+    };
+    if name.is_empty() {
+        "这台 Mac".into()
+    } else {
+        name
     }
 }
 
@@ -151,7 +223,9 @@ mod tests {
             );
             assert!(m.url().starts_with("https://huggingface.co/"), "{}", m.id);
         }
-        assert!(find(recommended(8.0)).is_some() && find(recommended(64.0)).is_some());
+        for id in BY_STRENGTH {
+            assert!(find(id).is_some(), "{id}");
+        }
     }
 
     #[test]
@@ -162,13 +236,37 @@ mod tests {
         assert_eq!(fit(large, 8.0), Fit::TooBig);
         assert_eq!(fit(large, 12.0), Fit::Tight);
         assert_eq!(fit(large, 16.0), Fit::Good);
-        assert_eq!(recommended(8.0), "large-v3-turbo-q5_0");
-        assert_eq!(recommended(16.0), "large-v3-turbo-q8_0");
+    }
+
+    #[test]
+    fn recommendation_follows_chip_memory_and_disk() {
+        let roomy = Some(200_000_000_000);
+        let pick = |ram, chip, free| recommend(ram, chip, free).0;
+        assert_eq!(pick(8.0, "Apple M1", roomy), "large-v3-turbo-q5_0");
+        assert_eq!(pick(16.0, "Apple M2", roomy), "large-v3-turbo-q8_0");
+        assert_eq!(pick(16.0, "Apple M3 Max", roomy), "large-v3-turbo-q8_0");
+        assert_eq!(pick(36.0, "Apple M3 Max", roomy), "large-v3");
+        assert_eq!(pick(64.0, "Apple M2 Pro", roomy), "large-v3-turbo-q8_0");
+        assert_eq!(pick(16.0, "Apple M2", None), "large-v3-turbo-q8_0");
+        // A nearly full disk steps down to what fits, or says to make room.
+        assert_eq!(
+            pick(36.0, "Apple M3 Max", Some(2_000_000_000)),
+            "large-v3-turbo-q8_0"
+        );
+        assert_eq!(
+            pick(16.0, "Apple M2", Some(1_200_000_000)),
+            "large-v3-turbo-q5_0"
+        );
+        assert_eq!(pick(16.0, "Apple M2", Some(800_000_000)), "small-q5_1");
+        let (id, why) = recommend(16.0, "Apple M2", Some(100_000_000));
+        assert_eq!(id, "large-v3-turbo-q8_0");
+        assert!(why.contains("清理"), "{why}");
     }
 
     #[test]
     fn reads_this_machine() {
         assert!(ram_gb() >= 1.0);
+        assert!(!chip().is_empty());
         assert!(free_bytes(std::path::Path::new("/tmp/does/not/exist")).unwrap() > 0);
     }
 }

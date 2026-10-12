@@ -8,7 +8,7 @@ mod real_tests;
 pub mod whisper;
 
 use crate::AppState;
-use models::{Fit, Model, MODELS};
+use models::{Fit, Model, DISK_MARGIN, MODELS};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -18,9 +18,6 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 /// The provider id used in settings for "transcribe on this Mac".
 pub const PROVIDER: &str = "local";
-
-/// Room left on the disk after a download, so the Mac isn't filled to the brim.
-const DISK_MARGIN: u64 = 500 * 1024 * 1024;
 
 pub fn models_dir(state: &AppState) -> PathBuf {
     // Debug builds (smoke runs) may borrow an existing folder instead of downloading again.
@@ -61,9 +58,13 @@ pub struct ModelState {
 #[serde(rename_all = "camelCase")]
 pub struct Overview {
     supported: bool,
+    /// Like "Apple M2 Pro".
+    chip: String,
     ram_gb: f64,
     free_bytes: Option<u64>,
     recommended: &'static str,
+    /// Why that model suits this Mac, in a few words.
+    reason: String,
     models: Vec<ModelState>,
     downloading: Option<String>,
 }
@@ -87,11 +88,16 @@ pub enum DownloadStatus {
 fn overview(state: &AppState, downloads: &Downloads) -> Overview {
     let dir = models_dir(state);
     let ram = models::ram_gb();
+    let chip = models::chip();
+    let free = models::free_bytes(&dir);
+    let (recommended, reason) = models::recommend(ram, &chip, free);
     Overview {
         supported: models::supported(),
+        chip,
         ram_gb: ram,
-        free_bytes: models::free_bytes(&dir),
-        recommended: models::recommended(ram),
+        free_bytes: free,
+        recommended,
+        reason,
         models: MODELS
             .iter()
             .map(|m| {

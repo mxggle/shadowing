@@ -18,7 +18,7 @@ const overview = (config: Partial<AiConfig>): AiOverview => ({
   config: { transcribe: { provider: null, model: "" }, chat: { provider: null, model: "" }, baseUrls: {}, keyHints: {}, chatgptClientId: null, chatgptHostId: null, ...config },
 });
 const local = (downloaded: boolean): LocalOverview => ({
-  supported: true, ramGb: 16, freeBytes: null, recommended: "turbo", downloading: null,
+  supported: true, chip: "Apple M1", reason: "", ramGb: 16, freeBytes: null, recommended: "turbo", downloading: null,
   models: [{ id: "turbo", name: "Turbo", size: 1, memoryGb: 1, note: "", downloaded, partial: 0, fit: "good" }],
 });
 
