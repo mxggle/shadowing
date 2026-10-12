@@ -181,6 +181,8 @@ function Page({ title, feature, onBack, onNext, children }: {
 function Start({ onBack }: { onBack: () => void }) {
   const transcribe = useApp((s) => (featureReady("transcribe", s.ai, s.local) ? "ok" : s.download?.state === "running" ? "pending" : "off"));
   const chat = useApp((s) => (featureReady("chat", s.ai, s.local) ? "ok" : "off"));
+  // Opening the sample can fail (say, a broken install); nothing else on this screen would show it.
+  const error = useApp((s) => s.error);
   const { startPractice, chooseFolder } = useApp.getState();
 
   return (
@@ -197,6 +199,7 @@ function Start({ onBack }: { onBack: () => void }) {
         <Play size={15} fill="currentColor" strokeWidth={0} /> 用示例练一下
       </BigButton>
       <p className="mt-2.5 text-[12px] text-faint">约 1 分钟：播放、放慢、循环一句、跟读。</p>
+      {error && <p className="mt-3 rounded-[8px] bg-danger-soft px-3 py-1.5 text-[12px] break-all text-danger">{error}</p>}
       <div className="mt-7 flex items-center gap-5">
         <TextLink onClick={() => void chooseFolder()}>直接打开我的音频文件夹</TextLink>
         <TextLink onClick={onBack}>上一步</TextLink>
