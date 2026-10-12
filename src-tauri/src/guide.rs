@@ -32,7 +32,12 @@ pub fn guide_save(state: State<AppState>, guide: Guide) -> Result<(), String> {
 /// `resource_dir` points into a missing `Contents/Resources`. Debug builds therefore
 /// also look beside the binary and in the source tree.
 pub fn samples_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
-    let mut candidates = vec![app.path().resource_dir().ok()?.join("samples")];
+    let mut candidates: Vec<PathBuf> = app
+        .path()
+        .resource_dir()
+        .map(|dir| dir.join("samples"))
+        .into_iter()
+        .collect();
     if cfg!(debug_assertions) {
         if let Some(beside) = std::env::current_exe()
             .ok()
@@ -42,9 +47,11 @@ pub fn samples_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
         }
         candidates.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("samples"));
     }
+    // A shared target folder can hold another project's `samples`, so only take one with our clips.
     candidates
         .into_iter()
-        .find_map(|dir| dir.canonicalize().ok())
+        .filter_map(|dir| dir.canonicalize().ok())
+        .find(|dir| sample_in(dir, "ja").is_some() && sample_in(dir, "en").is_some())
 }
 
 /// The sample clip for a learning language; anything but Japanese gets English.
