@@ -1,24 +1,37 @@
 # Builds Shadowing.app as a DMG (what people download: open it, drag Shadowing into Applications) and a zip, plus the signed update for the in-app updater (src-tauri/src/update.rs).
 # - Pushing a tag vX.Y.Z: checks the tag matches the app version, then creates a DRAFT release with the zip, the
 #   update (Shadowing-X.Y.Z-macos-arm64.app.tar.gz + .sig) and latest.json, notes from CHANGELOG.md (or replaces
-#   those files on a release that already exists). Review the draft, then publish it: installed apps only see
+#   those files on a draft that already exists; a published release is left alone). Files: scripts/release-assets.sh. Review the draft, then publish it: installed apps only see
 #   latest.json of the newest *published* release, so publishing is what offers the update.
 # - The update is signed with the updater key (not an Apple certificate). Repository secrets:
 #   TAURI_SIGNING_PRIVATE_KEY (contents of the .key file) and TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
 #   A tag build fails without them; other builds then skip the update and only make the zip.
 # - Running it by hand (Actions → Release → Run workflow), or a PR that touches the version or the release
-#   tooling (release/vX.Y.Z PRs, changes to this file): only builds, and keeps the zip as a workflow artifact.
+#   tooling (release/vX.Y.Z PRs, changes to this file): only builds, and keeps the files as a workflow artifact.
+# - Pushes to main that change Rust dependencies, and a weekly run: only build, to keep the compiled dependencies
+#   in the cache. A tag build can only restore a cache saved on main, and without one it compiles every
+#   dependency from scratch (about 7 of its ~18 minutes).
+# - Faster still: scripts/release-local.sh builds and uploads the release from your Mac.
 name: Release
 
 on:
   push:
     tags: ["v*.*.*"]
+    branches: [main]
+    paths:
+      - src-tauri/Cargo.lock
+      - src-tauri/Cargo.toml
+      - rust-toolchain.toml
+      - .github/workflows/release.yml
+  schedule:
+    - cron: "0 3 * * 1" # Mondays: GitHub drops caches unused for 7 days
   pull_request:
     paths:
       - .github/workflows/release.yml
       - scripts/check-version.sh
       - scripts/release-notes.sh
       - scripts/update-manifest.sh
+      - scripts/release-assets.sh
       - rust-toolchain.toml
       - src-tauri/tauri.conf.json
       - CHANGELOG.md
@@ -60,8 +73,6 @@ jobs:
             version=$(scripts/check-version.sh)
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "zip=Shadowing-$version-macos-arm64.zip" >> "$GITHUB_OUTPUT"
-          echo "dmg=Shadowing-$version-macos-arm64.dmg" >> "$GITHUB_OUTPUT"
 
       - run: npm ci
 
@@ -79,57 +90,17 @@ jobs:
             npm run tauri build -- --bundles app,dmg --config '{"bundle":{"createUpdaterArtifacts":false}}'
           fi
 
-      - name: Zip
-        id: zip
-        env:
-          ZIP: ${{ steps.version.outputs.zip }}
-        run: |
-          app=src-tauri/target/release/bundle/macos/Shadowing.app
-          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")" = "${{ steps.version.outputs.version }}"
-          lipo -archs "$app/Contents/MacOS/shadowing"
-          ditto -c -k --keepParent "$app" "$ZIP"
-          # Same zip under a fixed name, so a download link can always be releases/latest/download/Shadowing-macos-arm64.zip.
-          cp "$ZIP" Shadowing-macos-arm64.zip
-          echo "sha256=$(shasum -a 256 "$ZIP" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-
-      - name: DMG
-        id: dmg
-        env:
-          DMG: ${{ steps.version.outputs.dmg }}
-        run: |
-          built=(src-tauri/target/release/bundle/dmg/*.dmg)
-          test ${#built[@]} = 1
-          cp "${built[0]}" "$DMG"
-          hdiutil verify "$DMG"
-          # Fixed name for the website: releases/latest/download/Shadowing-macos-arm64.dmg.
-          cp "$DMG" Shadowing-macos-arm64.dmg
-          echo "sha256=$(shasum -a 256 "$DMG" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-
-      - name: Update for the in-app updater
-        id: update
-        if: hashFiles('src-tauri/target/release/bundle/macos/Shadowing.app.tar.gz') != ''
+      - name: Release files
         env:
           VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          bundle=src-tauri/target/release/bundle/macos
-          name="Shadowing-$VERSION-macos-arm64.app.tar.gz"
-          cp "$bundle/Shadowing.app.tar.gz" "$name"
-          cp "$bundle/Shadowing.app.tar.gz.sig" "$name.sig"
-          url="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/$name"
-          scripts/update-manifest.sh "$VERSION" "$name.sig" "$url" > latest.json
-          cat latest.json
-          echo "files=$name $name.sig latest.json" >> "$GITHUB_OUTPUT"
+        run: scripts/release-assets.sh "$VERSION" src-tauri/target/release/bundle release
 
-      - name: Keep the zip (manual runs)
+      - name: Keep the files (builds without a tag)
         if: github.ref_type != 'tag'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.version.outputs.zip }}
-          path: |
-            ${{ steps.version.outputs.zip }}
-            ${{ steps.version.outputs.dmg }}
-            Shadowing-*.app.tar.gz*
-            latest.json
+          name: Shadowing-${{ steps.version.outputs.version }}-macos-arm64
+          path: release/Shadowing-${{ steps.version.outputs.version }}-*
           retention-days: 14
 
       - name: Draft the release
@@ -138,16 +109,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           VERSION: ${{ steps.version.outputs.version }}
-          ZIP: ${{ steps.version.outputs.zip }}
-          DMG: ${{ steps.version.outputs.dmg }}
-          SHA: ${{ steps.dmg.outputs.sha256 }}
-          UPDATE_FILES: ${{ steps.update.outputs.files }}
         run: |
-          # shellcheck disable=SC2086 # UPDATE_FILES is a list of plain file names
-          if gh release view "$TAG" > /dev/null 2>&1; then
-            echo "Release $TAG already exists; replacing its files."
-            gh release upload "$TAG" "$DMG" Shadowing-macos-arm64.dmg "$ZIP" Shadowing-macos-arm64.zip $UPDATE_FILES --clobber
+          files=(release/*.dmg release/*.zip release/*.app.tar.gz release/*.sig release/latest.json)
+          if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null)" = false ]; then
+            # Published already (e.g. by scripts/release-local.sh): installed apps may be updating from it.
+            echo "::notice::Release $TAG is already published; leaving its files alone."
+          elif gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Draft $TAG already exists; replacing its files."
+            gh release upload "$TAG" "${files[@]}" --clobber
           else
-            scripts/release-notes.sh "$VERSION" "$SHA" > notes.md
-            gh release create "$TAG" "$DMG" Shadowing-macos-arm64.dmg "$ZIP" Shadowing-macos-arm64.zip $UPDATE_FILES --draft --verify-tag --title "Shadowing $VERSION" --notes-file notes.md
+            gh release create "$TAG" "${files[@]}" --draft --verify-tag --title "Shadowing $VERSION" --notes-file release/notes.md
           fi
