@@ -3,9 +3,10 @@
 #   update (Shadowing-X.Y.Z-macos-arm64.app.tar.gz + .sig) and latest.json, notes from CHANGELOG.md (or replaces
 #   those files on a draft that already exists; a published release is left alone). Files: scripts/release-assets.sh. Review the draft, then publish it: installed apps only see
 #   latest.json of the newest *published* release, so publishing is what offers the update.
-# - The update is signed with the updater key (not an Apple certificate). Repository secrets:
-#   TAURI_SIGNING_PRIVATE_KEY (contents of the .key file) and TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
-#   A tag build fails without them; other builds then skip the update and only make the zip.
+# - Signing (scripts/release-assets.sh): the app with our own code-signing certificate, the update with the updater
+#   key. Repository secrets: SHADOWING_CODESIGN_P12 (base64 .p12), SHADOWING_CODESIGN_PASSWORD,
+#   TAURI_SIGNING_PRIVATE_KEY (contents of the .key file), TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
+#   A tag build fails without them; other builds then make an ad-hoc signed DMG and zip only.
 # - Running it by hand (Actions → Release → Run workflow), or a PR that touches the version or the release
 #   tooling (release/vX.Y.Z PRs, changes to this file): only builds, and keeps the files as a workflow artifact.
 # - Pushes to main that change Rust dependencies, and a weekly run: only build, to keep the compiled dependencies
@@ -77,23 +78,23 @@ jobs:
       - run: npm ci
 
       - name: Build the app
+        run: npm run tauri build -- --bundles app
+
+      - name: Sign and package
         env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SHADOWING_CODESIGN_P12: ${{ secrets.SHADOWING_CODESIGN_P12 }}
+          SHADOWING_CODESIGN_PASSWORD: ${{ secrets.SHADOWING_CODESIGN_PASSWORD }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            npm run tauri build -- --bundles app,dmg
-          elif [ "$GITHUB_REF_TYPE" = tag ]; then
-            echo "::error::TAURI_SIGNING_PRIVATE_KEY is not set: a release needs the signed update." && exit 1
-          else
-            echo "::warning::No updater key; building without the signed update."
-            npm run tauri build -- --bundles app,dmg --config '{"bundle":{"createUpdaterArtifacts":false}}'
+          if [ -z "$SHADOWING_CODESIGN_P12" ] || [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            if [ "$GITHUB_REF_TYPE" = tag ]; then
+              echo "::error::A release needs the signing secrets (see scripts/release-assets.sh)." && exit 1
+            fi
+            export SHADOWING_UNSIGNED=1
           fi
-
-      - name: Release files
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: scripts/release-assets.sh "$VERSION" src-tauri/target/release/bundle release
+          scripts/release-assets.sh "$VERSION" src-tauri/target/release/bundle release
 
       - name: Keep the files (builds without a tag)
         if: github.ref_type != 'tag'

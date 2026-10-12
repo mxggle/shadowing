@@ -134,7 +134,7 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
    建一个**草稿** Release，说明由 `scripts/release-notes.sh` 从 CHANGELOG 生成（含安装步骤和 SHA-256）。
    同时上传固定名字的 `Shadowing-macos-arm64.dmg` / `.zip`（网站的下载按钮链接 `releases/latest/download/Shadowing-macos-arm64.dmg`）和应用内更新用的 `Shadowing-X.Y.Z-macos-arm64.app.tar.gz`、`.sig` 和 `latest.json`。
    GitHub 上要 15 分钟以上；**更快的做法**是推送标签后在本机运行 `scripts/release-local.sh vX.Y.Z`（5 分钟左右）：
-   它会停掉这个标签在 Actions 上的构建，在本机用 `~/.tauri` 里的更新私钥打包、签名，再建草稿 Release
+   它会停掉这个标签在 Actions 上的构建，在本机用 `~/.tauri` 里的证书和更新私钥打包、签名，再建草稿 Release
    （加 `--publish` 直接发布）。两边产出的文件都由 `scripts/release-assets.sh` 生成，名字和内容一样。
 3. 在 GitHub 上看草稿：补上“已知限制 / 还没验证”，下载 dmg 装一次打开看看，再点发布。**点发布的那一刻**，已装的应用
    下次打开就会提示更新（它们只读最新的已发布 Release 的 `latest.json`，草稿不影响）。
@@ -145,9 +145,18 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
   私钥**不进仓库**，放在仓库的 Actions secrets：`TAURI_SIGNING_PRIVATE_KEY`（私钥文件的内容）和
   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。打标签发布时没有这两个 secret 会直接失败。
 - 私钥或密码丢了，已装的应用就再也收不到更新（只能换公钥、让大家手动装一次新版本）。务必在密码管理器里备份。
-- 本地打带更新包的版本：`TAURI_SIGNING_PRIVATE_KEY="$(cat <私钥文件>)" TAURI_SIGNING_PRIVATE_KEY_PASSWORD=… npm run tauri build -- --bundles app`。
-  不需要更新包时加 `--config '{"bundle":{"createUpdaterArtifacts":false}}'`（`npm run smoke` 已经这样做）。
-- 应用没有 Apple 签名（ad-hoc）也能正常自更新：应用自己下载的文件不带隔离属性，替换后直接打开，不会被 Gatekeeper 拦。
+- `tauri build` 只打 .app；签名、DMG、zip、更新包和 latest.json 都由 `scripts/release-assets.sh` 生成（说明在脚本开头）。
+
+### 代码签名证书
+
+- 应用用一张自己生成的证书签名（“Shadowing Code Signing”，自签名，不需要 Apple 账号）。它去不掉第一次打开时
+  Gatekeeper 的拦截，但每个版本的签名身份都一样，macOS 就知道更新后还是同一个应用，**不会再弹窗要钥匙串密码**
+  （ad-hoc 签名每次构建都不同，每次更新都会弹）。证书（.p12 和密码）在 `~/.tauri/shadowing-codesign.p12(.password)`，
+  也在 Actions secrets：`SHADOWING_CODESIGN_P12`（base64）和 `SHADOWING_CODESIGN_PASSWORD`。务必备份；换证书会让所有用户再弹一次。
+- 钥匙串项目名是 “Shadowing”（`ai/secrets.rs`）；0.5.1 之前叫 “dev.shadowing.app”，读到旧的会自动复制过来。
+- 打包时注意：`samples/ja/` 的文件名有日文浊音，macOS 的 `tar` 和 HFS+ 会把它们改写成分解形式，签名就对不上了。
+  所以更新包用 Python 的 tarfile 打，DMG 用 APFS。
+- 应用没有 Apple 签名也能正常自更新：应用自己下载的文件不带隔离属性，替换后直接打开，不会被 Gatekeeper 拦。
   只有直接从“下载”文件夹打开（App Translocation）时没法替换自己，会提示先拖进“应用程序”。
 
 ## CI

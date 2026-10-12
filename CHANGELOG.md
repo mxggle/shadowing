@@ -5,6 +5,12 @@
 
 ## [未发布]
 
+## [0.5.1] - 2026-10-12
+
+### 修复
+- 更新后打开应用，系统会弹窗要输入登录密码才能读取钥匙串里的 API Key（每个新版本都会弹一次）。现在应用用一张固定的证书签名，macOS 能认出新版本还是同一个应用；更新到这个版本时还会最后弹一次，点“始终允许”，以后更新就不会再弹了。
+- 钥匙串里保存 Key 的项目名从 “dev.shadowing.app” 改成 “Shadowing”（原来的名字看起来像开发版）。已经保存的 Key 会自动搬过去。
+
 ## [0.5.0] - 2026-10-12
 
 ### 新增
@@ -79,7 +85,8 @@
 - 修改字幕、查找和全部替换、AI 校对、解释这一句（译文、生词、语法点，答案会保存）。
 - 第一次打开有示例练习和 AI 设置向导。
 
-[未发布]: https://github.com/mxggle/shadowing/compare/v0.5.0...HEAD
+[未发布]: https://github.com/mxggle/shadowing/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/mxggle/shadowing/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/mxggle/shadowing/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/mxggle/shadowing/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mxggle/shadowing/compare/v0.2.0...v0.3.0

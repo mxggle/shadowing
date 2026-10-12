@@ -12,7 +12,11 @@ pub trait SecretStore: Send + Sync {
 
 pub struct Secrets(pub Box<dyn SecretStore>);
 
-const SERVICE: &str = "dev.shadowing.app";
+/// The item name macOS shows when it asks about the Keychain.
+const SERVICE: &str = "Shadowing";
+/// Before 0.5.1 the items were named after the bundle identifier, which read like a “dev” build.
+/// Read once and copied to `SERVICE`; the old item is left alone, since removing it could ask again.
+const OLD_SERVICE: &str = "dev.shadowing.app";
 
 pub struct Keychain;
 
@@ -28,28 +32,48 @@ fn fail(e: keyring_core::Error) -> String {
     format!("无法访问钥匙串：{e}")
 }
 
-fn entry(id: &str) -> Result<keyring_core::Entry, String> {
-    keyring_core::Entry::new(SERVICE, id).map_err(fail)
+fn entry(service: &str, id: &str) -> Result<keyring_core::Entry, String> {
+    keyring_core::Entry::new(service, id).map_err(fail)
+}
+
+fn read(service: &str, id: &str) -> Result<Option<String>, String> {
+    match entry(service, id)?.get_password() {
+        Ok(secret) => Ok(Some(secret)),
+        Err(keyring_core::Error::NoEntry) => Ok(None),
+        Err(e) => Err(fail(e)),
+    }
+}
+
+fn remove(service: &str, id: &str) -> Result<(), String> {
+    match entry(service, id)?.delete_credential() {
+        Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
+        Err(e) => Err(fail(e)),
+    }
 }
 
 impl SecretStore for Keychain {
     fn get(&self, id: &str) -> Result<Option<String>, String> {
-        match entry(id)?.get_password() {
-            Ok(secret) => Ok(Some(secret)),
-            Err(keyring_core::Error::NoEntry) => Ok(None),
-            Err(e) => Err(fail(e)),
+        if let Some(secret) = read(SERVICE, id)? {
+            return Ok(Some(secret));
         }
+        let Some(secret) = read(OLD_SERVICE, id)? else {
+            return Ok(None);
+        };
+        // Saved by an older version: keep a copy under the new name (still usable if that fails).
+        if let Err(e) = self.set(id, &secret) {
+            eprintln!("{e}");
+        }
+        Ok(Some(secret))
     }
 
     fn set(&self, id: &str, secret: &str) -> Result<(), String> {
-        entry(id)?.set_password(secret).map_err(fail)
+        entry(SERVICE, id)?.set_password(secret).map_err(fail)
     }
 
+    /// Both names, so signing out or clearing a key leaves no copy behind.
     fn delete(&self, id: &str) -> Result<(), String> {
-        match entry(id)?.delete_credential() {
-            Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
-            Err(e) => Err(fail(e)),
-        }
+        remove(SERVICE, id)?;
+        remove(OLD_SERVICE, id)
     }
 }
 
@@ -103,6 +127,14 @@ mod tests {
         k.set(id, "secret-2").unwrap();
         assert_eq!(k.get(id).unwrap().as_deref(), Some("secret-2"));
         k.delete(id).unwrap();
+        assert_eq!(k.get(id).unwrap(), None);
+
+        // An item saved by an older version is read and copied to the new name.
+        entry(OLD_SERVICE, id).unwrap().set_password("old").unwrap();
+        assert_eq!(k.get(id).unwrap().as_deref(), Some("old"));
+        assert_eq!(read(SERVICE, id).unwrap().as_deref(), Some("old"));
+        k.delete(id).unwrap();
+        assert_eq!(read(OLD_SERVICE, id).unwrap(), None);
         assert_eq!(k.get(id).unwrap(), None);
     }
 
