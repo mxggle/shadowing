@@ -11,7 +11,7 @@ export function formatBytes(bytes: number) {
 const FIT_LABEL = { good: null, tight: "内存偏紧", tooBig: "内存不够" } as const;
 
 /** "本机" transcription: pick a Whisper model, download it (in the background), delete it. */
-export function LocalModels() {
+export function LocalModels({ intro = true }: { intro?: boolean }) {
   const local = useApp((s) => s.local);
   const chosen = useApp((s) => s.ai?.config.transcribe.model ?? "");
   const choose = async (id: string) => useApp.getState().setAiConfig(await api.ai.choose("transcribe", LOCAL_PROVIDER, id));
@@ -27,19 +27,21 @@ export function LocalModels() {
   const chosenModel = local.models.find((m) => m.id === chosen);
   return (
     <div className="mt-4 flex animate-fade-in flex-col gap-2 border-t border-line pt-4">
-      <p className="text-[12px] text-muted">
-        在这台 Mac 上用 Whisper 转写：免费、可离线，音频不会离开本机。
-        <span className="text-faint">
-          {" "}
-          这台 Mac：{local.chip} · {Math.round(local.ramGb)} GB 内存{local.freeBytes !== null && ` · 可用空间 ${formatBytes(local.freeBytes)}`}。推荐的原因：{local.reason}
-        </span>
-      </p>
+      {intro && (
+        <p className="text-[12px] text-muted">
+          在这台 Mac 上用 Whisper 转写：免费、可离线，音频不会离开本机。
+          <span className="text-faint">
+            {" "}
+            这台 Mac：{local.chip} · {Math.round(local.ramGb)} GB 内存{local.freeBytes !== null && ` · 可用空间 ${formatBytes(local.freeBytes)}`}。推荐的原因：{local.reason}
+          </span>
+        </p>
+      )}
       <div role="radiogroup" aria-label="模型" className="flex flex-col gap-1">
         {local.models.map((m) => (
           <Row key={m.id} model={m} selected={m.id === chosen} recommended={m.id === local.recommended} onSelect={() => void choose(m.id)} />
         ))}
       </div>
-      {chosenModel && !chosenModel.downloaded && (
+      {intro && chosenModel && !chosenModel.downloaded && (
         <p className="text-[12px] text-warn">选中的模型还没有下载，下载完成后就能转写。下载时可以关闭设置继续使用。</p>
       )}
     </div>

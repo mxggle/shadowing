@@ -31,10 +31,11 @@ export function Onboarding() {
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
 
   return (
-    <div data-tauri-drag-region className="scrollbar-none flex h-full justify-center overflow-y-auto bg-paper px-10 pt-10 pb-12">
-      <div className="flex w-full max-w-[880px] flex-col">
+    <div data-tauri-drag-region className="scrollbar-none h-full overflow-y-auto bg-paper px-10">
+      {/* my-auto centres short steps and leaves room above and below when a step is taller than the window. */}
+      <div className="mx-auto flex min-h-full w-full max-w-[880px] flex-col pt-10 pb-16">
         <Steps step={step} onPick={setStep} />
-        <div key={step} className="flex flex-1 animate-fade-in flex-col justify-center pt-8">
+        <div key={step} className="my-auto flex animate-fade-in flex-col pt-12">
           {step === 0 && <Intro onNext={next} />}
           {step === 1 && (
             <Page title="在这台 Mac 上转写" onBack={() => setStep(0)} onNext={next} feature="transcribe">

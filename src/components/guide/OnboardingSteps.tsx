@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { featureReady } from "../../lib/aiReady";
 import { api, LOCAL_PROVIDER, type AiConfig } from "../../lib/api";
 import { useApp } from "../../store";
-import { formatBytes } from "../settings/LocalModels";
+import { formatBytes, LocalModels } from "../settings/LocalModels";
 import { ProviderSetup } from "../settings/ProviderSetup";
 import { Button, TextLink } from "../ui";
 import { TranscribeStep } from "./WizardSteps";
@@ -18,6 +18,7 @@ export function ModelStep() {
   const local = useApp((s) => s.local);
   const provider = useApp((s) => s.ai?.config.transcribe.provider ?? null);
   const [more, setMore] = useState(false);
+  const [cloud, setCloud] = useState(false);
   const model = local?.models.find((m) => m.id === local.recommended);
   const download = useApp((s) => (model && s.download?.id === model.id ? s.download : null));
   const inUse = useApp((s) => {
@@ -97,10 +98,16 @@ export function ModelStep() {
       {inUse && inUse.id !== model.id && !running && (
         <p className="text-[12px] text-muted">现在用的是已下载的 {inUse.name}，可以直接下一步；下载推荐的模型后会换成它。</p>
       )}
-      <TextLink className="text-[12px]" onClick={() => setMore(!more)}>
-        {more ? "收起其他模型" : "选其他模型，或改用云端服务"}
-      </TextLink>
-      {more && <TranscribeStep />}
+      <div className="flex items-center gap-5">
+        <TextLink className="text-[12px]" onClick={() => setMore(!more)}>
+          {more ? "收起其他模型" : "选其他模型"}
+        </TextLink>
+        <TextLink className="text-[12px]" onClick={() => setCloud(!cloud)}>
+          {cloud ? "收起云端服务" : "改用云端服务（Groq、OpenAI）"}
+        </TextLink>
+      </div>
+      {more && <LocalModels intro={false} />}
+      {cloud && <ProviderSetup feature="transcribe" only={(p) => !p.local} allowNone={false} />}
     </div>
   );
 }
