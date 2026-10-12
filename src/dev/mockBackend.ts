@@ -381,6 +381,20 @@ export function installMockBackend() {
           return null;
         case "smoke_mode":
           return false;
+        case "plugin:app|version":
+          return "0.3.0";
+        // A newer version is always out; installing downloads for a few seconds, then can't relaunch a browser tab.
+        case "update_check":
+          return { version: "0.4.0", current: "0.3.0", notes: "### 新增\n- 应用内更新：打开时检查，菜单和设置里也能手动检查。\n- 学习记录：今天、最近 7 天练了多久。\n\n### 修复\n- 第三条\n- 第四条\n- 第五条" };
+        case "update_install":
+          return (async () => {
+            const total = 11_000_000;
+            for (let done = 0; done <= total; done += 1_100_000) {
+              void emit("update:progress", { done, total });
+              await new Promise((r) => setTimeout(r, 250));
+            }
+            throw "更新失败：浏览器里没法重新打开应用（mock）";
+          })();
         default:
           return null; // save_progress, save_settings, set_last_track, choose_folder…
       }

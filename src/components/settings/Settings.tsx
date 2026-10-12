@@ -1,5 +1,6 @@
 import { Settings as Gear, X } from "lucide-react";
-import { useEffect } from "react";
+import { getVersion } from "@tauri-apps/api/app";
+import { useEffect, useState } from "react";
 import type { Feature } from "../../lib/api";
 import { useApp } from "../../store";
 import { Button, IconButton } from "../ui";
@@ -100,8 +101,48 @@ export function SettingsDialog() {
               </section>
             ))}
           </div>
+          <div className="border-t border-line pt-5">
+            <h3 className="text-[12px] font-medium text-faint">版本</h3>
+            <UpdateRow />
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** This version, and 检查更新 (also in the app menu); the answer shows here and in the floating notice. */
+function UpdateRow() {
+  const update = useApp((s) => s.update);
+  const [version, setVersion] = useState("");
+  useEffect(() => void getVersion().then(setVersion), []);
+  const status =
+    update.state === "checking"
+      ? "正在检查…"
+      : update.state === "latest"
+        ? "已是最新版本"
+        : update.state === "available" || update.state === "installing"
+          ? `新版本 ${update.version} 可以更新`
+          : update.state === "failed"
+            ? update.message
+            : "打开应用时会自动检查。";
+  return (
+    <div className="flex items-center gap-4 py-3">
+      <div className="min-w-0 flex-1">
+        <h4 className="text-[13px] font-medium">
+          Shadowing <span className="font-mono tabular">{version}</span>
+        </h4>
+        <p className="mt-0.5 text-[12px] leading-relaxed text-muted">{status}</p>
+      </div>
+      {update.state === "available" ? (
+        <Button primary onClick={() => void useApp.getState().installUpdate()}>
+          更新并重新打开
+        </Button>
+      ) : (
+        <Button disabled={update.state === "checking" || update.state === "installing"} onClick={() => void useApp.getState().checkUpdate(true)}>
+          检查更新
+        </Button>
+      )}
     </div>
   );
 }

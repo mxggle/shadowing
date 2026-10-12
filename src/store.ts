@@ -9,8 +9,9 @@ import { createGuideSlice, type GuideState } from "./guideSlice";
 import { createPracticeSlice, type PracticeState } from "./practiceSlice";
 import { createProofreadSlice, type ProofreadState } from "./proofreadSlice";
 import { createTranscriptSlice, type TranscriptState } from "./transcriptSlice";
+import { createUpdateSlice, type UpdateState } from "./updateSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ProofreadState, ExplainState, GuideState, PracticeState {
+export interface AppState extends TranscriptState, CorrectState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -172,6 +173,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createExplainSlice(set, get),
     ...createGuideSlice(set, get, engine),
     ...createPracticeSlice(set, get, persistSettings),
+    ...createUpdateSlice(set, get),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);

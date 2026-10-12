@@ -1,6 +1,11 @@
-# Builds Shadowing.app and zips it.
-# - Pushing a tag vX.Y.Z: checks the tag matches the app version, then creates a DRAFT release with the zip and
-#   notes from CHANGELOG.md (or adds the zip to a release that already exists). Review the draft, then publish it.
+# Builds Shadowing.app and zips it, plus the signed update for the in-app updater (src-tauri/src/update.rs).
+# - Pushing a tag vX.Y.Z: checks the tag matches the app version, then creates a DRAFT release with the zip, the
+#   update (Shadowing-X.Y.Z-macos-arm64.app.tar.gz + .sig) and latest.json, notes from CHANGELOG.md (or replaces
+#   those files on a release that already exists). Review the draft, then publish it: installed apps only see
+#   latest.json of the newest *published* release, so publishing is what offers the update.
+# - The update is signed with the updater key (not an Apple certificate). Repository secrets:
+#   TAURI_SIGNING_PRIVATE_KEY (contents of the .key file) and TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
+#   A tag build fails without them; other builds then skip the update and only make the zip.
 # - Running it by hand (Actions → Release → Run workflow), or a PR that touches the version or the release
 #   tooling (release/vX.Y.Z PRs, changes to this file): only builds, and keeps the zip as a workflow artifact.
 name: Release
@@ -13,6 +18,7 @@ on:
       - .github/workflows/release.yml
       - scripts/check-version.sh
       - scripts/release-notes.sh
+      - scripts/update-manifest.sh
       - rust-toolchain.toml
       - src-tauri/tauri.conf.json
       - CHANGELOG.md
@@ -59,7 +65,18 @@ jobs:
       - run: npm ci
 
       - name: Build the app
-        run: npm run tauri build -- --bundles app
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            npm run tauri build -- --bundles app
+          elif [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY is not set: a release needs the signed update." && exit 1
+          else
+            echo "::warning::No updater key; building without the signed update."
+            npm run tauri build -- --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
+          fi
 
       - name: Zip
         id: zip
@@ -72,12 +89,30 @@ jobs:
           ditto -c -k --keepParent "$app" "$ZIP"
           echo "sha256=$(shasum -a 256 "$ZIP" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
+      - name: Update for the in-app updater
+        id: update
+        if: hashFiles('src-tauri/target/release/bundle/macos/Shadowing.app.tar.gz') != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          bundle=src-tauri/target/release/bundle/macos
+          name="Shadowing-$VERSION-macos-arm64.app.tar.gz"
+          cp "$bundle/Shadowing.app.tar.gz" "$name"
+          cp "$bundle/Shadowing.app.tar.gz.sig" "$name.sig"
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/$name"
+          scripts/update-manifest.sh "$VERSION" "$name.sig" "$url" > latest.json
+          cat latest.json
+          echo "files=$name $name.sig latest.json" >> "$GITHUB_OUTPUT"
+
       - name: Keep the zip (manual runs)
         if: github.ref_type != 'tag'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.version.outputs.zip }}
-          path: ${{ steps.version.outputs.zip }}
+          path: |
+            ${{ steps.version.outputs.zip }}
+            Shadowing-*.app.tar.gz*
+            latest.json
           retention-days: 14
 
       - name: Draft the release
@@ -88,11 +123,13 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           ZIP: ${{ steps.version.outputs.zip }}
           SHA: ${{ steps.zip.outputs.sha256 }}
+          UPDATE_FILES: ${{ steps.update.outputs.files }}
         run: |
+          # shellcheck disable=SC2086 # UPDATE_FILES is a list of plain file names
           if gh release view "$TAG" > /dev/null 2>&1; then
-            echo "Release $TAG already exists; replacing its zip."
-            gh release upload "$TAG" "$ZIP" --clobber
+            echo "Release $TAG already exists; replacing its files."
+            gh release upload "$TAG" "$ZIP" $UPDATE_FILES --clobber
           else
             scripts/release-notes.sh "$VERSION" "$SHA" > notes.md
-            gh release create "$TAG" "$ZIP" --draft --verify-tag --title "Shadowing $VERSION" --notes-file notes.md
+            gh release create "$TAG" "$ZIP" $UPDATE_FILES --draft --verify-tag --title "Shadowing $VERSION" --notes-file notes.md
           fi
