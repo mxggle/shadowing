@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Shadowing — app icon</title>
+  <desc>Minimal continuous replay loop surrounding a three-bar sound wave.</desc>
+  <rect x="64" y="64" width="896" height="896" rx="208" fill="#252927"/>
+  <path d="M 648 326 A 238 238 0 1 0 748 513" fill="none" stroke="#F7F5EE" stroke-width="55" stroke-linecap="round"/>
+  <path d="M 748 447 L 803 541 L 693 541 Z" fill="#F7F5EE"/>
+  <g fill="#EFA477">
+    <rect x="389" y="455" width="53" height="114" rx="26.5"/>
+    <rect x="486" y="393" width="53" height="238" rx="26.5"/>
+    <rect x="583" y="432" width="53" height="160" rx="26.5"/>
+  </g>
+</svg>
