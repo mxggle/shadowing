@@ -39,6 +39,8 @@ libc = "0.2"
 # no native libraries; realfft (already in the tree via rubato) for its input features.
 tract-onnx = "0.23"
 realfft = "3.5"
+# In-app updates (src/update.rs): signed .app.tar.gz + latest.json from GitHub Releases. native-tls like reqwest above.
+tauri-plugin-updater = { version = "2", default-features = false, features = ["native-tls", "system-proxy", "zip"] }
 
 [dev-dependencies]
 tempfile = "3"

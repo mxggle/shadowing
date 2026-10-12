@@ -18,15 +18,17 @@ src/                      前端
   audio/logic.ts          纯函数规则（循环、恢复位置、速度），有单元测试
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，改字幕在 correctSlice.ts，
                           AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts，
-                          学习记录与每日目标在 practiceSlice.ts）
+                          学习记录与每日目标在 practiceSlice.ts，应用内更新在 updateSlice.ts）
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句），有单元测试
   lib/edits.ts            改字幕的规则（改动取整词、查找匹配、全部替换），有单元测试
   lib/aiReady.ts          转写 / 解释是否已设置好、向导从哪一步继续，有单元测试
+  lib/update.ts           更新提示里的更新说明要点、下载百分比，有单元测试
   lib/practice.ts         学习记录：按天（4 点换日）汇总练习时间、每天的目标、连续达标天数，有单元测试
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置；ui.tsx 共用的按键与表单件；
                           Transcript.tsx 句子列表，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
                           Explain.tsx 句子下的解释块、SentenceEditor.tsx 改一句、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
+                          UpdateNotice.tsx 右上角的更新提示；
                           Practice.tsx 学习记录面板（PracticeCharts.tsx 柱状图和日历，PracticeGoal.tsx 顶栏目标圆环和目标一行）；
                           settings/ 是设置面板；
                           guide/ 是引导：Welcome.tsx 欢迎页、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示
@@ -56,6 +58,8 @@ src-tauri/src/
                           chat.rs 对话接口（OpenAI 兼容 / Anthropic / Responses）、check.rs 测试连接与本机服务检测、
                           oauth.rs + openrouter.rs + chatgpt/ 浏览器登录（ChatGPT 的 token 也只存钥匙串）
   audio/                  原生播放引擎（见下）
+  update.rs               应用内更新（tauri-plugin-updater）：读最新 Release 的 latest.json、下载签名过的 .app.tar.gz、
+                          原地替换后重启；菜单里的「检查更新…」
   smoke.rs                调试构建专用自测入口
 ```
 
@@ -126,9 +130,22 @@ npm run app                           # 开发模式启动应用
    `scripts/check-version.sh` 检查它们一致），提交 `chore(release): vX.Y.Z`，开 PR，CI 绿了再合并（rebase，保留每个小提交）。
 2. 在合并后的 `main` 上打附注标签 `vX.Y.Z` 并推送。`.github/workflows/release.yml` 会构建 `Shadowing-X.Y.Z-macos-arm64.zip`，
    建一个**草稿** Release，说明由 `scripts/release-notes.sh` 从 CHANGELOG 生成（含安装步骤和 SHA-256）。
-3. 在 GitHub 上看草稿：补上“已知限制 / 还没验证”，下载 zip 打开一次，再点发布。
+   同时上传应用内更新用的 `Shadowing-X.Y.Z-macos-arm64.app.tar.gz`、`.sig` 和 `latest.json`。
+3. 在 GitHub 上看草稿：补上“已知限制 / 还没验证”，下载 zip 打开一次，再点发布。**点发布的那一刻**，已装的应用
+   下次打开就会提示更新（它们只读最新的已发布 Release 的 `latest.json`，草稿不影响）。
+
+### 更新签名密钥
+
+- 应用内更新用一对专门的签名密钥（minisign，和 Apple 签名无关）。公钥写在 `tauri.conf.json` 的 `plugins.updater.pubkey`；
+  私钥**不进仓库**，放在仓库的 Actions secrets：`TAURI_SIGNING_PRIVATE_KEY`（私钥文件的内容）和
+  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。打标签发布时没有这两个 secret 会直接失败。
+- 私钥或密码丢了，已装的应用就再也收不到更新（只能换公钥、让大家手动装一次新版本）。务必在密码管理器里备份。
+- 本地打带更新包的版本：`TAURI_SIGNING_PRIVATE_KEY="$(cat <私钥文件>)" TAURI_SIGNING_PRIVATE_KEY_PASSWORD=… npm run tauri build -- --bundles app`。
+  不需要更新包时加 `--config '{"bundle":{"createUpdaterArtifacts":false}}'`（`npm run smoke` 已经这样做）。
+- 应用没有 Apple 签名（ad-hoc）也能正常自更新：应用自己下载的文件不带隔离属性，替换后直接打开，不会被 Gatekeeper 拦。
+  只有直接从“下载”文件夹打开（App Translocation）时没法替换自己，会提示先拖进“应用程序”。
 
 ## CI
 
 - `.github/workflows/check.yml`：每个 PR 和推到 `main` 时在 macOS（Apple Silicon）上跑 `scripts/check-version.sh` 和 `npm run check`。
-- `.github/workflows/release.yml`：推送 `v*.*.*` 标签时出草稿 Release；手动运行只构建，zip 留在 Actions 的产物里 14 天。
+- `.github/workflows/release.yml`：推送 `v*.*.*` 标签时出草稿 Release（含签名的更新包和 latest.json）；手动运行只构建，zip 留在 Actions 的产物里 14 天。

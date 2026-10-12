@@ -10,6 +10,7 @@ import { PracticeButton } from "./components/PracticeGoal";
 import { SettingsButton, SettingsDialog } from "./components/settings/Settings";
 import { ShortcutHelp } from "./components/ShortcutHelp";
 import { Stage } from "./components/Stage";
+import { UpdateNotice } from "./components/UpdateNotice";
 import { usePracticePing } from "./hooks/usePracticePing";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { api, isTauri } from "./lib/api";
@@ -34,6 +35,7 @@ export default function App() {
       .then(api.smokeMode)
       .then(async (smoke) => {
         if (smoke) (await import("./dev/smoke")).runSmoke();
+        else useApp.getState().watchUpdates();
       });
   }, []);
 
@@ -46,6 +48,7 @@ export default function App() {
       <>
         <Welcome />
         <AiWizard />
+        <UpdateNotice />
       </>
     );
   }
@@ -90,6 +93,7 @@ export default function App() {
       <SettingsDialog />
       <PracticeDialog />
       <AiWizard />
+      <UpdateNotice />
     </div>
   );
 }

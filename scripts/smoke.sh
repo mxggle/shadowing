@@ -4,7 +4,8 @@
 set -euo pipefail
 folder="${1:?usage: npm run smoke -- <audio folder>}"
 cd "$(dirname "$0")/.."
-npx tauri build --debug --bundles app >/dev/null
+# No signed update for a test build (that needs the updater's private key).
+npx tauri build --debug --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}' >/dev/null
 target=$(cargo metadata --manifest-path src-tauri/Cargo.toml --format-version 1 --no-deps \
   | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).target_directory))')
 # Fake transcription server for the end-to-end transcription check (port must match src/dev/smoke.ts).

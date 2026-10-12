@@ -12,6 +12,7 @@ mod store;
 mod subtitles;
 mod transcribe;
 mod transcript;
+mod update;
 
 use library::FolderListing;
 use serde::Serialize;
@@ -226,6 +227,9 @@ fn log_line(line: String) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .menu(update::menu)
+        .on_menu_event(|app, event| update::on_menu(app, event.id().as_ref()))
         .setup(|app| {
             let smoke_run = smoke::folder().is_some();
             let (state_path, data) = match smoke::folder() {
@@ -265,6 +269,7 @@ pub fn run() {
             app.manage(transcribe::commands::Jobs::default());
             app.manage(local::Downloads::default());
             app.manage(proofread::Proofreading::default());
+            app.manage(update::Pending::default());
             let practice = std::sync::Arc::new(practice::Practice::open(
                 &app.state::<AppState>().data_dir(),
             ));
@@ -315,6 +320,8 @@ pub fn run() {
             explain::sentence_explanations,
             practice::practice_ping,
             practice::practice_log,
+            update::update_check,
+            update::update_install,
             smoke::smoke_mode,
             smoke::smoke_window,
             smoke::smoke_finish,

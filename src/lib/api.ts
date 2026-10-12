@@ -224,6 +224,20 @@ export type DownloadStatus =
 
 export const LOCAL_PROVIDER = "local";
 
+/** A newer version on GitHub Releases. */
+export interface AvailableUpdate {
+  version: string;
+  current: string;
+  /** The release's CHANGELOG section (Markdown). */
+  notes: string | null;
+}
+
+/** `update:progress` events while an update downloads; bytes, total null when unknown. */
+export interface UpdateProgress {
+  done: number;
+  total: number | null;
+}
+
 export const isTauri = () => "__TAURI_INTERNALS__" in window;
 
 export const api = {
@@ -296,6 +310,12 @@ export const api = {
     /** All sessions; `since` (Unix ms) keeps those still going at or after it, `audio` those on one audio. */
     log: (filter: { since?: number; audio?: string } = {}) =>
       invoke<PracticeSession[]>("practice_log", { since: filter.since ?? null, audio: filter.audio ?? null }),
+  },
+  update: {
+    /** null when this is the newest version. */
+    check: () => invoke<AvailableUpdate | null>("update_check"),
+    /** Installs what the last check found, then the app relaunches; progress arrives as `update:progress`. */
+    install: () => invoke<void>("update_install"),
   },
   smokeMode: () => invoke<boolean>("smoke_mode"),
   smokeWindow: (minimized: boolean) => invoke<void>("smoke_window", { minimized }),
