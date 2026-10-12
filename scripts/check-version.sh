@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks that the five places holding the app version agree, and (given a tag) that the tag matches.
+# Checks that the places holding the app version agree (scripts/bump-version.sh changes them all), and (given a tag) that the tag matches.
 # Usage: scripts/check-version.sh [vX.Y.Z]   — prints the version on success.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -12,6 +12,7 @@ declare -a found=(
   "src-tauri/tauri.conf.json=$(json src-tauri/tauri.conf.json .version)"
   "src-tauri/Cargo.toml=$(sed -n 's/^version = "\(.*\)"$/\1/p' src-tauri/Cargo.toml | head -1)"
   "src-tauri/Cargo.lock=$(awk '/^name = "shadowing"$/ { getline; gsub(/version = |"/, ""); print; exit }' src-tauri/Cargo.lock)"
+  "site/index.html=$(sed -n 's/.*<span data-app-version>v\([0-9.]*\) .*/\1/p' site/index.html)"
 )
 
 version="${found[0]#*=}"
