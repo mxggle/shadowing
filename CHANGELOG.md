@@ -5,12 +5,15 @@
 
 ## [未发布]
 
+## [0.5.0] - 2026-10-12
+
 ### 新增
 - 第一次打开时有新手引导，四步：介绍主要功能并选学习语言 → 本机转写 → 登录 AI → 用示例练一下或打开自己的文件夹。中间两步都可以跳过，之后在设置里补上。
   - 本机转写：显示这台 Mac 的芯片、内存和可用空间，推荐一个合适的 Whisper 模型并说明原因，点一下就在后台下载，不用等下完就能继续。Intel Mac 改为设置云端转写。
   - 登录 AI：用 ChatGPT 套餐账号或 OpenRouter 账号在浏览器里登录，登录后自动选好模型；也可以填 OpenAI、Anthropic、Gemini、DeepSeek 等的 API Key，或用本机的 Ollama / LM Studio。
 
 ### 变更
+- 下载的安装包改成 .dmg：双击打开后把 Shadowing 拖进“应用程序”即可，不用再解压。网站的下载按钮也换成了 .dmg（zip 版仍然保留）。
 - 推荐的本机模型除了内存，也看芯片和可用空间：Max / Ultra 芯片且内存 32 GB 以上推荐最准的 Large v3；磁盘快满时换成放得下的小模型。设置里的模型列表也会写出推荐的原因。
 
 ## [0.4.0] - 2026-10-12
@@ -76,7 +79,8 @@
 - 修改字幕、查找和全部替换、AI 校对、解释这一句（译文、生词、语法点，答案会保存）。
 - 第一次打开有示例练习和 AI 设置向导。
 
-[未发布]: https://github.com/mxggle/shadowing/compare/v0.4.0...HEAD
+[未发布]: https://github.com/mxggle/shadowing/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/mxggle/shadowing/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/mxggle/shadowing/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mxggle/shadowing/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/mxggle/shadowing/compare/v0.1.0...v0.2.0

@@ -1,4 +1,4 @@
-# Builds Shadowing.app and zips it, plus the signed update for the in-app updater (src-tauri/src/update.rs).
+# Builds Shadowing.app as a DMG (what people download: open it, drag Shadowing into Applications) and a zip, plus the signed update for the in-app updater (src-tauri/src/update.rs).
 # - Pushing a tag vX.Y.Z: checks the tag matches the app version, then creates a DRAFT release with the zip, the
 #   update (Shadowing-X.Y.Z-macos-arm64.app.tar.gz + .sig) and latest.json, notes from CHANGELOG.md (or replaces
 #   those files on a release that already exists). Review the draft, then publish it: installed apps only see
@@ -61,6 +61,7 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "zip=Shadowing-$version-macos-arm64.zip" >> "$GITHUB_OUTPUT"
+          echo "dmg=Shadowing-$version-macos-arm64.dmg" >> "$GITHUB_OUTPUT"
 
       - run: npm ci
 
@@ -70,12 +71,12 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            npm run tauri build -- --bundles app
+            npm run tauri build -- --bundles app,dmg
           elif [ "$GITHUB_REF_TYPE" = tag ]; then
             echo "::error::TAURI_SIGNING_PRIVATE_KEY is not set: a release needs the signed update." && exit 1
           else
             echo "::warning::No updater key; building without the signed update."
-            npm run tauri build -- --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
+            npm run tauri build -- --bundles app,dmg --config '{"bundle":{"createUpdaterArtifacts":false}}'
           fi
 
       - name: Zip
@@ -90,6 +91,19 @@ jobs:
           # Same zip under a fixed name, so a download link can always be releases/latest/download/Shadowing-macos-arm64.zip.
           cp "$ZIP" Shadowing-macos-arm64.zip
           echo "sha256=$(shasum -a 256 "$ZIP" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: DMG
+        id: dmg
+        env:
+          DMG: ${{ steps.version.outputs.dmg }}
+        run: |
+          built=(src-tauri/target/release/bundle/dmg/*.dmg)
+          test ${#built[@]} = 1
+          cp "${built[0]}" "$DMG"
+          hdiutil verify "$DMG"
+          # Fixed name for the website: releases/latest/download/Shadowing-macos-arm64.dmg.
+          cp "$DMG" Shadowing-macos-arm64.dmg
+          echo "sha256=$(shasum -a 256 "$DMG" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Update for the in-app updater
         id: update
@@ -113,6 +127,7 @@ jobs:
           name: ${{ steps.version.outputs.zip }}
           path: |
             ${{ steps.version.outputs.zip }}
+            ${{ steps.version.outputs.dmg }}
             Shadowing-*.app.tar.gz*
             latest.json
           retention-days: 14
@@ -124,14 +139,15 @@ jobs:
           TAG: ${{ github.ref_name }}
           VERSION: ${{ steps.version.outputs.version }}
           ZIP: ${{ steps.version.outputs.zip }}
-          SHA: ${{ steps.zip.outputs.sha256 }}
+          DMG: ${{ steps.version.outputs.dmg }}
+          SHA: ${{ steps.dmg.outputs.sha256 }}
           UPDATE_FILES: ${{ steps.update.outputs.files }}
         run: |
           # shellcheck disable=SC2086 # UPDATE_FILES is a list of plain file names
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "Release $TAG already exists; replacing its files."
-            gh release upload "$TAG" "$ZIP" Shadowing-macos-arm64.zip $UPDATE_FILES --clobber
+            gh release upload "$TAG" "$DMG" Shadowing-macos-arm64.dmg "$ZIP" Shadowing-macos-arm64.zip $UPDATE_FILES --clobber
           else
             scripts/release-notes.sh "$VERSION" "$SHA" > notes.md
-            gh release create "$TAG" "$ZIP" Shadowing-macos-arm64.zip $UPDATE_FILES --draft --verify-tag --title "Shadowing $VERSION" --notes-file notes.md
+            gh release create "$TAG" "$DMG" Shadowing-macos-arm64.dmg "$ZIP" Shadowing-macos-arm64.zip $UPDATE_FILES --draft --verify-tag --title "Shadowing $VERSION" --notes-file notes.md
           fi

@@ -18,7 +18,7 @@
 
 ## 安装
 
-目前只有 **Apple Silicon** 的 macOS 版。到 [Releases](../../releases) 下载压缩包，解压后把 `Shadowing.app` 拖进“应用程序”。
+目前只有 **Apple Silicon** 的 macOS 版。到 [Releases](../../releases) 下载 `.dmg`，双击打开后把 Shadowing 拖进“应用程序”。装好以后有新版本时应用里会提示，点一下就能更新。
 
 这个版本没有 Apple 开发者签名和公证，第一次打开会被系统拦下，运行：
 
@@ -26,7 +26,7 @@
 xattr -dr com.apple.quarantine /Applications/Shadowing.app
 ```
 
-或者右键 → 打开。
+或者到“系统设置 → 隐私与安全性”点“仍要打开”。
 
 ## 从源码构建
 
