@@ -208,9 +208,13 @@ export interface LocalModel {
 export interface LocalOverview {
   /** Apple Silicon; on Intel the "本机" option is not offered at all. */
   supported: boolean;
+  /** Like "Apple M2 Pro". */
+  chip: string;
   ramGb: number;
   freeBytes: number | null;
   recommended: string;
+  /** Why the recommended model suits this Mac. */
+  reason: string;
   models: LocalModel[];
   downloading: string | null;
 }

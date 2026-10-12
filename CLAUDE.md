@@ -31,7 +31,7 @@ src/                      前端
                           UpdateNotice.tsx 右上角的更新提示；
                           Practice.tsx 学习记录面板（PracticeCharts.tsx 柱状图和日历，PracticeGoal.tsx 顶栏目标圆环和目标一行）；
                           settings/ 是设置面板；
-                          guide/ 是引导：Welcome.tsx 欢迎页、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示
+                          guide/ 是引导：Welcome.tsx 欢迎页（第一次打开是 Onboarding.tsx 四步新手引导，步骤内容在 OnboardingSteps.tsx）、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示
   dev/smoke.ts            应用内自测脚本（只在 smoke 模式加载）
 src-tauri/src/
   lib.rs                  AppState + 命令注册
@@ -50,7 +50,7 @@ src-tauri/src/
                           long.rs 过长的句子在逗号或停顿处切开、snap.rs 把句子边界对齐到真实停顿、
                           doubt.rs 把 Whisper 没把握的字标成句子里要画虚线的范围；
                           commands.rs 一次一个任务（转写 → 区分说话人），进度发 transcribe:status
-  local/                  本机转写（仅 Apple Silicon）：models.rs 模型清单（固定 commit + sha256）与内存适配、
+  local/                  本机转写（仅 Apple Silicon）：models.rs 模型清单（固定 commit + sha256）、按芯片 / 内存 / 可用空间推荐模型、
                           download.rs 可续传并校验的下载、whisper.rs whisper.cpp（Metal，DTW 词时间，自动识别时先判断语言）
   speakers/               区分说话人：fbank.rs 声学特征、mod.rs 用 tract 跑 3D-Speaker CAM++ 声纹模型
                           （Apache-2.0，固定 commit + sha256，第一次转写时下载到 models 文件夹）、cluster.rs 按声音分组

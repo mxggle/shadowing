@@ -31,7 +31,7 @@ export function LocalModels() {
         在这台 Mac 上用 Whisper 转写：免费、可离线，音频不会离开本机。
         <span className="text-faint">
           {" "}
-          这台 Mac：{Math.round(local.ramGb)} GB 内存{local.freeBytes !== null && ` · 可用空间 ${formatBytes(local.freeBytes)}`}
+          这台 Mac：{local.chip} · {Math.round(local.ramGb)} GB 内存{local.freeBytes !== null && ` · 可用空间 ${formatBytes(local.freeBytes)}`}。推荐的原因：{local.reason}
         </span>
       </p>
       <div role="radiogroup" aria-label="模型" className="flex flex-col gap-1">
