@@ -130,7 +130,7 @@ npm run app                           # 开发模式启动应用
    `scripts/check-version.sh` 检查它们一致），提交 `chore(release): vX.Y.Z`，开 PR，CI 绿了再合并（rebase，保留每个小提交）。
 2. 在合并后的 `main` 上打附注标签 `vX.Y.Z` 并推送。`.github/workflows/release.yml` 会构建 `Shadowing-X.Y.Z-macos-arm64.zip`，
    建一个**草稿** Release，说明由 `scripts/release-notes.sh` 从 CHANGELOG 生成（含安装步骤和 SHA-256）。
-   同时上传应用内更新用的 `Shadowing-X.Y.Z-macos-arm64.app.tar.gz`、`.sig` 和 `latest.json`。
+   同时上传固定名字的 `Shadowing-macos-arm64.zip`（网页可以一直链接 `releases/latest/download/Shadowing-macos-arm64.zip`）和应用内更新用的 `Shadowing-X.Y.Z-macos-arm64.app.tar.gz`、`.sig` 和 `latest.json`。
 3. 在 GitHub 上看草稿：补上“已知限制 / 还没验证”，下载 zip 打开一次，再点发布。**点发布的那一刻**，已装的应用
    下次打开就会提示更新（它们只读最新的已发布 Release 的 `latest.json`，草稿不影响）。
 

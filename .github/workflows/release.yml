@@ -87,6 +87,8 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")" = "${{ steps.version.outputs.version }}"
           lipo -archs "$app/Contents/MacOS/shadowing"
           ditto -c -k --keepParent "$app" "$ZIP"
+          # Same zip under a fixed name, so a download link can always be releases/latest/download/Shadowing-macos-arm64.zip.
+          cp "$ZIP" Shadowing-macos-arm64.zip
           echo "sha256=$(shasum -a 256 "$ZIP" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Update for the in-app updater
@@ -128,8 +130,8 @@ jobs:
           # shellcheck disable=SC2086 # UPDATE_FILES is a list of plain file names
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "Release $TAG already exists; replacing its files."
-            gh release upload "$TAG" "$ZIP" $UPDATE_FILES --clobber
+            gh release upload "$TAG" "$ZIP" Shadowing-macos-arm64.zip $UPDATE_FILES --clobber
           else
             scripts/release-notes.sh "$VERSION" "$SHA" > notes.md
-            gh release create "$TAG" "$ZIP" $UPDATE_FILES --draft --verify-tag --title "Shadowing $VERSION" --notes-file notes.md
+            gh release create "$TAG" "$ZIP" Shadowing-macos-arm64.zip $UPDATE_FILES --draft --verify-tag --title "Shadowing $VERSION" --notes-file notes.md
           fi
