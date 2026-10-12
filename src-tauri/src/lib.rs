@@ -246,7 +246,14 @@ pub fn run() {
                     (path, data)
                 }
                 None => {
-                    let path = app.path().app_data_dir()?.join("state.json");
+                    // Debug builds may use another folder, e.g. to see the first-run onboarding.
+                    let dir = std::env::var_os("SHADOWING_DATA_DIR")
+                        .filter(|_| cfg!(debug_assertions))
+                        .map(PathBuf::from);
+                    let path = match dir {
+                        Some(dir) => dir.join("state.json"),
+                        None => app.path().app_data_dir()?.join("state.json"),
+                    };
                     let data = Persisted::load(&path);
                     (path, data)
                 }

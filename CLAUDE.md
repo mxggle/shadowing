@@ -104,6 +104,8 @@ npm run smoke -- <文件夹>              # 构建调试版 .app，在真实应�
                                       # （会在 18765 端口启动 scripts/fake-whisper.py 测转写全流程）
 npm run dev                           # 浏览器 + mock 后端，只用来调 UI（没有真实声音）；地址加 ?fresh 模拟第一次打开
 npm run app                           # 开发模式启动应用
+SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的数据文件夹（看第一次打开的新手引导，不动真实数据；
+                                      # 加 SHADOWING_MODELS_DIR=~/Library/Application\ Support/dev.shadowing.app/models 可复用已下载的模型）
 ```
 
 - smoke 模式使用临时 state 文件和内存里的 Key 存储，不影响真实数据和钥匙串。
