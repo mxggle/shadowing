@@ -7,3 +7,4 @@
 - 部署：Vercel 导入本仓库，Root Directory 填 `site`，Framework Preset 选 Other，不需要 Build Command。合并到 `main` 就自动上线。
 
 本地预览：`npx serve site`，或直接用浏览器打开 `site/index.html`。
+- 页面上显示的版本号（`data-app-version`）在发版时由 `scripts/bump-version.sh` 一起改，`scripts/check-version.sh` 会检查它和应用版本一致。

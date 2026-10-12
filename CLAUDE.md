@@ -127,9 +127,9 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
 
 ## 发布
 
-1. 从 `main` 开 `release/vX.Y.Z` 分支：把 CHANGELOG 的「未发布」改成版本号和日期，五处版本号一起改
+1. 从 `main` 开 `release/vX.Y.Z` 分支：把 CHANGELOG 的「未发布」改成版本号和日期，用 `scripts/bump-version.sh X.Y.Z` 改版本号
    （`package.json`、`package-lock.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`src-tauri/tauri.conf.json`，
-   `scripts/check-version.sh` 检查它们一致），提交 `chore(release): vX.Y.Z`，开 PR，CI 绿了再合并（rebase，保留每个小提交）。
+   还有落地页 `site/index.html` 上显示的版本；`scripts/check-version.sh` 检查它们一致，CI 也会查），提交 `chore(release): vX.Y.Z`，开 PR，CI 绿了再合并（rebase，保留每个小提交）。
 2. 在合并后的 `main` 上打附注标签 `vX.Y.Z` 并推送。`.github/workflows/release.yml` 会构建 `Shadowing-X.Y.Z-macos-arm64.dmg`（给人下载的安装包）和 `.zip`，
    建一个**草稿** Release，说明由 `scripts/release-notes.sh` 从 CHANGELOG 生成（含安装步骤和 SHA-256）。
    同时上传固定名字的 `Shadowing-macos-arm64.dmg` / `.zip`（网站的下载按钮链接 `releases/latest/download/Shadowing-macos-arm64.dmg`）和应用内更新用的 `Shadowing-X.Y.Z-macos-arm64.app.tar.gz`、`.sig` 和 `latest.json`。
