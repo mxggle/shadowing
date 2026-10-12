@@ -3,7 +3,8 @@
 # Run on the tagged commit after pushing the tag. It stops the tag's Actions build (so it can't replace these
 # files later), builds with the updater key, and creates the release as a draft — or publishes it with --publish,
 # which is what offers the update to installed apps.
-# The updater key is read from ~/.tauri/shadowing-updater.key(.password) unless TAURI_SIGNING_PRIVATE_KEY is set.
+# The keys come from ~/.tauri unless set in the environment: the updater key (shadowing-updater.key + .password)
+# and the code-signing certificate (shadowing-codesign.p12 + .password). See scripts/release-assets.sh.
 # Usage: scripts/release-local.sh vX.Y.Z [--publish]
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -31,8 +32,13 @@ if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
   TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$(cat ~/.tauri/shadowing-updater.key.password)"
   export TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 fi
+if [ -z "${SHADOWING_CODESIGN_P12:-}" ]; then
+  SHADOWING_CODESIGN_P12="$(base64 -i ~/.tauri/shadowing-codesign.p12)"
+  SHADOWING_CODESIGN_PASSWORD="$(cat ~/.tauri/shadowing-codesign.p12.password)"
+  export SHADOWING_CODESIGN_P12 SHADOWING_CODESIGN_PASSWORD
+fi
 npm ci
-npm run tauri build -- --bundles app,dmg
+npm run tauri build -- --bundles app
 
 target=$(cargo metadata --manifest-path src-tauri/Cargo.toml --format-version 1 --no-deps \
   | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).target_directory))')
