@@ -1,5 +1,6 @@
 import { Check, FolderOpen, Sparkles, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { featureReady } from "../../lib/aiReady";
 import { useApp, type AppState } from "../../store";
 import { Button, IconButton, Kbd, TextLink } from "../ui";
 
@@ -120,6 +121,7 @@ function useDoneTasks() {
 
 function Finished() {
   const hasFolder = useApp((s) => !!s.folder);
+  const aiReady = useApp((s) => featureReady("transcribe", s.ai, s.local) && featureReady("chat", s.ai, s.local));
   const { endPractice, chooseFolder, setWizardOpen, saveGuide } = useApp.getState();
 
   async function openFolder() {
@@ -155,10 +157,12 @@ function Finished() {
             打开我的音频文件夹
           </Button>
         )}
-        <Button onClick={() => setWizardOpen(true)} title="没有字幕的音频，可以用 AI 转写成一句一句的字幕">
-          <Sparkles size={14} strokeWidth={1.9} />
-          设置 AI 转写（可选）
-        </Button>
+        {!aiReady && (
+          <Button onClick={() => setWizardOpen(true)} title="没有字幕的音频，可以用 AI 转写成一句一句的字幕">
+            <Sparkles size={14} strokeWidth={1.9} />
+            设置 AI（可选）
+          </Button>
+        )}
       </div>
     </div>
   );
