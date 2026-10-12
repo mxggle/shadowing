@@ -5,6 +5,11 @@
 
 ## [未发布]
 
+## [0.4.1] - 2026-10-12
+
+### 变更
+- 下载的安装包改成 .dmg：双击打开后把 Shadowing 拖进“应用程序”即可，不用再解压。网站的下载按钮也换成了 .dmg（zip 版仍然保留）。
+
 ## [0.4.0] - 2026-10-12
 
 ### 新增
@@ -68,7 +73,8 @@
 - 修改字幕、查找和全部替换、AI 校对、解释这一句（译文、生词、语法点，答案会保存）。
 - 第一次打开有示例练习和 AI 设置向导。
 
-[未发布]: https://github.com/mxggle/shadowing/compare/v0.4.0...HEAD
+[未发布]: https://github.com/mxggle/shadowing/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/mxggle/shadowing/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/mxggle/shadowing/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mxggle/shadowing/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/mxggle/shadowing/compare/v0.1.0...v0.2.0
