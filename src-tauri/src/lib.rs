@@ -6,6 +6,7 @@ mod library;
 mod local;
 mod practice;
 mod proofread;
+mod sections;
 mod smoke;
 mod speakers;
 mod store;
@@ -321,6 +322,7 @@ pub fn run() {
             transcript::transcript_import,
             transcript::transcript_remove,
             transcript::transcript_edit,
+            transcript::transcript_sections,
             proofread::transcript_proofread,
             proofread::transcript_proofread_cancel,
             explain::sentence_explain,

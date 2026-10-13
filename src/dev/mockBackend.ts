@@ -2,7 +2,7 @@
 // Simulates the Rust commands and player:* events; no real audio.
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { AiConfig, Explanation, Feature, PracticeSession, Preset, SavedExplanation, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
+import type { AiConfig, Explanation, Feature, PracticeSession, Preset, SavedExplanation, Section, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
 import { fresh, samples, sampleTranscripts } from "./mockSamples";
 
 const root = "/Mock/日本語ポッドキャスト";
@@ -44,8 +44,15 @@ const mockTranscript = (origin: string, count: number, speakers = false): Transc
 });
 const transcripts = new Map<string, Transcript>([
   [tracks[1].path, { ...mockTranscript("02 天気の話.srt", 32), source: "sidecar" }],
-  // Transcribed earlier, with two voices told apart.
-  [tracks[3].path, { ...mockTranscript("本机 · large-v3-turbo-q8_0", 24, true), source: "transcribed" }],
+  // Transcribed earlier, with two voices told apart, in three sections (one named).
+  [
+    tracks[3].path,
+    {
+      ...mockTranscript("本机 · large-v3-turbo-q8_0", 24, true),
+      source: "transcribed",
+      sections: [{ start: 0 }, { start: 7, title: "駅まで一緒に" }, { start: 15 }],
+    },
+  ],
 ]);
 
 for (const [path, t] of sampleTranscripts) transcripts.set(path, t);
@@ -300,6 +307,14 @@ export function installMockBackend() {
           const edited: Transcript = { ...t, sentences, edited: true, source: t.source === "sidecar" ? "imported" : t.source };
           transcripts.set(a.path, edited);
           return edited;
+        }
+        case "transcript_sections": {
+          const t = transcripts.get(a.path);
+          if (!t) throw "这个音频没有字幕";
+          const sections = (a.sections as Section[]).filter((x) => x.start < t.sentences.length).sort((x, y) => x.start - y.start);
+          const saved: Transcript = { ...t, sections, source: t.source === "sidecar" ? "imported" : t.source };
+          transcripts.set(a.path, saved);
+          return saved;
         }
         case "ai_get":
           return { presets, config: aiConfig };

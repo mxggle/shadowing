@@ -117,12 +117,7 @@ pub fn transcribe_start(
             });
             let status = match result {
                 Ok(sentences) => {
-                    let transcript = Transcript {
-                        source: Source::Transcribed,
-                        origin,
-                        sentences,
-                        edited: false,
-                    };
+                    let transcript = Transcript::new(Source::Transcribed, origin, sentences);
                     let saved = if keep {
                         transcript::save(&dir, &key, &transcript)
                     } else {

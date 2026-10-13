@@ -14,6 +14,7 @@ fn transcript(text: &str) -> Transcript {
             unsure: Vec::new(),
         }],
         edited: false,
+        sections: sections::whole(),
     }
 }
 
@@ -73,6 +74,29 @@ fn save_load_remove_round_trip() {
     remove(dir.path(), "/m/a.mp3").unwrap();
     remove(dir.path(), "/m/a.mp3").unwrap(); // already gone is fine
     assert!(load(dir.path(), "/m/a.mp3").is_none());
+}
+
+#[test]
+fn files_from_before_sections_get_them_on_load_and_bad_ones_are_repaired() {
+    let dir = tempfile::tempdir().unwrap();
+    let old = r#"{"version":1,"audio":"/m/a.mp3","transcript":{"source":"transcribed","origin":"x",
+        "sentences":[{"start":0,"end":1,"text":"a"},{"start":1.2,"end":2,"text":"b"}]}}"#;
+    fs::write(stored_path(dir.path(), "/m/a.mp3"), old).unwrap();
+    assert_eq!(
+        load(dir.path(), "/m/a.mp3").unwrap().sections,
+        sections::whole()
+    );
+
+    let mut t = transcript("hi");
+    t.sections = vec![Section {
+        start: 3,
+        title: Some(" 会話 ".into()),
+    }];
+    save(dir.path(), "/m/a.mp3", &t).unwrap();
+    assert_eq!(
+        load(dir.path(), "/m/a.mp3").unwrap().sections,
+        sections::whole()
+    );
 }
 
 #[test]

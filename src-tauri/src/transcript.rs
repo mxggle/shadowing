@@ -1,6 +1,7 @@
 //! Per-track transcripts. A transcript saved in app data wins; otherwise a
 //! subtitle file next to the audio (`ep1.srt`, `ep1.ja.vtt`) is picked up.
 
+use crate::sections::{self, Section};
 use crate::{library, store, subtitles, AppState};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -44,6 +45,41 @@ pub struct Transcript {
     /// Some sentence text was corrected by hand.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub edited: bool,
+    /// Where each section starts; at least one (from sentence 0) once loaded.
+    /// Files saved before sections existed get them worked out on load.
+    #[serde(default)]
+    pub sections: Vec<Section>,
+}
+
+impl Transcript {
+    pub fn new(source: Source, origin: String, sentences: Vec<Sentence>) -> Self {
+        let sections = sections::split(&sentences);
+        Transcript {
+            source,
+            origin,
+            sentences,
+            edited: false,
+            sections,
+        }
+    }
+
+    /// Sections that fit the sentences, found afresh when there are none.
+    fn with_sections(mut self) -> Self {
+        self.sections = if self.sections.is_empty() {
+            sections::split(&self.sentences)
+        } else {
+            sections::normalize(std::mem::take(&mut self.sections), self.sentences.len())
+        };
+        self
+    }
+
+    /// Changed by the learner: the copy in app data is now the app's own, and
+    /// the file beside the audio stays untouched.
+    fn own(&mut self) {
+        if self.source == Source::Sidecar {
+            self.source = Source::Imported;
+        }
+    }
 }
 
 /// New text for one sentence; its times and speaker stay as they are.
@@ -74,12 +110,7 @@ pub fn read_subtitle(path: &Path, source: Source) -> Result<Transcript, String> 
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
-    Ok(Transcript {
-        source,
-        origin,
-        sentences,
-        edited: false,
-    })
+    Ok(Transcript::new(source, origin, sentences))
 }
 
 /// FNV-1a: stable across Rust versions, unlike `DefaultHasher`.
@@ -96,7 +127,7 @@ pub(crate) fn stored_path(dir: &Path, audio: &str) -> PathBuf {
 pub fn load(dir: &Path, audio: &str) -> Option<Transcript> {
     let text = fs::read_to_string(stored_path(dir, audio)).ok()?;
     let file: StoredFile = serde_json::from_str(&text).ok()?;
-    (file.audio == audio).then_some(file.transcript)
+    (file.audio == audio).then(|| file.transcript.with_sections())
 }
 
 pub fn save(dir: &Path, audio: &str, transcript: &Transcript) -> std::io::Result<()> {
@@ -199,10 +230,7 @@ fn apply_edits(transcript: &mut Transcript, edits: &[Edit]) -> Result<(), String
         sentence.text = text;
     }
     if !edits.is_empty() {
-        // The copy in app data is now the app's own; the file beside the audio stays untouched.
-        if transcript.source == Source::Sidecar {
-            transcript.source = Source::Imported;
-        }
+        transcript.own();
         transcript.edited = true;
     }
     Ok(())
@@ -219,6 +247,21 @@ pub fn transcript_edit(
     let mut transcript = current(&state, &audio, &dir, &key).ok_or("这个音频没有字幕")?;
     apply_edits(&mut transcript, &edits)?;
     save(&dir, &key, &transcript).map_err(|e| format!("无法保存修改：{e}"))?;
+    Ok(transcript)
+}
+
+/// New sections (split, merged or renamed in the list), saved in app data.
+#[tauri::command]
+pub fn transcript_sections(
+    state: State<AppState>,
+    path: String,
+    sections: Vec<Section>,
+) -> Result<Transcript, String> {
+    let (audio, key, dir) = authorize(&state, &path)?;
+    let mut transcript = current(&state, &audio, &dir, &key).ok_or("这个音频没有字幕")?;
+    transcript.sections = sections::normalize(sections, transcript.sentences.len());
+    transcript.own();
+    save(&dir, &key, &transcript).map_err(|e| format!("无法保存分段：{e}"))?;
     Ok(transcript)
 }
 
