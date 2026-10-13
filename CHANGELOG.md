@@ -5,6 +5,8 @@
 
 ## [未发布]
 
+## [0.6.0] - 2026-10-13
+
 ### 新增
 - 对话段落：一个音频里有好几段对话（比如听力练习一题一段）时，字幕会自动分成几段，每段上面有一行小标题“对话 2”。转写或导入字幕后自动分好（在明显更长的停顿处，或一组说话人换成另一组时；不联网、不用 AI），以前的字幕打开时也会分好。只有一段时界面和以前一样。
   - 点小标题可以改名；悬停小标题可以“合并到上一段”，悬停句子可以“从这句开始新段”。改动只存在应用里，不改音频旁的字幕文件。
@@ -91,7 +93,8 @@
 - 修改字幕、查找和全部替换、AI 校对、解释这一句（译文、生词、语法点，答案会保存）。
 - 第一次打开有示例练习和 AI 设置向导。
 
-[未发布]: https://github.com/mxggle/shadowing/compare/v0.5.1...HEAD
+[未发布]: https://github.com/mxggle/shadowing/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/mxggle/shadowing/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/mxggle/shadowing/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/mxggle/shadowing/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/mxggle/shadowing/compare/v0.3.0...v0.4.0
