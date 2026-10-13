@@ -8,7 +8,7 @@ import { createExplainSlice, type ExplainState } from "./explainSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
 import { createPracticeSlice, type PracticeState } from "./practiceSlice";
 import { createProofreadSlice, type ProofreadState } from "./proofreadSlice";
-import { createTranscriptSlice, type TranscriptState } from "./transcriptSlice";
+import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./transcriptSlice";
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 
 export interface AppState extends TranscriptState, CorrectState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState {
@@ -143,10 +143,10 @@ export const useApp = create<AppState>((set, get) => {
     void api.saveSettings(get().settings);
   }
 
-  /** `sentence`: which transcript sentence this loop repeats, if any. */
-  function applyLoop(loop: Loop, loopSentence: number | null = null) {
+  /** `from`: the transcript sentence or section this loop repeats, if any. */
+  function applyLoop(loop: Loop, from: LoopFrom = {}) {
     engine.setLoop(loop);
-    set({ loop, loopSentence, repeats: 0 });
+    set({ loop, loopSentence: from.sentence ?? null, loopSection: from.section ?? null, repeats: 0 });
   }
 
   return {
@@ -223,7 +223,7 @@ export const useApp = create<AppState>((set, get) => {
       if (!folder) return;
       saveProgress(true);
       engine.unload();
-      set({ folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, practicing: false });
+      set({ folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, practicing: false });
       if (!get().guide.welcomed) get().saveGuide({ welcomed: true });
     },
 
@@ -237,7 +237,7 @@ export const useApp = create<AppState>((set, get) => {
       // Picking one of your own tracks ends the practice on the sample.
       if (get().practicing && track.path !== get().sample?.path) set({ practicing: false });
       const start = resumePosition(get().progress[track.path]);
-      set({ current: track, time: start, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, trackMs: 0 });
+      set({ current: track, time: start, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, trackMs: 0 });
       void get().refreshToday();
       void get().loadTranscript(track.path);
       void engine.load(track.path, start, autoplay).then(() => engine.setRate(get().settings.rate));
@@ -315,7 +315,7 @@ export const useApp = create<AppState>((set, get) => {
 
     nudgeLoop(which, delta) {
       const loop = nudgeLoop(get().loop, which, delta, engine.duration);
-      applyLoop(loop, get().loopSentence);
+      applyLoop(loop, { sentence: get().loopSentence, section: get().loopSection });
       // Re-hear the new boundary immediately.
       if (which === "a" && loop.a !== null) engine.seek(loop.a);
       if (which === "b" && loop.b !== null) engine.seek(Math.max(loop.a ?? 0, loop.b - 1.5));

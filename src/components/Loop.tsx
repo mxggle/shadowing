@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { formatPrecise } from "../lib/time";
+import { sectionName, sectionsOf } from "../lib/sections";
 import { useApp } from "../store";
 import { IconButton, Kbd } from "./ui";
 
@@ -135,14 +136,15 @@ export function LoopStrip() {
   const phase = useLoopPhase();
   const loop = useApp((s) => s.loop);
   const loopSentence = useApp((s) => s.loopSentence);
+  const loopSection = useApp((s) => (s.loopSection === null ? null : sectionName(sectionsOf(s.transcript), s.loopSection)));
   const hasTranscript = useApp((s) => !!s.transcript?.sentences.length);
   const { clearLoop, nudgeLoop } = useApp.getState();
   if (phase === "idle" || !hasTranscript) return null;
 
   return (
     <div className="tint mb-2.5 flex h-9 animate-fade-in items-center gap-3 rounded-[10px] pr-1 pl-3.5">
-      <span className="shrink-0 text-[12px] font-medium whitespace-nowrap text-loop-text">
-        {loopSentence !== null ? `第 ${loopSentence + 1} 句` : "A–B"}
+      <span className="max-w-[10rem] shrink-0 truncate text-[12px] font-medium whitespace-nowrap text-loop-text">
+        {loopSection ?? (loopSentence !== null ? `第 ${loopSentence + 1} 句` : "A–B")}
       </span>
       <span className="h-3.5 w-px shrink-0 bg-line-strong" />
       <Boundary label="A" value={loop.a!} onNudge={phase === "active" ? (d) => nudgeLoop("a", d) : undefined} />

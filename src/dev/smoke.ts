@@ -235,6 +235,23 @@ async function scenario() {
     saved = await api.getTranscript(english.path);
     check("undo puts both changes back", saved?.sentences[0].text === first && saved.sentences[1].text === transcript.sentences[1].text, saved?.sentences[0].text);
     app().closeReplace();
+
+    // Sections: a new one from sentence 2 is saved, loops on its own, can be named and merged back.
+    app().splitSection(1);
+    const split = await waitFor(async () => (await api.getTranscript(english.path))?.sections?.length === 2, 2000);
+    app().toggleSectionLoop(1);
+    check(
+      "new section saved and loops by itself",
+      split && app().loopSection === 1 && Math.abs((app().loop.a ?? 0) - Math.max(0, transcript.sentences[1].start - 0.1)) < 0.01,
+      `sections ${JSON.stringify(app().transcript?.sections)} A ${app().loop.a?.toFixed(2)}`,
+    );
+    app().renameSection(1, "  後半 ");
+    const named = await waitFor(async () => (await api.getTranscript(english.path))?.sections?.[1]?.title === "後半", 2000);
+    check("section name saved, loop kept", named && app().loopSection === 1, JSON.stringify(app().transcript?.sections));
+    app().clearLoop();
+    app().mergeSection(1);
+    const merged = await waitFor(async () => (await api.getTranscript(english.path))?.sections?.length === 1, 2000);
+    check("merged back into one section", merged, JSON.stringify(app().transcript?.sections));
   }
 
   // 9–11. AI settings, transcription and proofreading against the fake server (smokeAi.ts).

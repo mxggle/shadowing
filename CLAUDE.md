@@ -20,13 +20,14 @@ src/                      前端
                           AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts，
                           学习记录与每日目标在 practiceSlice.ts，应用内更新在 updateSlice.ts）
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句），有单元测试
+  lib/sections.ts         对话段落规则（分段、合并、改名、整段循环、{ } 换段），有单元测试
   lib/edits.ts            改字幕的规则（改动取整词、查找匹配、全部替换），有单元测试
   lib/aiReady.ts          转写 / 解释是否已设置好、向导从哪一步继续，有单元测试
   lib/update.ts           更新提示里的更新说明要点、下载百分比，有单元测试
   lib/practice.ts         学习记录：按天（4 点换日）汇总练习时间、每天的目标、连续达标天数，有单元测试
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置；ui.tsx 共用的按键与表单件；
-                          Transcript.tsx 句子列表，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
+                          Transcript.tsx 句子列表，Sections.tsx 段落小标题和顶部的段落菜单，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
                           Explain.tsx 句子下的解释块、SentenceEditor.tsx 改一句、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
                           UpdateNotice.tsx 右上角的更新提示；
                           Practice.tsx 学习记录面板（PracticeCharts.tsx 柱状图和日历，PracticeGoal.tsx 顶栏目标圆环和目标一行）；
@@ -41,6 +42,8 @@ src-tauri/src/
   transcript.rs           每个音频的字幕：app data 里的 transcripts/，或音频旁的同名 .srt/.vtt
                           （改过的字幕只存 app data 里的副本，不改写音频旁的文件）
   subtitles.rs            SRT / WebVTT 解析
+  sections.rs             对话段落：转写 / 导入后在明显的停顿或换了一组说话人处自动分段（纯函数，不联网），
+                          以及整理前端送来的分段（transcript.rs 存在字幕里，旧字幕读取时补上）
   practice/               学习记录：clock.rs 按播放器状态和窗口操作算“在练”的时间段（暂停 90 秒内有操作也算），
                           存在 app data 的 practice.json；音频事件经 practice::Watch 先给它看一眼
   explain/                解释这一句：把一句（带前后几句）发给「句子解释」的模型，reply.rs 只留下译文、生词、语法点并封顶，saved.rs 把答案存在 app data 的 explanations/（句子被改过就作废）

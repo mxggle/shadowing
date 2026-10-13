@@ -9,7 +9,7 @@ export const isTypingTarget = (target: EventTarget | null) => {
 };
 
 /** Keys that step or nudge, so holding them down keeps going. Toggles (Space, L, S, R…) fire once per press. */
-const REPEATS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "[", "]", "-", "="]);
+const REPEATS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "[", "]", "{", "}", "-", "="]);
 
 export function useShortcuts() {
   useEffect(() => {
@@ -43,6 +43,8 @@ export function useShortcuts() {
         Escape: [s.replace ? s.closeReplace : s.clearLoop],
         "[": [() => s.stepSentence(-1), "prevSentence"],
         "]": [() => s.stepSentence(1), "nextSentence"],
+        "{": [() => s.stepSection(-1)],
+        "}": [() => s.stepSection(1)],
         s: [() => s.toggleSentenceLoop(), "sentenceLoop"],
         S: [() => s.toggleSentenceLoop(), "sentenceLoop"],
         i: [() => s.toggleExplain()],

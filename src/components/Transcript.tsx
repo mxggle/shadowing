@@ -1,7 +1,8 @@
-import { FileUp, Languages, PenLine, Play, Repeat, Replace, Trash2 } from "lucide-react";
-import { memo, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { BetweenHorizontalStart, FileUp, Languages, PenLine, Play, Repeat, Replace, Trash2 } from "lucide-react";
+import { Fragment, memo, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { Sentence, Suggestion } from "../lib/api";
 import { explainKey, type Explain } from "../explainSlice";
+import { sectionIndexOf, sectionsOf } from "../lib/sections";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
@@ -9,13 +10,15 @@ import { ExplainNote } from "./Explain";
 import { ProofreadBar, ProofreadButton, SuggestionNote } from "./Proofread";
 import { ReplaceBar } from "./ReplaceBar";
 import { SentenceEditor } from "./SentenceEditor";
+import { SectionHeading, SectionMenu } from "./Sections";
 import { SentenceText, UnsureCount } from "./SentenceText";
 import { IconButton } from "./ui";
 
 /**
  * The script: one row per sentence. The text is selectable; the time on the
  * left turns into a play button, the loop button on the right (or S) repeats
- * the sentence, and the pen (or E) corrects its text.
+ * the sentence, and the pen (or E) corrects its text. A track with more than one
+ * section (对话段落) gets a heading above each; any sentence can start a new one.
  */
 export function SentenceList() {
   const sentences = useApp((s) => s.transcript?.sentences ?? []);
@@ -31,6 +34,10 @@ export function SentenceList() {
   }, [proofread]);
   const path = useApp((s) => s.current?.path);
   const explain = useApp((s) => s.explain);
+  const sections = useApp((s) => sectionsOf(s.transcript));
+  const headed = sections.length > 1;
+  const starts = useMemo(() => new Map(sections.map((x, k) => [x.start, k])), [sections]);
+  const activeSection = active < 0 ? -1 : sectionIndexOf(sections, active);
   const voices = speakerCount(sentences) > 1;
   const list = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
@@ -46,21 +53,28 @@ export function SentenceList() {
         className="scrollbar-none min-h-0 flex-1 overflow-y-auto overscroll-contain [mask-image:linear-gradient(to_bottom,black_calc(100%-32px),transparent)]"
       >
         <div className="mx-auto w-full max-w-[760px] px-8 pt-2 pb-12">
-          {sentences.map((sentence, i) => (
-            <Row
-              key={i}
-              index={i}
-              sentence={sentence}
-              active={i === active}
-              looping={i === loopSentence}
-              editing={i === editing}
-              find={find}
-              suggestions={suggestions.get(i)}
-              explain={path ? explain[explainKey(path, i, sentence.text)] : undefined}
-              voices={voices}
-              turn={voices && startsTurn(sentences, i)}
-            />
-          ))}
+          {sentences.map((sentence, i) => {
+            const k = starts.get(i);
+            return (
+              <Fragment key={i}>
+                {headed && k !== undefined && <SectionHeading k={k} active={k === activeSection} />}
+                <Row
+                  index={i}
+                  sentence={sentence}
+                  active={i === active}
+                  looping={i === loopSentence}
+                  editing={i === editing}
+                  find={find}
+                  suggestions={suggestions.get(i)}
+                  explain={path ? explain[explainKey(path, i, sentence.text)] : undefined}
+                  voices={voices}
+                  turn={voices && startsTurn(sentences, i)}
+                  opensSection={headed && k !== undefined}
+                  canSplit={i > 0 && k === undefined}
+                />
+              </Fragment>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -90,6 +104,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
           {transcript.edited && <span className="shrink-0">· 已修改</span>}
           <UnsureCount />
         </p>
+        <SectionMenu />
         <span className="ml-auto flex shrink-0 gap-0.5">
           <IconButton title="查找和替换 (⌘F)" active={replacing} onClick={() => (replacing ? closeReplace() : openReplace())}>
             <Replace />
@@ -115,7 +130,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
  * One sentence. With more than one voice (`voices`), a column names the
  * speaker where their turn starts (`turn`), like a script, and turns get a little air between them.
  */
-const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, voices, turn }: {
+const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, voices, turn, opensSection, canSplit }: {
   index: number;
   sentence: Sentence;
   active: boolean;
@@ -129,8 +144,12 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
   explain?: Explain;
   voices: boolean;
   turn: boolean;
+  /** First sentence under a section heading (the heading already gives it air). */
+  opensSection: boolean;
+  /** A new section may start here: not the first sentence, nor one that starts a section already. */
+  canSplit: boolean;
 }) {
-  const { playSentence, toggleSentenceLoop, editSentence, toggleExplain } = useApp.getState();
+  const { playSentence, toggleSentenceLoop, editSentence, toggleExplain, splitSection } = useApp.getState();
   const explaining = !!explain?.open;
   const tone = looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";
   const lit = active || looping;
@@ -138,7 +157,7 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
   return (
     <div
       data-index={index}
-      className={`group grid ${columns} items-start gap-x-2 rounded-[12px] py-2 pr-1.5 pl-2 transition-colors duration-200 [contain-intrinsic-size:auto_48px] [content-visibility:auto] ${tone} ${turn && index > 0 ? "mt-3" : "mt-0.5"}`}
+      className={`group grid ${columns} items-start gap-x-2 rounded-[12px] py-2 pr-1.5 pl-2 transition-colors duration-200 [contain-intrinsic-size:auto_48px] [content-visibility:auto] ${tone} ${turn && index > 0 && !opensSection ? "mt-3" : "mt-0.5"}`}
     >
       <div className="flex flex-col items-start">
         <button
@@ -199,6 +218,15 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
         >
           <Languages size={14} strokeWidth={2.1} />
         </button>
+        {canSplit && !editing && (
+          <button
+            title="从这句开始新段"
+            onClick={() => splitSection(index)}
+            className="grid size-[28px] place-items-center rounded-[8px] text-muted opacity-0 transition-[opacity,background-color,color,scale] duration-150 group-hover:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100 active:scale-90"
+          >
+            <BetweenHorizontalStart size={14} strokeWidth={2.1} />
+          </button>
+        )}
         {!editing && (
           <button
             title="修改这一句 (E)"

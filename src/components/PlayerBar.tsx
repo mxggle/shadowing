@@ -2,6 +2,7 @@ import { Pause, Play, RotateCcw, RotateCw, SkipBack, SkipForward } from "lucide-
 import { useState } from "react";
 import { useFlash } from "../hooks/useFlash";
 import { formatTime } from "../lib/time";
+import { sectionName, sectionsOf } from "../lib/sections";
 import { useApp } from "../store";
 import { LoopStrip, useLoopPhase } from "./Loop";
 import { PlaybackMenu } from "./PlaybackMenu";
@@ -60,14 +61,17 @@ function Timeline() {
 function LoopKey() {
   const phase = useLoopPhase();
   const loopSentence = useApp((s) => s.loopSentence);
+  const loopSection = useApp((s) => (s.loopSection === null ? null : sectionName(sectionsOf(s.transcript), s.loopSection)));
   const hasTrack = useApp((s) => !!s.current);
   const flashing = useFlash("loop");
   const look = {
     idle: { label: "A–B 循环", short: "A–B", title: "听到句首按一下设起点 A (L)" },
     armed: { label: "设终点 B", short: "设 B", title: "听到句尾按一下设终点 B (L)" },
-    active: loopSentence === null
-      ? { label: "循环中", short: "循环中", title: "取消循环 (L)" }
-      : { label: `循环第 ${loopSentence + 1} 句`, short: `第 ${loopSentence + 1} 句`, title: "取消循环 (L)" },
+    active: loopSection !== null
+      ? { label: `循环${loopSection}`, short: loopSection, title: "取消循环 (L)" }
+      : loopSentence === null
+        ? { label: "循环中", short: "循环中", title: "取消循环 (L)" }
+        : { label: `循环第 ${loopSentence + 1} 句`, short: `第 ${loopSentence + 1} 句`, title: "取消循环 (L)" },
   }[phase];
   return (
     <button

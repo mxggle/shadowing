@@ -1,17 +1,27 @@
 // Transcript part of the single store: loading/importing a track's sentences,
-// and playing or looping them through the same A–B loop the L key uses.
+// playing or looping them (or a whole section) through the same A–B loop the
+// L key uses, and splitting, merging and naming sections.
 // Correcting their text is in correctSlice.ts.
 import { listen } from "@tauri-apps/api/event";
 import { isLoopActive, NO_LOOP, type Loop } from "./audio/logic";
 import type { AudioEngine } from "./audio/engine";
-import { api, type TranscribeStatus, type Transcript } from "./lib/api";
+import { api, type Section, type TranscribeStatus, type Transcript } from "./lib/api";
+import { mergeUp, rename, sectionIndexOf, sectionLoop, sectionsOf, sectionStep, splitAt } from "./lib/sections";
 import { sentenceIndexAt, sentenceLoop, sentenceStart, stepTarget } from "./lib/sentences";
 import type { AppState } from "./store";
+
+/** What an A–B loop repeats, when it came from the transcript. */
+export interface LoopFrom {
+  sentence?: number | null;
+  section?: number | null;
+}
 
 export interface TranscriptState {
   transcript: Transcript | null;
   /** Index of the sentence being repeated, when the loop came from the transcript. */
   loopSentence: number | null;
+  /** Index of the section being repeated, when the loop came from a section heading. */
+  loopSection: number | null;
 
   loadTranscript(path: string): Promise<void>;
   importTranscript(): Promise<void>;
@@ -22,6 +32,18 @@ export interface TranscriptState {
   toggleSentenceLoop(i?: number): void;
   /** `[` / `]`: previous / next sentence, keeping a sentence loop going. */
   stepSentence(direction: 1 | -1): void;
+
+  /** Play from a section's first sentence; an active loop moves to it. */
+  playSection(k: number): void;
+  /** Repeat a whole section (default: the current one), or stop if it already repeats. */
+  toggleSectionLoop(k?: number): void;
+  /** `{` / `}`: previous / next section, keeping a section or sentence loop going. */
+  stepSection(direction: 1 | -1): void;
+  /** Start a new section at sentence `i`. */
+  splitSection(i: number): void;
+  /** Fold section `k` into the one before it. */
+  mergeSection(k: number): void;
+  renameSection(k: number, title: string): void;
 
   /** Latest transcription update (for whichever track is being transcribed). */
   job: TranscribeStatus | null;
@@ -41,15 +63,16 @@ export function createTranscriptSlice(
   set: Set,
   get: Get,
   engine: AudioEngine,
-  applyLoop: (loop: Loop, sentence?: number | null) => void,
+  applyLoop: (loop: Loop, from?: LoopFrom) => void,
 ): TranscriptState {
   const sentences = () => get().transcript?.sentences ?? [];
+  const sections = () => sectionsOf(get().transcript);
 
   /** Ignore results that arrive after the user moved to another track. */
   const forCurrent = (path: string, transcript: Transcript | null) => {
     if (get().current?.path !== path) return;
     get().forgetCorrections(path);
-    set({ transcript, loopSentence: null });
+    set({ transcript, loopSentence: null, loopSection: null });
   };
 
   void listen<TranscribeStatus>("transcribe:status", ({ payload }) => {
@@ -63,13 +86,38 @@ export function createTranscriptSlice(
   }
 
   function loopSentenceAt(i: number) {
-    applyLoop(sentenceLoop(sentences()[i], engine.duration), i);
+    applyLoop(sentenceLoop(sentences()[i], engine.duration), { sentence: i });
     startAt(i);
+  }
+
+  function loopSectionAt(k: number) {
+    const loop = sectionLoop(sentences(), sections(), k, engine.duration);
+    if (!loop) return;
+    applyLoop(loop, { section: k });
+    startAt(sections()[k].start);
+  }
+
+  /** Shows new sections at once, then saves them (going back if that fails). */
+  async function saveSections(next: Section[]) {
+    const { transcript, current, loopSection } = get();
+    if (!transcript || !current || next === sections()) return;
+    // A repeating section that changed shape keeps its loop, as a plain A–B one.
+    const reshaped = next.length !== sections().length || next.some((x, k) => x.start !== sections()[k].start);
+    if (loopSection !== null && reshaped) set({ loopSection: null });
+    set({ transcript: { ...transcript, sections: next } });
+    try {
+      const saved = await api.setSections(current.path, next);
+      // A later change may already be on screen; its own save brings the final word.
+      if (get().transcript?.sections === next) set({ transcript: saved });
+    } catch (e) {
+      if (get().transcript?.sections === next) set({ transcript, error: String(e) });
+    }
   }
 
   return {
     transcript: null,
     loopSentence: null,
+    loopSection: null,
     job: null,
 
     async startTranscribe(language) {
@@ -149,6 +197,47 @@ export function createTranscriptSlice(
       }
       const target = stepTarget(list, engine.time, direction);
       if (target >= 0) get().playSentence(target);
+    },
+
+    playSection(k) {
+      const first = sections()[k]?.start;
+      if (first === undefined || !sentences()[first]) return;
+      const { loop } = get();
+      if (isLoopActive(loop)) return loopSectionAt(k);
+      if (loop.a !== null) applyLoop(NO_LOOP);
+      startAt(first);
+    },
+
+    toggleSectionLoop(k) {
+      const index = k ?? sectionIndexOf(sections(), sentenceIndexAt(sentences(), engine.time));
+      if (get().loopSection === index) applyLoop(NO_LOOP);
+      else loopSectionAt(index);
+    },
+
+    stepSection(direction) {
+      const list = sections();
+      const { loopSection, loopSentence } = get();
+      if (loopSection !== null) {
+        loopSectionAt(Math.min(list.length - 1, Math.max(0, loopSection + direction)));
+        return;
+      }
+      const active = loopSentence ?? sentenceIndexAt(sentences(), engine.time);
+      const target = sectionStep(list, active, direction);
+      if (loopSentence !== null) loopSentenceAt(list[target].start);
+      else get().playSection(target);
+    },
+
+    splitSection(i) {
+      void saveSections(splitAt(sections(), i));
+    },
+
+    mergeSection(k) {
+      void saveSections(mergeUp(sections(), k));
+    },
+
+    renameSection(k, title) {
+      const next = rename(sections(), k, title);
+      if ((next[k]?.title ?? "") !== (sections()[k]?.title ?? "")) void saveSections(next);
     },
   };
 }

@@ -89,6 +89,14 @@ export interface SentenceEdit {
   unsure?: [number, number][];
 }
 
+/** A run of sentences that belong together (one dialog of several on a track). */
+export interface Section {
+  /** Index of its first sentence. */
+  start: number;
+  /** The learner's name for it; shown as "对话 2" without one. */
+  title?: string;
+}
+
 export interface Transcript {
   /** Saved in the app ("imported", "transcribed"), or read from a subtitle file next to the audio ("sidecar"). */
   source: "imported" | "sidecar" | "transcribed";
@@ -97,6 +105,8 @@ export interface Transcript {
   sentences: Sentence[];
   /** Some sentence text was corrected by hand. */
   edited?: boolean;
+  /** Where each section starts, the first at sentence 0 (missing = one section). */
+  sections?: Section[];
 }
 
 /** A word the AI thinks was misheard, shown under its sentence until accepted or ignored. */
@@ -262,6 +272,8 @@ export const api = {
   removeTranscript: (path: string) => invoke<Transcript | null>("transcript_remove", { path }),
   /** Corrected sentence text, saved in the app (a subtitle file next to the audio stays as it is). */
   editTranscript: (path: string, edits: SentenceEdit[]) => invoke<Transcript>("transcript_edit", { path, edits }),
+  /** Split, merged or renamed sections, saved in the app; returns the transcript as saved. */
+  setSections: (path: string, sections: Section[]) => invoke<Transcript>("transcript_sections", { path, sections }),
   proofread: {
     /** Asks the explanation model for misheard words; changes nothing. Progress: `proofread:progress`. */
     start: (path: string) => invoke<Suggestion[]>("transcript_proofread", { path }),
