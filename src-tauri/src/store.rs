@@ -24,6 +24,10 @@ pub struct Settings {
     /// Daily practice goal, as changes over time (the frontend reads it per day,
     /// so a new goal never rewrites past days). Empty = the default goal.
     pub daily_goals: Vec<GoalChange>,
+    /// 跟读录音: hear the sentence then say it, or say it along with the original.
+    pub record_mode: crate::record::Mode,
+    /// Play a take back against the original as soon as it's recorded.
+    pub record_replay: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -44,6 +48,8 @@ impl Default for Settings {
             seek_step: 5.0,
             transcribe_language: String::new(),
             daily_goals: Vec::new(),
+            record_mode: crate::record::Mode::Listen,
+            record_replay: true,
         }
     }
 }

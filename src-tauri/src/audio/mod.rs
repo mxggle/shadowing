@@ -13,12 +13,13 @@
 //!   (`stretch.rs`) → resample (`resample.rs`) → device.
 //! - `audio-status` frees retired buffers and emits status at ~30 Hz.
 
+pub(crate) mod clip;
 pub mod commands;
 pub(crate) mod decode;
 mod engine;
 mod feed;
 mod fifo;
-mod output;
+pub(crate) mod output;
 mod player;
 mod reader;
 mod region;
@@ -26,6 +27,7 @@ pub(crate) mod resample;
 mod session;
 mod status;
 mod stretch;
+pub(crate) mod tap;
 #[cfg(test)]
 mod tests;
 

@@ -51,6 +51,13 @@ pub fn player_seek(player: State<'_, Player>, time: f64) -> Result<Status, Strin
     Ok(player.status())
 }
 
+/// Plays `a`..`b` once and pauses at `b` (the original before you say it).
+#[tauri::command]
+pub fn player_play_range(player: State<'_, Player>, a: f64, b: f64) -> Result<Status, String> {
+    player.play_range(a, b)?;
+    Ok(player.status())
+}
+
 #[tauri::command]
 pub fn player_set_rate(player: State<'_, Player>, rate: f64) -> Result<(), String> {
     player.set_rate(rate)

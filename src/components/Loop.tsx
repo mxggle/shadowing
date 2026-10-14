@@ -2,6 +2,8 @@ import { X } from "lucide-react";
 import { formatPrecise } from "../lib/time";
 import { sectionName, sectionsOf } from "../lib/sections";
 import { useApp } from "../store";
+import { takesFor } from "../lib/takes";
+import { MicButton, RecorderCard } from "./Recorder";
 import { IconButton, Kbd } from "./ui";
 
 export type LoopPhase = "idle" | "armed" | "active";
@@ -35,7 +37,7 @@ const CAPTION = {
   ),
   active: (
     <>
-      ‹ › 把边界移动 0.1 秒。按 <Kbd>L</Kbd> 或 <Kbd>Esc</Kbd> 取消循环。
+      ‹ › 把边界移动 0.1 秒。按 <Kbd>M</Kbd> 跟读录音，按 <Kbd>L</Kbd> 或 <Kbd>Esc</Kbd> 取消循环。
     </>
   ),
 };
@@ -50,6 +52,8 @@ export function LoopPanel() {
   const loop = useApp((s) => s.loop);
   const { clearLoop, nudgeLoop } = useApp.getState();
   const length = loop.a !== null && loop.b !== null ? loop.b - loop.a : null;
+  const takes = useApp((s) => (s.loop.a !== null && s.loop.b !== null ? takesFor(s.takes, s.loop.a, s.loop.b).length : 0));
+  const recording = useApp((s) => s.recordAt === "loop");
 
   return (
     <section className="@container" aria-label="A–B 循环">
@@ -57,9 +61,12 @@ export function LoopPanel() {
         <h2 className="text-[13px] font-semibold">A–B 循环</h2>
         {phase === "active" && <PassInfo className="text-[12px]" />}
         {phase !== "idle" && (
-          <IconButton className="ml-auto" title="取消循环 (Esc)" onClick={clearLoop}>
-            <X />
-          </IconButton>
+          <span className="ml-auto flex items-center gap-0.5">
+            {phase === "active" && <MicButton at="loop" count={takes} className="!opacity-100" />}
+            <IconButton title="取消循环 (Esc)" onClick={clearLoop}>
+              <X />
+            </IconButton>
+          </span>
         )}
       </header>
 
@@ -74,6 +81,11 @@ export function LoopPanel() {
       <p key={phase} className="mt-3.5 animate-fade text-[13px] leading-relaxed text-muted">
         {CAPTION[phase]}
       </p>
+      {recording && phase === "active" && (
+        <div className="mt-3">
+          <RecorderCard at="loop" />
+        </div>
+      )}
     </section>
   );
 }

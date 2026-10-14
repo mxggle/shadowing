@@ -4,10 +4,12 @@ import type { Sentence, Suggestion } from "../lib/api";
 import { explainKey, type Explain } from "../explainSlice";
 import { sectionIndexOf, sectionsOf } from "../lib/sections";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
+import { takeCounts } from "../lib/takes";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { ExplainNote } from "./Explain";
 import { ProofreadBar, ProofreadButton, SuggestionNote } from "./Proofread";
+import { MicButton, RecorderCard } from "./Recorder";
 import { ReplaceBar } from "./ReplaceBar";
 import { SentenceEditor } from "./SentenceEditor";
 import { SectionHeading, SectionMenu } from "./Sections";
@@ -34,6 +36,9 @@ export function SentenceList() {
   }, [proofread]);
   const path = useApp((s) => s.current?.path);
   const explain = useApp((s) => s.explain);
+  const takes = useApp((s) => s.takes);
+  const counts = useMemo(() => takeCounts(takes, sentences), [takes, sentences]);
+  const recordAt = useApp((s) => s.recordAt);
   const sections = useApp((s) => sectionsOf(s.transcript));
   const headed = sections.length > 1;
   const starts = useMemo(() => new Map(sections.map((x, k) => [x.start, k])), [sections]);
@@ -41,8 +46,8 @@ export function SentenceList() {
   const voices = speakerCount(sentences) > 1;
   const list = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
-  // Hold the list still while a sentence is corrected or matches are looked through.
-  useFollow(list, active, editing !== null || !!find);
+  // Hold the list still while a sentence is corrected, matches are looked through, or you're recording.
+  useFollow(list, active, editing !== null || !!find || recordAt !== null);
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
@@ -67,6 +72,8 @@ export function SentenceList() {
                   find={find}
                   suggestions={suggestions.get(i)}
                   explain={path ? explain[explainKey(path, i, sentence.text)] : undefined}
+                  takes={counts[i] ?? 0}
+                  recorder={recordAt === i}
                   voices={voices}
                   turn={voices && startsTurn(sentences, i)}
                   opensSection={headed && k !== undefined}
@@ -130,7 +137,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
  * One sentence. With more than one voice (`voices`), a column names the
  * speaker where their turn starts (`turn`), like a script, and turns get a little air between them.
  */
-const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, voices, turn, opensSection, canSplit }: {
+const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, takes, recorder, voices, turn, opensSection, canSplit }: {
   index: number;
   sentence: Sentence;
   active: boolean;
@@ -142,6 +149,9 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
   suggestions?: Suggestion[];
   /** The note asking the model to explain this sentence, once asked. */
   explain?: Explain;
+  /** Recordings of you saying it, and whether its recorder card is open. */
+  takes: number;
+  recorder: boolean;
   voices: boolean;
   turn: boolean;
   /** First sentence under a section heading (the heading already gives it air). */
@@ -152,7 +162,7 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
   const { playSentence, toggleSentenceLoop, editSentence, toggleExplain, splitSection } = useApp.getState();
   const explaining = !!explain?.open;
   const tone = looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";
-  const lit = active || looping;
+  const lit = active || looping || recorder;
   const columns = voices ? "grid-cols-[3.25rem_1.75rem_1fr_auto]" : "grid-cols-[3.25rem_1fr_auto]";
   return (
     <div
@@ -206,6 +216,7 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
         )}
         {suggestions?.map((s) => <SuggestionNote key={`${s.from}→${s.to}`} suggestion={s} />)}
         {explain?.open && <ExplainNote index={index} entry={explain} />}
+        {recorder && <RecorderCard at={index} />}
       </div>
       <span className="flex h-[30px] items-center">
         <button
@@ -251,6 +262,7 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
         >
           <Repeat size={14} strokeWidth={2.1} />
         </button>
+        <MicButton at={index} count={takes} />
       </span>
     </div>
   );

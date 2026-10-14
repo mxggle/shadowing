@@ -42,6 +42,12 @@ realfft = "3.5"
 # In-app updates (src/update.rs): signed .app.tar.gz + latest.json from GitHub Releases. native-tls like reqwest above.
 tauri-plugin-updater = { version = "2", default-features = false, features = ["native-tls", "system-proxy", "zip"] }
 
+# Which microphone records (src/record/devices.rs): opening AirPods' mic switches them to call
+# quality, so with a Bluetooth headset the Mac's own mic is used. Both already in the tree via cpal.
+[target.'cfg(target_os = "macos")'.dependencies]
+coreaudio-rs = { version = "0.13", default-features = false, features = ["core_audio", "audio_toolbox"] }
+objc2-core-audio = { version = "0.3", default-features = false, features = ["std", "AudioHardware"] }
+
 [dev-dependencies]
 tempfile = "3"
 hound = "3.5"

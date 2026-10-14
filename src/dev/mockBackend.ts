@@ -4,6 +4,7 @@ import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import type { AiConfig, Explanation, Feature, PracticeSession, Preset, SavedExplanation, Section, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
 import { fresh, samples, sampleTranscripts } from "./mockSamples";
+import { mockRecord, seedTakes } from "./mockRecorder";
 
 const root = "/Mock/日本語ポッドキャスト";
 const tracks: Track[] = [
@@ -56,6 +57,7 @@ const transcripts = new Map<string, Transcript>([
 ]);
 
 for (const [path, t] of sampleTranscripts) transcripts.set(path, t);
+if (!fresh) seedTakes(tracks[1].path, transcripts.get(tracks[1].path)!.sentences[2]);
 const durationOf = (path: string) => (path.startsWith("/App/samples/") ? 32.7 : 180 + tracks.findIndex((t) => t.path === path) * 20);
 
 // AI settings: a trimmed copy of the Rust presets; "bad" as a key fails the test, LM Studio is "not running".
@@ -194,7 +196,7 @@ async function mockExplain(path: string, index: number, text: string): Promise<E
   return value;
 }
 
-const player = { path: null as string | null, time: 0, duration: 0, playing: false, rate: 1, a: null as number | null, b: null as number | null, repeats: 0 };
+const player = { path: null as string | null, time: 0, duration: 0, playing: false, rate: 1, a: null as number | null, b: null as number | null, repeats: 0, stop: null as number | null };
 let seq = 0;
 const status = () => ({ path: player.path, time: player.time, duration: player.duration, playing: player.playing, repeats: player.repeats, seq: ++seq });
 const push = () => void emit("player:status", status());
@@ -208,7 +210,9 @@ setInterval(() => {
     live.played += 3000;
   } else if (player.path) practiceLog.push({ audio: player.path, start: Date.now(), end: Date.now(), played: 0 });
   const next = player.time + 0.05 * player.rate;
-  if (player.a !== null && player.b !== null && player.time < player.b && next >= player.b) {
+  if (player.stop !== null && next >= player.stop) {
+    Object.assign(player, { time: player.stop, stop: null, playing: false });
+  } else if (player.a !== null && player.b !== null && player.time < player.b && next >= player.b) {
     player.time = player.a;
     player.repeats++;
   }
@@ -244,7 +248,7 @@ export function installMockBackend() {
     folder: fresh ? null : { root, name: "日本語ポッドキャスト", tracks },
     missingFolder: null,
     lastTrack: fresh ? null : tracks[1].path,
-    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }] },
+    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }], recordMode: "listen", recordReplay: true },
     progress: {
       [tracks[0].path]: { position: 178, duration: 180, updatedAt: 0 },
       [tracks[1].path]: { position: 64, duration: 200, updatedAt: 0 },
@@ -254,6 +258,8 @@ export function installMockBackend() {
   mockIPC(
     (cmd, args) => {
       const a = (args ?? {}) as Record<string, never>;
+      if (cmd === "record_play") Object.assign(player, { playing: false }), push(); // the take plays over the paused track
+      if (cmd.startsWith("record_")) return mockRecord(cmd, a);
       switch (cmd) {
         case "get_snapshot":
           return snapshot;
@@ -268,7 +274,10 @@ export function installMockBackend() {
           if (player.playing && player.time >= player.duration) player.time = 0;
           return status();
         case "player_seek":
-          player.time = a.time;
+          Object.assign(player, { time: a.time, stop: null });
+          return status();
+        case "player_play_range":
+          Object.assign(player, { time: a.a, stop: a.b, playing: true });
           return status();
         case "player_set_rate":
           player.rate = a.rate;

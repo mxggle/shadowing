@@ -6,6 +6,7 @@ mod library;
 mod local;
 mod practice;
 mod proofread;
+mod record;
 mod sections;
 mod smoke;
 mod speakers;
@@ -287,6 +288,7 @@ pub fn run() {
                 practice,
             });
             app.manage(audio::Player::new(sink));
+            app.manage(record::Recorder::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -339,11 +341,20 @@ pub fn run() {
             audio::commands::player_pause,
             audio::commands::player_toggle,
             audio::commands::player_seek,
+            audio::commands::player_play_range,
             audio::commands::player_set_rate,
             audio::commands::player_set_loop,
             audio::commands::player_set_volume,
             audio::commands::player_unload,
-            audio::commands::player_status
+            audio::commands::player_status,
+            record::commands::record_begin,
+            record::commands::record_turn,
+            record::commands::record_cancel,
+            record::commands::record_finish,
+            record::commands::record_takes,
+            record::commands::record_delete,
+            record::commands::record_play,
+            record::commands::record_stop
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

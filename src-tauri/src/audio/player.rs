@@ -2,6 +2,7 @@
 //! audio thread, queues commands for the engine, and runs the status thread
 //! that emits `player:*` events.
 
+use super::clip::Clip;
 use super::decode::Decoder;
 use super::engine::{self, Cmd, Engine, Shared};
 use super::feed::RingFeed;
@@ -9,6 +10,7 @@ use super::output;
 use super::region::{self, Job, Outcome, Spec};
 use super::session::{self, Session};
 use super::status::{self, lock, snapshot, CmdTx, Ctl, Track};
+use super::tap::Tap;
 use super::{EventSink, Status};
 use rtrb::RingBuffer;
 use std::path::PathBuf;
@@ -188,6 +190,57 @@ impl Player {
             1.0
         };
         self.cmd.send(Cmd::Volume(v as f32))
+    }
+
+    /// Plays `a`..`b` once (ignoring any loop) and pauses at `b`.
+    pub fn play_range(&self, a: f64, b: f64) -> Result<(), String> {
+        if !(a.is_finite() && b.is_finite() && b > a) {
+            return Err("无效的时间".into());
+        }
+        self.seek(a)?;
+        let stop = {
+            let c = lock(&self.ctl);
+            let Some(t) = c.track.as_ref() else {
+                return Ok(());
+            };
+            ((b * t.sr as f64).round() as u64).min(t.total)
+        };
+        self.cmd.send(Cmd::Range(Some(stop)))?;
+        self.play()
+    }
+
+    /// Starts (or with `None`, stops) copying the output for the recorder.
+    pub fn set_tap(&self, tap: Option<Tap>) -> Result<(), String> {
+        self.cmd.send(Cmd::Tap(tap.map(Box::new)))
+    }
+
+    /// Device rate clips must be prepared at.
+    pub fn device_rate(&self) -> u32 {
+        self.shared.dev_rate.load(Relaxed)
+    }
+
+    /// Plays mono `samples` (at `device_rate`) over the output, pausing the track.
+    pub fn play_clip(&self, id: u64, samples: Vec<f32>, rate: u32) -> Result<(), String> {
+        {
+            let mut c = lock(&self.ctl);
+            if c.track.is_some() {
+                c.shadow_playing = false;
+            }
+        }
+        self.cmd
+            .send(Cmd::Clip(Some(Box::new(Clip::new(id, samples, rate)))))?;
+        self.emit();
+        Ok(())
+    }
+
+    pub fn stop_clip(&self) -> Result<(), String> {
+        self.cmd.send(Cmd::Clip(None))
+    }
+
+    /// The clip playing now and how far in it is (seconds).
+    pub fn clip(&self) -> Option<(u64, f64)> {
+        let id = self.shared.clip.load(Relaxed);
+        (id != 0).then(|| (id, self.shared.clip_ms.load(Relaxed) as f64 / 1000.0))
     }
 
     pub fn set_loop(&self, a: Option<f64>, b: Option<f64>) -> Result<(), String> {

@@ -18,18 +18,19 @@ src/                      前端
   audio/logic.ts          纯函数规则（循环、恢复位置、速度），有单元测试
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，改字幕在 correctSlice.ts，
                           AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts，
-                          学习记录与每日目标在 practiceSlice.ts，应用内更新在 updateSlice.ts）
+                          学习记录与每日目标在 practiceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts）
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句），有单元测试
   lib/sections.ts         对话段落规则（分段、合并、改名、整段循环、{ } 换段），有单元测试
   lib/edits.ts            改字幕的规则（改动取整词、查找匹配、全部替换），有单元测试
   lib/aiReady.ts          转写 / 解释是否已设置好、向导从哪一步继续，有单元测试
   lib/update.ts           更新提示里的更新说明要点、下载百分比，有单元测试
   lib/practice.ts         学习记录：按天（4 点换日）汇总练习时间、每天的目标、连续达标天数，有单元测试
+  lib/takes.ts            跟读录音：哪些录音属于哪一句、两条波形怎么对齐、节奏 / 延迟的说法，有单元测试
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置；ui.tsx 共用的按键与表单件；
                           Transcript.tsx 句子列表，Sections.tsx 段落小标题和顶部的段落菜单，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
                           Explain.tsx 句子下的解释块、SentenceEditor.tsx 改一句、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
-                          UpdateNotice.tsx 右上角的更新提示；
+                          UpdateNotice.tsx 右上角的更新提示；Recorder.tsx 句子下的跟读录音卡片（和行上的麦克风），TakeWaves.tsx 原句 / 我的两条波形；
                           Practice.tsx 学习记录面板（PracticeCharts.tsx 柱状图和日历，PracticeGoal.tsx 顶栏目标圆环和目标一行）；
                           settings/ 是设置面板；
                           guide/ 是引导：Welcome.tsx 欢迎页（第一次打开是 Onboarding.tsx 四步新手引导，步骤内容在 OnboardingSteps.tsx）、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示
@@ -46,6 +47,11 @@ src-tauri/src/
                           以及整理前端送来的分段（transcript.rs 存在字幕里，旧字幕读取时补上）
   practice/               学习记录：clock.rs 按播放器状态和窗口操作算“在练”的时间段（暂停 90 秒内有操作也算），
                           存在 app data 的 practice.json；音频事件经 practice::Watch 先给它看一眼
+  record/                 跟读录音：mod.rs 一次录音的线程（麦克风 + 播放器输出的副本，说完自动停，事件 recorder:*）、
+                          mic.rs 麦克风、devices.rs 选麦克风（蓝牙耳机时用 Mac 自带的）、vad.rs 什么时候算说完、
+                          echo.rs 去掉录进来的原声（整段估计喇叭到麦克风的路径再减掉，剩下的按频率压低）、
+                          take.rs 对齐、裁剪、音量、跟读延迟，saved.rs 存在 app data 的 recordings/（每次一个立体声 WAV：
+                          左原句、右你，加 takes.json），playback.rs 回放（引擎的 clip）
   explain/                解释这一句：把一句（带前后几句）发给「句子解释」的模型，reply.rs 只留下译文、生词、语法点并封顶，saved.rs 把答案存在 app data 的 explanations/（句子被改过就作废）
   proofread/              AI 校对：把字幕（没把握的字用〔〕标出）发给「句子解释」的模型，reply.rs 只留下能精确套用的小改动
   transcribe/             转写：pcm.rs 解码成 16 kHz 单声道、chunk.rs 在停顿处切块、cloud.rs 上传、
@@ -69,6 +75,8 @@ src-tauri/src/
 ## 播放引擎（src-tauri/src/audio）
 
 - symphonia 解码（每个音频一个解码线程，2 秒环形缓冲）→ signalsmith-stretch 变速（1.0× 时旁路）→ rubato 重采样 → cpal 输出。
+- 跟读录音用到的：`Cmd::Range` 只放一段然后停在终点（循环不生效），`Cmd::Tap` 把送给声卡的样本连同主机时间
+  抄一份给录音线程（tap.rs），`Cmd::Clip` 在暂停的音频上放一段录音（clip.rs）。
 - A–B 循环在音频回调里按帧完成：设定循环时把 [A−0.3s, B] 解码进内存，越过 B 时 5ms 交叉淡化接回 A，不依赖任何定时器。
 - 命令同步执行、经无锁队列（rtrb）发给引擎；状态以 `player:status` 事件约 30Hz 推送，带递增 `seq`。
   前端丢弃 `seq` 更旧的事件；改变播放头的命令直接返回最新 Status。
@@ -118,6 +126,9 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
   `SHADOWING_AUDIO=<音频>[;<音频>…] cargo test --manifest-path src-tauri/Cargo.toml --release real_proofread -- --ignored --nocapture`
 - 句子解释手动测试（同样用设置里的服务和钥匙串登录，读音频已保存的字幕，不改应用数据）：
   `SHADOWING_AUDIO=<音频> SHADOWING_SENTENCES=2,5,16 cargo test --manifest-path src-tauri/Cargo.toml --release real_explain -- --ignored --nocapture`
+- 跟读录音真机测试（会用 Mac 的喇叭放声音、用 `say` 当跟读的人、录麦克风）：
+  `SHADOWING_OUTPUT_DEVICE="MacBook Pro Speakers" cargo test --manifest-path src-tauri/Cargo.toml --release real_record -- --ignored --nocapture`
+  （`SHADOWING_OUT=<文件夹>` 留下录音；`SHADOWING_INPUT_DEVICE` 指定麦克风）。
 - 钥匙串手动测试：`cargo test --manifest-path src-tauri/Cargo.toml keychain_round_trip -- --ignored`。
 - Rust 引擎另有手动测试：`cargo test --manifest-path src-tauri/Cargo.toml plays_tone -- --ignored`（真实声卡播放测试音）。
 - 音质、循环边界听感、跟读节奏无法自动验证，需要用户试听反馈。汇报时区分“已实现 / 已验证 / 待验证”。

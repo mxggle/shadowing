@@ -3,8 +3,10 @@
 //! and writes device frames. Lock-free and allocation-free in steady state;
 //! anything it drops is handed to the `Trash` queue and freed elsewhere.
 
+use super::clip::Clip;
 use super::region::Region;
 use super::session::Session;
+use super::tap::Tap;
 use rtrb::{Consumer, Producer};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::sync::Arc;
@@ -17,6 +19,7 @@ pub const CMD_QUEUE: usize = 256;
 pub const TRASH_QUEUE: usize = 64;
 pub const EV_CHANGED: u32 = 1;
 pub const EV_ENDED: u32 = 2;
+pub const EV_CLIP_DONE: u32 = 4;
 
 pub enum Cmd {
     Load(Box<Session>, u64, bool),
@@ -30,11 +33,19 @@ pub enum Cmd {
     Loop(Option<(u64, u64)>, u64),
     Region(Arc<Region>),
     RegionFailed(u64),
+    /// Play up to this source frame once, then pause there (loops don't apply).
+    Range(Option<u64>),
+    Tap(Option<Box<Tap>>),
+    /// Play a clip over the track (which pauses); `None` stops the current one.
+    Clip(Option<Box<Clip>>),
 }
 
+#[allow(dead_code)]
 pub enum Trash {
-    Session(#[allow(dead_code)] Box<Session>),
-    Region(#[allow(dead_code)] Arc<Region>),
+    Session(Box<Session>),
+    Region(Arc<Region>),
+    Tap(Box<Tap>),
+    Clip(Box<Clip>),
 }
 
 /// State the engine publishes for other threads.
@@ -49,6 +60,9 @@ pub struct Shared {
     /// Producing sound (playing or fading); the output thread may idle otherwise.
     pub audible: AtomicBool,
     pub dev_rate: AtomicU32,
+    /// Clip playing now (0: none) and how far in, in ms.
+    pub clip: AtomicU64,
+    pub clip_ms: AtomicU64,
 }
 
 impl Shared {
@@ -82,6 +96,8 @@ pub struct Engine {
     vol_target: f32,
     rate: f64,
     last_time: f64,
+    tap: Option<Box<Tap>>,
+    clip: Option<Box<Clip>>,
 }
 
 impl Engine {
@@ -107,6 +123,8 @@ impl Engine {
             vol_target: 1.0,
             rate: 1.0,
             last_time: 0.0,
+            tap: None,
+            clip: None,
         }
     }
 
@@ -131,6 +149,9 @@ impl Engine {
         }
         self.dev_sr = dev_sr;
         self.shared.dev_rate.store(dev_sr, Relaxed);
+        if let Some(c) = self.clip.take() {
+            self.end_clip(c); // prepared for the old rate
+        }
         if let Some(s) = self.session.as_mut() {
             s.set_dev_rate(dev_sr);
         }
@@ -176,9 +197,13 @@ impl Engine {
                 self.playing = false;
                 self.fade = 0.0;
             }
-            Cmd::Play => self.play(),
+            Cmd::Play => {
+                self.stop_clip();
+                self.play()
+            }
             Cmd::Pause => self.pause(),
             Cmd::Toggle => {
+                self.stop_clip();
                 if self.playing && !self.pending_pause {
                     self.pause()
                 } else {
@@ -191,6 +216,7 @@ impl Engine {
                 };
                 let t = t.min(s.total.saturating_sub(1));
                 s.ended = false;
+                s.reader.stop_at(None);
                 if self.playing && self.fade > 0.0 {
                     self.pending_seek = Some(t);
                     self.fade_target = 0.0;
@@ -219,6 +245,46 @@ impl Engine {
                     s.reader.region_failed(id);
                 }
             }
+            Cmd::Range(stop) => {
+                if let Some(s) = self.session.as_mut() {
+                    s.reader.stop_at(stop);
+                }
+            }
+            Cmd::Tap(tap) => {
+                if let Some(old) = std::mem::replace(&mut self.tap, tap) {
+                    self.bin(Trash::Tap(old));
+                }
+            }
+            Cmd::Clip(clip) => match clip {
+                Some(c) => {
+                    if let Some(old) = self.clip.take() {
+                        self.bin(Trash::Clip(old));
+                    }
+                    self.pause();
+                    self.shared.clip.store(c.id, Relaxed);
+                    self.clip = Some(c);
+                }
+                None => self.stop_clip(),
+            },
+        }
+    }
+
+    fn stop_clip(&mut self) {
+        if let Some(c) = self.clip.as_mut() {
+            c.stop();
+        }
+    }
+
+    fn end_clip(&mut self, c: Box<Clip>) {
+        self.shared.clip.store(0, Relaxed);
+        self.shared.events.fetch_or(EV_CLIP_DONE, Relaxed);
+        self.bin(Trash::Clip(c));
+    }
+
+    /// Hands what was just rendered to the recorder's tap, if one is set.
+    pub fn tap(&mut self, out: &[f32], dev_ch: usize, at: u64) {
+        if let Some(t) = self.tap.as_mut() {
+            t.push(out, dev_ch, self.dev_sr, at);
         }
     }
 
@@ -311,14 +377,25 @@ impl Engine {
             }
         }
         out[i * dev_ch..].fill(0.0);
+        if let Some(c) = self.clip.as_mut() {
+            let done = c.mix(out, dev_ch);
+            self.shared
+                .clip_ms
+                .store((c.secs() * 1000.0) as u64, Relaxed);
+            if done {
+                let c = self.clip.take().expect("clip just mixed");
+                self.end_clip(c);
+            }
+        }
         self.publish(if i > 0 { device_pending } else { 0 });
     }
 
     fn publish(&mut self, device_pending: usize) {
+        let clip = self.clip.is_some();
         let Some(s) = self.session.as_deref_mut() else {
             self.shared.repeats.store(0, Relaxed);
             self.shared.playing.store(false, Relaxed);
-            self.shared.audible.store(false, Relaxed);
+            self.shared.audible.store(clip, Relaxed);
             return;
         };
         for r in s.reader.retired.drain(..) {
@@ -327,12 +404,20 @@ impl Engine {
         let (idx, pos) = s.heard(device_pending);
         let time = pos.map_or(self.last_time, |p| p as f64 / s.sr as f64);
         let mut events = 0;
+        let mut time = time;
         if self.playing && s.reader.eof_feed.is_some_and(|e| idx >= e as f64) {
-            s.ended = true;
             self.playing = false;
             self.fade = 0.0;
             self.fade_target = 0.0;
-            events |= EV_ENDED | EV_CHANGED;
+            events |= EV_CHANGED;
+            if let Some(stop) = s.reader.stopped() {
+                // A range played to its end: wait there, ready to go on.
+                s.seek(stop);
+                time = stop as f64 / s.sr as f64;
+            } else {
+                s.ended = true;
+                events |= EV_ENDED;
+            }
         }
         if self.playing && time + 0.05 < self.last_time {
             events |= EV_CHANGED; // loop wrap became audible
@@ -345,7 +430,7 @@ impl Engine {
             .store(self.playing && !self.pending_pause, Relaxed);
         self.shared
             .audible
-            .store(self.playing || self.fade > 0.0, Relaxed);
+            .store(self.playing || self.fade > 0.0 || clip, Relaxed);
         if events != 0 {
             self.shared.events.fetch_or(events, Relaxed);
         }

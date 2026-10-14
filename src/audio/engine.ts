@@ -126,6 +126,14 @@ export class AudioEngine {
     return this.status.duration;
   }
 
+  /** Plays `a`..`b` once and pauses at `b` (loops don't apply). */
+  playRange(a: number, b: number) {
+    this.status = { ...this.status, time: a };
+    this.statusAt = performance.now();
+    this.events.onTime(a);
+    void this.command("player_play_range", { a, b });
+  }
+
   seek(t: number) {
     const d = this.duration;
     const target = Math.max(0, d > 0 ? Math.min(t, d - 0.05) : t);

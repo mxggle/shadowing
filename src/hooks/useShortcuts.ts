@@ -32,6 +32,19 @@ export function useShortcuts() {
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Recording: only the keys of the take itself.
+      if (s.rec) {
+        const take: Record<string, () => void> = { " ": s.advanceTake, m: s.advanceTake, M: s.advanceTake, Escape: s.cancelTake };
+        e.preventDefault();
+        if (!e.repeat) take[e.key]?.();
+        return;
+      }
+      // A take playing back: Space or Esc stops it (instead of starting the track).
+      if (s.playingTake && (e.key === " " || e.key === "Escape")) {
+        e.preventDefault();
+        s.stopTake();
+        return;
+      }
       const actions: Record<string, [() => void, FlashId?]> = {
         " ": [s.toggle, "toggle"],
         ArrowLeft: [() => s.jump(-1), "back"],
@@ -40,7 +53,7 @@ export function useShortcuts() {
         ArrowDown: [() => s.step(1), "next"],
         l: [s.cycleLoop, "loop"],
         L: [s.cycleLoop, "loop"],
-        Escape: [s.replace ? s.closeReplace : s.clearLoop],
+        Escape: [s.replace ? s.closeReplace : s.recordAt !== null ? s.closeRecorder : s.clearLoop],
         "[": [() => s.stepSentence(-1), "prevSentence"],
         "]": [() => s.stepSentence(1), "nextSentence"],
         "{": [() => s.stepSection(-1)],
@@ -51,6 +64,10 @@ export function useShortcuts() {
         I: [() => s.toggleExplain()],
         e: [() => s.editSentence()],
         E: [() => s.editSentence()],
+        m: [() => void s.startTake()],
+        M: [() => void s.startTake()],
+        p: [() => s.replayTake()],
+        P: [() => s.replayTake()],
         r: [() => s.setPlayMode(nextPlayMode(s.settings.playMode)), "playMode"],
         R: [() => s.setPlayMode(nextPlayMode(s.settings.playMode)), "playMode"],
         "-": [() => s.setRate(s.settings.rate - RATE_STEP), "slower"],

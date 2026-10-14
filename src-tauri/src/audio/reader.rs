@@ -46,6 +46,10 @@ pub struct Reader {
     pub retired: Vec<Arc<Region>>,
     /// Times the current loop has jumped from B back to A (0 when set).
     pub wraps: u32,
+    /// Play once up to here, then stop as if the file ended (`Cmd::Range`).
+    stop: Option<u64>,
+    /// The end padding started at `stop`, not at the real end.
+    stopped: bool,
 }
 
 impl Reader {
@@ -69,7 +73,20 @@ impl Reader {
             history,
             retired: Vec::with_capacity(8),
             wraps: 0,
+            stop: None,
+            stopped: false,
         }
+    }
+
+    pub fn stop_at(&mut self, stop: Option<u64>) {
+        self.stop = stop;
+    }
+
+    /// Where a range stopped, once its end padding has been reached (clears the range).
+    pub fn stopped(&mut self) -> Option<u64> {
+        let at = self.stop.take().filter(|_| self.stopped);
+        self.stopped = false;
+        at
     }
 
     fn retire(&mut self, r: Option<Arc<Region>>) {
@@ -112,6 +129,9 @@ impl Reader {
 
     /// Frame at which reading must stop to wrap, if a loop is active.
     fn wrap_at(&self) -> Option<u64> {
+        if self.stop.is_some() {
+            return None; // a range plays straight through to its end
+        }
         let lp = self.lp?;
         Some(self.ready_region().map_or(lp.b, |r| r.wrap_at()))
     }
@@ -125,6 +145,7 @@ impl Reader {
         self.pending_wrap = false;
         self.tail_got = 0;
         self.eof_feed = None;
+        self.stopped = false;
         if let Some(r) = self.loop_region.as_ref().filter(|r| r.covers(self.cursor)) {
             let r = r.clone();
             let old = self.read_region.replace(r);
@@ -205,8 +226,17 @@ impl Reader {
                 continue;
             }
             let want = (upto - fifo.end) as usize;
+            if self.stop.is_some_and(|s| self.cursor >= s) || self.stopped {
+                self.stopped = true;
+                self.eof_feed.get_or_insert(fifo.end);
+                fifo.push_silence(want, self.cursor);
+                continue;
+            }
             let wrap = self.wrap_at().filter(|&b| self.cursor < b);
-            let limit = wrap.map_or(usize::MAX, |b| (b - self.cursor) as usize);
+            let stop = self.stop.map(|s| (s - self.cursor) as usize);
+            let limit = wrap
+                .map_or(usize::MAX, |b| (b - self.cursor) as usize)
+                .min(stop.unwrap_or(usize::MAX));
             let start = self.cursor;
             let dst = fifo.write_slice(want.min(limit));
             match self.read_into(dst) {

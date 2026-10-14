@@ -25,6 +25,60 @@ export interface Settings {
   transcribeLanguage: string;
   /** Daily practice goal as changes over time (see goalOn in lib/practice.ts). */
   dailyGoals: GoalChange[];
+  /** 跟读录音: hear the sentence then say it, or say it along with the original. */
+  recordMode: RecordMode;
+  /** Play the take back (against the original) as soon as it's recorded. */
+  recordReplay: boolean;
+}
+
+export type RecordMode = "listen" | "shadow";
+
+/** One recording of you saying a sentence (src-tauri/src/record/saved.rs). */
+export interface Take {
+  id: string;
+  /** Unix ms. */
+  created: number;
+  /** The part of the track practised (seconds). */
+  start: number;
+  end: number;
+  /** The sentence as it read then ("" for an A–B loop). */
+  text: string;
+  mode: RecordMode;
+  rate: number;
+  /** Length of the stored take, and where each voice is in it (seconds). */
+  duration: number;
+  original: [number, number];
+  mine: [number, number];
+  /** Shadowing: how far behind the original you were. */
+  lagMs: number | null;
+  /** Loudness outlines, 50 values a second (0–255). */
+  peaks: { original: number[]; mine: number[] };
+}
+
+/** What to play of a take: each voice alone, one after the other, or both at once. */
+export type TakePart = "original" | "mine" | "compare" | "together";
+
+/** `clipAt` seconds into a playing clip, the take from `from` to `to` is heard on `lane`. */
+export interface ClipPart {
+  lane: "original" | "mine" | "both";
+  from: number;
+  to: number;
+  clipAt: number;
+}
+
+export interface Playing {
+  clip: number;
+  parts: ClipPart[];
+  duration: number;
+}
+
+export interface RecordMeta {
+  audio: string;
+  start: number;
+  end: number;
+  text: string;
+  mode: RecordMode;
+  rate: number;
 }
 
 export interface GoalChange {
@@ -326,6 +380,20 @@ export const api = {
     /** All sessions; `since` (Unix ms) keeps those still going at or after it, `audio` those on one audio. */
     log: (filter: { since?: number; audio?: string } = {}) =>
       invoke<PracticeSession[]>("practice_log", { since: filter.since ?? null, audio: filter.audio ?? null }),
+  },
+  record: {
+    /** Opens the microphone (asks for permission the first time); resolves with its name once it's listening. */
+    begin: (meta: RecordMeta) => invoke<string>("record_begin", { meta }),
+    /** The original has finished: the take may now stop by itself (`recorder:auto`). */
+    turn: () => invoke<void>("record_turn"),
+    /** Stops and keeps the take (echo of the original removed). */
+    finish: () => invoke<Take | null>("record_finish"),
+    cancel: () => invoke<void>("record_cancel"),
+    takes: (audio: string) => invoke<Take[]>("record_takes", { audio }),
+    remove: (audio: string, id: string) => invoke<void>("record_delete", { audio, id }),
+    /** Plays over the paused track; position arrives as `recorder:clip`. */
+    play: (audio: string, id: string, what: TakePart) => invoke<Playing>("record_play", { audio, id, what }),
+    stop: () => invoke<void>("record_stop"),
   },
   update: {
     /** null when this is the newest version. */

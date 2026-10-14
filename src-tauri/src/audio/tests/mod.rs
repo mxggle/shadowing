@@ -5,6 +5,7 @@
 mod decode;
 mod device;
 mod engine;
+mod record;
 mod timing;
 
 use super::decode::Decoder;

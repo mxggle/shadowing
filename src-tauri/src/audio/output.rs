@@ -92,16 +92,37 @@ pub fn spawn(
     tx
 }
 
+/// Host time in ns (mach absolute time on macOS, the same clock for input and
+/// output streams), so the recorder can line the microphone up with the tap.
+pub fn host_nanos(t: &cpal::StreamInstant) -> u64 {
+    t.duration_since(&cpal::StreamInstant::new(0, 0))
+        .map_or(0, |d| d.as_nanos() as u64)
+}
+
 /// Sample rate of the current default device (48 kHz if none).
 pub fn default_rate() -> u32 {
-    cpal::default_host()
-        .default_output_device()
+    output_device(&cpal::default_host())
         .and_then(|d| d.default_output_config().ok())
         .map_or(48_000, |c| c.sample_rate().0)
 }
 
+/// The system default, or the device named in `SHADOWING_OUTPUT_DEVICE` (manual tests:
+/// e.g. the built-in speakers while the default is a pair of headphones).
+fn output_device(host: &cpal::Host) -> Option<cpal::Device> {
+    if let Ok(name) = std::env::var("SHADOWING_OUTPUT_DEVICE") {
+        let found = host
+            .output_devices()
+            .ok()?
+            .find(|d| d.name().is_ok_and(|n| n.contains(&name)));
+        if found.is_some() {
+            return found;
+        }
+    }
+    host.default_output_device()
+}
+
 fn default_name(host: &cpal::Host) -> Option<String> {
-    host.default_output_device().and_then(|d| d.name().ok())
+    output_device(host).and_then(|d| d.name().ok())
 }
 
 fn open(
@@ -109,7 +130,7 @@ fn open(
     engine: &Arc<Mutex<Engine>>,
     failed: Arc<AtomicBool>,
 ) -> Result<Open, String> {
-    let device = host.default_output_device().ok_or(ERR_DEVICE)?;
+    let device = output_device(host).ok_or(ERR_DEVICE)?;
     let name = device.name().unwrap_or_default();
     let supported = device.default_output_config().map_err(|e| e.to_string())?;
     let config: StreamConfig = supported.config();
@@ -155,6 +176,8 @@ where
                     .duration_since(&ts.callback)
                     .map_or(0.0, |d| d.as_secs_f64());
                 let mut pending = (lead * sr) as usize;
+                let heard_at = host_nanos(&ts.playback);
+                let mut done = 0u64;
                 // Never block: if the control thread holds the lock (device switch), emit silence.
                 let Ok(mut e) = engine.try_lock() else {
                     data.fill(T::EQUILIBRIUM);
@@ -163,10 +186,12 @@ where
                 for part in data.chunks_mut(scratch.len()) {
                     let buf = &mut scratch[..part.len()];
                     e.render(buf, ch, pending);
+                    e.tap(buf, ch, heard_at + done * 1_000_000_000 / sr as u64);
                     for (d, s) in part.iter_mut().zip(buf.iter()) {
                         *d = T::from_sample(*s);
                     }
                     pending += part.len() / ch;
+                    done += (part.len() / ch) as u64;
                 }
             },
             move |_err| failed.store(true, Relaxed),
