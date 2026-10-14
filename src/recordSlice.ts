@@ -75,6 +75,8 @@ export interface RecordState {
   setRecordReplay(on: boolean): void;
   /** The track paused (a range played to its end, or anything else). */
   playbackStopped(): void;
+  /** The track started playing: a take playing, or about to, gives way to it. */
+  trackPlaying(): void;
 }
 
 type Get = () => AppState;
@@ -114,18 +116,20 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
     get().cancelTake();
     set({ recError: payload });
   });
-  void listen<{ clip: number; secs: number; playing: boolean }>("recorder:clip", ({ payload }) => {
+  void listen<{ clip: number; secs: number; playing: boolean; ended: boolean }>("recorder:clip", ({ payload }) => {
     const p = get().playingTake;
     if (!p || p.clip !== payload.clip) return;
     set({ playingTake: payload.playing ? { ...p, secs: payload.secs } : null });
-    if (!payload.playing && p.chain) playOn(p);
+    // Only a take that played to its end goes on; playing the track stops it short.
+    if (payload.ended && p.chain) playOn(p);
   });
 
   /** Bumped by every play and stop; `stoppedAt` is the bump of the last stop. A play
-   *  that was stopped while it started is stopped once it has; one that another play
-   *  took over from is left to it. */
+   *  that was stopped while it started is stopped once it has (`resume`: by playing
+   *  the track, which it paused); one that another play took over from is left to it. */
   let playing = 0;
   let stoppedAt = -1;
+  let resume = false;
 
   /**
    * A take played to its end: the next recorded sentence, the same way. Its
@@ -250,7 +254,10 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       set({ playingTake: { id, what, chain, clip: -1, parts: [], duration: 0, secs: 0 }, shownTake: id, recError: null });
       try {
         const p = await api.record.play(path, id, what);
-        if (mine !== playing) return void (stoppedAt === playing && api.record.stop());
+        if (mine !== playing) {
+          if (stoppedAt === playing) void (resume ? engine.play() : api.record.stop());
+          return;
+        }
         set({ playingTake: { id, what, chain, ...p, secs: 0 } });
       } catch (e) {
         if (mine === playing) set({ playingTake: null, recError: String(e) });
@@ -270,9 +277,19 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
 
     stopTake() {
       stoppedAt = ++playing;
+      resume = false;
       if (!get().playingTake) return;
       set({ playingTake: null });
       void api.record.stop();
+    },
+
+    trackPlaying() {
+      const p = get().playingTake;
+      if (!p) return;
+      // The engine has stopped the clip already; one still starting pauses the track, so play it again then.
+      stoppedAt = ++playing;
+      resume = p.clip === -1;
+      set({ playingTake: null });
     },
 
     async deleteTake(id) {

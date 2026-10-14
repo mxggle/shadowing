@@ -86,6 +86,7 @@ export const useApp = create<AppState>((set, get) => {
     onDuration: (d) => set({ duration: Number.isFinite(d) ? d : 0 }),
     onPlaying: (playing) => {
       set({ playing });
+      if (playing) get().trackPlaying();
       if (!playing) {
         saveProgress(true);
         get().playbackStopped();

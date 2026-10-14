@@ -63,6 +63,8 @@ struct ClipStatus {
     clip: u64,
     secs: f64,
     playing: bool,
+    /// Played to its end; false while playing and when it was stopped.
+    ended: bool,
 }
 
 /// Which stretches of the file make up the clip, in order.
@@ -159,12 +161,14 @@ pub(super) fn watch(app: AppHandle, clip: u64) {
         let now = player.clip();
         let playing = now.is_some_and(|(id, _)| id == clip);
         let secs = now.filter(|_| playing).map_or(0.0, |(_, s)| s);
+        let ended = !playing && player.clip_finished(clip);
         let _ = app.emit(
             "recorder:clip",
             ClipStatus {
                 clip,
                 secs,
                 playing,
+                ended,
             },
         );
         if !playing {

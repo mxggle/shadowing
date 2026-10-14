@@ -208,11 +208,22 @@ function startClip(duration: number) {
   const timer = window.setInterval(() => {
     const secs = (performance.now() - started) / 1000;
     const playing = secs < duration;
-    if (!playing) window.clearInterval(timer);
-    void emit("recorder:clip", { clip: id, secs, playing });
+    if (!playing) {
+      window.clearInterval(timer);
+      if (clipTimer === timer) clipTimer = 0;
+    }
+    void emit("recorder:clip", { clip: id, secs, playing, ended: !playing });
   }, 33);
   clipTimer = timer;
   return { clip: id, duration };
+}
+
+/** Like the engine: stopping a clip (record_stop, or playing the track) isn't its end. */
+export function stopClip() {
+  if (!clipTimer) return;
+  window.clearInterval(clipTimer);
+  clipTimer = 0;
+  void emit("recorder:clip", { clip, secs: 0, playing: false, ended: false });
 }
 
 /** Handles the record_* commands; undefined for anything else. */
@@ -255,8 +266,7 @@ export async function mockRecord(cmd: string, a: Record<string, never>): Promise
     case "record_play":
       return play(a.audio, a.id, a.what);
     case "record_stop":
-      window.clearInterval(clipTimer);
-      void emit("recorder:clip", { clip, secs: 0, playing: false });
+      stopClip();
       return null;
   }
   return undefined;

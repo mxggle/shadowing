@@ -243,6 +243,11 @@ impl Player {
         (id != 0).then(|| (id, self.shared.clip_ms.load(Relaxed) as f64 / 1000.0))
     }
 
+    /// Whether clip `id` played to its end (rather than being stopped, e.g. by playing the track).
+    pub fn clip_finished(&self, id: u64) -> bool {
+        self.shared.clip_done.load(Relaxed) == id
+    }
+
     pub fn set_loop(&self, a: Option<f64>, b: Option<f64>) -> Result<(), String> {
         let id = self.loop_latest.fetch_add(1, Relaxed) + 1;
         let mut ctl = lock(&self.ctl);

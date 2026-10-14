@@ -4,7 +4,7 @@ import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import type { AiConfig, Explanation, Feature, PracticeSession, Preset, SavedExplanation, Section, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
 import { fresh, samples, sampleTranscripts } from "./mockSamples";
-import { mockRecord, seedTakes } from "./mockRecorder";
+import { mockRecord, seedTakes, stopClip } from "./mockRecorder";
 
 const root = "/Mock/日本語ポッドキャスト";
 const tracks: Track[] = [
@@ -270,8 +270,10 @@ export function installMockBackend() {
         case "player_pause":
         case "player_toggle":
           player.playing = cmd === "player_toggle" ? !player.playing : cmd === "player_play";
-          // Like the engine: playing after the end starts over.
+          // Like the engine: playing after the end starts over; pausing ends a range; playing stops a take.
           if (player.playing && player.time >= player.duration) player.time = 0;
+          if (!player.playing) player.stop = null;
+          if (cmd !== "player_pause") stopClip();
           return status();
         case "player_seek":
           Object.assign(player, { time: a.time, stop: null });

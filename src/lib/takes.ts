@@ -29,19 +29,29 @@ export function peekTake(takes: Take[], start: number, end: number, prefer: (str
   return own.at(-1);
 }
 
-/** The sentence (by index) a take was recorded against; -1 for none (an A–B loop, or a sentence since removed). */
+/**
+ * The sentence (by index) a take was recorded against: of those it shows under,
+ * the one it covers most (an A–B loop can span two). -1 for none (a sentence since removed).
+ */
 export function sentenceOf(take: Pick<Take, "start" | "end">, sentences: { start: number; end: number }[]): number {
-  return sentences.findIndex((s) => takesFor([take as Take], s.start, s.end).length > 0);
+  let best = -1;
+  let most = 0;
+  sentences.forEach((s, i) => {
+    const overlap = Math.min(take.end, s.end) - Math.max(take.start, s.start);
+    if (overlap > most && takesFor([take as Take], s.start, s.end).length > 0) [best, most] = [i, overlap];
+  });
+  return best;
 }
 
 /**
  * Listening on through the text: the next sentence after `from` you've
  * recorded, and its take — from the same reading as the one before
- * (`group`) if there is one, else the latest. Sentences not recorded are passed over.
+ * (`group`) if there is one, else the latest. Sentences not recorded are passed over,
+ * and a take is only played at its own sentence, so going on always moves on.
  */
 export function nextTake(takes: Take[], sentences: { start: number; end: number }[], from: number, group?: string | null): { index: number; take: Take } | null {
   for (let i = from + 1; i < sentences.length; i++) {
-    const own = takesFor(takes, sentences[i].start, sentences[i].end);
+    const own = takesFor(takes, sentences[i].start, sentences[i].end).filter((t) => sentenceOf(t, sentences) === i);
     if (!own.length) continue;
     return { index: i, take: (group && own.find((t) => t.group === group)) || own[own.length - 1] };
   }

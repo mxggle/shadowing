@@ -89,6 +89,23 @@ impl Reader {
         at
     }
 
+    /// A range paused before its end is over: from here the track plays, and
+    /// loops, as usual. One already into its end padding is left to `settle`.
+    pub fn cancel_range(&mut self) {
+        if !self.stopped {
+            self.stop = None;
+        }
+    }
+
+    /// A range paused in its end padding: where it ended (clears it).
+    pub fn settle(&mut self) -> Option<u64> {
+        if self.stopped {
+            self.stopped()
+        } else {
+            None
+        }
+    }
+
     fn retire(&mut self, r: Option<Arc<Region>>) {
         if let Some(r) = r {
             if self.retired.len() < self.retired.capacity() {

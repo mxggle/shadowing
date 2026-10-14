@@ -29,9 +29,10 @@ describe("takesFor", () => {
     expect(takesFor([take()], 10.2, 12.3)).toHaveLength(1);
   });
 
-  it("an A–B loop over two sentences doesn't claim either", () => {
+  it("an A–B loop over two sentences shows under each of them", () => {
     const loop = take({ start: 10, end: 14 });
     expect(takesFor([loop], 10, 12)).toHaveLength(1); // half of the shorter (the sentence) is inside
+    expect(takesFor([loop], 12, 14)).toHaveLength(1);
     expect(takesFor([loop], 20, 22)).toHaveLength(0);
   });
 
@@ -72,6 +73,24 @@ describe("listening on", () => {
   it("stays with the reading it started in", () => {
     expect(nextTake(takes, sentences, 0, "r")?.take.id).toBe("c1");
     expect(nextTake(takes, sentences, 2, "r")?.take.id).toBe("d");
+  });
+  it("a take over two sentences is of the one it covers most", () => {
+    expect(sentenceOf(take({ start: 10, end: 14 }), sentences)).toBe(0); // a tie: the first
+    expect(sentenceOf(take({ start: 11, end: 14.5 }), sentences)).toBe(1); // also half of the first
+  });
+  it("never comes back to a take over two sentences", () => {
+    const loop = take({ id: "loop", start: 10, end: 14 });
+    const all = [loop, take({ id: "b", start: 12, end: 14 }), take({ id: "d", start: 16, end: 18 })];
+    expect(nextTake(all, sentences, 0)).toEqual({ index: 1, take: all[1] });
+    expect(nextTake([loop, all[2]], sentences, 0)?.take.id).toBe("d");
+    // Listened through from the loop, every step moves on.
+    const seen: string[] = [];
+    let at: { index: number; take: Take } | null = { index: 0, take: loop };
+    while (at && seen.length < 10) {
+      seen.push(at.take.id);
+      at = nextTake(all, sentences, sentenceOf(at.take, sentences));
+    }
+    expect(seen).toEqual(["loop", "b", "d"]);
   });
 });
 

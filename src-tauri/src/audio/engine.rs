@@ -63,6 +63,8 @@ pub struct Shared {
     /// Clip playing now (0: none) and how far in, in ms.
     pub clip: AtomicU64,
     pub clip_ms: AtomicU64,
+    /// The last clip that played to its end (not stopped or replaced).
+    pub clip_done: AtomicU64,
 }
 
 impl Shared {
@@ -149,8 +151,9 @@ impl Engine {
         }
         self.dev_sr = dev_sr;
         self.shared.dev_rate.store(dev_sr, Relaxed);
-        if let Some(c) = self.clip.take() {
-            self.end_clip(c); // prepared for the old rate
+        if let Some(mut c) = self.clip.take() {
+            c.stop(); // prepared for the old rate
+            self.end_clip(c);
         }
         if let Some(s) = self.session.as_mut() {
             s.set_dev_rate(dev_sr);
@@ -276,6 +279,9 @@ impl Engine {
     }
 
     fn end_clip(&mut self, c: Box<Clip>) {
+        if !c.was_stopped() {
+            self.shared.clip_done.store(c.id, Relaxed);
+        }
         self.shared.clip.store(0, Relaxed);
         self.shared.events.fetch_or(EV_CLIP_DONE, Relaxed);
         self.bin(Trash::Clip(c));
@@ -306,11 +312,24 @@ impl Engine {
         if !self.playing {
             return;
         }
+        if let Some(s) = self.session.as_mut() {
+            s.reader.cancel_range();
+        }
         if self.fade > 0.0 {
             self.pending_pause = true;
             self.fade_target = 0.0;
         } else {
-            self.playing = false;
+            self.paused();
+        }
+    }
+
+    /// Now paused. A range caught in its end padding waits at its end, as when it plays out.
+    fn paused(&mut self) {
+        self.playing = false;
+        if let Some(s) = self.session.as_mut() {
+            if let Some(stop) = s.reader.settle() {
+                s.seek(stop);
+            }
         }
     }
 
@@ -321,7 +340,7 @@ impl Engine {
         }
         if self.pending_pause {
             self.pending_pause = false;
-            self.playing = false;
+            self.paused();
         } else if self.playing {
             self.fade_target = 1.0;
         }

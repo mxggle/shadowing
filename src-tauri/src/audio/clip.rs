@@ -30,6 +30,11 @@ impl Clip {
         self.stopping.get_or_insert(self.pos);
     }
 
+    /// Cut off rather than played to its end.
+    pub fn was_stopped(&self) -> bool {
+        self.stopping.is_some()
+    }
+
     /// Adds the next frames into `out` (interleaved, `ch` channels); true once finished.
     pub fn mix(&mut self, out: &mut [f32], ch: usize) -> bool {
         let fade = ((FADE_SECS * self.rate as f32) as usize).max(1);

@@ -5,6 +5,7 @@ use super::*;
 use crate::audio::clip::Clip;
 use crate::audio::engine::{EV_CLIP_DONE, EV_ENDED};
 use crate::audio::tap;
+use std::sync::atomic::Ordering::Relaxed;
 
 fn heard(out: &[f32], n: usize) -> Vec<f64> {
     out.chunks(2)
@@ -63,6 +64,77 @@ fn range_plays_once_and_waits_at_its_end() {
 }
 
 #[test]
+fn a_range_cut_short_leaves_the_loop_working() {
+    // Skipping the original while recording pauses it partway; playing on
+    // afterwards must loop the sentence again, not stop at its end.
+    let dir = tempfile::tempdir().unwrap();
+    let (path, n) = ramp_wav(dir.path(), SR, 6.0);
+    let (a, b) = (SR as u64, SR as u64 * 2);
+    let mut rig = Rig::new(&path, SR, 1.0, 0);
+    rig.set_loop(a, b, 3);
+    rig.send(Cmd::Seek(a));
+    rig.send(Cmd::Range(Some(b)));
+    rig.render(SR as usize / 2, 512);
+    rig.send(Cmd::Pause);
+    rig.render(SR as usize / 10, 512);
+    assert!(!rig.shared.playing());
+    rig.send(Cmd::Play);
+    let (out, _) = rig.render(SR as usize * 3 / 2, 512);
+    let idx = heard(&out, n);
+    let near_b = idx
+        .iter()
+        .position(|&v| v > (b - 1000) as f64)
+        .expect("reaches B");
+    let back = idx[near_b..].iter().any(|&v| v < (a + 1000) as f64);
+    assert!(
+        back,
+        "wraps from B back to A: {:?}",
+        (idx[0], idx[near_b], idx.last())
+    );
+    assert!(rig.shared.playing(), "still playing, not waiting at B");
+    assert_eq!(rig.shared.take_events() & EV_ENDED, 0);
+}
+
+#[test]
+fn a_range_paused_at_its_very_end_waits_there() {
+    let dir = tempfile::tempdir().unwrap();
+    let (path, n) = ramp_wav(dir.path(), SR, 6.0);
+    let (a, b) = (SR as u64, SR as u64 * 2);
+    let mut rig = Rig::new(&path, SR, 1.0, 0);
+    rig.send(Cmd::Seek(a));
+    rig.send(Cmd::Range(Some(b)));
+    // Up to the moment B has been read but not yet heard out.
+    rig.render(512, 512);
+    let mut last = 0.0;
+    while last < (b - 64) as f64 && rig.shared.playing() {
+        let (out, _) = rig.render(32, 32);
+        last = heard(&out, n).last().copied().unwrap_or(last);
+    }
+    rig.send(Cmd::Pause);
+    rig.render(SR as usize / 10, 512);
+    assert!(!rig.shared.playing());
+    assert!(
+        (rig.shared.time() - 2.0).abs() < 0.01,
+        "at B: {}",
+        rig.shared.time()
+    );
+    rig.send(Cmd::Play);
+    let (out, _) = rig.render(SR as usize / 2, 512);
+    let idx = heard(&out, n);
+    assert!(
+        (idx[0] - b as f64).abs() < TOL,
+        "goes on from B: {}",
+        idx[0]
+    );
+    assert!(rig.shared.playing(), "and keeps playing");
+    assert_eq!(
+        rig.shared.take_events() & EV_ENDED,
+        0,
+        "not the end of the track"
+    );
+}
+
+#[test]
 fn tap_copies_what_was_played() {
     let dir = tempfile::tempdir().unwrap();
     let (path, n) = ramp_wav(dir.path(), SR, 4.0);
@@ -100,10 +172,7 @@ fn clip_pauses_the_track_and_reports_its_end() {
         SR,
     )))));
     rig.render(1024, 512);
-    assert_eq!(
-        rig.shared.clip.load(std::sync::atomic::Ordering::Relaxed),
-        9
-    );
+    assert_eq!(rig.shared.clip.load(Relaxed), 9);
     assert!(!rig.shared.playing(), "the track pauses for the clip");
     let (out, _) = rig.render(1024, 512);
     assert!(
@@ -111,9 +180,31 @@ fn clip_pauses_the_track_and_reports_its_end() {
         "only the clip is heard"
     );
     rig.render(4800, 512);
-    assert_eq!(
-        rig.shared.clip.load(std::sync::atomic::Ordering::Relaxed),
-        0
-    );
+    assert_eq!(rig.shared.clip.load(Relaxed), 0);
     assert_ne!(rig.shared.take_events() & EV_CLIP_DONE, 0);
+    assert_eq!(rig.shared.clip_done.load(Relaxed), 9, "played to its end");
+}
+
+#[test]
+fn playing_the_track_stops_a_clip_without_finishing_it() {
+    // Chained take playback goes on only after a take that ended by itself.
+    let dir = tempfile::tempdir().unwrap();
+    let (path, _) = ramp_wav(dir.path(), SR, 4.0);
+    let mut rig = Rig::new(&path, SR, 1.0, 0);
+    rig.render(4800, 512);
+    rig.send(Cmd::Clip(Some(Box::new(Clip::new(
+        7,
+        vec![0.25; 4800],
+        SR,
+    )))));
+    rig.render(1024, 512);
+    rig.send(Cmd::Play);
+    rig.render(4800, 512);
+    assert_eq!(rig.shared.clip.load(Relaxed), 0, "the clip is gone");
+    assert!(rig.shared.playing(), "the track plays");
+    assert_ne!(
+        rig.shared.clip_done.load(Relaxed),
+        7,
+        "but it didn't finish"
+    );
 }
