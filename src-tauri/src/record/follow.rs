@@ -10,8 +10,9 @@ use super::vad::FRAME_SECS;
 /// A pause this long ends a sentence once most of it has been said…
 const PAUSE_SECS: f64 = 0.3;
 const MOST: f64 = 0.75;
-/// …and only a longer one when just half has (a breath inside a long sentence is shorter).
-const LONG_PAUSE_SECS: f64 = 0.6;
+/// …and only a longer one when just half has (a breath inside a long sentence
+/// is shorter; a fast reader's first sentence looks like half of it).
+const LONG_PAUSE_SECS: f64 = 0.4;
 const HALF: f64 = 0.5;
 /// Shortest sentence said (a "はい").
 const SHORTEST_SECS: f64 = 0.2;
@@ -20,8 +21,8 @@ const EDGES_SECS: f64 = 0.2;
 /// After the last sentence, this much quiet finishes the reading.
 const END_SECS: f64 = 1.5;
 /// One sentence moves your pace by at most this factor either way, so a wrong
-/// move doesn't make the next ones wrong too.
-const PACE_STEP: (f64, f64) = (0.75, 1.5);
+/// move doesn't make the next ones wrong too (down to how fast anyone reads).
+const PACE_STEP: (f64, f64) = (0.6, 1.5);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Step {

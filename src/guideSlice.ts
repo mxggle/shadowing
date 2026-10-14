@@ -72,8 +72,12 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
       get().saveGuide({ practiced: true });
       if (!current || current.path !== sample?.path) return;
       // Leave the sample: nothing plays and the library (or welcome screen) shows again.
+      get().cancelTake();
+      get().stopTake();
+      get().cancelReading();
+      get().stopReadingPlayback();
       engine.unload();
-      set({ current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, transcript: null, loopSentence: null, loopSection: null });
+      set({ rec: null, live: null, takes: [], readings: [], recordAt: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, transcript: null, loopSentence: null, loopSection: null });
       void api.setLastTrack(null);
     },
 

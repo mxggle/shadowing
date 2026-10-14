@@ -173,3 +173,17 @@ fn reached_counts_the_sentence_you_started() {
     read(&mut done, &[(true, 1.0), (false, 2.0)]);
     assert_eq!(done.followed().reached, 1);
 }
+
+#[test]
+fn readers_much_faster_than_the_original_are_followed() {
+    // Slow learner audio: you read 7 sentences at 0.6–0.7× its length, 0.45 s between them.
+    let none: &[(f64, f64)] = &[];
+    let expected = vec![3.0, 2.5, 3.5, 2.0, 3.0, 2.5, 3.0];
+    for speed in [0.6, 0.65, 0.7] {
+        let lens: Vec<(f64, &[(f64, f64)])> = expected.iter().map(|e| (e * speed, none)).collect();
+        let (parts, ends) = reader(&lens, 0.45);
+        let mut f = Follow::new(expected.clone());
+        on_time(&read(&mut f, &parts), &ends, 0.45);
+        assert_eq!(f.followed().reached, expected.len(), "at {speed}×");
+    }
+}

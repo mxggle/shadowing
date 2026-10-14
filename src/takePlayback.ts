@@ -6,7 +6,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { AudioEngine } from "./audio/engine";
 import { isLoopActive } from "./audio/logic";
 import { api, type ClipPart, type TakePart } from "./lib/api";
-import { nextTake, sentenceOf } from "./lib/takes";
+import { comparePart, nextTake, sentenceOf } from "./lib/takes";
 import type { Get, Set } from "./recordSlice";
 
 export interface PlayingTake {
@@ -59,7 +59,9 @@ export function createTakePlayback(set: Set, get: Get, engine: AudioEngine): Tak
     if (!next || s.rec || s.live) return;
     if (s.recordAt === from) set({ recordAt: null, recError: null });
     if (!isLoopActive(s.loop)) get().seek(sentences[next.index].start);
-    void get().playTake(next.take.id, p.what);
+    // Both voices: each take the way it has them (一起听 over 边听边说, 对比 one after the other).
+    const what = p.what === "together" || p.what === "compare" ? comparePart(next.take) : p.what;
+    void get().playTake(next.take.id, what);
   }
 
   return {

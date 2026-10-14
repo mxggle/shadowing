@@ -5,7 +5,7 @@
 //! right waveform, and `recorder:clip` events while it plays.
 
 use super::saved::{self, Take};
-use super::take::{convert, RATE};
+use super::take::{convert, in_turns, RATE};
 use super::watch::watch;
 use crate::audio::decode::Decoder;
 use crate::audio::Player;
@@ -66,6 +66,11 @@ pub fn parts(take: &Take, what: What) -> Vec<Part> {
         clip_at,
     };
     let (o, m) = (take.original, take.mine);
+    // One after the other in the file (and maybe one channel): both at once would add it to itself.
+    let what = match what {
+        What::Together if in_turns(take.mode) => What::Compare,
+        w => w,
+    };
     match what {
         What::Original => vec![part(Lane::Original, o, 0.0)],
         What::Mine => vec![part(Lane::Mine, m, 0.0)],
@@ -247,6 +252,19 @@ mod tests {
     }
 
     #[test]
+    fn together_on_a_take_in_turns_plays_it_in_turns() {
+        assert_eq!(
+            parts(&take(), What::Together),
+            parts(&take(), What::Compare)
+        );
+        let shadow = Take {
+            mode: Mode::Shadow,
+            ..take()
+        };
+        assert_eq!(parts(&shadow, What::Together)[0].lane, Lane::Both);
+    }
+
+    #[test]
     fn compare_plays_the_original_then_you() {
         let p = parts(&take(), What::Compare);
         assert_eq!(p.len(), 2);
@@ -266,7 +284,11 @@ mod tests {
 
     #[test]
     fn together_mixes_the_whole_stretch() {
-        let p = parts(&take(), What::Together);
+        let shadow = Take {
+            mode: Mode::Shadow,
+            ..take()
+        };
+        let p = parts(&shadow, What::Together);
         assert_eq!((p[0].from, p[0].to), (0.1, 1.9));
         let out = render(&[0.5; 64_000], &[0.5; 64_000], &p);
         assert!(out.iter().all(|&v| (v - 0.7).abs() < 1e-6));

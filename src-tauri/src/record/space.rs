@@ -74,9 +74,10 @@ pub fn clear_missing(root: &Path) -> Result<Space, String> {
     Ok(space(root))
 }
 
-/// The audio file is gone — not merely on a disk that isn't connected now.
+/// The audio file is gone — not merely on a disk that isn't connected now, or
+/// somewhere it can't be looked at (no permission): only "not found" counts.
 fn gone(audio: &Path) -> bool {
-    if audio.exists() {
+    if !matches!(audio.try_exists(), Ok(false)) {
         return false;
     }
     let mut parts = audio.components();

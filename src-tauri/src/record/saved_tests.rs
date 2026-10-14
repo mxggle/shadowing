@@ -134,14 +134,34 @@ fn a_list_that_cant_be_read_is_kept_aside_not_overwritten() {
         .replace("\"shadow\"", "\"humming\"");
     fs::write(&path, &damaged).unwrap();
     assert!(list(root.path(), audio).is_empty());
-    let aside = dir(root.path(), audio).join("takes.corrupt.json");
+    let aside = || -> Vec<std::path::PathBuf> {
+        let mut v: Vec<_> = fs::read_dir(dir(root.path(), audio))
+            .unwrap()
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| {
+                p.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("takes.corrupt-")
+            })
+            .collect();
+        v.sort();
+        v
+    };
     assert_eq!(
-        fs::read_to_string(&aside).unwrap(),
+        fs::read_to_string(&aside()[0]).unwrap(),
         damaged,
         "the old list is still there"
     );
     add(root.path(), audio, take("t2"), &[0.1], &[0.1]).unwrap();
     assert_eq!(list(root.path(), audio).len(), 1);
+    // Not even text: kept aside too, and the first one stays.
+    std::thread::sleep(std::time::Duration::from_millis(2));
+    fs::write(&path, [0xff, 0xfe, 0x00]).unwrap();
+    assert!(list(root.path(), audio).is_empty());
+    assert_eq!(aside().len(), 2);
+    assert_eq!(fs::read_to_string(&aside()[0]).unwrap(), damaged);
 }
 
 #[test]

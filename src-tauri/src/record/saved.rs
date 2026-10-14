@@ -128,7 +128,7 @@ pub fn wav_path(root: &Path, audio: &str, id: &str) -> PathBuf {
 }
 
 /// The track's list; empty when there's none. One that can't be read (damaged,
-/// or written by a newer version) is kept aside as `takes.corrupt.json`
+/// or written by a newer version) is kept aside as `takes.corrupt-<ms>.json`
 /// rather than overwritten by the next take.
 fn load(root: &Path, audio: &str) -> File {
     let empty = || File {
@@ -138,14 +138,21 @@ fn load(root: &Path, audio: &str) -> File {
         readings: Vec::new(),
     };
     let path = dir(root, audio).join("takes.json");
-    let Ok(text) = fs::read_to_string(&path) else {
-        return empty();
+    let bytes = match fs::read(&path) {
+        Ok(b) => b,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return empty(),
+        Err(_) => Vec::new(), // can't be read: kept aside below
     };
-    match serde_json::from_str::<File>(&text) {
+    match serde_json::from_slice::<File>(&bytes) {
         Ok(f) if f.audio == audio => f,
         _ => {
-            eprintln!("{} unreadable; kept aside", path.display());
-            let _ = fs::rename(&path, path.with_file_name("takes.corrupt.json"));
+            // Each one kept: a later damaged list doesn't replace an earlier one.
+            let stamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_millis());
+            let aside = path.with_file_name(format!("takes.corrupt-{stamp}.json"));
+            eprintln!("{} unreadable; kept as {}", path.display(), aside.display());
+            let _ = fs::rename(&path, aside);
             empty()
         }
     }
