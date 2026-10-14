@@ -36,6 +36,46 @@ pub struct Take {
     pub lag_ms: Option<i32>,
     /// Loudness outlines for drawing (`PEAKS_PER_SEC` values a second).
     pub peaks: Peaks,
+    /// The paragraph reading this sentence was cut from, if any.
+    #[serde(default)]
+    pub group: Option<String>,
+}
+
+/// A paragraph read (or shadowed) in one go. Its file holds the whole of it
+/// (left: the original as heard, silent for 自己读; right: you); each sentence
+/// was also kept as its own take, linked by `group`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Reading {
+    pub id: String,
+    pub created: u64,
+    /// The stretch of the track read (seconds).
+    pub start: f64,
+    pub end: f64,
+    pub mode: Mode,
+    pub rate: f64,
+    /// Length of the stored file.
+    pub duration: f64,
+    pub parts: Vec<ReadPart>,
+    /// The original's length at the speed compared against, and yours (first word to last).
+    pub original_secs: f64,
+    pub mine_secs: f64,
+    pub lag_ms: Option<i32>,
+    /// Your voice's loudness outline over the whole file.
+    pub peaks: Vec<u8>,
+}
+
+/// One sentence of a reading.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReadPart {
+    /// The sentence in the track.
+    pub start: f64,
+    pub end: f64,
+    /// Where you said it in the reading's file.
+    pub mine: (f64, f64),
+    /// Its own take (none when it wasn't said).
+    pub take: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -52,6 +92,8 @@ struct File {
     /// Guards against a hash collision between two tracks.
     audio: String,
     takes: Vec<Take>,
+    #[serde(default)]
+    readings: Vec<Reading>,
 }
 
 pub fn dir(root: &Path, audio: &str) -> PathBuf {
@@ -63,24 +105,38 @@ pub fn wav_path(root: &Path, audio: &str, id: &str) -> PathBuf {
     dir(root, audio).join(format!("{id}.wav"))
 }
 
-pub fn list(root: &Path, audio: &str) -> Vec<Take> {
+fn load(root: &Path, audio: &str) -> File {
+    let empty = || File {
+        version: 1,
+        audio: audio.to_string(),
+        takes: Vec::new(),
+        readings: Vec::new(),
+    };
     let Ok(text) = fs::read_to_string(dir(root, audio).join("takes.json")) else {
-        return Vec::new();
+        return empty();
     };
     match serde_json::from_str::<File>(&text) {
-        Ok(f) if f.audio == audio => f.takes,
-        _ => Vec::new(),
+        Ok(f) if f.audio == audio => f,
+        _ => empty(),
     }
 }
 
-fn write(root: &Path, audio: &str, takes: Vec<Take>) -> Result<(), String> {
-    let file = File {
-        version: 1,
-        audio: audio.to_string(),
-        takes,
-    };
-    let json = serde_json::to_vec_pretty(&file).map_err(|e| e.to_string())?;
+pub fn list(root: &Path, audio: &str) -> Vec<Take> {
+    load(root, audio).takes
+}
+
+pub fn readings(root: &Path, audio: &str) -> Vec<Reading> {
+    load(root, audio).readings
+}
+
+fn write(root: &Path, audio: &str, file: &File) -> Result<(), String> {
+    let json = serde_json::to_vec_pretty(file).map_err(|e| e.to_string())?;
     write_atomic(&dir(root, audio).join("takes.json"), &json)
+        .map_err(|e| format!("录音没有保存：{e}"))
+}
+
+fn write_wav(root: &Path, audio: &str, id: &str, l: &[f32], r: &[f32]) -> Result<(), String> {
+    write_atomic(&wav_path(root, audio, id), &stereo_wav(l, r))
         .map_err(|e| format!("录音没有保存：{e}"))
 }
 
@@ -93,22 +149,66 @@ pub fn add(
     mine: &[f32],
 ) -> Result<(), String> {
     let _w = WRITING.lock().unwrap_or_else(|e| e.into_inner());
-    write_atomic(
-        &wav_path(root, audio, &take.id),
-        &stereo_wav(original, mine),
-    )
-    .map_err(|e| format!("录音没有保存：{e}"))?;
-    let mut takes = list(root, audio);
-    takes.push(take);
-    write(root, audio, takes)
+    write_wav(root, audio, &take.id, original, mine)?;
+    let mut file = load(root, audio);
+    file.takes.push(take);
+    write(root, audio, &file)
+}
+
+/// A take's audio: (left, right).
+pub type Sound = (Vec<f32>, Vec<f32>);
+
+/// Stores a reading's audio and each of its sentences' takes, then lists them all.
+pub fn add_reading(
+    root: &Path,
+    audio: &str,
+    reading: Reading,
+    whole: &Sound,
+    takes: Vec<(Take, Sound)>,
+) -> Result<(), String> {
+    let _w = WRITING.lock().unwrap_or_else(|e| e.into_inner());
+    write_wav(root, audio, &reading.id, &whole.0, &whole.1)?;
+    for (t, (l, r)) in &takes {
+        write_wav(root, audio, &t.id, l, r)?;
+    }
+    let mut file = load(root, audio);
+    file.takes.extend(takes.into_iter().map(|t| t.0));
+    file.readings.push(reading);
+    write(root, audio, &file)
 }
 
 pub fn delete(root: &Path, audio: &str, id: &str) -> Result<(), String> {
     let _w = WRITING.lock().unwrap_or_else(|e| e.into_inner());
-    let mut takes = list(root, audio);
-    takes.retain(|t| t.id != id);
-    write(root, audio, takes)?;
+    let mut file = load(root, audio);
+    file.takes.retain(|t| t.id != id);
+    for r in &mut file.readings {
+        for p in &mut r.parts {
+            if p.take.as_deref() == Some(id) {
+                p.take = None;
+            }
+        }
+    }
+    write(root, audio, &file)?;
     let _ = fs::remove_file(wav_path(root, audio, id));
+    Ok(())
+}
+
+/// Deletes a reading and the sentence takes cut from it.
+pub fn delete_reading(root: &Path, audio: &str, id: &str) -> Result<(), String> {
+    let _w = WRITING.lock().unwrap_or_else(|e| e.into_inner());
+    let mut file = load(root, audio);
+    let gone: Vec<String> = file
+        .takes
+        .iter()
+        .filter(|t| t.group.as_deref() == Some(id))
+        .map(|t| t.id.clone())
+        .collect();
+    file.takes.retain(|t| t.group.as_deref() != Some(id));
+    file.readings.retain(|r| r.id != id);
+    write(root, audio, &file)?;
+    for g in gone.iter().map(String::as_str).chain([id]) {
+        let _ = fs::remove_file(wav_path(root, audio, g));
+    }
     Ok(())
 }
 
@@ -161,6 +261,7 @@ mod tests {
                 original: vec![1, 2],
                 mine: vec![3],
             },
+            group: None,
         }
     }
 
@@ -191,5 +292,74 @@ mod tests {
         delete(root.path(), audio, "t1").unwrap();
         assert_eq!(list(root.path(), audio).len(), 1);
         assert!(!wav_path(root.path(), audio, "t1").exists());
+    }
+
+    #[test]
+    fn readings_keep_their_sentence_takes() {
+        let root = tempfile::tempdir().unwrap();
+        let audio = "/music/a.mp3";
+        add(root.path(), audio, take("solo"), &[0.1], &[0.1]).unwrap();
+        let part = |t: &str| ReadPart {
+            start: 1.0,
+            end: 2.0,
+            mine: (0.0, 1.0),
+            take: Some(t.into()),
+        };
+        let reading = Reading {
+            id: "r1".into(),
+            created: 2,
+            start: 1.0,
+            end: 5.0,
+            mode: Mode::Read,
+            rate: 1.0,
+            duration: 4.0,
+            parts: vec![part("r1-0"), part("r1-1")],
+            original_secs: 4.0,
+            mine_secs: 4.5,
+            lag_ms: None,
+            peaks: vec![],
+        };
+        let sound = (vec![0.0; 10], vec![0.2; 10]);
+        let piece = |id: &str| {
+            (
+                Take {
+                    id: id.into(),
+                    group: Some("r1".into()),
+                    ..take(id)
+                },
+                sound.clone(),
+            )
+        };
+        add_reading(
+            root.path(),
+            audio,
+            reading,
+            &sound,
+            vec![piece("r1-0"), piece("r1-1")],
+        )
+        .unwrap();
+        assert_eq!(list(root.path(), audio).len(), 3);
+        assert_eq!(readings(root.path(), audio)[0].parts.len(), 2);
+
+        delete(root.path(), audio, "r1-0").unwrap();
+        assert_eq!(
+            readings(root.path(), audio)[0].parts[0].take,
+            None,
+            "unlinked"
+        );
+
+        delete_reading(root.path(), audio, "r1").unwrap();
+        assert_eq!(
+            list(root.path(), audio)
+                .iter()
+                .map(|t| t.id.as_str())
+                .collect::<Vec<_>>(),
+            ["solo"]
+        );
+        assert!(readings(root.path(), audio).is_empty());
+        assert!(
+            !wav_path(root.path(), audio, "r1").exists()
+                && !wav_path(root.path(), audio, "r1-1").exists()
+        );
     }
 }

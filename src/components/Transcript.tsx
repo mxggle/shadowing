@@ -4,11 +4,13 @@ import type { Sentence, Suggestion } from "../lib/api";
 import { explainKey, type Explain } from "../explainSlice";
 import { sectionIndexOf, sectionsOf } from "../lib/sections";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
+import { stretchAt } from "../lib/readings";
 import { takeCounts } from "../lib/takes";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { ExplainNote } from "./Explain";
 import { ProofreadBar, ProofreadButton, SuggestionNote } from "./Proofread";
+import { LiveReadingBar, ReadingButton, ReadingCard } from "./Reading";
 import { MicButton, RecorderCard } from "./Recorder";
 import { ReplaceBar } from "./ReplaceBar";
 import { SentenceEditor } from "./SentenceEditor";
@@ -24,7 +26,19 @@ import { IconButton } from "./ui";
  */
 export function SentenceList() {
   const sentences = useApp((s) => s.transcript?.sentences ?? []);
-  const active = useApp((s) => (s.transcript ? sentenceIndexAt(s.transcript.sentences, s.time) : -1));
+  const active = useApp((s) => {
+    if (!s.transcript) return -1;
+    // Reading on your own: the sentence you're on; playing a reading back: the one playing.
+    if (s.live?.mode === "read" && s.live.phase === "reading") return s.live.current;
+    const p = s.playingReading;
+    const stretch = p && stretchAt(p, p.secs);
+    const part = stretch && s.readings.find((r) => r.id === p.id)?.parts[stretch.part];
+    if (part) return sentenceIndexAt(s.transcript.sentences, part.start + 0.01);
+    return sentenceIndexAt(s.transcript.sentences, s.time);
+  });
+  const reading = useApp((s) => (s.live?.phase === "reading" ? s.live : null));
+  const shown = useApp((s) => s.readings.find((r) => r.id === s.shownReading) ?? null);
+  const shownAt = useMemo(() => (shown ? sentenceIndexAt(sentences, shown.start + 0.01) : -1), [shown, sentences]);
   const loopSentence = useApp((s) => s.loopSentence);
   const editing = useApp((s) => s.editing?.index ?? null);
   const find = useApp((s) => s.replace?.find ?? "");
@@ -47,7 +61,7 @@ export function SentenceList() {
   const list = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
   // Hold the list still while a sentence is corrected, matches are looked through, or you're recording.
-  useFollow(list, active, editing !== null || !!find || recordAt !== null);
+  useFollow(list, active, !reading && (editing !== null || !!find || recordAt !== null));
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
@@ -63,6 +77,7 @@ export function SentenceList() {
             return (
               <Fragment key={i}>
                 {headed && k !== undefined && <SectionHeading k={k} active={k === activeSection} />}
+                {i === shownAt && shown && <ReadingCard reading={shown} />}
                 <Row
                   index={i}
                   sentence={sentence}
@@ -73,6 +88,7 @@ export function SentenceList() {
                   suggestions={suggestions.get(i)}
                   explain={path ? explain[explainKey(path, i, sentence.text)] : undefined}
                   takes={counts[i] ?? 0}
+                  reading={!!reading && i === active && i >= reading.first && i < reading.end}
                   recorder={recordAt === i}
                   voices={voices}
                   turn={voices && startsTurn(sentences, i)}
@@ -93,7 +109,15 @@ function Header({ scrolled }: { scrolled: boolean }) {
   const transcript = useApp((s) => s.transcript);
   const replacing = useApp((s) => !!s.replace);
   const { importTranscript, removeTranscript, openReplace, closeReplace } = useApp.getState();
+  const live = useApp((s) => !!s.live);
   if (!transcript) return null;
+  if (live) {
+    return (
+      <div className="shrink-0 border-b border-line">
+        <LiveReadingBar />
+      </div>
+    );
+  }
   const voices = speakerCount(transcript.sentences);
   return (
     <div className={`shrink-0 border-b transition-colors duration-200 ${scrolled ? "border-line" : "border-transparent"}`}>
@@ -116,6 +140,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
           <IconButton title="查找和替换 (⌘F)" active={replacing} onClick={() => (replacing ? closeReplace() : openReplace())}>
             <Replace />
           </IconButton>
+          <ReadingButton />
           <ProofreadButton />
           <IconButton title="导入其他字幕文件" onClick={() => void importTranscript()}>
             <FileUp />
@@ -137,7 +162,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
  * One sentence. With more than one voice (`voices`), a column names the
  * speaker where their turn starts (`turn`), like a script, and turns get a little air between them.
  */
-const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, takes, recorder, voices, turn, opensSection, canSplit }: {
+const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, takes, recorder, reading, voices, turn, opensSection, canSplit }: {
   index: number;
   sentence: Sentence;
   active: boolean;
@@ -152,6 +177,8 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
   /** Recordings of you saying it, and whether its recorder card is open. */
   takes: number;
   recorder: boolean;
+  /** The sentence being read now, in a paragraph recording. */
+  reading: boolean;
   voices: boolean;
   turn: boolean;
   /** First sentence under a section heading (the heading already gives it air). */
@@ -161,7 +188,7 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
 }) {
   const { playSentence, toggleSentenceLoop, editSentence, toggleExplain, splitSection } = useApp.getState();
   const explaining = !!explain?.open;
-  const tone = looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";
+  const tone = reading ? "bg-danger-soft" : looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";
   const lit = active || looping || recorder;
   const columns = voices ? "grid-cols-[3.25rem_1.75rem_1fr_auto]" : "grid-cols-[3.25rem_1fr_auto]";
   return (

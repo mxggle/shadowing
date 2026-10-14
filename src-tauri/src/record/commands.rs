@@ -2,7 +2,7 @@
 //! track must be one the webview may use.
 
 use super::playback::{self, Playing, What};
-use super::{saved, Meta, Recorder, Take};
+use super::{replay, saved, Finished, Meta, Reading, Recorder, Take};
 use crate::audio::Player;
 use crate::AppState;
 use tauri::{AppHandle, State};
@@ -16,8 +16,8 @@ pub fn record_begin(
     recorder: State<'_, Recorder>,
     meta: Meta,
 ) -> Result<String, String> {
-    state.audio(&meta.audio)?;
-    recorder.begin(app, &player, meta)
+    let file = state.audio(&meta.audio)?;
+    recorder.begin(app, &player, meta, file)
 }
 
 #[tauri::command]
@@ -32,7 +32,7 @@ pub fn record_cancel(player: State<'_, Player>, recorder: State<'_, Recorder>) {
 
 /// Stops and keeps the take (off the main thread: removing the echo takes a moment).
 #[tauri::command]
-pub async fn record_finish(app: AppHandle) -> Result<Option<Take>, String> {
+pub async fn record_finish(app: AppHandle) -> Result<Finished, String> {
     use tauri::Manager;
     tauri::async_runtime::spawn_blocking(move || {
         let (state, player, recorder) = (
@@ -44,6 +44,39 @@ pub async fn record_finish(app: AppHandle) -> Result<Option<Take>, String> {
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// Reading a paragraph on your own: on to the next (+1) / back to the previous (−1) sentence.
+#[tauri::command]
+pub fn record_step(recorder: State<'_, Recorder>, by: i32) {
+    recorder.step(by);
+}
+
+#[tauri::command]
+pub fn record_readings(state: State<'_, AppState>, audio: String) -> Vec<Reading> {
+    saved::readings(&state.data_dir(), &audio)
+}
+
+/// Deletes a paragraph reading and the sentence takes cut from it.
+#[tauri::command]
+pub fn record_delete_reading(
+    state: State<'_, AppState>,
+    audio: String,
+    id: String,
+) -> Result<(), String> {
+    saved::delete_reading(&state.data_dir(), &audio, &id)
+}
+
+#[tauri::command]
+pub fn record_play_reading(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    player: State<'_, Player>,
+    audio: String,
+    id: String,
+    what: replay::ReadingPart,
+) -> Result<replay::ReadingPlaying, String> {
+    replay::play_reading(app.clone(), &player, &state.data_dir(), &audio, &id, what)
 }
 
 #[tauri::command]

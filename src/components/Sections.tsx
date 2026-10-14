@@ -1,4 +1,4 @@
-import { ArrowUpToLine, ChevronDown, Repeat } from "lucide-react";
+import { ArrowUpToLine, BookOpenText, ChevronDown, Repeat } from "lucide-react";
 import { memo, useRef, useState } from "react";
 import { useDismiss } from "../hooks/useDismiss";
 import type { Sentence, Transcript } from "../lib/api";
@@ -65,6 +65,13 @@ export const SectionHeading = memo(function SectionHeading({ k, active }: { k: n
             <ArrowUpToLine size={14} strokeWidth={2.1} />
           </button>
         )}
+        <button
+          title="整段录这一段"
+          onClick={() => void useApp.getState().startReading({ at: section.start, scope: "section" })}
+          className="grid size-[26px] place-items-center rounded-[7px] text-muted opacity-0 transition-[opacity,background-color,color,scale] duration-150 group-hover/section:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100 active:scale-90"
+        >
+          <BookOpenText size={14} strokeWidth={2.1} />
+        </button>
         <button
           title={looping ? "取消循环这段 ({ } 换段)" : "循环这段 ({ } 换段)"}
           aria-pressed={looping}

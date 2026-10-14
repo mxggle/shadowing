@@ -69,6 +69,7 @@ fn listen_take_keeps_the_original_then_you() {
         marks,
         played,
         turn: MIC as usize * 3,
+        hints: vec![],
     };
     let b = build(&raw, Mode::Listen).expect("a voice");
 
@@ -121,6 +122,7 @@ fn shadow_take_removes_the_original_and_measures_the_lag() {
         marks,
         played,
         turn: start + original.len(),
+        hints: vec![],
     };
     let b = build(&raw, Mode::Shadow).expect("a voice");
     let lag_ms = b.lag_ms.expect("lag");
@@ -144,6 +146,7 @@ fn saying_nothing_is_no_take() {
         marks,
         played,
         turn: original.len(),
+        hints: vec![],
     };
     assert!(build(&raw, Mode::Listen).is_none());
 }

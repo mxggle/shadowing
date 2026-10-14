@@ -2,9 +2,10 @@
 // voice that starts after your turn begins and stops ~a sentence later, takes
 // with made-up waveforms, and clip playback that only moves the playhead.
 import { emit } from "@tauri-apps/api/event";
-import type { ClipPart, Playing, RecordMeta, Take, TakePart } from "../lib/api";
+import type { ClipPart, Finished, Playing, Reading, ReadingPlaying, ReadingWhat, RecordMeta, Take, TakePart } from "../lib/api";
 
 const takes = new Map<string, Take[]>();
+const readings = new Map<string, Reading[]>();
 let seed = 11;
 const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 
@@ -54,8 +55,91 @@ export function seedTakes(audio: string, sentence: { start: number; end: number;
 
 let session: { meta: RecordMeta; timer: number; turnAt: number | null; t: number } | null = null;
 
+/** A paragraph: 自己读 moves the highlight a sentence at a time, then finishes; 跟着原文读 finishes once the original has. */
+function beginReading(meta: RecordMeta) {
+  const list = meta.sentences!;
+  let i = 0;
+  let next = (list[0].end - list[0].start) * 1.15 + 0.6;
+  session = {
+    meta,
+    turnAt: null,
+    t: 0,
+    timer: window.setInterval(() => {
+      const s = session!;
+      s.t += 0.033;
+      const talking = Math.sin(s.t * 9) > -0.3;
+      void emit("recorder:level", { level: talking ? 0.5 + rand() * 0.4 : 0.08, speaking: talking, secs: s.t });
+      if (meta.mode === "read" && s.t > next) {
+        if (++i >= list.length) {
+          window.clearInterval(s.timer);
+          void emit("recorder:auto", "pause");
+          return;
+        }
+        void emit("recorder:sentence", i);
+        next += (list[i].end - list[i].start) * 1.15 + 0.5;
+      }
+      if (meta.mode === "shadow" && s.turnAt !== null && s.t - s.turnAt > 1.2) {
+        window.clearInterval(s.timer);
+        void emit("recorder:auto", "pause");
+      }
+    }, 33),
+  };
+}
+
+function makeReading(meta: RecordMeta, created: number): Finished {
+  const id = String(created);
+  const list = meta.sentences!;
+  const lag = meta.mode === "shadow" ? 0.42 : 0;
+  let at = 0.25;
+  const parts = list.map((x, i) => {
+    const len = ((x.end - x.start) / (meta.mode === "read" ? 1 : meta.rate)) * (meta.mode === "read" ? 1.1 + rand() * 0.1 : 1);
+    const mine: [number, number] = [at + lag, at + lag + len];
+    at += len + (meta.mode === "read" ? 0.45 : (list[i + 1]?.start ?? x.end) - x.end);
+    const skipped = meta.mode === "read" && i === 3; // one sentence left out, to see how it shows
+    return { start: x.start, end: x.end, mine, take: skipped ? null : `${id}-${i}` };
+  });
+  const sentenceTakes: Take[] = parts
+    .map((p, i): Take | null => (p.take ? { ...makeTake({ ...meta, start: p.start, end: p.end, text: list[i].text, mode: meta.mode === "read" ? "listen" : "shadow" }, created), id: p.take, mode: meta.mode, group: id } : null))
+    .filter((t): t is Take => !!t);
+  const duration = at + lag + 0.4;
+  const peaks: number[] = Array(Math.round(duration * 50)).fill(0);
+  for (const p of parts) if (p.take) voice(p.mine[1] - p.mine[0], 0, 0.8).forEach((v, k) => (peaks[Math.round(p.mine[0] * 50) + k] = v));
+  const reading: Reading = {
+    id, created, start: list[0].start, end: list[list.length - 1].end, mode: meta.mode === "read" ? "read" : "shadow", rate: meta.mode === "read" ? 1 : meta.rate, duration, parts,
+    originalSecs: list.reduce((a, x) => a + x.end - x.start, 0) / (meta.mode === "read" ? 1 : meta.rate),
+    mineSecs: parts[parts.length - 1].mine[1] - parts[0].mine[0],
+    lagMs: meta.mode === "shadow" ? 420 : null,
+    peaks,
+  };
+  takes.set(meta.audio, [...(takes.get(meta.audio) ?? []), ...sentenceTakes]);
+  readings.set(meta.audio, [...(readings.get(meta.audio) ?? []), reading]);
+  return { takes: sentenceTakes, reading };
+}
+
+function playReading(audio: string, id: string, what: ReadingWhat): ReadingPlaying {
+  const r = readings.get(audio)?.find((x) => x.id === id);
+  if (!r) throw "这次朗读不见了";
+  const stretches: ReadingPlaying["stretches"] = [];
+  if (what === "turns") {
+    let at = 0;
+    r.parts.forEach((p, part) => {
+      if (!p.take) return;
+      const o = p.end - p.start;
+      stretches.push({ clipAt: at, len: o, part, lane: "original" });
+      at += o + 0.3;
+      const m = p.mine[1] - p.mine[0];
+      stretches.push({ clipAt: at, len: m, part, lane: "mine" });
+      at += m + 0.7;
+    });
+  } else r.parts.forEach((p, part) => p.take && stretches.push({ clipAt: p.mine[0], len: p.mine[1] - p.mine[0], part, lane: what === "mine" ? "mine" : "both" }));
+  const last = stretches[stretches.length - 1];
+  const duration = last ? last.clipAt + last.len : 0;
+  return { ...startClip(duration), stretches };
+}
+
 function begin(meta: RecordMeta) {
   stop();
+  if (meta.sentences?.length) return beginReading(meta);
   session = {
     meta,
     turnAt: null,
@@ -113,16 +197,20 @@ function play(audio: string, id: string, what: TakePart): Playing {
   window.clearInterval(clipTimer);
   const p = parts(take, what);
   const last = p[p.length - 1];
-  const duration = last.clipAt + last.to - last.from;
-  const id_ = ++clip;
+  return { ...startClip(last.clipAt + last.to - last.from), parts: p };
+}
+
+function startClip(duration: number) {
+  window.clearInterval(clipTimer);
+  const id = ++clip;
   const started = performance.now();
   clipTimer = window.setInterval(() => {
     const secs = (performance.now() - started) / 1000;
     const playing = secs < duration;
-    void emit("recorder:clip", { clip: id_, secs, playing });
+    void emit("recorder:clip", { clip: id, secs, playing });
     if (!playing) window.clearInterval(clipTimer);
   }, 33);
-  return { clip: id_, parts: p, duration };
+  return { clip: id, duration };
 }
 
 /** Handles the record_* commands; undefined for anything else. */
@@ -140,12 +228,23 @@ export async function mockRecord(cmd: string, a: Record<string, never>): Promise
       return null;
     case "record_finish": {
       const meta = stop();
-      if (!meta) return null;
+      if (!meta) return { takes: [], reading: null };
       await new Promise((r) => setTimeout(r, meta.mode === "shadow" ? 700 : 300));
+      if (meta.sentences?.length) return makeReading(meta, Date.now());
       const take = makeTake(meta, Date.now(), 0.95 + rand() * 0.3);
       takes.set(meta.audio, [...(takes.get(meta.audio) ?? []), take]);
-      return take;
+      return { takes: [take], reading: null };
     }
+    case "record_step":
+      return null;
+    case "record_readings":
+      return readings.get(a.audio) ?? [];
+    case "record_delete_reading":
+      readings.set(a.audio, (readings.get(a.audio) ?? []).filter((r) => r.id !== a.id));
+      takes.set(a.audio, (takes.get(a.audio) ?? []).filter((t) => t.group !== a.id));
+      return null;
+    case "record_play_reading":
+      return playReading(a.audio, a.id, a.what);
     case "record_takes":
       return takes.get(a.audio) ?? [];
     case "record_delete":

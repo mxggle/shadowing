@@ -85,10 +85,11 @@ fn real_record_echo() {
         mic_rate: mic.rate,
         marks,
         played,
+        hints: vec![],
     };
     let mic32 = take::convert(&raw.mic, raw.mic_rate, RATE);
     let secs = raw.mic.len() as f64 / raw.mic_rate as f64;
-    let heard = take::place_for_test(&raw.marks, &raw.played, raw.mic_at, secs);
+    let heard = take::place(&raw.marks, &raw.played, raw.mic_at, secs);
     let cleaned = echo::cancel(&mic32, &heard, RATE);
     let active = (RATE as usize / 2)..(RATE as usize * 10);
     let (before, after) = (db(&mic32[active.clone()]), db(&cleaned[active.clone()]));
@@ -213,8 +214,8 @@ fn real_record_short_takes() {
     }
 }
 
-/// Signals from a take, collected: auto stops, errors, level events.
-type Signalled = (Vec<super::Stop>, Vec<String>, usize);
+/// Signals from a take, collected: auto stops, errors, level events, sentences moved to.
+type Signalled = (Vec<super::Stop>, Vec<String>, usize, Vec<usize>);
 #[derive(Clone, Default)]
 struct Caught(Arc<std::sync::Mutex<Signalled>>);
 impl super::Signals for Caught {
@@ -223,6 +224,9 @@ impl super::Signals for Caught {
     }
     fn auto(&self, stop: super::Stop) {
         self.0.lock().unwrap().0.push(stop);
+    }
+    fn sentence(&self, i: usize) {
+        self.0.lock().unwrap().3.push(i);
     }
     fn error(&self, m: &str) {
         self.0.lock().unwrap().1.push(m.to_string());
@@ -277,9 +281,10 @@ fn real_record_takes() {
             text: line.into(),
             mode,
             rate: 1.0,
+            sentences: vec![],
         };
         let mic = recorder
-            .begin(caught.clone(), &player, meta)
+            .begin(caught.clone(), &player, meta, path.clone())
             .expect("begin");
         println!("\n{mode:?}: recording with {mic}");
         let started = Instant::now();
@@ -308,6 +313,8 @@ fn real_record_takes() {
         let take = recorder
             .finish(&player, root.path())
             .expect("finish")
+            .takes
+            .pop()
             .expect("a take");
         let (o, m) = (take.original, take.mine);
         println!(
@@ -336,4 +343,107 @@ fn real_record_takes() {
         }
     }
     assert_eq!(saved::list(root.path(), &audio).len(), 2);
+}
+
+/// A paragraph in one go, as the app does it: three sentences of the sample,
+/// read by `say` with pauses between them — on its own (自己读: the highlight
+/// should follow, and it should end by itself), then along with the original.
+#[test]
+#[ignore = "plays audio out loud, speaks with `say` and records the microphone"]
+fn real_record_paragraph() {
+    use super::{Meta, Mode, Recorder, Sentence};
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/ja/ごんぎつね.mp3");
+    let audio = path.to_string_lossy().into_owned();
+    let player = Player::new(Arc::new(Quiet));
+    player.set_volume(0.6).unwrap();
+    player
+        .load(audio.clone(), path.clone(), 0.0, false)
+        .unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let recorder = Recorder::default();
+    let lines = [
+        (0.25, 6.25, "これは、私が小さいときに、村の茂平というおじいさんからきいたお話です。"),
+        (7.5, 17.0, "むかしは、私たちの村のちかくの、中山というところに小さなお城があって、中山さまというおとのさまが、おられたそうです。"),
+        (18.25, 24.6, "その中山から、少しはなれた山の中に、「ごん狐」という狐がいました。"),
+    ];
+    let sentences: Vec<Sentence> = lines
+        .iter()
+        .map(|&(start, end, text)| Sentence {
+            start,
+            end,
+            text: text.into(),
+        })
+        .collect();
+    let spoken = lines
+        .iter()
+        .map(|l| l.2)
+        .collect::<Vec<_>>()
+        .join("[[slnc 700]]");
+    for mode in [Mode::Read, Mode::Shadow] {
+        let caught = Caught::default();
+        let meta = Meta {
+            audio: audio.clone(),
+            start: 0.25,
+            end: 24.6,
+            text: String::new(),
+            mode,
+            rate: 1.0,
+            sentences: sentences.clone(),
+        };
+        let mic = recorder
+            .begin(caught.clone(), &player, meta, path.clone())
+            .expect("begin");
+        println!("\n{mode:?}: recording with {mic}");
+        let started = Instant::now();
+        if mode == Mode::Shadow {
+            player.play_range(0.25, 24.6).unwrap();
+        }
+        let mut say = learner_says(if mode == Mode::Read { 0.5 } else { 0.4 }, &spoken);
+        if mode == Mode::Shadow {
+            wait_for("the original", 40.0, || !player.status().playing);
+            recorder.turn();
+        }
+        wait_for("the reading to stop by itself", 60.0, || {
+            !caught.0.lock().unwrap().0.is_empty()
+        });
+        let _ = say.wait();
+        let moved = caught.0.lock().unwrap().3.clone();
+        println!(
+            "stopped at {:.1} s; highlight moved to {moved:?}",
+            started.elapsed().as_secs_f64()
+        );
+        let t = Instant::now();
+        let done = recorder.finish(&player, root.path()).expect("finish");
+        let r = done.reading.expect("a reading");
+        println!(
+            "built in {:.2} s: {} takes; you {:.1} s, original {:.1} s, lag {:?}",
+            t.elapsed().as_secs_f64(),
+            done.takes.len(),
+            r.mine_secs,
+            r.original_secs,
+            r.lag_ms
+        );
+        for p in &r.parts {
+            println!(
+                "  sentence {:.2}–{:.2}: you {:.2}–{:.2}",
+                p.start, p.end, p.mine.0, p.mine.1
+            );
+        }
+        assert!(caught.0.lock().unwrap().1.is_empty(), "errors");
+        assert_eq!(done.takes.len(), 3, "a take per sentence");
+        assert!(
+            r.parts.windows(2).all(|w| w[0].mine.1 <= w[1].mine.0),
+            "in order, not overlapping"
+        );
+        if mode == Mode::Read {
+            assert_eq!(moved, [1, 2], "the highlight followed");
+        }
+        if let Ok(dir) = std::env::var("SHADOWING_OUT") {
+            std::fs::copy(
+                saved::wav_path(root.path(), &audio, &r.id),
+                Path::new(&dir).join(format!("reading-{mode:?}.wav")),
+            )
+            .unwrap();
+        }
+    }
 }

@@ -8,11 +8,12 @@ import { createExplainSlice, type ExplainState } from "./explainSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
 import { createPracticeSlice, type PracticeState } from "./practiceSlice";
 import { createProofreadSlice, type ProofreadState } from "./proofreadSlice";
+import { createReadingSlice, type ReadingState } from "./readingSlice";
 import { createRecordSlice, type RecordState } from "./recordSlice";
 import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./transcriptSlice";
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState {
+export interface AppState extends TranscriptState, CorrectState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -88,6 +89,7 @@ export const useApp = create<AppState>((set, get) => {
       if (!playing) {
         saveProgress(true);
         get().playbackStopped();
+        get().readingPlaybackStopped();
       }
     },
     onEnded: () => {
@@ -158,7 +160,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read" },
     current: null,
     playing: false,
     time: 0,
@@ -179,6 +181,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createPracticeSlice(set, get, persistSettings),
     ...createUpdateSlice(set, get),
     ...createRecordSlice(set, get, engine, persistSettings),
+    ...createReadingSlice(set, get, engine, persistSettings),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
@@ -228,8 +231,9 @@ export const useApp = create<AppState>((set, get) => {
       if (!folder) return;
       saveProgress(true);
       get().cancelTake();
+      get().cancelReading();
       engine.unload();
-      set({ takes: [], recordAt: null, folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, practicing: false });
+      set({ takes: [], readings: [], recordAt: null, folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, practicing: false });
       if (!get().guide.welcomed) get().saveGuide({ welcomed: true });
     },
 
@@ -242,6 +246,8 @@ export const useApp = create<AppState>((set, get) => {
       saveProgress(true);
       get().cancelTake();
       get().stopTake();
+      get().cancelReading();
+      get().stopReadingPlayback();
       // Picking one of your own tracks ends the practice on the sample.
       if (get().practicing && track.path !== get().sample?.path) set({ practicing: false });
       const start = resumePosition(get().progress[track.path]);
@@ -249,6 +255,7 @@ export const useApp = create<AppState>((set, get) => {
       void get().refreshToday();
       void get().loadTranscript(track.path);
       void get().loadTakes(track.path);
+      void get().loadReadings(track.path);
       void engine.load(track.path, start, autoplay).then(() => engine.setRate(get().settings.rate));
       void api.setLastTrack(track.path);
     },

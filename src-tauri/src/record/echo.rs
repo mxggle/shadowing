@@ -48,6 +48,40 @@ pub fn cancel(mic: &[f32], played: &[f32], rate: u32) -> Vec<f32> {
     suppress(&residual, &echo, &shift(&far, lead), rate)
 }
 
+/// Longer recordings (a paragraph) are done in overlapping windows of this
+/// length, crossfaded: memory stays bounded, and each window learns its own
+/// path (you might move the laptop halfway).
+const WINDOW_SECS: usize = 20;
+const OVERLAP_SECS: usize = 2;
+
+/// `cancel` for recordings of any length.
+pub fn cancel_long(mic: &[f32], played: &[f32], rate: u32) -> Vec<f32> {
+    let (win, lap) = (WINDOW_SECS * rate as usize, OVERLAP_SECS * rate as usize);
+    if mic.len() <= win + win / 2 {
+        return cancel(mic, played, rate);
+    }
+    let mut out = vec![0.0f32; mic.len()];
+    let mut start = 0;
+    loop {
+        let end = (start + win).min(mic.len());
+        let far = &played[start.min(played.len())..end.min(played.len())];
+        let part = cancel(&mic[start..end], far, rate);
+        for (i, v) in part.iter().enumerate() {
+            // Fade in over the overlap with the window before (except the first).
+            let w = if start > 0 && i < lap {
+                i as f32 / lap as f32
+            } else {
+                1.0
+            };
+            out[start + i] = out[start + i] * (1.0 - w) + v * w;
+        }
+        if end == mic.len() {
+            return out;
+        }
+        start = end - lap;
+    }
+}
+
 /// Samples by which the echo trails `far` in `mic`, if there is an echo.
 fn delay(mic: &[f32], far: &[f32], rate: u32) -> Option<usize> {
     let n = (mic.len() * 2).next_power_of_two();
@@ -393,6 +427,20 @@ mod tests {
         eprintln!("voice kept {kept:.1} dB, follows the voice {before:.2} → {after:.2}");
         assert!(kept > -6.0, "{kept}");
         assert!(after > 0.9 && after > before + 0.1, "{before} → {after}");
+    }
+
+    #[test]
+    fn long_recordings_are_done_in_windows() {
+        let one = speech("ja/ごんぎつね.mp3", 30);
+        let played: Vec<f32> = one.iter().chain(&one).copied().collect(); // a minute
+        let echo: Vec<f32> = room(&played).iter().map(|e| e * 0.3).collect();
+        let out = cancel_long(&echo, &played, RATE);
+        assert_eq!(out.len(), echo.len());
+        for w in [5usize, 19, 21, 40, 55] {
+            let r = w * RATE as usize..(w + 1) * RATE as usize;
+            let erle = db(energy(&echo[r.clone()]), energy(&out[r]));
+            assert!(erle > 20.0, "second {w}: {erle:.1} dB");
+        }
     }
 
     #[test]

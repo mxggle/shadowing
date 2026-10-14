@@ -7,7 +7,7 @@ import type { AudioEngine } from "./audio/engine";
 import { isLoopActive } from "./audio/logic";
 import { api, type ClipPart, type RecordMode, type Settings, type Take, type TakePart } from "./lib/api";
 import { sentenceIndexAt } from "./lib/sentences";
-import { takesFor } from "./lib/takes";
+import { comparePart, takesFor } from "./lib/takes";
 import type { AppState } from "./store";
 
 /** Where the recorder is: under a sentence, or (without a transcript) the A–B loop. */
@@ -156,7 +156,7 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       if (s.rec) return;
       const where = at ?? (s.recordAt !== null && recordTarget(s, s.recordAt) ? s.recordAt : here());
       const target = where === null ? null : recordTarget(s, where);
-      if (!s.current || where === null || !target) return;
+      if (!s.current || where === null || !target || s.live) return;
       get().stopTake();
       const mode = s.settings.recordMode;
       set({
@@ -197,9 +197,9 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       if (!engine.paused) engine.pause();
       patchRec({ phase: "saving" });
       try {
-        const take = await api.record.finish();
+        const take = (await api.record.finish()).takes[0];
         set((s) => ({ rec: null, takes: take ? [...s.takes, take] : s.takes, shownTake: take?.id ?? null }));
-        if (take && get().settings.recordReplay) void get().playTake(take.id, take.mode === "listen" ? "compare" : "together");
+        if (take && get().settings.recordReplay) void get().playTake(take.id, comparePart(take));
       } catch (e) {
         set({ rec: null, recError: String(e) });
       }
@@ -231,7 +231,7 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       const take = takes.find((t) => t.id === get().shownTake) ?? takes[takes.length - 1];
       if (!take) return;
       set({ recordAt: where });
-      void get().playTake(take.id, take.mode === "listen" ? "compare" : "together");
+      void get().playTake(take.id, comparePart(take));
     },
 
     stopTake() {

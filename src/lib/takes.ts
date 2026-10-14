@@ -2,6 +2,12 @@
 // sentence, how the two voices line up on screen, and the words under them.
 import type { ClipPart, Take } from "./api";
 
+/** Whether a take has you after the original (听完再说, or cut from a paragraph read on your own) rather than over it. */
+export const inTurns = (take: Pick<Take, "mode">) => take.mode !== "shadow";
+
+/** What "compare" means for a take: one after the other, or both at once. */
+export const comparePart = (take: Pick<Take, "mode">) => (inTurns(take) ? "compare" : "together");
+
 /** Takes of the stretch `start`–`end`: most of the take's stretch lies inside it. */
 export function takesFor(takes: Take[], start: number, end: number): Take[] {
   return takes.filter((t) => {
@@ -30,7 +36,7 @@ export interface Lanes {
 export function lanes(take: Take): Lanes {
   const [oa, ob] = take.original;
   const [ma, mb] = take.mine;
-  if (take.mode === "listen") return { width: Math.max(ob - oa, mb - ma), original: oa, mine: ma };
+  if (inTurns(take)) return { width: Math.max(ob - oa, mb - ma), original: oa, mine: ma };
   const from = Math.min(oa, ma);
   return { width: Math.max(ob, mb) - from, original: from, mine: from };
 }

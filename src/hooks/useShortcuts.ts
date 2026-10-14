@@ -32,6 +32,24 @@ export function useShortcuts() {
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Reading a paragraph: finish, cancel, or put the highlight right.
+      if (s.live) {
+        const keys: Record<string, () => void> = {
+          " ": () => void s.finishReading(),
+          M: () => void s.finishReading(),
+          Escape: s.cancelReading,
+          "[": () => s.stepReading(-1),
+          "]": () => s.stepReading(1),
+        };
+        e.preventDefault();
+        if (!e.repeat || e.key === "[" || e.key === "]") keys[e.key]?.();
+        return;
+      }
+      if (s.playingReading && (e.key === " " || e.key === "Escape")) {
+        e.preventDefault();
+        s.stopReadingPlayback();
+        return;
+      }
       // Recording: only the keys of the take itself.
       if (s.rec) {
         const take: Record<string, () => void> = { " ": s.advanceTake, m: s.advanceTake, M: s.advanceTake, Escape: s.cancelTake };
@@ -53,7 +71,7 @@ export function useShortcuts() {
         ArrowDown: [() => s.step(1), "next"],
         l: [s.cycleLoop, "loop"],
         L: [s.cycleLoop, "loop"],
-        Escape: [s.replace ? s.closeReplace : s.recordAt !== null ? s.closeRecorder : s.clearLoop],
+        Escape: [s.replace ? s.closeReplace : s.recordAt !== null ? s.closeRecorder : s.shownReading ? () => s.showReading(null) : s.clearLoop],
         "[": [() => s.stepSentence(-1), "prevSentence"],
         "]": [() => s.stepSentence(1), "nextSentence"],
         "{": [() => s.stepSection(-1)],
@@ -65,7 +83,7 @@ export function useShortcuts() {
         e: [() => s.editSentence()],
         E: [() => s.editSentence()],
         m: [() => void s.startTake()],
-        M: [() => void s.startTake()],
+        M: [() => void s.startReading()],
         p: [() => s.replayTake()],
         P: [() => s.replayTake()],
         r: [() => s.setPlayMode(nextPlayMode(s.settings.playMode)), "playMode"],

@@ -28,6 +28,8 @@ pub struct Settings {
     pub record_mode: crate::record::Mode,
     /// Play a take back against the original as soon as it's recorded.
     pub record_replay: bool,
+    /// A whole paragraph: read it on your own, or along with the original.
+    pub paragraph_mode: crate::record::Mode,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -50,6 +52,7 @@ impl Default for Settings {
             daily_goals: Vec::new(),
             record_mode: crate::record::Mode::Listen,
             record_replay: true,
+            paragraph_mode: crate::record::Mode::Read,
         }
     }
 }

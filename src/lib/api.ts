@@ -29,9 +29,13 @@ export interface Settings {
   recordMode: RecordMode;
   /** Play the take back (against the original) as soon as it's recorded. */
   recordReplay: boolean;
+  /** A whole paragraph: read it on your own, or along with the original. */
+  paragraphMode: ParagraphMode;
 }
 
-export type RecordMode = "listen" | "shadow";
+/** 听完再说 / 边听边说 for one sentence; "read" is reading a paragraph on your own. */
+export type RecordMode = "listen" | "shadow" | "read";
+export type ParagraphMode = "read" | "shadow";
 
 /** One recording of you saying a sentence (src-tauri/src/record/saved.rs). */
 export interface Take {
@@ -53,6 +57,53 @@ export interface Take {
   lagMs: number | null;
   /** Loudness outlines, 50 values a second (0–255). */
   peaks: { original: number[]; mine: number[] };
+  /** The paragraph reading this sentence was cut from. */
+  group?: string | null;
+}
+
+/** A paragraph read in one go (src-tauri/src/record/saved.rs); each sentence is also a take. */
+export interface Reading {
+  id: string;
+  created: number;
+  /** The stretch of the track read. */
+  start: number;
+  end: number;
+  mode: ParagraphMode;
+  rate: number;
+  duration: number;
+  parts: ReadPart[];
+  /** The original's length (at the speed compared against) and yours, first word to last. */
+  originalSecs: number;
+  mineSecs: number;
+  lagMs: number | null;
+  /** Your voice over the whole reading, 50 values a second. */
+  peaks: number[];
+}
+
+export interface ReadPart {
+  /** The sentence in the track. */
+  start: number;
+  end: number;
+  /** Where you said it in the reading. */
+  mine: [number, number];
+  /** Its own take; null when it wasn't said. */
+  take: string | null;
+}
+
+/** What a recording kept: one take, or a reading and its sentences' takes. */
+export interface Finished {
+  takes: Take[];
+  reading: Reading | null;
+}
+
+/** All of you, you with the original, or each sentence: the original then you. */
+export type ReadingWhat = "mine" | "together" | "turns";
+
+export interface ReadingPlaying {
+  clip: number;
+  duration: number;
+  /** `clipAt` seconds in, sentence `part` of the reading plays on `lane` for `len`. */
+  stretches: { clipAt: number; len: number; part: number; lane: "original" | "mine" | "both" }[];
 }
 
 /** What to play of a take: each voice alone, one after the other, or both at once. */
@@ -79,6 +130,8 @@ export interface RecordMeta {
   text: string;
   mode: RecordMode;
   rate: number;
+  /** A paragraph's sentences, in order. */
+  sentences?: { start: number; end: number; text: string }[];
 }
 
 export interface GoalChange {
@@ -386,8 +439,14 @@ export const api = {
     begin: (meta: RecordMeta) => invoke<string>("record_begin", { meta }),
     /** The original has finished: the take may now stop by itself (`recorder:auto`). */
     turn: () => invoke<void>("record_turn"),
-    /** Stops and keeps the take (echo of the original removed). */
-    finish: () => invoke<Take | null>("record_finish"),
+    /** Stops and keeps the take, or the paragraph's reading and its sentences (echo of the original removed). */
+    finish: () => invoke<Finished>("record_finish"),
+    /** Reading on your own: next (+1) / previous (−1) sentence by hand. */
+    step: (by: 1 | -1) => invoke<void>("record_step", { by }),
+    readings: (audio: string) => invoke<Reading[]>("record_readings", { audio }),
+    /** Also deletes the sentence takes cut from it. */
+    removeReading: (audio: string, id: string) => invoke<void>("record_delete_reading", { audio, id }),
+    playReading: (audio: string, id: string, what: ReadingWhat) => invoke<ReadingPlaying>("record_play_reading", { audio, id, what }),
     cancel: () => invoke<void>("record_cancel"),
     takes: (audio: string) => invoke<Take[]>("record_takes", { audio }),
     remove: (audio: string, id: string) => invoke<void>("record_delete", { audio, id }),

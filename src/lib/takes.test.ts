@@ -48,6 +48,11 @@ describe("lanes", () => {
     expect([l.original, l.mine]).toEqual([0.1, 2.6]);
   });
 
+  it("a sentence cut from a paragraph read on your own lines up like 听完再说", () => {
+    expect(lanes(take({ mode: "read" })).original).toBe(0.1);
+    expect(lanes(take({ mode: "read" })).mine).toBe(2.6);
+  });
+
   it("shadow: one timeline, so the lag shows", () => {
     const l = lanes(take({ mode: "shadow", original: [0.1, 2.1], mine: [0.4, 2.6] }));
     expect(l.original).toBe(0.1);

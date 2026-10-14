@@ -18,7 +18,7 @@ use tauri::{AppHandle, Emitter};
 /// Silence between the original and you when they're played in turn.
 const GAP_SECS: f64 = 0.4;
 
-static NEXT: AtomicU64 = AtomicU64::new(1);
+pub(super) static NEXT: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -106,7 +106,7 @@ pub fn render(left: &[f32], right: &[f32], parts: &[Part]) -> Vec<f32> {
     out
 }
 
-fn read(path: &Path) -> Result<(Vec<f32>, Vec<f32>), String> {
+pub(super) fn read(path: &Path) -> Result<(Vec<f32>, Vec<f32>), String> {
     let mut d = Decoder::open(path).map_err(|_| "这条录音的文件不见了".to_string())?;
     let mut all = Vec::new();
     let mut buf = vec![0.0; 4096 * d.channels];
@@ -150,7 +150,7 @@ pub fn play(
 }
 
 /// Reports the clip's position until it ends or another replaces it.
-fn watch(app: AppHandle, clip: u64) {
+pub(super) fn watch(app: AppHandle, clip: u64) {
     use tauri::Manager;
     let player = app.state::<Player>();
     // The engine picks the clip up at its next callback.
@@ -197,6 +197,7 @@ mod tests {
                 original: vec![],
                 mine: vec![],
             },
+            group: None,
         }
     }
 

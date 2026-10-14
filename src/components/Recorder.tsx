@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight, Ear, LoaderCircle, Mic, Play, Square, Trash2, X } from "lucide-react";
 import { useMemo } from "react";
 import type { RecordMode, Take, TakePart } from "../lib/api";
-import { lagNote, paceNote, takesFor, whenRecorded } from "../lib/takes";
+import { comparePart, inTurns, lagNote, paceNote, takesFor, whenRecorded } from "../lib/takes";
 import { recordTarget, type Rec, type RecordAt } from "../recordSlice";
 import { useApp } from "../store";
 import { TakeWaves } from "./TakeWaves";
@@ -200,9 +200,10 @@ function Problem({ message }: { message: string }) {
 function Result({ take }: { take: Take }) {
   const playing = useApp((s) => (s.playingTake?.id === take.id ? s.playingTake : null));
   const { playTake, stopTake, deleteTake } = useApp.getState();
-  const both: TakePart = take.mode === "listen" ? "compare" : "together";
+  const turns = inTurns(take);
+  const both: TakePart = comparePart(take);
   const toggle = (what: TakePart) => (playing?.what === what ? stopTake() : void playTake(take.id, what));
-  const note = take.mode === "listen" ? paceNote(take) : lagNote(take.lagMs);
+  const note = turns ? paceNote(take) : lagNote(take.lagMs);
   return (
     <div className="flex flex-col gap-2.5">
       <div>
@@ -210,8 +211,8 @@ function Result({ take }: { take: Take }) {
         {note && <p className="mt-0.5 pl-[2.75rem] text-[12px] text-faint">{note}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
-        <PlayButton active={playing?.what === both} onClick={() => toggle(both)} title={take.mode === "listen" ? "先放原句，再放你的 (P)" : "两个一起放，听合不合拍 (P)"}>
-          {take.mode === "listen" ? "对比" : "一起听"}
+        <PlayButton active={playing?.what === both} onClick={() => toggle(both)} title={turns ? "先放原句，再放你的 (P)" : "两个一起放，听合不合拍 (P)"}>
+          {turns ? "对比" : "一起听"}
         </PlayButton>
         <PlayButton active={playing?.what === "original"} onClick={() => toggle("original")} title="只听原句">
           原句

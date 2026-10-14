@@ -11,9 +11,9 @@ use crate::audio::tap::Mark;
 /// Working and storage rate (speech to 16 kHz, half the size of 48 kHz).
 pub const RATE: u32 = 32_000;
 /// Kept before your first word and after your last.
-const LEAD_SECS: f64 = 0.15;
-const TAIL_SECS: f64 = 0.3;
-const MARGIN_SECS: f64 = 0.1;
+pub const LEAD_SECS: f64 = 0.15;
+pub const TAIL_SECS: f64 = 0.3;
+pub const MARGIN_SECS: f64 = 0.1;
 /// Quiet takes are brought up to the original's level, at most this much.
 const MAX_GAIN: f32 = 8.0;
 /// Shadowing lags searched (you after the original).
@@ -26,6 +26,8 @@ pub enum Mode {
     Listen,
     /// Say it along with the original.
     Shadow,
+    /// Read it on your own, the original silent (a paragraph at a time).
+    Read,
 }
 
 /// Everything captured during a take.
@@ -39,6 +41,8 @@ pub struct Raw {
     pub played: Vec<f32>,
     /// Mic sample at which your turn began (the original had finished).
     pub turn: usize,
+    /// Reading a paragraph on your own: level frames where the highlight moved on.
+    pub hints: Vec<usize>,
 }
 
 pub struct Built {
@@ -93,7 +97,7 @@ pub fn build(raw: &Raw, mode: Mode) -> Option<Built> {
     })
 }
 
-fn at(secs: f64) -> usize {
+pub fn at(secs: f64) -> usize {
     (secs * RATE as f64).round().max(0.0) as usize
 }
 
@@ -124,7 +128,7 @@ pub fn convert(x: &[f32], from: u32, to: u32) -> Vec<f32> {
 }
 
 /// The tapped output at `RATE`, on the mic's timeline (`secs` long).
-fn place(marks: &[Mark], played: &[f32], mic_at: u64, secs: f64) -> Vec<f32> {
+pub fn place(marks: &[Mark], played: &[f32], mic_at: u64, secs: f64) -> Vec<f32> {
     let Some(rate) = marks.first().map(|m| m.rate) else {
         return vec![0.0; at(secs)];
     };
@@ -157,11 +161,6 @@ fn place(marks: &[Mark], played: &[f32], mic_at: u64, secs: f64) -> Vec<f32> {
     out
 }
 
-#[cfg(test)]
-pub fn place_for_test(marks: &[Mark], played: &[f32], mic_at: u64, secs: f64) -> Vec<f32> {
-    place(marks, played, mic_at, secs)
-}
-
 pub fn levels(x: &[f32]) -> Vec<f32> {
     x.chunks(at(FRAME_SECS)).map(vad::level).collect()
 }
@@ -188,7 +187,7 @@ fn rms(x: &[f32], (a, b): (f64, f64)) -> f32 {
 }
 
 /// Brings your voice up to about the original's loudness (never down), without clipping.
-fn match_level(original: &[f32], os: (f64, f64), mine: &mut [f32], ms: (f64, f64)) {
+pub fn match_level(original: &[f32], os: (f64, f64), mine: &mut [f32], ms: (f64, f64)) {
     let (o, m) = (rms(original, os), rms(mine, ms));
     if m <= 1e-6 {
         return;
