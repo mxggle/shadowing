@@ -36,3 +36,15 @@ export const saidCount = (r: Reading) => r.parts.filter((p) => p.take).length;
 export function stretchAt(p: Pick<ReadingPlaying, "stretches">, secs: number) {
   return p.stretches.find((s) => secs >= s.clipAt && secs < s.clipAt + s.len) ?? null;
 }
+
+/** How far through sentence `part` of you a playing reading is (0–1); null while it isn't sounding you there. */
+export function partHead(p: Pick<ReadingPlaying, "stretches">, secs: number, part: number): number | null {
+  const s = stretchAt(p, secs);
+  if (!s || s.part !== part || s.lane === "original") return null;
+  return Math.min(1, Math.max(0, (secs - s.clipAt) / Math.max(0.01, s.len)));
+}
+
+/** Which part of `r` each sentence (by index) is, for the strips under the rows. */
+export function partsBySentence(r: Pick<Reading, "parts">, sentenceAt: (secs: number) => number): Map<number, number> {
+  return new Map(r.parts.map((p, k) => [sentenceAt(p.start + 0.01), k]));
+}

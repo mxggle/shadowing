@@ -32,7 +32,7 @@ src/                      前端
                           Transcript.tsx 句子列表，Sections.tsx 段落小标题和顶部的段落菜单，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
                           Explain.tsx 句子下的解释块、SentenceEditor.tsx 改一句、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
                           UpdateNotice.tsx 右上角的更新提示；Recorder.tsx 句子下的跟读录音卡片（和行上的麦克风），TakeWaves.tsx 原句 / 我的两条波形；
-                          Reading.tsx 整段录音（开始菜单、录音时的标题条、段落上方的结果卡片）；
+                          Reading.tsx 整段录音（开始菜单、录音时的标题条），ReadingResult.tsx 读完的结果（段落上方一行 + 每句下的波形）；
                           Practice.tsx 学习记录面板（PracticeCharts.tsx 柱状图和日历，PracticeGoal.tsx 顶栏目标圆环和目标一行）；
                           settings/ 是设置面板；
                           guide/ 是引导：Welcome.tsx 欢迎页（第一次打开是 Onboarding.tsx 四步新手引导，步骤内容在 OnboardingSteps.tsx）、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示

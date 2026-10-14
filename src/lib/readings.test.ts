@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Reading } from "./api";
-import { readingNote, readingRange, readingsFor, saidCount, stretchAt } from "./readings";
+import { partHead, partsBySentence, readingNote, readingRange, readingsFor, saidCount, stretchAt } from "./readings";
 
 const reading = (over: Partial<Reading> = {}): Reading => ({
   id: "r",
@@ -61,5 +61,23 @@ describe("stretchAt", () => {
     expect(stretchAt(p, 1)?.lane).toBe("original");
     expect(stretchAt(p, 2.1)).toBeNull();
     expect(stretchAt(p, 3)?.lane).toBe("mine");
+  });
+});
+
+describe("partHead", () => {
+  const p = { stretches: [{ clipAt: 0, len: 2, part: 0, lane: "original" as const }, { clipAt: 2.5, len: 4, part: 0, lane: "mine" as const }, { clipAt: 7, len: 2, part: 1, lane: "mine" as const }] };
+  it("runs along your part of a sentence only", () => {
+    expect(partHead(p, 1, 0)).toBeNull(); // the original is playing
+    expect(partHead(p, 3.5, 0)).toBe(0.25);
+    expect(partHead(p, 3.5, 1)).toBeNull();
+    expect(partHead(p, 8, 1)).toBe(0.5);
+    expect(partHead(p, 6.8, 0)).toBeNull(); // the gap between
+  });
+});
+
+describe("partsBySentence", () => {
+  it("puts each part under the sentence it starts in", () => {
+    const at = (secs: number) => (secs < 20 ? 3 : 4);
+    expect([...partsBySentence(reading(), at)]).toEqual([[3, 0], [4, 1]]);
   });
 });

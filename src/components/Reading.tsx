@@ -1,11 +1,10 @@
-import { BookOpenText, ChevronLeft, ChevronRight, LoaderCircle, Play, Square, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { BookOpenText, LoaderCircle, Square } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useDismiss } from "../hooks/useDismiss";
-import type { ParagraphMode, Reading, ReadingWhat } from "../lib/api";
-import { readingNote, readingRange, readingsFor, saidCount, stretchAt, type ReadingScope } from "../lib/readings";
+import type { ParagraphMode } from "../lib/api";
+import { readingRange, readingsFor, type ReadingScope } from "../lib/readings";
 import { sectionIndexOf, sectionName, sectionsOf } from "../lib/sections";
 import { sentenceIndexAt } from "../lib/sentences";
-import { whenRecorded } from "../lib/takes";
 import { useApp } from "../store";
 import { Button, IconButton, Kbd } from "./ui";
 
@@ -201,126 +200,5 @@ function Meter({ levels }: { levels: number[] }) {
         <span key={i} className="min-w-0 flex-1 rounded-full bg-fg/70" style={{ height: `${Math.max(8, Math.min(1, v * 1.15) ** 2 * 100)}%`, opacity: v < 0.05 ? 0.25 : 1 }} />
       ))}
     </span>
-  );
-}
-
-/**
- * Above the paragraph once it's been read: your whole reading (each sentence
- * a stretch of the waveform), how it compares, and playing it back — all of
- * you, or sentence by sentence against the original.
- */
-export function ReadingCard({ reading }: { reading: Reading }) {
-  const all = useApp((s) => s.readings);
-  const others = useMemo(() => readingsFor(all, reading.start, reading.end), [all, reading.start, reading.end]);
-  const playing = useApp((s) => (s.playingReading?.id === reading.id ? s.playingReading : null));
-  const error = useApp((s) => s.readingError);
-  const { playReading, stopReadingPlayback, deleteReading, showReading, startReading } = useApp.getState();
-  const toggle = (what: ReadingWhat) => (playing?.what === what ? stopReadingPlayback() : void playReading(reading.id, what));
-  const i = others.findIndex((r) => r.id === reading.id);
-  const said = saidCount(reading);
-  const first = useApp((s) => sentenceIndexAt(s.transcript?.sentences ?? [], reading.parts[0]?.start + 0.01));
-  const card = useRef<HTMLDivElement>(null);
-  // Just read (the list followed you to the end) or picked from the menu: bring it into view.
-  useEffect(() => {
-    card.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [reading.id]);
-  return (
-    <div ref={card} className="relative mx-2 mt-1 mb-3 scroll-mt-2 animate-fade rounded-[12px] border border-line px-3.5 pt-2.5 pb-3 text-[13px] text-muted">
-      <div className="flex h-6 items-center gap-2 pr-7">
-        <span className="font-heading text-[14px] font-semibold text-fg">{reading.mode === "read" ? "整段朗读" : "整段跟读"}</span>
-        <span className="text-[12px] text-faint">
-          {said < reading.parts.length ? `${said} / ${reading.parts.length}` : said} 句
-        </span>
-        {others.length > 1 && (
-          <span className="ml-auto flex items-center gap-0.5 text-[12px]">
-            <IconButton title="上一次" disabled={i <= 0} onClick={() => showReading(others[i - 1].id)} className="!h-6 !min-w-6">
-              <ChevronLeft />
-            </IconButton>
-            <span className="tabular whitespace-nowrap">
-              第 <span className="font-mono text-fg">{i + 1}</span> / {others.length} 次 · {whenRecorded(reading.created)}
-            </span>
-            <IconButton title="下一次" disabled={i >= others.length - 1} onClick={() => showReading(others[i + 1].id)} className="!h-6 !min-w-6">
-              <ChevronRight />
-            </IconButton>
-          </span>
-        )}
-        {others.length <= 1 && <span className="ml-auto text-[12px] text-faint">{whenRecorded(reading.created)}</span>}
-      </div>
-      <ReadingWave reading={reading} />
-      <p className="mt-1 text-[12px] text-faint">{readingNote(reading)}</p>
-      {error && <p className="mt-1 text-[12px] text-danger">{error}</p>}
-      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        <PlayButton active={playing?.what === "turns"} onClick={() => toggle("turns")} title="每句先放原文，再放你的">
-          逐句对比
-        </PlayButton>
-        <PlayButton active={playing?.what === "mine"} onClick={() => toggle("mine")} title="从头到尾听你读的">
-          我的整段
-        </PlayButton>
-        {reading.mode === "shadow" && (
-          <PlayButton active={playing?.what === "together"} onClick={() => toggle("together")} title="原文和你一起放，听合不合拍">
-            一起听
-          </PlayButton>
-        )}
-        <span className="ml-auto flex items-center gap-1">
-          <IconButton title="删除这次整段录音（连同分出来的每句）" onClick={() => void deleteReading(reading.id)}>
-            <Trash2 />
-          </IconButton>
-          <Button className="h-7 px-2.5" title="再读一遍 (⇧M)" onClick={() => void startReading({ mode: reading.mode, at: first, scope: "section" })}>
-            <span className="size-2 rounded-full bg-danger" />
-            再读一遍
-          </Button>
-        </span>
-      </div>
-      <IconButton title="收起" onClick={() => showReading(null)} className="absolute top-2 right-1.5 !h-6 !min-w-6">
-        <X />
-      </IconButton>
-    </div>
-  );
-}
-
-/** Your whole reading as one waveform, cut into its sentences; the playing one is lit. */
-function ReadingWave({ reading }: { reading: Reading }) {
-  const playing = useApp((s) => (s.playingReading?.id === reading.id ? s.playingReading : null));
-  const now = playing ? stretchAt(playing, playing.secs) : null;
-  const takePlaying = useApp((s) => s.playingTake?.id ?? null);
-  const { playTake } = useApp.getState();
-  const bars = 180;
-  const per = reading.peaks.length / bars;
-  const heights = Array.from({ length: bars }, (_, i) => {
-    let p = 0;
-    for (let k = Math.floor(i * per); k < Math.floor((i + 1) * per); k++) p = Math.max(p, reading.peaks[k] ?? 0);
-    return Math.sqrt(p / 255);
-  });
-  const d = Math.max(0.1, reading.duration);
-  const head = playing && playing.what !== "turns" ? playing.secs / d : null;
-  return (
-    <div className="relative mt-2 h-12 w-full">
-      <svg viewBox={`0 0 ${bars} 2`} preserveAspectRatio="none" className="absolute inset-0 size-full text-fg/30" aria-hidden>
-        {heights.map((h, i) => (h > 0.02 ? <rect key={i} x={i + 0.15} y={1 - h * 0.92} width={0.7} height={h * 1.84} rx={0.2} fill="currentColor" /> : null))}
-      </svg>
-      {reading.parts.map((p, k) =>
-        p.take ? (
-          <button
-            key={k}
-            title={`第 ${k + 1} 句：听原文和你的`}
-            onClick={() => void playTake(p.take!, reading.mode === "read" ? "compare" : "together")}
-            className={`absolute inset-y-0 rounded-[4px] border-x border-paper transition-colors duration-150 hover:bg-fg/10 ${now?.part === k || takePlaying === p.take ? "bg-fg/15" : ""}`}
-            style={{ left: `${(p.mine[0] / d) * 100}%`, width: `${((p.mine[1] - p.mine[0]) / d) * 100}%` }}
-          />
-        ) : null,
-      )}
-      {head !== null && head >= 0 && head <= 1 && (
-        <span className="pointer-events-none absolute inset-y-0 w-[1.5px] rounded-full bg-fg" style={{ left: `${head * 100}%` }} />
-      )}
-    </div>
-  );
-}
-
-function PlayButton({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: string }) {
-  return (
-    <Button title={title} aria-pressed={active} onClick={onClick} className={`h-7 px-2.5 ${active ? "!bg-press" : ""}`}>
-      {active ? <Square size={9} fill="currentColor" strokeWidth={0} /> : <Play size={10} fill="currentColor" strokeWidth={0} />}
-      {children}
-    </Button>
   );
 }
