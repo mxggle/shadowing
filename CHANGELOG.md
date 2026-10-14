@@ -5,6 +5,8 @@
 
 ## [未发布]
 
+## [0.7.0] - 2026-10-15
+
 ### 新增
 - 跟读录音：每句右边多了一个麦克风（或按 `M`），录下自己说这一句，和原句对比。不戴耳机也可以。
   - 两种方式，在录音卡片上切换：**听完再说**（先放一遍原句，然后轮到你说）和**边听边说**（跟着原句一起说）。
@@ -114,7 +116,8 @@
 - 修改字幕、查找和全部替换、AI 校对、解释这一句（译文、生词、语法点，答案会保存）。
 - 第一次打开有示例练习和 AI 设置向导。
 
-[未发布]: https://github.com/mxggle/shadowing/compare/v0.6.0...HEAD
+[未发布]: https://github.com/mxggle/shadowing/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/mxggle/shadowing/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/mxggle/shadowing/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/mxggle/shadowing/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/mxggle/shadowing/compare/v0.4.0...v0.5.0
