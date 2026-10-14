@@ -3,9 +3,10 @@
 //! (from each sentence's own take). The webview gets which sentence each
 //! stretch of the clip belongs to, to light it up as it plays.
 
-use super::playback::{read, watch, Lane, NEXT};
+use super::playback::{read, Lane, NEXT};
 use super::saved::{self, Reading};
 use super::take::{convert, RATE};
+use super::watch::watch;
 use crate::audio::Player;
 use serde::{Deserialize, Serialize};
 use std::path::Path;

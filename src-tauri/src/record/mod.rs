@@ -27,6 +27,7 @@ mod segment;
 mod session;
 mod take;
 mod vad;
+mod watch;
 
 use crate::audio::tap;
 use crate::audio::Player;

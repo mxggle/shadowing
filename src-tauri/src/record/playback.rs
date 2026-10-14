@@ -6,14 +6,14 @@
 
 use super::saved::{self, Take};
 use super::take::{convert, RATE};
+use super::watch::watch;
 use crate::audio::decode::Decoder;
 use crate::audio::Player;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 use std::thread;
-use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 /// Silence between the original and you when they're played in turn.
 const GAP_SECS: f64 = 0.4;
@@ -55,16 +55,6 @@ pub struct Playing {
     pub clip: u64,
     pub parts: Vec<Part>,
     pub duration: f64,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ClipStatus {
-    clip: u64,
-    secs: f64,
-    playing: bool,
-    /// Played to its end; false while playing and when it was stopped.
-    ended: bool,
 }
 
 /// Which stretches of the file make up the clip, in order.
@@ -151,37 +141,11 @@ pub fn play(
     })
 }
 
-/// Reports the clip's position until it ends or another replaces it.
-pub(super) fn watch(app: AppHandle, clip: u64) {
-    use tauri::Manager;
-    let player = app.state::<Player>();
-    // The engine picks the clip up at its next callback.
-    thread::sleep(Duration::from_millis(30));
-    loop {
-        let now = player.clip();
-        let playing = now.is_some_and(|(id, _)| id == clip);
-        let secs = now.filter(|_| playing).map_or(0.0, |(_, s)| s);
-        let ended = !playing && player.clip_finished(clip);
-        let _ = app.emit(
-            "recorder:clip",
-            ClipStatus {
-                clip,
-                secs,
-                playing,
-                ended,
-            },
-        );
-        if !playing {
-            return;
-        }
-        thread::sleep(Duration::from_millis(33));
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::record::saved::Peaks;
+
     use crate::record::take::Mode;
 
     fn take() -> Take {

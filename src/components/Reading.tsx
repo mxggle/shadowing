@@ -1,4 +1,4 @@
-import { BookOpenText, LoaderCircle, Square } from "lucide-react";
+import { AlertCircle, BookOpenText, LoaderCircle, Square, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useDismiss } from "../hooks/useDismiss";
 import type { ParagraphMode } from "../lib/api";
@@ -12,6 +12,25 @@ const MODES: { mode: ParagraphMode; label: string; note: string }[] = [
   { mode: "read", label: "自己读", note: "不放原文，你按自己的速度读；停顿一下，高亮就跳到下一句。" },
   { mode: "shadow", label: "跟着原文读", note: "原文一直往下放，你跟着读（不戴耳机也可以，录进来的原文会被去掉）。" },
 ];
+
+/**
+ * Under the list header: why a paragraph recording didn't start or wasn't kept
+ * (the mic, or nothing heard). Nothing else shows it then — the live bar is
+ * gone and no reading is open.
+ */
+export function ReadingProblem() {
+  const error = useApp((s) => (!s.live && !s.shownReading ? s.readingError : null));
+  if (!error) return null;
+  return (
+    <div className="mx-auto flex w-full max-w-[760px] animate-fade items-start gap-2 pr-8 pb-2.5 pl-10 text-[12px] text-danger">
+      <AlertCircle size={14} className="mt-[5px] shrink-0" />
+      <span className="min-w-0 py-1 break-words">{error}</span>
+      <IconButton title="知道了" onClick={() => useApp.getState().showReading(null)} className="ml-auto !h-6 !min-w-6 shrink-0">
+        <X />
+      </IconButton>
+    </div>
+  );
+}
 
 /** In the list header: start reading a whole paragraph (or the text), with how and how much. */
 export function ReadingButton() {

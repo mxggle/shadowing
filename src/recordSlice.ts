@@ -218,7 +218,11 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       const path = get().current?.path;
       if (!path) return;
       if (get().playingTake?.id === id) get().stopTake();
-      await api.record.remove(path, id);
+      try {
+        await api.record.remove(path, id);
+      } catch (e) {
+        return void set({ recError: String(e) });
+      }
       set((s) => ({ takes: s.takes.filter((t) => t.id !== id), shownTake: s.shownTake === id ? null : s.shownTake }));
     },
 

@@ -216,7 +216,11 @@ export function createReadingSlice(set: Set, get: Get, engine: AudioEngine, pers
       const path = get().current?.path;
       if (!path) return;
       if (get().playingReading?.id === id) get().stopReadingPlayback();
-      await api.record.removeReading(path, id);
+      try {
+        await api.record.removeReading(path, id);
+      } catch (e) {
+        return void set({ readingError: String(e) });
+      }
       set((s) => ({
         readings: s.readings.filter((r) => r.id !== id),
         takes: s.takes.filter((t) => t.group !== id),

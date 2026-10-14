@@ -10,7 +10,7 @@ import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { ExplainNote } from "./Explain";
 import { ProofreadBar, ProofreadButton, SuggestionNote } from "./Proofread";
-import { LiveReadingBar, ReadingButton } from "./Reading";
+import { LiveReadingBar, ReadingButton, ReadingProblem } from "./Reading";
 import { ReadingBar } from "./ReadingResult";
 import { MicButton, RecorderCard } from "./Recorder";
 import { ReplaceBar } from "./ReplaceBar";
@@ -164,6 +164,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
       </div>
       <ReplaceBar />
       <ProofreadBar />
+      <ReadingProblem />
     </div>
   );
 }

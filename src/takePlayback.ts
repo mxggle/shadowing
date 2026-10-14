@@ -80,7 +80,11 @@ export function createTakePlayback(set: Set, get: Get, engine: AudioEngine): Tak
         }
         set({ playingTake: { id, what, chain, ...p, secs: 0 } });
       } catch (e) {
-        if (mine === playing) set({ playingTake: null, recError: String(e) });
+        if (mine !== playing) return;
+        set({ playingTake: null });
+        // In the card when it's open; played from the sentence (or listening on), above the deck.
+        if (get().recordAt !== null) set({ recError: String(e) });
+        else get().say(`录音放不出来：${e}`);
       }
     },
 

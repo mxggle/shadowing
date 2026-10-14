@@ -53,7 +53,7 @@ src-tauri/src/
                           mic.rs 麦克风、devices.rs 选麦克风（蓝牙耳机时用 Mac 自带的）、vad.rs 什么时候算说完、
                           echo.rs 去掉录进来的原声（整段估计喇叭到麦克风的路径再减掉，剩下的按频率压低）、
                           take.rs 对齐、裁剪、音量、跟读延迟，saved.rs 存在 app data 的 recordings/（每次一个立体声 WAV：
-                          左原句、右你，加 takes.json），playback.rs 回放（引擎的 clip）；
+                          左原句、右你，加 takes.json），playback.rs 回放（引擎的 clip；watch.rs 报告放到哪、是不是放完了）；
                           整段：follow.rs 自己读时跟踪读到哪一句（也记下高亮在每个句界移动的位置、读到了第几句）、segment.rs 读完按停顿 / 原文时间拆句、original.rs 从音频切出每句原文、
                           reading.rs 拼成整段 + 每句一条录音、replay.rs 整段回放（我的整段 / 一起听 / 逐句对比）
   explain/                解释这一句：把一句（带前后几句）发给「句子解释」的模型，reply.rs 只留下译文、生词、语法点并封顶，saved.rs 把答案存在 app data 的 explanations/（句子被改过就作废）
