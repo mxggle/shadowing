@@ -80,11 +80,12 @@ fn listen_take_keeps_the_original_then_you() {
         oa < 0.2 && ob - oa > 1.5 && ob - oa < 2.05,
         "original {oa}..{ob}"
     );
-    // You start 3.6 s on the mic timeline = 2.6 s after the original starts.
+    // One after the other (stored in one channel): you just after the original.
     assert!(
-        (ma + LEAD_SECS - (oa + 2.6)).abs() < 0.15,
-        "mine starts {ma}"
+        ma > ob && ma - ob < 0.6,
+        "mine starts {ma}, original ends {ob}"
     );
+    assert!(b.original[at_secs(ma)..].iter().all(|v| *v == 0.0));
     assert!(mb > ma + 1.5, "mine {ma}..{mb}");
     // Nothing of the original on your track, and you're brought up to its level.
     let before = &b.mine[..at_secs(ma)];

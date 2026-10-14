@@ -25,9 +25,11 @@ mod replay;
 mod saved;
 mod segment;
 mod session;
+mod space;
 mod take;
 mod vad;
 mod watch;
+mod wav;
 
 use crate::audio::tap;
 use crate::audio::Player;
@@ -84,6 +86,8 @@ pub trait Signals: Send + 'static {
     /// Reading on your own: the sentence you're on now.
     fn sentence(&self, index: usize);
     fn error(&self, message: &str);
+    /// The microphone has closed.
+    fn ended(&self) {}
 }
 
 impl Signals for AppHandle {
@@ -238,6 +242,7 @@ impl Recorder {
                 mine: take::peaks(&built.mine, saved::PEAKS_PER_SEC),
             },
             group: None,
+            source: None,
         };
         saved::add(root, &meta.audio, t.clone(), &built.original, &built.mine)?;
         Ok(Finished {

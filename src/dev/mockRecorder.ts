@@ -191,6 +191,8 @@ function parts(take: Take, what: TakePart): ClipPart[] {
 
 let clip = 0;
 let clipTimer = 0;
+/** Pretend two tracks' audio has gone missing, to see the clean-up in the settings. */
+let space = { bytes: 86_400_000, missingTracks: 2, missingBytes: 12_300_000 };
 function play(audio: string, id: string, what: TakePart): Playing {
   const take = takes.get(audio)?.find((t) => t.id === id);
   if (!take) throw "这条录音不见了";
@@ -268,6 +270,11 @@ export async function mockRecord(cmd: string, a: Record<string, never>): Promise
     case "record_stop":
       stopClip();
       return null;
+    case "record_space":
+      return space;
+    case "record_clear_missing":
+      space = { bytes: space.bytes - space.missingBytes, missingTracks: 0, missingBytes: 0 };
+      return space;
   }
   return undefined;
 }

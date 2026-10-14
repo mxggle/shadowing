@@ -354,6 +354,8 @@ pub fn run() {
             record::commands::record_step,
             record::commands::record_readings,
             record::commands::record_delete_reading,
+            record::commands::record_space,
+            record::commands::record_clear_missing,
             record::commands::record_play_reading,
             record::commands::record_takes,
             record::commands::record_delete,

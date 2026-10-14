@@ -8,8 +8,11 @@
 //!   pausing to say the sentence or to read an explanation is practice.
 //! - A longer silence ends the session at the last activity; none of the silence
 //!   counts (walked away, Mac asleep). Activity alone never starts a session.
-//! - Sessions with less than `MIN_PLAYED_MS` of playback are dropped
-//!   (a track opened by mistake).
+//! - Recording yourself (跟读录音, 整段录音) is practice too: it starts and keeps
+//!   a session like playing does (the time shows as practice between playback),
+//!   and listening to your takes counts as playback (`busy`).
+//! - Sessions with less than `MIN_PLAYED_MS` of playback or recording are
+//!   dropped (a track opened by mistake).
 
 use serde::{Deserialize, Serialize};
 
@@ -28,9 +31,21 @@ pub struct Session {
     pub played: u64,
 }
 
+/// What's going on with the audio, besides the learner's clicks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Doing {
+    Paused,
+    /// The track, or a take of it, playing.
+    Playing,
+    /// The microphone recording a take.
+    Recording,
+}
+
 struct Open {
     session: Session,
-    playing: bool,
+    doing: Doing,
+    /// Ms spent recording (only for keeping the session: it shows as the time between playback).
+    recorded: u64,
 }
 
 impl Open {
@@ -38,14 +53,20 @@ impl Open {
     fn extend(&mut self, now: u64) -> bool {
         match now.checked_sub(self.session.end) {
             Some(gap) if gap <= IDLE_MS => {
-                if self.playing {
-                    self.session.played += gap;
+                match self.doing {
+                    Doing::Playing => self.session.played += gap,
+                    Doing::Recording => self.recorded += gap,
+                    Doing::Paused => {}
                 }
                 self.session.end = now;
                 true
             }
             _ => false,
         }
+    }
+
+    fn kept(&self) -> bool {
+        self.session.played + self.recorded >= MIN_PLAYED_MS
     }
 }
 
@@ -72,15 +93,35 @@ impl Clock {
             return false;
         }
         self.seq = seq;
+        let doing = if playing {
+            Doing::Playing
+        } else {
+            Doing::Paused
+        };
+        self.apply(now, audio, doing)
+    }
+
+    /// Not the player: a take of `audio` being recorded or played back, sent
+    /// often while it lasts (`Paused` once it's over). Returns true when a session ended.
+    pub fn busy(&mut self, now: u64, audio: &str, doing: Doing) -> bool {
+        // While the track plays (the original of a take) that's playback, whoever says so.
+        let doing = match &self.open {
+            Some(o) if doing == Doing::Recording && o.doing == Doing::Playing => Doing::Playing,
+            _ => doing,
+        };
+        self.apply(now, Some(audio), doing)
+    }
+
+    fn apply(&mut self, now: u64, audio: Option<&str>, doing: Doing) -> bool {
         let mut ended = false;
         if let Some(open) = &mut self.open {
             if audio == Some(open.session.audio.as_str()) && open.extend(now) {
-                open.playing = playing;
+                open.doing = doing;
                 return false;
             }
             ended = self.close();
         }
-        if let (true, Some(audio)) = (playing, audio) {
+        if let (Doing::Playing | Doing::Recording, Some(audio)) = (doing, audio) {
             self.open = Some(Open {
                 session: Session {
                     audio: audio.into(),
@@ -88,7 +129,8 @@ impl Clock {
                     end: now,
                     played: 0,
                 },
-                playing: true,
+                doing,
+                recorded: 0,
             });
         }
         ended
@@ -102,10 +144,10 @@ impl Clock {
         }
     }
 
-    /// Ends the open session, keeping it if enough was played. True if kept.
+    /// Ends the open session, keeping it if enough was played or recorded. True if kept.
     pub fn close(&mut self) -> bool {
         match self.open.take() {
-            Some(open) if open.session.played >= MIN_PLAYED_MS => {
+            Some(open) if open.kept() => {
                 self.done.push(open.session);
                 true
             }
@@ -120,11 +162,7 @@ impl Clock {
     /// Everything so far, including the session still running.
     pub fn sessions(&self) -> Vec<Session> {
         let mut all = self.done.clone();
-        if let Some(open) = self
-            .open
-            .as_ref()
-            .filter(|o| o.session.played >= MIN_PLAYED_MS)
-        {
+        if let Some(open) = self.open.as_ref().filter(|o| o.kept()) {
             all.push(open.session.clone());
         }
         all
@@ -132,108 +170,5 @@ impl Clock {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    const S: u64 = 1000;
-    const T0: u64 = 1_760_000_000_000;
-
-    /// Status events every 100 ms while playing from `from` to `to` (seconds after T0).
-    fn play(c: &mut Clock, seq: &mut u64, audio: &str, from: u64, to: u64) {
-        let mut t = T0 + from * S;
-        while t <= T0 + to * S {
-            *seq += 1;
-            c.status(t, *seq, Some(audio), true);
-            t += 100;
-        }
-        *seq += 1;
-        c.status(T0 + to * S, *seq, Some(audio), false);
-    }
-
-    #[test]
-    fn short_pauses_count_long_ones_split() {
-        let (mut c, mut seq) = (Clock::default(), 0);
-        play(&mut c, &mut seq, "/a.mp3", 0, 10);
-        // Paused 20 s to repeat the sentence, then played again.
-        play(&mut c, &mut seq, "/a.mp3", 30, 40);
-        // Walked away for 10 minutes.
-        play(&mut c, &mut seq, "/a.mp3", 640, 650);
-        let s = c.sessions();
-        assert_eq!(s.len(), 2);
-        assert_eq!((s[0].end - s[0].start, s[0].played), (40 * S, 20 * S));
-        assert_eq!((s[1].end - s[1].start, s[1].played), (10 * S, 10 * S));
-    }
-
-    #[test]
-    fn activity_keeps_a_pause_alive_but_never_starts_a_session() {
-        let (mut c, mut seq) = (Clock::default(), 0);
-        c.activity(T0);
-        assert!(!c.is_open());
-        play(&mut c, &mut seq, "/a.mp3", 0, 10);
-        // Reading an explanation for 3 minutes, clicking now and then.
-        for t in [60, 120, 180] {
-            c.activity(T0 + t * S);
-        }
-        let s = c.sessions();
-        assert_eq!((s[0].end - s[0].start, s[0].played), (180 * S, 10 * S));
-        // Too late: nothing more counts.
-        c.activity(T0 + 300 * S);
-        assert_eq!(c.sessions()[0].end, T0 + 180 * S);
-    }
-
-    #[test]
-    fn other_audio_or_unload_ends_the_session() {
-        let (mut c, mut seq) = (Clock::default(), 0);
-        play(&mut c, &mut seq, "/a.mp3", 0, 10);
-        play(&mut c, &mut seq, "/b.mp3", 12, 20);
-        seq += 1;
-        assert!(c.status(T0 + 21 * S, seq, None, false));
-        let s = c.sessions();
-        assert_eq!(
-            s.iter().map(|s| s.audio.as_str()).collect::<Vec<_>>(),
-            ["/a.mp3", "/b.mp3"]
-        );
-        assert!(!c.is_open());
-    }
-
-    #[test]
-    fn sleeping_while_playing_does_not_count() {
-        let (mut c, mut seq) = (Clock::default(), 0);
-        play(&mut c, &mut seq, "/a.mp3", 0, 10);
-        seq += 1;
-        c.status(T0 + 10 * S, seq, Some("/a.mp3"), true);
-        // Lid closed for an hour; the status thread wakes up still "playing".
-        play(&mut c, &mut seq, "/a.mp3", 3610, 3620);
-        let total: u64 = c.sessions().iter().map(|s| s.played).sum();
-        assert_eq!(total, 20 * S);
-    }
-
-    #[test]
-    fn clock_going_back_starts_a_new_session() {
-        let (mut c, mut seq) = (Clock::default(), 0);
-        play(&mut c, &mut seq, "/a.mp3", 100, 110);
-        play(&mut c, &mut seq, "/a.mp3", 0, 10);
-        assert_eq!(c.sessions().len(), 2);
-    }
-
-    #[test]
-    fn stale_status_is_ignored() {
-        let mut c = Clock::default();
-        c.status(T0, 5, Some("/a.mp3"), true);
-        c.status(T0 + 2 * S, 7, Some("/a.mp3"), false);
-        // An older "playing" status arriving late must not make the pause count as playback.
-        c.status(T0 + 2 * S, 6, Some("/a.mp3"), true);
-        c.status(T0 + 30 * S, 8, Some("/a.mp3"), true);
-        c.status(T0 + 36 * S, 9, Some("/a.mp3"), false);
-        assert_eq!(c.sessions()[0].played, 8 * S);
-    }
-
-    #[test]
-    fn tiny_sessions_are_dropped() {
-        let (mut c, mut seq) = (Clock::default(), 0);
-        play(&mut c, &mut seq, "/a.mp3", 0, 3);
-        assert!(c.sessions().is_empty());
-        assert!(!c.close());
-        assert!(c.done.is_empty());
-    }
-}
+#[path = "clock_tests.rs"]
+mod tests;

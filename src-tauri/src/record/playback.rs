@@ -98,6 +98,26 @@ pub fn render(left: &[f32], right: &[f32], parts: &[Part]) -> Vec<f32> {
     out
 }
 
+/// A take's audio (left, right): its own file, or its window onto a reading's.
+pub(super) fn sound(root: &Path, audio: &str, take: &Take) -> Result<(Vec<f32>, Vec<f32>), String> {
+    match &take.source {
+        None => read(&saved::wav_path(root, audio, &take.id)),
+        Some(src) => Ok(window(
+            &read(&saved::wav_path(root, audio, &src.reading))?,
+            src.from,
+            take.duration,
+        )),
+    }
+}
+
+/// `secs` seconds of a file's lanes from `from`.
+pub(super) fn window((l, r): &(Vec<f32>, Vec<f32>), from: f64, secs: f64) -> (Vec<f32>, Vec<f32>) {
+    let at = |s: f64| (s * RATE as f64).round().max(0.0) as usize;
+    let cut = |x: &Vec<f32>| x[at(from).min(x.len())..at(from + secs).min(x.len())].to_vec();
+    (cut(l), cut(r))
+}
+
+/// A file's two lanes (a one-channel file gives the same samples for both).
 pub(super) fn read(path: &Path) -> Result<(Vec<f32>, Vec<f32>), String> {
     let mut d = Decoder::open(path).map_err(|_| "这条录音的文件不见了".to_string())?;
     let mut all = Vec::new();
@@ -126,14 +146,15 @@ pub fn play(
         .into_iter()
         .find(|t| t.id == id)
         .ok_or("这条录音不见了")?;
-    let (left, right) = read(&saved::wav_path(root, audio, id))?;
+    let (left, right) = sound(root, audio, &take)?;
     let parts = parts(&take, what);
     let samples = render(&left, &right, &parts);
     let duration = samples.len() as f64 / RATE as f64;
     let rate = player.device_rate();
     let clip = NEXT.fetch_add(1, Relaxed);
     player.play_clip(clip, convert(&samples, RATE, rate), rate)?;
-    thread::spawn(move || watch(app, clip));
+    let audio = audio.to_string();
+    thread::spawn(move || watch(app, clip, audio));
     Ok(Playing {
         clip,
         parts,
@@ -166,7 +187,61 @@ mod tests {
                 mine: vec![],
             },
             group: None,
+            source: None,
         }
+    }
+
+    #[test]
+    fn a_take_plays_from_its_own_file_or_from_a_reading() {
+        let root = tempfile::tempdir().unwrap();
+        let audio = "/m/a.mp3";
+        // 听完再说: one channel, the original then you; each still plays alone.
+        let (l, r, os, ms) = crate::record::take::turns(&[0.5; 3200], &[-0.5; 6400]);
+        let t = Take {
+            original: os,
+            mine: ms,
+            duration: l.len() as f64 / RATE as f64,
+            ..take()
+        };
+        saved::add(root.path(), audio, t.clone(), &l, &r).unwrap();
+        let (a, b) = sound(root.path(), audio, &t).unwrap();
+        let alone = |what| render(&a, &b, &parts(&t, what));
+        assert!(alone(What::Original).iter().all(|v| (v - 0.5).abs() < 1e-3));
+        assert!(alone(What::Mine).iter().all(|v| (v + 0.5).abs() < 1e-3));
+        // A sentence of a reading shadowed along: a window onto the reading's file.
+        let whole = (vec![0.1; 32_000], vec![0.2; 32_000]);
+        let reading = saved::Reading {
+            id: "r".into(),
+            created: 0,
+            start: 0.0,
+            end: 1.0,
+            mode: Mode::Shadow,
+            rate: 1.0,
+            duration: 1.0,
+            parts: vec![],
+            original_secs: 1.0,
+            mine_secs: 1.0,
+            lag_ms: None,
+            peaks: vec![],
+        };
+        let w = Take {
+            id: "r-0".into(),
+            mode: Mode::Shadow,
+            duration: 0.5,
+            source: Some(saved::Source {
+                reading: "r".into(),
+                from: 0.25,
+            }),
+            ..take()
+        };
+        saved::add_reading(root.path(), audio, reading, &whole, vec![(w.clone(), None)]).unwrap();
+        assert!(
+            !saved::wav_path(root.path(), audio, "r-0").exists(),
+            "no copy"
+        );
+        let (a, b) = sound(root.path(), audio, &w).unwrap();
+        assert_eq!((a.len(), b.len()), (16_000, 16_000));
+        assert!((a[0] - 0.1).abs() < 1e-3 && (b[0] - 0.2).abs() < 1e-3);
     }
 
     #[test]

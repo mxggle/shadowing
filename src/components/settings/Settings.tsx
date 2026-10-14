@@ -5,6 +5,7 @@ import type { Feature } from "../../lib/api";
 import { useApp } from "../../store";
 import { Button, IconButton } from "../ui";
 import { ProviderSetup } from "./ProviderSetup";
+import { RecordingsRow } from "./Recordings";
 
 /** Gear in the top bar; ⌘, also opens settings, as in every Mac app. */
 export function SettingsButton() {
@@ -102,6 +103,10 @@ export function SettingsDialog() {
             ))}
           </div>
           <div className="border-t border-line pt-5">
+            <h3 className="text-[12px] font-medium text-faint">录音</h3>
+            <RecordingsRow />
+          </div>
+          <div className="mt-2 border-t border-line pt-5">
             <h3 className="text-[12px] font-medium text-faint">版本</h3>
             <UpdateRow />
           </div>

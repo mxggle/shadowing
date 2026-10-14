@@ -3,7 +3,7 @@
 //! (from each sentence's own take). The webview gets which sentence each
 //! stretch of the clip belongs to, to light it up as it plays.
 
-use super::playback::{read, Lane, NEXT};
+use super::playback::{read, sound, window, Lane, NEXT};
 use super::saved::{self, Reading};
 use super::take::{convert, RATE};
 use super::watch::watch;
@@ -135,7 +135,11 @@ pub fn play_reading(
     let takes = saved::list(root, audio);
     let take = |tid: &str| {
         let t = takes.iter().find(|t| t.id == tid)?;
-        let sound = read(&saved::wav_path(root, audio, tid)).ok()?;
+        let sound = match &t.source {
+            // A window onto this reading: already read.
+            Some(src) if src.reading == id => window(&whole, src.from, t.duration),
+            _ => sound(root, audio, t).ok()?,
+        };
         Some((t.original.0, t.original.1, t.mine.0, t.mine.1, sound))
     };
     let (samples, stretches) = render(&reading, &whole, what, take);
@@ -143,7 +147,8 @@ pub fn play_reading(
     let rate = player.device_rate();
     let clip = NEXT.fetch_add(1, Relaxed);
     player.play_clip(clip, convert(&samples, RATE, rate), rate)?;
-    thread::spawn(move || watch(app, clip));
+    let audio = audio.to_string();
+    thread::spawn(move || watch(app, clip, audio));
     Ok(ReadingPlaying {
         clip,
         duration,

@@ -1,9 +1,12 @@
 //! A clip's progress for the webview: `recorder:clip` events while it plays,
 //! and one when it's over, saying whether it played to its end (only then does
-//! listening on go to the next sentence).
+//! listening on go to the next sentence). Listening to your takes is practice:
+//! the practice clock hears of it too.
 
 use crate::audio::Player;
+use crate::practice::{Doing, Practice};
 use serde::Serialize;
+use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
@@ -22,10 +25,15 @@ struct ClipStatus {
     ended: bool,
 }
 
-/// Reports the clip's position until it ends or another replaces it.
-pub fn watch(app: AppHandle, clip: u64) {
+/// Reports the clip (of a take of `audio`) until it ends or another replaces it.
+pub fn watch(app: AppHandle, clip: u64, audio: String) {
     use tauri::Manager;
     let player = app.state::<Player>();
+    let practice = |doing| {
+        if let Some(p) = app.try_state::<Arc<Practice>>() {
+            p.busy(&audio, doing);
+        }
+    };
     let asked = Instant::now();
     let mut started = false;
     loop {
@@ -56,8 +64,10 @@ pub fn watch(app: AppHandle, clip: u64) {
             },
         );
         if !playing {
+            practice(Doing::Paused);
             return;
         }
+        practice(Doing::Playing);
         thread::sleep(Duration::from_millis(33));
     }
 }

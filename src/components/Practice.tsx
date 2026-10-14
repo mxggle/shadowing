@@ -108,7 +108,7 @@ function Records({ sessions, now }: { sessions: PracticeSession[]; now: number }
       )}
 
       <p className="mt-6 border-t border-line pt-4 text-[12px] leading-relaxed text-muted">
-        怎么算：音频播放的时间都算；暂停后 90 秒内又有操作（继续播放、点句子、看解释），中间跟读、思考的时间也算；
+        怎么算：音频播放、回听自己录音的时间都算；跟读录音、整段录音时录音的时间也算（算在“暂停”里）；暂停后 90 秒内又有操作（继续播放、点句子、看解释），中间跟读、思考的时间也算；
         更久没有动静就当作离开，那段时间不算。每天从凌晨 4 点算起；连续天数只算达到当天目标的日子，改目标只影响今天和以后。记录只存在这台 Mac 上。
       </p>
     </>
@@ -151,7 +151,7 @@ function Section({ title, legend, children }: { title: string; legend?: boolean;
             </span>
             <span className="flex items-center gap-1.5">
               <span className="size-2.5 rounded-[2px] bg-ink/20" />
-              暂停（跟读、看解释）
+              暂停（跟读、录音、看解释）
             </span>
           </div>
         )}

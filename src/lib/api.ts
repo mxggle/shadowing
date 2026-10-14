@@ -62,6 +62,13 @@ export interface Take {
 }
 
 /** A paragraph read in one go (src-tauri/src/record/saved.rs); each sentence is also a take. */
+export interface RecordingSpace {
+  bytes: number;
+  /** Audio files moved or deleted (not merely on a disk that isn't connected), and their recordings' size. */
+  missingTracks: number;
+  missingBytes: number;
+}
+
 export interface Reading {
   id: string;
   created: number;
@@ -453,6 +460,10 @@ export const api = {
     /** Plays over the paused track; position arrives as `recorder:clip`. */
     play: (audio: string, id: string, what: TakePart) => invoke<Playing>("record_play", { audio, id, what }),
     stop: () => invoke<void>("record_stop"),
+    /** How much room recordings take (and how much is for audio that's gone). */
+    space: () => invoke<RecordingSpace>("record_space"),
+    /** Deletes the recordings of audio files that are gone; returns what's left. */
+    clearMissing: () => invoke<RecordingSpace>("record_clear_missing"),
   },
   update: {
     /** null when this is the newest version. */

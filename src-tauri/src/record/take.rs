@@ -1,7 +1,8 @@
 //! Turns what was captured into a take: the microphone and the engine's
 //! output on one timeline, the original taken out of the mic, trimmed to the
-//! two voices, levels matched. Stored as one stereo file: left is the
-//! original as you heard it (speed included), right is you, in step.
+//! two voices, levels matched. Two lanes: the original as you heard it (speed
+//! included) and you. 边听边说 keeps them in step (a stereo file); 听完再说
+//! lays them one after the other (`turns`), so they fit in one channel.
 
 use super::echo;
 use super::follow::Followed;
@@ -19,6 +20,13 @@ pub const MARGIN_SECS: f64 = 0.1;
 const MAX_GAIN: f32 = 8.0;
 /// Shadowing lags searched (you after the original).
 const MAX_LAG_SECS: f64 = 1.5;
+/// Between the original and you when one follows the other in a file.
+const TURN_GAP_SECS: f64 = 0.5;
+
+/// Whether you come after the original rather than over it (as `inTurns` in src/lib/takes.ts).
+pub fn in_turns(mode: Mode) -> bool {
+    mode != Mode::Shadow
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -79,6 +87,19 @@ pub fn build(raw: &Raw, mode: Mode) -> Option<Built> {
     let original_span = span(&played, &active(&played))?;
     let mine_span = span(&mine, &vad::voiced(&levels(&mine)))
         .map(|(a, b)| ((a - LEAD_SECS).max(0.0), b + TAIL_SECS))?;
+    if mode == Mode::Listen {
+        let cut =
+            |x: &[f32], (a, b): (f64, f64)| x[at(a).min(x.len())..at(b).min(x.len())].to_vec();
+        let (original, mine, original_span, mine_span) =
+            turns(&cut(&played, original_span), &cut(&mine, mine_span));
+        return Some(Built {
+            original,
+            mine,
+            original_span,
+            mine_span,
+            lag_ms: None,
+        });
+    }
     let start = (original_span.0.min(mine_span.0) - MARGIN_SECS).max(0.0);
     let end = (original_span.1.max(mine_span.1) + MARGIN_SECS).min(mine.len() as f64 / RATE as f64);
     let cut = |x: &[f32]| x[at(start).min(x.len())..at(end).min(x.len())].to_vec();
@@ -96,6 +117,26 @@ pub fn build(raw: &Raw, mode: Mode) -> Option<Built> {
         mine_span,
         lag_ms,
     })
+}
+
+/// Two lanes (the original, you) and where each voice is in them (seconds).
+pub type Piece = (Vec<f32>, Vec<f32>, (f64, f64), (f64, f64));
+
+/// The original, a short gap, then `voice` (each as given), as two lanes that
+/// never overlap — they're stored in one channel. Your level is matched to the
+/// original's.
+pub fn turns(original: &[f32], voice: &[f32]) -> Piece {
+    let lead = at(MARGIN_SECS);
+    let you = lead + original.len() + at(TURN_GAP_SECS);
+    let mut l = vec![0.0; you + voice.len()];
+    l[lead..lead + original.len()].copy_from_slice(original);
+    let mut r = vec![0.0; you + voice.len()];
+    r[you..].copy_from_slice(voice);
+    let secs = |n: usize| n as f64 / RATE as f64;
+    let os = (secs(lead), secs(lead + original.len()));
+    let ms = (secs(you), secs(you + voice.len()));
+    match_level(&l, os, &mut r, ms);
+    (l, r, os, ms)
 }
 
 pub fn at(secs: f64) -> usize {

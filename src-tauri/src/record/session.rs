@@ -178,6 +178,7 @@ pub fn run(
         }
     }
     drop(mic.stream);
+    out.ended();
     let _ = done.send(match error {
         Some(e) => Err(e),
         None => Ok(Raw {

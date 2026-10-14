@@ -148,7 +148,8 @@ fn reading_on_your_own_is_cut_into_its_sentences() {
         assert_eq!(p.take.as_deref(), Some(format!("r-{i}").as_str()));
     }
     // Each sentence's take: the original from the file first, then you, with the text kept.
-    let (t, (l, r)) = &built.takes[1];
+    let (t, sound) = &built.takes[1];
+    let (l, r) = sound.as_ref().expect("a file of its own");
     assert_eq!(t.group.as_deref(), Some("r"));
     assert_eq!(t.text, "3");
     assert!((t.original.1 - t.original.0 - 1.5).abs() < 0.01);
@@ -202,4 +203,13 @@ fn shadowing_a_paragraph_follows_the_original() {
     }
     assert!((built.reading.original_secs - 6.0).abs() < 0.01);
     assert_eq!(built.whole.0.len(), built.whole.1.len());
+    // No copies: each sentence is a window onto the whole file.
+    let whole_secs = built.whole.1.len() as f64 / RATE as f64;
+    for (t, sound) in &built.takes {
+        let source = t.source.as_ref().expect("a window onto the reading");
+        assert!(sound.is_none());
+        assert_eq!(source.reading, "s");
+        assert!(source.from >= 0.0 && source.from + t.duration <= whole_secs + 1e-6);
+        assert!(t.mine.1 <= t.duration + 1e-6 && t.original.1 <= t.duration + 1e-6);
+    }
 }

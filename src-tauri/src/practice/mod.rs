@@ -6,6 +6,8 @@
 
 mod clock;
 
+pub use clock::Doing;
+
 use crate::audio::{EventSink, Status};
 use crate::store::Saver;
 use clock::{Clock, Session};
@@ -42,17 +44,25 @@ impl Practice {
     }
 
     fn status(&self, status: &Status) {
-        let now = now_ms();
         let mut guard = self.clock.lock().unwrap_or_else(|e| e.into_inner());
+        let now = now_ms(); // under the lock: the player, recorder and window feed it from their own threads
         let ended = guard
             .0
             .status(now, status.seq, status.path.as_deref(), status.playing);
         self.save_if_due(&mut guard, now, ended);
     }
 
-    fn activity(&self) {
-        let now = now_ms();
+    /// A take of `audio` being recorded or played back (`Paused` once it's over); sent often while it lasts.
+    pub fn busy(&self, audio: &str, doing: Doing) {
         let mut guard = self.clock.lock().unwrap_or_else(|e| e.into_inner());
+        let now = now_ms(); // under the lock: the player, recorder and window feed it from their own threads
+        let ended = guard.0.busy(now, audio, doing);
+        self.save_if_due(&mut guard, now, ended);
+    }
+
+    fn activity(&self) {
+        let mut guard = self.clock.lock().unwrap_or_else(|e| e.into_inner());
+        let now = now_ms(); // under the lock: the player, recorder and window feed it from their own threads
         guard.0.activity(now);
         self.save_if_due(&mut guard, now, false);
     }

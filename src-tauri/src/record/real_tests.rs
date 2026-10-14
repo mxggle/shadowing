@@ -100,10 +100,14 @@ fn real_record_echo() {
         let dir = Path::new(&dir);
         std::fs::write(
             dir.join("mic-vs-cleaned.wav"),
-            saved::stereo_wav(&mic32, &cleaned),
+            super::wav::stereo_wav(&mic32, &cleaned),
         )
         .unwrap();
-        std::fs::write(dir.join("played.wav"), saved::stereo_wav(&heard, &heard)).unwrap();
+        std::fs::write(
+            dir.join("played.wav"),
+            super::wav::stereo_wav(&heard, &heard),
+        )
+        .unwrap();
     }
     assert!(
         before > -60.0,
@@ -180,7 +184,11 @@ fn real_record_double_talk() {
         db(&out[talk.clone()]),
         db(&voice)
     );
-    std::fs::write(dir.join("double-talk.wav"), saved::stereo_wav(&both, &out)).unwrap();
+    std::fs::write(
+        dir.join("double-talk.wav"),
+        super::wav::stereo_wav(&both, &out),
+    )
+    .unwrap();
 }
 
 #[test]
@@ -207,7 +215,7 @@ fn real_record_short_takes() {
         if secs == 11 {
             std::fs::write(
                 Path::new(&dir).join("now.wav"),
-                saved::stereo_wav(&mic[..n], &out),
+                super::wav::stereo_wav(&mic[..n], &out),
             )
             .unwrap();
         }

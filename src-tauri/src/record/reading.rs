@@ -7,23 +7,23 @@
 //! 自己读: nothing was played; your sentences are found from your pauses
 //! (`segment.rs`), and the original's audio for each is read from the file.
 
-use super::saved::{Peaks, ReadPart, Reading, Sound, Take, PEAKS_PER_SEC};
-use super::take::{self, at, convert, Mode, Raw, LEAD_SECS, MARGIN_SECS, RATE, TAIL_SECS};
+use super::saved::{Peaks, ReadPart, Reading, Sound, Source, Take, PEAKS_PER_SEC};
+use super::take::{self, at, convert, Mode, Piece, Raw, LEAD_SECS, MARGIN_SECS, RATE, TAIL_SECS};
 use super::vad::{self, FRAME_SECS};
 use super::{echo, original, segment, Meta};
 use std::path::Path;
 
 /// A sentence said for less than this isn't kept as a take.
 const SAID_SECS: f64 = 0.25;
-/// Between the original and you, in a 自己读 sentence's file.
-const GAP_SECS: f64 = 0.5;
 /// When no lag can be measured, assume a typical one.
 const LAG_GUESS_MS: i32 = 400;
 
 pub struct Built {
     pub reading: Reading,
+    /// Left the original as heard (empty for 自己读), right you.
     pub whole: Sound,
-    pub takes: Vec<(Take, Sound)>,
+    /// Each sentence's take, with its own audio unless it's a window onto the whole (`Take::source`).
+    pub takes: Vec<(Take, Option<Sound>)>,
 }
 
 /// Samples per level frame.
@@ -88,52 +88,6 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
 
     let f = frame();
     let secs_of = |samples: usize| samples as f64 / RATE as f64;
-    let said = |s: (usize, usize)| (s.1.saturating_sub(s.0)) as f64 * FRAME_SECS >= SAID_SECS;
-    let mut takes = Vec::new();
-    let mut parts = Vec::new();
-    for (i, s) in sentences.iter().enumerate() {
-        let span = spans[i];
-        let take_id = format!("{id}-{i}");
-        let sound = said(span).then(|| match (&played, &heard, &originals) {
-            (Some(played), Some(heard), _) => along(played, &mine, heard[i], span),
-            (_, _, Some(originals)) => after(&originals[i], &mine, span),
-            _ => unreachable!("a reading either played the original or read it from the file"),
-        });
-        let Some((l, r, original_span, mine_span)) = sound else {
-            parts.push(ReadPart {
-                start: s.start,
-                end: s.end,
-                mine: (0.0, 0.0),
-                take: None,
-            });
-            continue;
-        };
-        let take = Take {
-            id: take_id.clone(),
-            created,
-            start: s.start,
-            end: s.end,
-            text: s.text.clone(),
-            mode: meta.mode,
-            rate: if played.is_some() { meta.rate } else { 1.0 },
-            duration: secs_of(l.len().max(r.len())),
-            original: original_span,
-            mine: mine_span,
-            lag_ms,
-            peaks: Peaks {
-                original: take::peaks(&l, PEAKS_PER_SEC),
-                mine: take::peaks(&r, PEAKS_PER_SEC),
-            },
-            group: Some(id.to_string()),
-        };
-        takes.push((take, (l, r)));
-        parts.push(ReadPart {
-            start: s.start,
-            end: s.end,
-            mine: (span.0 as f64 * FRAME_SECS, span.1 as f64 * FRAME_SECS),
-            take: Some(take_id),
-        });
-    }
 
     // The whole reading, from the first voice (yours or the original's) to the last.
     let first = spans
@@ -149,10 +103,10 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
     let a = (h0 * f).saturating_sub(at(LEAD_SECS + MARGIN_SECS));
     let b = (h1 * f + at(TAIL_SECS + MARGIN_SECS)).min(mine.len());
     let mut whole_r = mine[a..b].to_vec();
-    let whole_l = played.as_ref().map_or_else(
-        || vec![0.0; b - a],
-        |p| p[a.min(p.len())..b.min(p.len())].to_vec(),
-    );
+    // 自己读 played nothing: the file keeps only you.
+    let whole_l = played
+        .as_ref()
+        .map_or_else(Vec::new, |p| p[a.min(p.len())..b.min(p.len())].to_vec());
     let reference: Vec<f32> = match &originals {
         Some(o) => o.concat(),
         None => whole_l.clone(),
@@ -167,11 +121,88 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
         &mut whole_r,
         voice,
     );
-    for p in &mut parts {
-        if p.take.is_some() {
-            p.mine = (p.mine.0 - secs_of(a), p.mine.1 - secs_of(a));
+
+    let said = |s: (usize, usize)| (s.1.saturating_sub(s.0)) as f64 * FRAME_SECS >= SAID_SECS;
+    let mut takes = Vec::new();
+    let mut parts = Vec::new();
+    for (i, s) in sentences.iter().enumerate() {
+        let span = spans[i];
+        if !said(span) {
+            parts.push(ReadPart {
+                start: s.start,
+                end: s.end,
+                mine: (0.0, 0.0),
+                take: None,
+            });
+            continue;
         }
+        let take_id = format!("{id}-{i}");
+        // 跟着原文读: a window onto the whole file (no copy). 自己读: its own file, the original from the track first.
+        let (source, duration, original_span, mine_span, peaks, sound) = match (&heard, &originals)
+        {
+            (Some(heard), _) => {
+                let (wa, wb, os, ms) = along(heard[i], span, (a, b));
+                let lane = |x: &[f32]| {
+                    take::peaks(
+                        &x[(wa - a).min(x.len())..(wb - a).min(x.len())],
+                        PEAKS_PER_SEC,
+                    )
+                };
+                let source = Source {
+                    reading: id.to_string(),
+                    from: secs_of(wa - a),
+                };
+                let peaks = Peaks {
+                    original: lane(&whole_l),
+                    mine: lane(&whole_r),
+                };
+                (Some(source), secs_of(wb - wa), os, ms, peaks, None)
+            }
+            (_, Some(originals)) => {
+                let (l, r, os, ms) = after(&originals[i], &mine, span);
+                let peaks = Peaks {
+                    original: take::peaks(&l, PEAKS_PER_SEC),
+                    mine: take::peaks(&r, PEAKS_PER_SEC),
+                };
+                (
+                    None,
+                    secs_of(l.len().max(r.len())),
+                    os,
+                    ms,
+                    peaks,
+                    Some((l, r)),
+                )
+            }
+            _ => unreachable!("a reading either played the original or read it from the file"),
+        };
+        let take = Take {
+            id: take_id.clone(),
+            created,
+            start: s.start,
+            end: s.end,
+            text: s.text.clone(),
+            mode: meta.mode,
+            rate: if played.is_some() { meta.rate } else { 1.0 },
+            duration,
+            original: original_span,
+            mine: mine_span,
+            lag_ms,
+            peaks,
+            group: Some(id.to_string()),
+            source,
+        };
+        takes.push((take, sound));
+        parts.push(ReadPart {
+            start: s.start,
+            end: s.end,
+            mine: (
+                secs_of(span.0 * f) - secs_of(a),
+                secs_of(span.1 * f) - secs_of(a),
+            ),
+            take: Some(take_id),
+        });
     }
+
     let original_secs = match &originals {
         // From the first sentence's start to the last's end, pauses included, as yours is.
         Some(_) => sentences[read - 1].end - sentences[0].start,
@@ -200,24 +231,26 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
 
 const NOTHING: &str = "没听到你的声音，再试一次？";
 
-/// (left, right, original span, your span) of a sentence shadowed along the original.
-type Piece = (Vec<f32>, Vec<f32>, (f64, f64), (f64, f64));
-
-fn along(played: &[f32], mine: &[f32], heard: (usize, usize), span: (usize, usize)) -> Piece {
+/// A sentence shadowed along the original: its window in the session's
+/// samples (within the whole file's `whole`), and where the original and you
+/// are in that window (seconds).
+fn along(
+    heard: (usize, usize),
+    span: (usize, usize),
+    whole: (usize, usize),
+) -> (usize, usize, (f64, f64), (f64, f64)) {
     let f = frame();
-    let a = (heard.0.min(span.0) * f).saturating_sub(at(LEAD_SECS + MARGIN_SECS));
-    let b = (heard.1.max(span.1) * f + at(TAIL_SECS + MARGIN_SECS))
-        .min(mine.len())
-        .min(played.len());
+    let a = (heard.0.min(span.0) * f)
+        .saturating_sub(at(LEAD_SECS + MARGIN_SECS))
+        .max(whole.0);
+    let b = (heard.1.max(span.1) * f + at(TAIL_SECS + MARGIN_SECS)).min(whole.1);
     let rel = |frames: usize| (frames * f).saturating_sub(a) as f64 / RATE as f64;
-    let (l, mut r) = (played[a..b].to_vec(), mine[a..b].to_vec());
-    let os = (rel(heard.0), rel(heard.1));
+    let os = (rel(heard.0), rel(heard.1).min((b - a) as f64 / RATE as f64));
     let ms = (
         (rel(span.0) - LEAD_SECS).max(0.0),
         (rel(span.1) + TAIL_SECS).min((b - a) as f64 / RATE as f64),
     );
-    take::match_level(&l, os, &mut r, ms);
-    (l, r, os, ms)
+    (a, b.max(a), os, ms)
 }
 
 /// A sentence read on your own: laid out like 听完再说, the original first, then you.
@@ -225,18 +258,7 @@ fn after(original: &[f32], mine: &[f32], span: (usize, usize)) -> Piece {
     let f = frame();
     let from = (span.0 * f).saturating_sub(at(LEAD_SECS));
     let to = (span.1 * f + at(TAIL_SECS)).min(mine.len());
-    let voice = &mine[from..to];
-    let lead = at(MARGIN_SECS);
-    let you = lead + original.len() + at(GAP_SECS);
-    let mut l = vec![0.0; you + voice.len()];
-    l[lead..lead + original.len()].copy_from_slice(original);
-    let mut r = vec![0.0; you + voice.len()];
-    r[you..].copy_from_slice(voice);
-    let secs = |n: usize| n as f64 / RATE as f64;
-    let os = (secs(lead), secs(lead + original.len()));
-    let ms = (secs(you), secs(you + voice.len()));
-    take::match_level(&l, os, &mut r, ms);
-    (l, r, os, ms)
+    take::turns(original, &mine[from..to])
 }
 
 #[cfg(test)]
