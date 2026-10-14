@@ -1,5 +1,6 @@
 use super::*;
 use crate::audio::tap::Mark;
+use crate::record::follow::Followed;
 use crate::record::Sentence;
 use crate::transcribe::pcm::Pcm16k;
 use std::path::PathBuf;
@@ -49,17 +50,16 @@ fn raw(mic: Vec<f32>, marks: Vec<Mark>, played: Vec<f32>) -> Raw {
         marks,
         played,
         turn: 0,
-        hints: vec![],
+        followed: None,
     }
 }
 
-#[test]
-fn reading_on_your_own_is_cut_into_its_sentences() {
-    // Three stretches of the sample's speech "read" with pauses between them, quieter than the original.
-    let spans = [(1.0, 3.0), (3.0, 4.5), (4.5, 7.0)];
+/// Stretches of the sample's speech "read" with pauses between them, quieter
+/// than the original: the mic, and where the voice is in it (seconds).
+fn read_aloud(spans: &[(f64, f64)]) -> (Vec<f32>, Vec<(f64, f64)>) {
     let mut mic = vec![0.0f32; MIC as usize / 2];
     let mut said = Vec::new();
-    for &(a, b) in &spans {
+    for &(a, b) in spans {
         let start = mic.len();
         mic.extend(speech(a, b, MIC).iter().map(|v| v * 0.4));
         said.push((start as f64 / MIC as f64, mic.len() as f64 / MIC as f64));
@@ -71,7 +71,7 @@ fn reading_on_your_own_is_cut_into_its_sentences() {
         .for_each(|(i, v)| *v += ((i * 7919) % 200) as f32 * 1e-6);
     // The sample has its own quiet at the edges of these stretches: expect the voice, not the stretch.
     let voiced = vad::voiced(&take::levels(&convert(&mic, MIC, RATE)));
-    let said: Vec<(f64, f64)> = said
+    let said = said
         .iter()
         .map(|&(a, b)| {
             let (fa, fb) = ((a / FRAME_SECS) as usize, (b / FRAME_SECS) as usize);
@@ -80,6 +80,46 @@ fn reading_on_your_own_is_cut_into_its_sentences() {
             (first as f64 * FRAME_SECS, last as f64 * FRAME_SECS)
         })
         .collect();
+    (mic, said)
+}
+
+#[test]
+fn stopping_early_cuts_only_the_sentences_read() {
+    // Three sentences; the reader stopped after two (the highlight on the third, not started).
+    let spans = [(1.0, 3.0), (3.0, 4.5), (4.5, 7.0)];
+    let (mic, said) = read_aloud(&spans[..2]);
+    let mut raw = raw(mic, vec![], vec![]);
+    raw.followed = Some(Followed {
+        hints: vec![None, None],
+        reached: 2,
+    });
+    let built = build(&raw, &meta(Mode::Read, &spans), &sample(), "r", 5).unwrap();
+    assert_eq!(built.takes.len(), 2);
+    let parts = &built.reading.parts;
+    assert_eq!(parts.len(), 3);
+    assert_eq!(parts[2].take, None, "the third wasn't read");
+    let off = said[0].0 - LEAD_SECS - MARGIN_SECS;
+    for i in 0..2 {
+        assert!(
+            (parts[i].mine.0 + off - said[i].0).abs() < 0.05,
+            "{i}: {:?}",
+            parts[i].mine
+        );
+        assert!(
+            (parts[i].mine.1 + off - said[i].1).abs() < 0.05,
+            "{i}: {:?}",
+            parts[i].mine
+        );
+    }
+    // The original's time for what was read: the first two sentences.
+    assert!((built.reading.original_secs - 3.5).abs() < 1e-9);
+}
+
+#[test]
+fn reading_on_your_own_is_cut_into_its_sentences() {
+    // Three stretches of the sample's speech "read" with pauses between them, quieter than the original.
+    let spans = [(1.0, 3.0), (3.0, 4.5), (4.5, 7.0)];
+    let (mic, said) = read_aloud(&spans);
     let built = build(
         &raw(mic, vec![], vec![]),
         &meta(Mode::Read, &spans),

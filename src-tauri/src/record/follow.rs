@@ -2,17 +2,26 @@
 //! from your voice alone. A sentence ends at a pause once you've said enough
 //! of it — "enough" from the original's length for that sentence, scaled by
 //! how your pace has compared so far. The highlight follows; the take is split
-//! properly afterwards (`segment.rs`), so a wrong guess here only moves the
-//! highlight early or late.
+//! properly afterwards (`segment.rs`), with where the highlight moved as hints
+//! and how far it got as the sentences read.
 
 use super::vad::FRAME_SECS;
 
-/// A pause this long can end a sentence…
+/// A pause this long ends a sentence once most of it has been said…
 const PAUSE_SECS: f64 = 0.3;
-/// …once at least this share of its expected length has been said.
-const ENOUGH: f64 = 0.5;
+const MOST: f64 = 0.75;
+/// …and only a longer one when just half has (a breath inside a long sentence is shorter).
+const LONG_PAUSE_SECS: f64 = 0.6;
+const HALF: f64 = 0.5;
+/// Shortest sentence said (a "はい").
+const SHORTEST_SECS: f64 = 0.2;
+/// A sentence's time in the original keeps some quiet at its edges.
+const EDGES_SECS: f64 = 0.2;
 /// After the last sentence, this much quiet finishes the reading.
 const END_SECS: f64 = 1.5;
+/// One sentence moves your pace by at most this factor either way, so a wrong
+/// move doesn't make the next ones wrong too.
+const PACE_STEP: (f64, f64) = (0.75, 1.5);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Step {
@@ -22,10 +31,21 @@ pub enum Step {
     Done,
 }
 
+/// What the highlight did, for splitting the reading afterwards.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Followed {
+    /// Per boundary (between sentence k and k + 1): the level frame the
+    /// highlight last moved across it; none if it didn't, or went back over it.
+    pub hints: Vec<Option<usize>>,
+    /// Sentences read: those before the highlight, and the one it's on once you'd started it.
+    pub reached: usize,
+}
+
 pub struct Follow {
     /// Seconds each sentence takes in the original.
     expected: Vec<f64>,
     pub current: usize,
+    hints: Vec<Option<usize>>,
     /// Frame the current sentence's first voice was heard.
     begun: Option<usize>,
     voiced: usize,
@@ -42,7 +62,12 @@ fn frames(secs: f64) -> usize {
 
 impl Follow {
     pub fn new(expected: Vec<f64>) -> Self {
+        let expected = expected
+            .into_iter()
+            .map(|e| (e - EDGES_SECS).max(SHORTEST_SECS))
+            .collect::<Vec<_>>();
         Self {
+            hints: vec![None; expected.len().saturating_sub(1)],
             expected,
             current: 0,
             begun: None,
@@ -78,96 +103,64 @@ impl Follow {
         let begun = self.begun?;
         let spoken = (at + 1 - self.silent - begun) as f64 * FRAME_SECS;
         let expected = self.expected.get(self.current).copied().unwrap_or(1.0);
-        let enough =
-            spoken >= (ENOUGH * expected * self.pace()).max(0.35) && self.voiced >= frames(0.2);
+        let share = |s: f64| (s * expected * self.pace()).max(SHORTEST_SECS);
+        let pause = if spoken >= share(MOST) {
+            PAUSE_SECS
+        } else if spoken >= share(HALF) {
+            LONG_PAUSE_SECS
+        } else {
+            return None;
+        };
+        if self.voiced < frames(SHORTEST_SECS) {
+            return None;
+        }
         let last = self.current + 1 >= self.expected.len();
         if last {
-            if enough && self.silent >= frames(END_SECS) {
+            if self.silent >= frames(END_SECS) {
                 self.finished = true;
                 return Some(Step::Done);
             }
             return None;
         }
-        if enough && self.silent >= frames(PAUSE_SECS) {
-            self.said += spoken;
+        if self.silent >= frames(pause) {
+            self.said += spoken.clamp(PACE_STEP.0 * expected, PACE_STEP.1 * expected);
             self.meant += expected;
-            return Some(self.go(self.current + 1));
+            return Some(self.go(self.current + 1, at));
         }
         None
     }
 
-    /// Moves to sentence `to` by hand (] / [ while reading).
-    pub fn jump(&mut self, to: usize) -> Option<Step> {
+    /// Moves to sentence `to` by hand (] / [ while reading) at frame `at`.
+    pub fn jump(&mut self, to: usize, at: usize) -> Option<Step> {
         let to = to.min(self.expected.len().saturating_sub(1));
-        (to != self.current).then(|| self.go(to))
+        (to != self.current).then(|| self.go(to, at))
     }
 
-    fn go(&mut self, to: usize) -> Step {
+    fn go(&mut self, to: usize, at: usize) -> Step {
+        if to > self.current {
+            self.hints[to - 1] = Some(at);
+        } else {
+            self.hints[to..].iter_mut().for_each(|h| *h = None);
+        }
         self.current = to;
         self.begun = None;
         self.voiced = 0;
         Step::Next(to)
     }
+
+    pub fn followed(&self) -> Followed {
+        let reached = if self.finished {
+            self.expected.len()
+        } else {
+            self.current + usize::from(self.begun.is_some())
+        };
+        Followed {
+            hints: self.hints.clone(),
+            reached: reached.min(self.expected.len()),
+        }
+    }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Feeds speech (true) and pause (false) stretches, in seconds; returns the steps and the frames they came at.
-    fn read(f: &mut Follow, parts: &[(bool, f64)]) -> Vec<(usize, Step)> {
-        let mut at = 0;
-        let mut out = Vec::new();
-        for &(voiced, secs) in parts {
-            for _ in 0..frames(secs) {
-                if let Some(s) = f.frame(at, voiced) {
-                    out.push((at, s));
-                }
-                at += 1;
-            }
-        }
-        out
-    }
-
-    #[test]
-    fn follows_sentence_ends_but_not_short_pauses_inside() {
-        let mut f = Follow::new(vec![2.0, 1.0, 2.0]);
-        let steps = read(
-            &mut f,
-            &[
-                (false, 0.5),
-                (true, 0.6), // a breath inside the first sentence: not enough said yet
-                (false, 0.4),
-                (true, 1.3),
-                (false, 0.5), // the end of the first
-                (true, 1.0),
-                (false, 0.4),
-                (true, 2.1),
-                (false, 2.0),
-            ],
-        );
-        let kinds: Vec<Step> = steps.iter().map(|s| s.1).collect();
-        assert_eq!(kinds, [Step::Next(1), Step::Next(2), Step::Done]);
-        // The first move comes 0.3 s into the pause after "1.3 s" of speech (at 2.8 s + 0.3 s).
-        assert_eq!(steps[0].0, frames(3.1) - 1);
-    }
-
-    #[test]
-    fn a_slow_reader_is_given_more_time() {
-        let mut f = Follow::new(vec![1.0, 1.0, 1.0]);
-        read(&mut f, &[(true, 1.6), (false, 0.4)]);
-        assert_eq!(f.current, 1);
-        assert!((f.pace() - 1.6).abs() < 0.05);
-        // 0.7 s then a pause: at 1.6× pace half the sentence is 0.8 s, so not yet.
-        let steps = read(&mut f, &[(true, 0.7), (false, 0.4)]);
-        assert!(steps.is_empty());
-    }
-
-    #[test]
-    fn jumping_by_hand() {
-        let mut f = Follow::new(vec![1.0, 1.0, 1.0]);
-        assert_eq!(f.jump(2), Some(Step::Next(2)));
-        assert_eq!(f.jump(9), None, "already on the last");
-        assert_eq!(f.jump(1), Some(Step::Next(1)));
-    }
-}
+#[path = "follow_tests.rs"]
+mod tests;

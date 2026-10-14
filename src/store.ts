@@ -234,7 +234,7 @@ export const useApp = create<AppState>((set, get) => {
       get().cancelTake();
       get().cancelReading();
       engine.unload();
-      set({ takes: [], readings: [], recordAt: null, folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, practicing: false });
+      set({ takes: [], readings: [], rec: null, live: null, recordAt: null, folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, practicing: false });
       if (!get().guide.welcomed) get().saveGuide({ welcomed: true });
     },
 
@@ -252,7 +252,7 @@ export const useApp = create<AppState>((set, get) => {
       // Picking one of your own tracks ends the practice on the sample.
       if (get().practicing && track.path !== get().sample?.path) set({ practicing: false });
       const start = resumePosition(get().progress[track.path]);
-      set({ current: track, time: start, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, trackMs: 0 });
+      set({ rec: null, live: null, current: track, time: start, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, trackMs: 0 });
       void get().refreshToday();
       void get().loadTranscript(track.path);
       void get().loadTakes(track.path);

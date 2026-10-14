@@ -2,15 +2,15 @@
 // once (听完再说: then it's your turn; 边听边说: you speak over it) → Rust says
 // when you've stopped → the take is kept and, by default, played back against
 // the original. Works without headphones: Rust takes the original out of the mic.
-// Playing a take back goes on to the next recorded sentence, the same way
-// (一起听 / 对比 / 原句 / 我的), so a whole text can be listened through.
+// Playing takes back is in takePlayback.ts.
 import { listen } from "@tauri-apps/api/event";
 import type { AudioEngine } from "./audio/engine";
 import { isLoopActive } from "./audio/logic";
-import { api, type ClipPart, type RecordMode, type Settings, type Take, type TakePart } from "./lib/api";
+import { api, type RecordMode, type Settings, type Take } from "./lib/api";
 import { sentenceIndexAt } from "./lib/sentences";
-import { comparePart, nextTake, sentenceOf, takesFor } from "./lib/takes";
+import { comparePart, takesFor } from "./lib/takes";
 import type { AppState } from "./store";
+import { createTakePlayback, type TakePlayback } from "./takePlayback";
 
 /** Where the recorder is: under a sentence, or (without a transcript) the A–B loop. */
 export type RecordAt = number | "loop";
@@ -32,18 +32,7 @@ export interface Rec {
   mic: string;
 }
 
-export interface PlayingTake {
-  id: string;
-  what: TakePart;
-  /** At its end, go on to the next recorded sentence (not after a fresh recording's replay). */
-  chain: boolean;
-  clip: number;
-  parts: ClipPart[];
-  duration: number;
-  secs: number;
-}
-
-export interface RecordState {
+export interface RecordState extends TakePlayback {
   /** Takes of the open track. */
   takes: Take[];
   /** Where the recorder card is open. */
@@ -52,7 +41,6 @@ export interface RecordState {
   recError: string | null;
   /** The take shown in the card (null: the newest there). */
   shownTake: string | null;
-  playingTake: PlayingTake | null;
 
   loadTakes(path: string): Promise<void>;
   /** Opens or closes the card (default: the current sentence); with no takes there yet it starts one. */
@@ -64,23 +52,18 @@ export interface RecordState {
   cancelTake(): void;
   /** Space while recording: skip the rest of the original, or finish. */
   advanceTake(): void;
-  /** Plays a take, then (`chain`, the default) each recorded sentence after it the same way. */
-  playTake(id: string, what: TakePart, chain?: boolean): Promise<void>;
   /** P: your last take here against the original (or stop it). */
   replayTake(): void;
-  stopTake(): void;
   deleteTake(id: string): Promise<void>;
   showTake(id: string): void;
   setRecordMode(mode: RecordMode): void;
   setRecordReplay(on: boolean): void;
   /** The track paused (a range played to its end, or anything else). */
   playbackStopped(): void;
-  /** The track started playing: a take playing, or about to, gives way to it. */
-  trackPlaying(): void;
 }
 
-type Get = () => AppState;
-type Set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)) => void;
+export type Get = () => AppState;
+export type Set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)) => void;
 
 const LEVELS_KEPT = 48;
 
@@ -108,46 +91,16 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
     if (!rec || rec.phase === "saving") return;
     patchRec({ levels: [...rec.levels, payload.level].slice(-LEVELS_KEPT), secs: payload.secs });
   });
-  void listen("recorder:auto", () => {
-    if (get().rec?.phase === "speaking") void get().finishTake();
+  void listen<"pause" | "nothing" | "long">("recorder:auto", ({ payload }) => {
+    const phase = get().rec?.phase;
+    // Too long: Rust has closed the mic, whatever the take was doing.
+    if (phase === "speaking" || (payload === "long" && phase === "listening")) void get().finishTake();
   });
   void listen<string>("recorder:error", ({ payload }) => {
     if (!get().rec) return;
     get().cancelTake();
     set({ recError: payload });
   });
-  void listen<{ clip: number; secs: number; playing: boolean; ended: boolean }>("recorder:clip", ({ payload }) => {
-    const p = get().playingTake;
-    if (!p || p.clip !== payload.clip) return;
-    set({ playingTake: payload.playing ? { ...p, secs: payload.secs } : null });
-    // Only a take that played to its end goes on; playing the track stops it short.
-    if (payload.ended && p.chain) playOn(p);
-  });
-
-  /** Bumped by every play and stop; `stoppedAt` is the bump of the last stop. A play
-   *  that was stopped while it started is stopped once it has (`resume`: by playing
-   *  the track, which it paused); one that another play took over from is left to it. */
-  let playing = 0;
-  let stoppedAt = -1;
-  let resume = false;
-
-  /**
-   * A take played to its end: the next recorded sentence, the same way. Its
-   * card, left behind, closes; the track moves along (unless looping), so
-   * stopping leaves you on the sentence you got to.
-   */
-  function playOn(p: PlayingTake) {
-    const s = get();
-    const sentences = s.transcript?.sentences ?? [];
-    const take = s.takes.find((t) => t.id === p.id);
-    const from = take ? sentenceOf(take, sentences) : -1;
-    const next = from < 0 ? null : nextTake(s.takes, sentences, from, take?.group);
-    if (!next || s.rec || s.live) return;
-    if (s.recordAt === from) set({ recordAt: null, recError: null });
-    if (!isLoopActive(s.loop)) get().seek(sentences[next.index].start);
-    void get().playTake(next.take.id, p.what);
-  }
-
   /** Default place: the looped / current sentence, else the A–B loop. */
   function here(): RecordAt | null {
     const s = get();
@@ -157,12 +110,12 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
   }
 
   return {
+    ...createTakePlayback(set, get, engine),
     takes: [],
     recordAt: null,
     rec: null,
     recError: null,
     shownTake: null,
-    playingTake: null,
 
     async loadTakes(path) {
       set({ takes: [], recordAt: null, shownTake: null, recError: null });
@@ -212,7 +165,7 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
 
     playbackStopped() {
       const rec = get().rec;
-      if (!rec || !(rec.phase === "listening" || rec.along)) return;
+      if (!rec || rec.phase === "saving" || !(rec.phase === "listening" || rec.along)) return;
       patchRec({ phase: "speaking", along: false });
       void api.record.turn();
     },
@@ -226,42 +179,28 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
 
     async finishTake() {
       const rec = get().rec;
+      const path = get().current?.path;
       if (!rec || rec.phase === "saving" || rec.phase === "starting") return;
       if (!engine.paused) engine.pause();
       patchRec({ phase: "saving" });
+      // Saved for the track it was recorded on; if you've gone to another, it's there when you're back.
+      const still = () => get().rec?.phase === "saving" && get().current?.path === path;
       try {
         const take = (await api.record.finish()).takes[0];
+        if (!still()) return;
         set((s) => ({ rec: null, takes: take ? [...s.takes, take] : s.takes, shownTake: take?.id ?? null }));
         if (take && get().settings.recordReplay) void get().playTake(take.id, comparePart(take), false);
       } catch (e) {
-        set({ rec: null, recError: String(e) });
+        if (still()) set({ rec: null, recError: String(e) });
       }
     },
 
     cancelTake() {
-      if (!get().rec) return;
+      // Once saving, Rust has the take: it can't be called back (leaving the track clears it, `open`).
+      if (!get().rec || get().rec?.phase === "saving") return;
       if (!engine.paused) engine.pause();
       set({ rec: null });
       void api.record.cancel();
-    },
-
-    async playTake(id, what, chain = true) {
-      const path = get().current?.path;
-      if (!path || get().rec) return;
-      const mine = ++playing;
-      // Playing from now (clip −1 until it starts): the list moves to its sentence
-      // without a gap, and the end of the clip it replaces isn't one to go on from.
-      set({ playingTake: { id, what, chain, clip: -1, parts: [], duration: 0, secs: 0 }, shownTake: id, recError: null });
-      try {
-        const p = await api.record.play(path, id, what);
-        if (mine !== playing) {
-          if (stoppedAt === playing) void (resume ? engine.play() : api.record.stop());
-          return;
-        }
-        set({ playingTake: { id, what, chain, ...p, secs: 0 } });
-      } catch (e) {
-        if (mine === playing) set({ playingTake: null, recError: String(e) });
-      }
     },
 
     replayTake() {
@@ -273,23 +212,6 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       if (!take) return;
       set({ recordAt: where });
       void get().playTake(take.id, comparePart(take));
-    },
-
-    stopTake() {
-      stoppedAt = ++playing;
-      resume = false;
-      if (!get().playingTake) return;
-      set({ playingTake: null });
-      void api.record.stop();
-    },
-
-    trackPlaying() {
-      const p = get().playingTake;
-      if (!p) return;
-      // The engine has stopped the clip already; one still starting pauses the track, so play it again then.
-      stoppedAt = ++playing;
-      resume = p.clip === -1;
-      set({ playingTake: null });
     },
 
     async deleteTake(id) {

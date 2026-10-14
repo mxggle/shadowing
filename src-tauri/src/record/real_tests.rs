@@ -85,7 +85,7 @@ fn real_record_echo() {
         mic_rate: mic.rate,
         marks,
         played,
-        hints: vec![],
+        followed: None,
     };
     let mic32 = take::convert(&raw.mic, raw.mic_rate, RATE);
     let secs = raw.mic.len() as f64 / raw.mic_rate as f64;

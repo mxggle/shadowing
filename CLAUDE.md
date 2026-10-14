@@ -18,7 +18,7 @@ src/                      前端
   audio/logic.ts          纯函数规则（循环、恢复位置、速度），有单元测试
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，改字幕在 correctSlice.ts，
                           AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts，
-                          学习记录与每日目标在 practiceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts，整段录音在 readingSlice.ts）
+                          学习记录与每日目标在 practiceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts）
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句），有单元测试
   lib/sections.ts         对话段落规则（分段、合并、改名、整段循环、{ } 换段），有单元测试
   lib/edits.ts            改字幕的规则（改动取整词、查找匹配、全部替换），有单元测试
@@ -54,7 +54,7 @@ src-tauri/src/
                           echo.rs 去掉录进来的原声（整段估计喇叭到麦克风的路径再减掉，剩下的按频率压低）、
                           take.rs 对齐、裁剪、音量、跟读延迟，saved.rs 存在 app data 的 recordings/（每次一个立体声 WAV：
                           左原句、右你，加 takes.json），playback.rs 回放（引擎的 clip）；
-                          整段：follow.rs 自己读时跟踪读到哪一句、segment.rs 读完按停顿 / 原文时间拆句、original.rs 从音频切出每句原文、
+                          整段：follow.rs 自己读时跟踪读到哪一句（也记下高亮在每个句界移动的位置、读到了第几句）、segment.rs 读完按停顿 / 原文时间拆句、original.rs 从音频切出每句原文、
                           reading.rs 拼成整段 + 每句一条录音、replay.rs 整段回放（我的整段 / 一起听 / 逐句对比）
   explain/                解释这一句：把一句（带前后几句）发给「句子解释」的模型，reply.rs 只留下译文、生词、语法点并封顶，saved.rs 把答案存在 app data 的 explanations/（句子被改过就作废）
   proofread/              AI 校对：把字幕（没把握的字用〔〕标出）发给「句子解释」的模型，reply.rs 只留下能精确套用的小改动

@@ -13,8 +13,9 @@ use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::thread;
 use std::time::{Duration, Instant};
 
-/// Longest take, whatever happens; a paragraph may be long.
-const MAX_TAKE_SECS: f64 = 120.0;
+/// Longest take, whatever happens: the mic closes then. A sentence's (or an
+/// A–B loop's) takes its own length a few times over; a paragraph may be long.
+const MAX_TAKE_SECS: (f64, f64) = (120.0, 600.0);
 const MAX_PARAGRAPH_SECS: f64 = 600.0;
 /// A microphone that delivers only exact zeros this long is blocked (no permission).
 const SILENT_MIC_SECS: f64 = 1.5;
@@ -50,11 +51,12 @@ impl Plan {
             };
             (expected, rules(meta))
         });
+        let said = (meta.end - meta.start).max(0.0) / meta.rate.clamp(0.5, 2.0);
         Self {
             max_secs: if paragraph {
                 MAX_PARAGRAPH_SECS
             } else {
-                MAX_TAKE_SECS
+                (said * 3.0 + 30.0).clamp(MAX_TAKE_SECS.0, MAX_TAKE_SECS.1)
             },
             follow,
         }
@@ -90,7 +92,7 @@ pub fn run(
     let (mut marks, mut played) = (Vec::new(), Vec::new());
     let (mut turn, mut rules_now, mut stopped) = (None::<usize>, None::<Rules>, false);
     let (mut last_emit, mut loudest, mut sound) = (Instant::now(), f32::MIN, false);
-    let (mut follow, mut hints, mut threshold) = (None::<Follow>, Vec::new(), vad::threshold(&[]));
+    let (mut follow, mut threshold) = (None::<Follow>, vad::threshold(&[]));
     if let Some((expected, r)) = plan.follow {
         follow = Some(Follow::new(expected));
         turn = Some(0);
@@ -106,8 +108,7 @@ pub fn run(
             Ok(Msg::Step(by)) => {
                 if let Some(f) = follow.as_mut() {
                     let to = (f.current as i64 + by as i64).max(0) as usize;
-                    if let Some(Step::Next(i)) = f.jump(to) {
-                        hints.push(levels.len());
+                    if let Some(Step::Next(i)) = f.jump(to, levels.len()) {
                         out.sentence(i);
                     }
                 }
@@ -123,7 +124,9 @@ pub fn run(
             marks.push(m);
         }
         while let Ok(v) = tap_rx.samples.pop() {
-            played.push(v);
+            if follow.is_none() {
+                played.push(v); // reading on your own, nothing is played
+            }
         }
         while (levels.len() + 1) * frame <= buf.len() {
             let at = levels.len();
@@ -134,10 +137,7 @@ pub fn run(
                 threshold = vad::threshold(&levels);
             }
             match follow.as_mut().and_then(|f| f.frame(at, l > threshold)) {
-                Some(Step::Next(i)) => {
-                    hints.push(at);
-                    out.sentence(i);
-                }
+                Some(Step::Next(i)) => out.sentence(i),
                 Some(Step::Done) if !stopped => {
                     stopped = true;
                     out.auto(Stop::Pause);
@@ -155,9 +155,12 @@ pub fn run(
             out.error(e);
             break;
         }
+        if secs > plan.max_secs {
+            out.auto(Stop::Long);
+            break;
+        }
         let stop = match (turn, rules_now) {
-            _ if secs > plan.max_secs => Some(Stop::Long),
-            (Some(t), Some(r)) => vad::verdict(&levels, t, &r),
+            (Some(t), Some(r)) => vad::verdict(&levels, t, &r, threshold),
             _ => None,
         };
         if let Some(stop) = stop.filter(|_| !stopped) {
@@ -184,7 +187,7 @@ pub fn run(
             mic_rate: mic.rate,
             marks,
             played,
-            hints,
+            followed: follow.map(|f| f.followed()),
         }),
     });
 }

@@ -156,11 +156,15 @@ export function createReadingSlice(set: Set, get: Get, engine: AudioEngine, pers
 
     async finishReading() {
       const live = get().live;
+      const path = get().current?.path;
       if (!live || live.phase !== "reading") return;
       if (!engine.paused) engine.pause();
       patch({ phase: "saving" });
+      // Saved for the track it was read on; if you've gone to another, it's there when you're back.
+      const still = () => get().live?.phase === "saving" && get().current?.path === path;
       try {
         const done = await api.record.finish();
+        if (!still()) return;
         const reading = done.reading;
         set((s) => ({
           live: null,
@@ -169,12 +173,13 @@ export function createReadingSlice(set: Set, get: Get, engine: AudioEngine, pers
           shownReading: reading?.id ?? null,
         }));
       } catch (e) {
-        set({ live: null, readingError: String(e) });
+        if (still()) set({ live: null, readingError: String(e) });
       }
     },
 
     cancelReading() {
-      if (!get().live) return;
+      // Once saving, Rust has the reading: it can't be called back (leaving the track clears it, `open`).
+      if (!get().live || get().live?.phase === "saving") return;
       if (!engine.paused) engine.pause();
       set({ live: null });
       void api.record.cancel();

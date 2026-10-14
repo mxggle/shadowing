@@ -4,6 +4,7 @@
 //! original as you heard it (speed included), right is you, in step.
 
 use super::echo;
+use super::follow::Followed;
 use super::vad::{self, FRAME_SECS};
 use crate::audio::resample::Resampler;
 use crate::audio::tap::Mark;
@@ -41,8 +42,8 @@ pub struct Raw {
     pub played: Vec<f32>,
     /// Mic sample at which your turn began (the original had finished).
     pub turn: usize,
-    /// Reading a paragraph on your own: level frames where the highlight moved on.
-    pub hints: Vec<usize>,
+    /// Reading a paragraph on your own: what the live highlight did.
+    pub followed: Option<Followed>,
 }
 
 pub struct Built {

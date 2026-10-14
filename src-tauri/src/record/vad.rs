@@ -57,14 +57,14 @@ pub fn threshold(levels: &[f32]) -> f32 {
     (floor(levels) + ABOVE_FLOOR_DB).max(QUIETEST_DB)
 }
 
-/// Whether the take should stop, given every frame level so far and the frame your turn began at.
-pub fn verdict(levels: &[f32], turn: usize, rules: &Rules) -> Option<Stop> {
+/// Whether the take should stop, given every frame level so far, the frame your
+/// turn began at and the speech threshold (`threshold` of the levels, kept up to date by the caller).
+pub fn verdict(levels: &[f32], turn: usize, rules: &Rules, thr: f32) -> Option<Stop> {
     let since = levels.len().saturating_sub(turn);
     let secs = |frames: usize| frames as f64 * FRAME_SECS;
     if secs(since) >= rules.max_secs {
         return Some(Stop::Long);
     }
-    let thr = threshold(levels);
     let start = (turn + if rules.speaking { 0 } else { ECHO_TAIL_FRAMES }).min(levels.len());
     let turn_levels = &levels[start..];
     let voiced = turn_levels.iter().filter(|&&l| l > thr).count();
@@ -119,25 +119,36 @@ mod tests {
     fn stops_after_a_pause_in_speech() {
         let levels = take(300, 50..150);
         assert_eq!(
-            verdict(&levels[..200], 0, &LISTEN),
+            verdict(&levels[..200], 0, &LISTEN, threshold(&levels[..200])),
             None,
             "0.5 s of quiet is a breath"
         );
-        assert_eq!(verdict(&levels[..235], 0, &LISTEN), Some(Stop::Pause));
+        assert_eq!(
+            verdict(&levels[..235], 0, &LISTEN, threshold(&levels[..235])),
+            Some(Stop::Pause)
+        );
     }
 
     #[test]
     fn a_click_is_not_speech() {
         let levels = take(300, 50..55);
-        assert_eq!(verdict(&levels, 0, &LISTEN), None);
-        assert_eq!(verdict(&take(500, 50..55), 0, &LISTEN), Some(Stop::Nothing));
+        assert_eq!(verdict(&levels, 0, &LISTEN, threshold(&levels)), None);
+        let blip = take(500, 50..55);
+        assert_eq!(
+            verdict(&blip, 0, &LISTEN, threshold(&blip)),
+            Some(Stop::Nothing)
+        );
     }
 
     #[test]
     fn the_originals_echo_right_after_the_turn_is_ignored() {
         // Loud for the first 100 ms of the turn (the room), then nothing.
         let levels = take(200, 100..110);
-        assert_eq!(verdict(&levels, 100, &LISTEN), None, "not taken for speech");
+        assert_eq!(
+            verdict(&levels, 100, &LISTEN, threshold(&levels)),
+            None,
+            "not taken for speech"
+        );
     }
 
     #[test]
@@ -148,8 +159,14 @@ mod tests {
             ..LISTEN
         };
         let levels = take(400, 0..230);
-        assert_eq!(verdict(&levels[..250], 200, &rules), None);
-        assert_eq!(verdict(&levels[..300], 200, &rules), Some(Stop::Pause));
+        assert_eq!(
+            verdict(&levels[..250], 200, &rules, threshold(&levels[..250])),
+            None
+        );
+        assert_eq!(
+            verdict(&levels[..300], 200, &rules, threshold(&levels[..300])),
+            Some(Stop::Pause)
+        );
     }
 
     #[test]
@@ -159,7 +176,10 @@ mod tests {
             ..LISTEN
         };
         let levels = take(400, 0..400);
-        assert_eq!(verdict(&levels, 150, &rules), Some(Stop::Long));
+        assert_eq!(
+            verdict(&levels, 150, &rules, threshold(&levels)),
+            Some(Stop::Long)
+        );
     }
 
     #[test]

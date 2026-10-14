@@ -69,9 +69,9 @@ fn spans(voiced: &[bool], bounds: &[usize], from: usize, to: usize) -> Spans {
         .collect()
 }
 
-/// 自己读: `expected` seconds per sentence in the original; `hints`, frames where
-/// the live highlight moved on (may be fewer than the boundaries).
-pub fn reading(voiced: &[bool], expected: &[f64], hints: &[usize]) -> Option<Spans> {
+/// 自己读: `expected` seconds per sentence in the original; `hints`, per
+/// boundary, the frame where the live highlight moved across it (if it did).
+pub fn reading(voiced: &[bool], expected: &[f64], hints: &[Option<usize>]) -> Option<Spans> {
     let from = voiced.iter().position(|&v| v)?;
     let to = voiced.iter().rposition(|&v| v)? + 1;
     let n = expected.len();
@@ -93,7 +93,9 @@ pub fn reading(voiced: &[bool], expected: &[f64], hints: &[usize]) -> Option<Spa
     let cost = |k: usize, c: &Pause| {
         let hint = hints
             .get(k)
-            .map_or(0.0, |&h| HINT * ((c.at as f64 - h as f64) / span).powi(2));
+            .copied()
+            .flatten()
+            .map_or(0.0, |h| HINT * ((c.at as f64 - h as f64) / span).powi(2));
         PLACE * (at(c) - share[k]).powi(2) - LONG * (c.len as f64 / PAUSE_FRAMES as f64).ln() + hint
     };
     let m = cands.len();
@@ -220,10 +222,30 @@ mod tests {
             (false, 0.4),
             (true, 1.0),
         ]);
-        let early = reading(&v, &[1.5, 1.5], &[120]).unwrap();
-        let late = reading(&v, &[1.5, 1.5], &[260]).unwrap();
+        let early = reading(&v, &[1.5, 1.5], &[Some(120)]).unwrap();
+        let late = reading(&v, &[1.5, 1.5], &[Some(260)]).unwrap();
         assert_eq!(early[0].1, 100);
         assert_eq!(late[0].1, 240);
+    }
+
+    #[test]
+    fn a_boundary_without_a_hint_doesnt_shift_the_others() {
+        // Four equal pauses for three boundaries; the hints say the first, (none), the last.
+        let v = take(&[
+            (true, 1.0),
+            (false, 0.4),
+            (true, 1.0),
+            (false, 0.4),
+            (true, 1.0),
+            (false, 0.4),
+            (true, 1.0),
+            (false, 0.4),
+            (true, 1.0),
+        ]);
+        let s = reading(&v, &[1.2, 1.2, 1.2, 1.2], &[Some(120), None, Some(540)]).unwrap();
+        let ends: Vec<usize> = s.iter().map(|s| s.1).collect();
+        assert_eq!(ends[0], 100);
+        assert_eq!(ends[2], 520, "the last hint is the third boundary's");
     }
 
     #[test]

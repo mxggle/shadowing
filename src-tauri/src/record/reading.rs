@@ -36,11 +36,21 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
     let secs = raw.mic.len() as f64 / raw.mic_rate.max(1) as f64;
     let sentences = &meta.sentences;
     let rate = meta.rate.clamp(0.5, 2.0);
+    // Reading on your own: only the sentences you got to (stopped early, the rest have no take).
+    let read = match (&meta.mode, &raw.followed) {
+        (Mode::Read, Some(f)) => f.reached.min(sentences.len()),
+        _ => sentences.len(),
+    };
+    if read == 0 {
+        return Err(NOTHING.into());
+    }
     let (played, mine, spans, heard, lag_ms) = match meta.mode {
         Mode::Read => {
             let voiced = vad::voiced(&take::levels(&mic));
-            let expected: Vec<f64> = sentences.iter().map(|s| s.end - s.start).collect();
-            let spans = segment::reading(&voiced, &expected, &raw.hints).ok_or(NOTHING)?;
+            let expected: Vec<f64> = sentences[..read].iter().map(|s| s.end - s.start).collect();
+            let hints = raw.followed.as_ref().map_or(&[][..], |f| &f.hints[..]);
+            let mut spans = segment::reading(&voiced, &expected, hints).ok_or(NOTHING)?;
+            spans.resize(sentences.len(), (0, 0));
             (None, mic, spans, None, None)
         }
         _ => {
@@ -69,7 +79,7 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
         Some(_) => None,
         None => Some(original::stretches(
             file,
-            &sentences
+            &sentences[..read]
                 .iter()
                 .map(|s| (s.start, s.end))
                 .collect::<Vec<_>>(),
@@ -163,7 +173,8 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
         }
     }
     let original_secs = match &originals {
-        Some(o) => o.iter().map(|x| secs_of(x.len())).sum(),
+        // From the first sentence's start to the last's end, pauses included, as yours is.
+        Some(_) => sentences[read - 1].end - sentences[0].start,
         None => sentences.iter().map(|s| (s.end - s.start) / rate).sum(),
     };
     let reading = Reading {
