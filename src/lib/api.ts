@@ -59,6 +59,8 @@ export interface Take {
   peaks: { original: number[]; mine: number[] };
   /** The paragraph reading this sentence was cut from. */
   group?: string | null;
+  /** Heard through Bluetooth earphones: `lagMs` is too large by their delay. */
+  bluetooth?: boolean;
 }
 
 /** A paragraph read in one go (src-tauri/src/record/saved.rs); each sentence is also a take. */
@@ -85,6 +87,8 @@ export interface Reading {
   lagMs: number | null;
   /** Your voice over the whole reading, 50 values a second. */
   peaks: number[];
+  /** Heard through Bluetooth earphones (see `Take.bluetooth`). */
+  bluetooth?: boolean;
 }
 
 export interface ReadPart {

@@ -71,7 +71,7 @@ fn listen_take_keeps_the_original_then_you() {
         turn: MIC as usize * 3,
         followed: None,
     };
-    let b = build(&raw, Mode::Listen).expect("a voice");
+    let b = build(&raw, Mode::Listen).expect("a take");
 
     let (oa, ob) = b.original_span;
     let (ma, mb) = b.mine_span;
@@ -125,7 +125,7 @@ fn shadow_take_removes_the_original_and_measures_the_lag() {
         turn: start + original.len(),
         followed: None,
     };
-    let b = build(&raw, Mode::Shadow).expect("a voice");
+    let b = build(&raw, Mode::Shadow).expect("a take");
     let lag_ms = b.lag_ms.expect("lag");
     assert!((lag_ms - 400).abs() <= 30, "lag {lag_ms}");
 }
@@ -149,7 +149,29 @@ fn saying_nothing_is_no_take() {
         turn: original.len(),
         followed: None,
     };
-    assert!(build(&raw, Mode::Listen).is_none());
+    assert_eq!(build(&raw, Mode::Listen).err(), Some(NOTHING));
+}
+
+#[test]
+fn an_original_that_never_sounded_says_so() {
+    // Skipped in the sentence's own quiet: nothing came out, though you spoke.
+    let voice = speech("en/The Tale of Peter Rabbit.mp3", 2.0, MIC);
+    let mut mic = vec![0.0f32; MIC as usize * 4];
+    for (i, v) in voice.iter().enumerate() {
+        mic[MIC as usize + i] += v * 0.2;
+    }
+    let (marks, played) = tap(&vec![0.0; MIC as usize / 2], 0);
+    let raw = Raw {
+        mic,
+        mic_rate: MIC,
+        mic_at: 0,
+        marks,
+        played,
+        turn: MIC as usize / 2,
+        followed: None,
+    };
+    let err = build(&raw, Mode::Listen).err().unwrap();
+    assert!(err.contains("原句没有放出来"), "{err}");
 }
 
 #[test]

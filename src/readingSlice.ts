@@ -9,6 +9,7 @@ import type { AudioEngine } from "./audio/engine";
 import { api, type ParagraphMode, type Reading, type ReadingPlaying, type ReadingWhat, type Settings } from "./lib/api";
 import { readingRange, readingsFor, type ReadingScope } from "./lib/readings";
 import { sectionsOf } from "./lib/sections";
+import { blurField } from "./lib/focus";
 import { sentenceIndexAt } from "./lib/sentences";
 import type { AppState } from "./store";
 
@@ -72,6 +73,8 @@ export function readingsOf(s: AppState, first: number, end: number): Reading[] {
 
 export function createReadingSlice(set: Set, get: Get, engine: AudioEngine, persistSettings: (patch: Partial<Settings>) => void): ReadingState {
   const patch = (p: Partial<LiveReading>) => set((s) => (s.live ? { live: { ...s.live, ...p } } : {}));
+  /** Bumped by each start, so a start's reply knows whether it's still the latest. */
+  let starts = 0;
 
   void listen<{ level: number }>("recorder:level", ({ payload }) => {
     const live = get().live;
@@ -120,7 +123,9 @@ export function createReadingSlice(set: Set, get: Get, engine: AudioEngine, pers
       get().stopReadingPlayback();
       get().stopTake();
       if (!engine.paused) engine.pause();
+      blurField();
       const sentences = list.slice(first, end).map(({ start, end, text }) => ({ start, end, text }));
+      const mine = ++starts;
       set({
         readingError: null,
         shownReading: null,
@@ -139,9 +144,10 @@ export function createReadingSlice(set: Set, get: Get, engine: AudioEngine, pers
           sentences,
         });
       } catch (e) {
-        set({ live: null, readingError: String(e) });
+        if (mine === starts) set({ live: null, readingError: String(e) });
         return;
       }
+      if (mine !== starts) return; // cancelled and started again: the newer one has the mic now
       if (!get().live) return void api.record.cancel(); // cancelled while the mic opened
       patch({ phase: "reading", mic, startedAt: Date.now() });
       if (how === "shadow") engine.playRange(sentences[0].start, sentences[sentences.length - 1].end);

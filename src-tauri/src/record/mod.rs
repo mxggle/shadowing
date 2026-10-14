@@ -61,6 +61,9 @@ pub struct Meta {
     /// A paragraph: its sentences, in order (empty for a single sentence).
     #[serde(default)]
     pub sentences: Vec<Sentence>,
+    /// Set at `begin`: the original plays through Bluetooth earphones.
+    #[serde(skip)]
+    pub bluetooth: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -139,10 +142,11 @@ impl Recorder {
         &self,
         out: impl Signals,
         player: &Player,
-        meta: Meta,
+        mut meta: Meta,
         file: PathBuf,
     ) -> Result<String, String> {
         self.cancel(player);
+        meta.bluetooth = devices::bluetooth_output();
         let (tap, tap_rx) = tap::tap(4.0);
         let (tx, rx) = mpsc::channel();
         let (done_tx, done) = mpsc::channel();
@@ -224,7 +228,7 @@ impl Recorder {
                 reading: Some(built.reading),
             });
         }
-        let built = take::build(&raw, meta.mode).ok_or("没听到你的声音，再试一次？")?;
+        let built = take::build(&raw, meta.mode)?;
         let t = Take {
             id: created.to_string(),
             created,
@@ -243,6 +247,7 @@ impl Recorder {
             },
             group: None,
             source: None,
+            bluetooth: meta.bluetooth,
         };
         saved::add(root, &meta.audio, t.clone(), &built.original, &built.mine)?;
         Ok(Finished {

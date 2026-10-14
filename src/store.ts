@@ -9,7 +9,7 @@ import { createGuideSlice, type GuideState } from "./guideSlice";
 import { createPracticeSlice, type PracticeState } from "./practiceSlice";
 import { createProofreadSlice, type ProofreadState } from "./proofreadSlice";
 import { createReadingSlice, type ReadingState } from "./readingSlice";
-import { createRecordSlice, type RecordState } from "./recordSlice";
+import { createRecordSlice, micOpen, type RecordState } from "./recordSlice";
 import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./transcriptSlice";
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 
@@ -232,7 +232,9 @@ export const useApp = create<AppState>((set, get) => {
       if (!folder) return;
       saveProgress(true);
       get().cancelTake();
+      get().stopTake();
       get().cancelReading();
+      get().stopReadingPlayback();
       engine.unload();
       set({ takes: [], readings: [], rec: null, live: null, recordAt: null, folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, practicing: false });
       if (!get().guide.welcomed) get().saveGuide({ welcomed: true });
@@ -262,6 +264,7 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     toggle() {
+      if (micOpen(get())) return;
       const { current, folder } = get();
       if (!current) {
         const first = folder?.tracks[0];
@@ -272,6 +275,7 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     seek(t) {
+      if (micOpen(get())) return;
       engine.seek(t);
       saveProgress(true);
     },
@@ -286,7 +290,7 @@ export const useApp = create<AppState>((set, get) => {
 
     step(direction, ended = false) {
       const { folder, current, settings } = get();
-      if (!current) return;
+      if (!current || micOpen(get())) return;
       const tracks = folder?.tracks ?? [];
       // -1 for the sample clip, which isn't part of the folder.
       const i = tracks.findIndex((t) => t.path === current.path);
@@ -297,6 +301,7 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     setRate(rate) {
+      if (micOpen(get())) return; // a take keeps the speed it began at
       const r = clampRate(rate);
       engine.setRate(r);
       persistSettings({ rate: r });
@@ -316,7 +321,7 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     cycleLoop() {
-      if (!get().current) return;
+      if (!get().current || micOpen(get())) return;
       const loop = cycleLoop(get().loop, engine.time);
       applyLoop(loop);
       // Setting B starts the first repeat right away.
@@ -327,10 +332,12 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     clearLoop() {
+      if (micOpen(get())) return;
       applyLoop(NO_LOOP);
     },
 
     nudgeLoop(which, delta) {
+      if (micOpen(get())) return;
       const loop = nudgeLoop(get().loop, which, delta, engine.duration);
       applyLoop(loop, { sentence: get().loopSentence, section: get().loopSection });
       // Re-hear the new boundary immediately.

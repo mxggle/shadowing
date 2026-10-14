@@ -1,5 +1,6 @@
 // Rules for 跟读录音 takes, kept pure for tests: which takes belong to a
 // sentence, how the two voices line up on screen, and the words under them.
+import { formatRate } from "../audio/logic";
 import type { ClipPart, Take } from "./api";
 
 /** Whether a take has you after the original (听完再说, or cut from a paragraph read on your own) rather than over it. */
@@ -100,20 +101,29 @@ export const mineSecs = (take: Take) => Math.max(0, take.mine[1] - take.mine[0] 
 /** "2.4 秒" */
 export const formatSecs = (s: number) => `${s.toFixed(1)} 秒`;
 
-/** How your length compares with the original's (听完再说): close enough reads as a match. */
+/**
+ * How your length compares with the original's as you heard it (听完再说):
+ * close enough reads as a match. Heard slowed down or sped up, it says so —
+ * "差不多" at 0.85× is still slower than the speaker.
+ */
 export function paceNote(take: Take): string {
   const o = take.original[1] - take.original[0];
   const m = mineSecs(take);
   if (o <= 0 || m <= 0) return "";
   const r = m / o;
-  if (r > 1.15) return `比原句慢 ${Math.round((r - 1) * 100)}%`;
-  if (r < 0.87) return `比原句快 ${Math.round((1 - r) * 100)}%`;
-  return "节奏和原句差不多";
+  const at = Math.abs(take.rate - 1) > 0.01 ? `（原句放的是 ${formatRate(take.rate)}）` : "";
+  if (r > 1.15) return `比原句慢 ${Math.round((r - 1) * 100)}%${at}`;
+  if (r < 0.87) return `比原句快 ${Math.round((1 - r) * 100)}%${at}`;
+  return `节奏和原句差不多${at}`;
 }
 
+/** Bluetooth earphones add a delay of their own that isn't measured. */
+export const BLUETOOTH_LAG = "戴蓝牙耳机时测不准晚多少";
+
 /** 边听边说: how far behind the original you were. */
-export function lagNote(ms: number | null): string {
+export function lagNote(ms: number | null, bluetooth = false): string {
   if (ms === null) return "";
+  if (bluetooth) return BLUETOOTH_LAG;
   return ms < 80 ? "几乎和原声同步" : `比原声晚 ${(ms / 1000).toFixed(2)} 秒`;
 }
 

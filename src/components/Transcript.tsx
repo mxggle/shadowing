@@ -4,7 +4,7 @@ import type { Sentence, Suggestion } from "../lib/api";
 import { explainKey, type Explain } from "../explainSlice";
 import { sectionIndexOf, sectionsOf } from "../lib/sections";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
-import { stretchAt } from "../lib/readings";
+import { partAt } from "../lib/readings";
 import { sentenceOf, takeCounts } from "../lib/takes";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
@@ -37,12 +37,15 @@ export function SentenceList() {
     const of = take ? sentenceOf(take, s.transcript.sentences) : -1;
     if (of >= 0) return of;
     const p = s.playingReading;
-    const stretch = p && stretchAt(p, p.secs);
-    const part = stretch && s.readings.find((r) => r.id === p.id)?.parts[stretch.part];
+    const at = p ? partAt(p, p.secs) : null;
+    const part = p && at !== null ? s.readings.find((r) => r.id === p.id)?.parts[at] : undefined;
     if (part) return sentenceIndexAt(s.transcript.sentences, part.start + 0.01);
     return sentenceIndexAt(s.transcript.sentences, s.time);
   });
-  const reading = useApp((s) => (s.live?.phase === "reading" ? s.live : null));
+  // The paragraph being read, as plain numbers: the live reading changes with every level (30 a second).
+  const readFirst = useApp((s) => (s.live?.phase === "reading" ? s.live.first : -1));
+  const readEnd = useApp((s) => (s.live?.phase === "reading" ? s.live.end : -1));
+  const reading = readFirst >= 0;
   const shown = useApp((s) => s.readings.find((r) => r.id === s.shownReading) ?? null);
   const shownAt = useMemo(() => (shown ? sentenceIndexAt(sentences, shown.start + 0.01) : -1), [shown, sentences]);
   const loopSentence = useApp((s) => s.loopSentence);
@@ -97,7 +100,7 @@ export function SentenceList() {
                   suggestions={suggestions.get(i)}
                   explain={path ? explain[explainKey(path, i, sentence.text)] : undefined}
                   takes={counts[i] ?? 0}
-                  reading={!!reading && i === active && i >= reading.first && i < reading.end}
+                  reading={reading && i === active && i >= readFirst && i < readEnd}
                   recorder={recordAt === i}
                   peek={i === peekAt}
                   voices={voices}

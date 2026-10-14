@@ -289,6 +289,7 @@ fn real_record_takes() {
             text: line.into(),
             mode,
             rate: 1.0,
+            bluetooth: false,
             sentences: vec![],
         };
         let mic = recorder
@@ -396,6 +397,7 @@ fn real_record_paragraph() {
             text: String::new(),
             mode,
             rate: 1.0,
+            bluetooth: false,
             sentences: sentences.clone(),
         };
         let mic = recorder

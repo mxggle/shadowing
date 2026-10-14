@@ -7,6 +7,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { AudioEngine } from "./audio/engine";
 import { isLoopActive } from "./audio/logic";
 import { api, type RecordMode, type Settings, type Take } from "./lib/api";
+import { blurField } from "./lib/focus";
 import { sentenceIndexAt } from "./lib/sentences";
 import { comparePart, takesFor } from "./lib/takes";
 import type { AppState } from "./store";
@@ -67,6 +68,13 @@ export type Set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState
 
 const LEVELS_KEPT = 48;
 
+/**
+ * The microphone is open (a take or a paragraph, not yet saving): only the
+ * recording's own controls act; anything else that moves or restarts the
+ * track would play past the original's end or record the wrong thing.
+ */
+export const micOpen = (s: AppState) => (!!s.rec && s.rec.phase !== "saving") || (!!s.live && s.live.phase !== "saving");
+
 /** The stretch a take at `at` is of, and its text. */
 export function recordTarget(s: AppState, at: RecordAt) {
   if (at === "loop") {
@@ -85,6 +93,8 @@ export function takesAt(s: AppState, at: RecordAt | null): Take[] {
 
 export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persistSettings: (patch: Partial<Settings>) => void): RecordState {
   const patchRec = (patch: Partial<Rec>) => set((s) => (s.rec ? { rec: { ...s.rec, ...patch } } : {}));
+  /** Bumped by each start, so a start's reply knows whether it's still the latest. */
+  let starts = 0;
 
   void listen<{ level: number; speaking: boolean; secs: number }>("recorder:level", ({ payload }) => {
     const rec = get().rec;
@@ -124,6 +134,7 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
     },
 
     toggleRecorder(at) {
+      if (micOpen(get())) return;
       const where = at ?? here();
       if (where === null) return;
       if (get().recordAt === where && !get().rec) return get().closeRecorder();
@@ -144,7 +155,10 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       const target = where === null ? null : recordTarget(s, where);
       if (!s.current || where === null || !target || s.live) return;
       get().stopTake();
+      get().stopReadingPlayback();
+      blurField();
       const mode = s.settings.recordMode;
+      const mine = ++starts;
       set({
         recordAt: where,
         shownTake: null,
@@ -155,9 +169,10 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       try {
         mic = await api.record.begin({ audio: s.current.path, ...target, mode, rate: s.settings.rate });
       } catch (e) {
-        set({ rec: null, recError: String(e) });
+        if (mine === starts) set({ rec: null, recError: String(e) });
         return;
       }
+      if (mine !== starts) return; // cancelled and started again: the newer one has the mic now
       if (!get().rec) return void api.record.cancel(); // cancelled while the mic opened
       patchRec(mode === "listen" ? { phase: "listening", mic } : { phase: "speaking", along: true, mic });
       engine.playRange(target.start, target.end);

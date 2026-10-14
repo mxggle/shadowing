@@ -46,6 +46,9 @@ pub struct Take {
     /// Its audio is part of that reading's file (none: a file of its own).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<Source>,
+    /// Heard through Bluetooth earphones: `lag_ms` is too large by their unknown delay.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub bluetooth: bool,
 }
 
 /// Where a take's audio is in a reading's file: `duration` seconds from `from`
@@ -79,6 +82,9 @@ pub struct Reading {
     pub lag_ms: Option<i32>,
     /// Your voice's loudness outline over the whole file.
     pub peaks: Vec<u8>,
+    /// Heard through Bluetooth earphones (see `Take::bluetooth`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub bluetooth: bool,
 }
 
 /// One sentence of a reading.
@@ -121,6 +127,9 @@ pub fn wav_path(root: &Path, audio: &str, id: &str) -> PathBuf {
     dir(root, audio).join(format!("{id}.wav"))
 }
 
+/// The track's list; empty when there's none. One that can't be read (damaged,
+/// or written by a newer version) is kept aside as `takes.corrupt.json`
+/// rather than overwritten by the next take.
 fn load(root: &Path, audio: &str) -> File {
     let empty = || File {
         version: 1,
@@ -128,13 +137,24 @@ fn load(root: &Path, audio: &str) -> File {
         takes: Vec::new(),
         readings: Vec::new(),
     };
-    let Ok(text) = fs::read_to_string(dir(root, audio).join("takes.json")) else {
+    let path = dir(root, audio).join("takes.json");
+    let Ok(text) = fs::read_to_string(&path) else {
         return empty();
     };
     match serde_json::from_str::<File>(&text) {
         Ok(f) if f.audio == audio => f,
-        _ => empty(),
+        _ => {
+            eprintln!("{} unreadable; kept aside", path.display());
+            let _ = fs::rename(&path, path.with_file_name("takes.corrupt.json"));
+            empty()
+        }
     }
+}
+
+/// Ids come from the webview: only ones this app makes (digits, `-`) name a file.
+fn valid(id: &str) -> Result<(), String> {
+    let ok = !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
+    ok.then_some(()).ok_or_else(|| "这条录音不见了".to_string())
 }
 
 pub fn list(root: &Path, audio: &str) -> Vec<Take> {
@@ -205,9 +225,13 @@ pub fn add_reading(
 }
 
 pub fn delete(root: &Path, audio: &str, id: &str) -> Result<(), String> {
+    valid(id)?;
     let _w = WRITING.lock().unwrap_or_else(|e| e.into_inner());
     let mut file = load(root, audio);
-    file.takes.retain(|t| t.id != id);
+    let Some(gone) = file.takes.iter().position(|t| t.id == id) else {
+        return Err("这条录音不见了".into());
+    };
+    let own_file = file.takes.remove(gone).source.is_none();
     for r in &mut file.readings {
         for p in &mut r.parts {
             if p.take.as_deref() == Some(id) {
@@ -216,14 +240,20 @@ pub fn delete(root: &Path, audio: &str, id: &str) -> Result<(), String> {
         }
     }
     write(root, audio, &file)?;
-    let _ = fs::remove_file(wav_path(root, audio, id));
+    if own_file {
+        let _ = fs::remove_file(wav_path(root, audio, id));
+    }
     Ok(())
 }
 
 /// Deletes a reading and the sentence takes cut from it.
 pub fn delete_reading(root: &Path, audio: &str, id: &str) -> Result<(), String> {
+    valid(id)?;
     let _w = WRITING.lock().unwrap_or_else(|e| e.into_inner());
     let mut file = load(root, audio);
+    if !file.readings.iter().any(|r| r.id == id) {
+        return Err("这次朗读不见了".into());
+    }
     let gone: Vec<String> = file
         .takes
         .iter()

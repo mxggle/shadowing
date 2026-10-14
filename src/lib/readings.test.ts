@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Reading } from "./api";
-import { headOnTake, readingNote, readingRange, readingsFor, saidCount, stretchAt } from "./readings";
+import { headOnTake, partAt, readingNote, readingRange, readingsFor, saidCount, scopeOf, stretchAt } from "./readings";
 
 const reading = (over: Partial<Reading> = {}): Reading => ({
   id: "r",
@@ -74,5 +74,37 @@ describe("headOnTake", () => {
   it("is nowhere while another sentence, or the gap between, plays", () => {
     expect(headOnTake(p, 8, 0, take)).toEqual({ original: null, mine: null });
     expect(headOnTake(p, 2.2, 0, take)).toEqual({ original: null, mine: null });
+  });
+});
+
+describe("partAt", () => {
+  // 逐句对比: sentence 0's original, a 0.3 s gap, you, a 0.7 s gap, then sentence 2 (1 was skipped).
+  const p = {
+    stretches: [
+      { clipAt: 0, len: 2, part: 0, lane: "original" as const },
+      { clipAt: 2.3, len: 2.5, part: 0, lane: "mine" as const },
+      { clipAt: 5.5, len: 1.5, part: 2, lane: "original" as const },
+    ],
+  };
+  it("stays on the sentence through the gaps", () => {
+    expect([0, 2.1, 4.9, 5.2].map((t) => partAt(p, t))).toEqual([0, 0, 0, 0]);
+    expect(partAt(p, 5.5)).toBe(2);
+    expect(partAt(p, 9)).toBe(2);
+  });
+  it("is the first before anything plays, and nothing without stretches", () => {
+    expect(partAt({ stretches: [{ ...p.stretches[2], clipAt: 0.25 }] }, 0)).toBe(2);
+    expect(partAt({ stretches: [] }, 1)).toBeNull();
+  });
+});
+
+describe("scopeOf", () => {
+  const sentences = [{ start: 1, end: 3 }, { start: 3, end: 5 }, { start: 6, end: 8 }];
+  it("reads the whole text again if it was the whole text", () => {
+    expect(scopeOf({ start: 1, end: 8 }, sentences)).toBe("all");
+    expect(scopeOf({ start: 1.2, end: 7.9 }, sentences)).toBe("all");
+  });
+  it("else the section", () => {
+    expect(scopeOf({ start: 3, end: 8 }, sentences)).toBe("section");
+    expect(scopeOf({ start: 1, end: 3 }, [])).toBe("section");
   });
 });

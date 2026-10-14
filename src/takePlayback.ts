@@ -67,7 +67,8 @@ export function createTakePlayback(set: Set, get: Get, engine: AudioEngine): Tak
 
     async playTake(id, what, chain = true) {
       const path = get().current?.path;
-      if (!path || get().rec) return;
+      // Not while recording: the clip would pause the original being shadowed.
+      if (!path || get().rec || get().live) return;
       const mine = ++playing;
       // Playing from now (clip −1 until it starts): the list moves to its sentence
       // without a gap, and the end of the clip it replaces isn't one to go on from.

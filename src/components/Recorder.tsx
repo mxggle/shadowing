@@ -127,7 +127,7 @@ function Live({ rec }: { rec: Rec }) {
         ) : (
           <span className="flex items-center gap-1.5 font-medium text-fg">
             <span className="relative grid size-2.5 place-items-center">
-              <span className="absolute size-2.5 animate-ping rounded-full bg-danger/50" />
+              <span className="absolute size-2.5 rounded-full bg-danger/25" />
               <span className="size-2 rounded-full bg-danger" />
             </span>
             {rec.along ? "跟着说" : "轮到你了"}
@@ -203,7 +203,7 @@ function Result({ take }: { take: Take }) {
   const turns = inTurns(take);
   const both: TakePart = comparePart(take);
   const toggle = (what: TakePart) => (playing?.what === what ? stopTake() : void playTake(take.id, what));
-  const note = turns ? paceNote(take) : lagNote(take.lagMs);
+  const note = turns ? paceNote(take) : lagNote(take.lagMs, take.bluetooth);
   return (
     <div className="flex flex-col gap-2.5">
       <div>

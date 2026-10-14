@@ -9,6 +9,7 @@ import { api, type Section, type TranscribeStatus, type Transcript } from "./lib
 import { mergeUp, rename, sectionIndexOf, sectionLoop, sectionsOf, sectionStep, splitAt } from "./lib/sections";
 import { sentenceIndexAt, sentenceLoop, sentenceStart, stepTarget } from "./lib/sentences";
 import type { AppState } from "./store";
+import { micOpen } from "./recordSlice";
 
 /** What an A–B loop repeats, when it came from the transcript. */
 export interface LoopFrom {
@@ -173,6 +174,7 @@ export function createTranscriptSlice(
     },
 
     playSentence(i) {
+      if (micOpen(get())) return;
       if (!sentences()[i]) return;
       const { loop } = get();
       if (isLoopActive(loop)) return loopSentenceAt(i);
@@ -181,6 +183,7 @@ export function createTranscriptSlice(
     },
 
     toggleSentenceLoop(i) {
+      if (micOpen(get())) return;
       const list = sentences();
       const index = i ?? Math.max(0, sentenceIndexAt(list, engine.time));
       if (!list[index]) return;
@@ -189,6 +192,7 @@ export function createTranscriptSlice(
     },
 
     stepSentence(direction) {
+      if (micOpen(get())) return;
       const list = sentences();
       const { loopSentence } = get();
       if (loopSentence !== null) {
@@ -200,6 +204,7 @@ export function createTranscriptSlice(
     },
 
     playSection(k) {
+      if (micOpen(get())) return;
       const first = sections()[k]?.start;
       if (first === undefined || !sentences()[first]) return;
       const { loop } = get();
@@ -209,12 +214,14 @@ export function createTranscriptSlice(
     },
 
     toggleSectionLoop(k) {
+      if (micOpen(get())) return;
       const index = k ?? sectionIndexOf(sections(), sentenceIndexAt(sentences(), engine.time));
       if (get().loopSection === index) applyLoop(NO_LOOP);
       else loopSectionAt(index);
     },
 
     stepSection(direction) {
+      if (micOpen(get())) return;
       const list = sections();
       const { loopSection, loopSentence } = get();
       if (loopSection !== null) {

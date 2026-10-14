@@ -31,6 +31,7 @@ fn meta(mode: Mode, sentences: &[(f64, f64)]) -> Meta {
         text: String::new(),
         mode,
         rate: 1.0,
+        bluetooth: false,
         sentences: sentences
             .iter()
             .map(|&(start, end)| Sentence {

@@ -8,7 +8,9 @@
 //! (`segment.rs`), and the original's audio for each is read from the file.
 
 use super::saved::{Peaks, ReadPart, Reading, Sound, Source, Take, PEAKS_PER_SEC};
-use super::take::{self, at, convert, Mode, Piece, Raw, LEAD_SECS, MARGIN_SECS, RATE, TAIL_SECS};
+use super::take::{
+    self, at, convert, Mode, Piece, Raw, LEAD_SECS, MARGIN_SECS, NOTHING, RATE, TAIL_SECS,
+};
 use super::vad::{self, FRAME_SECS};
 use super::{echo, original, segment, Meta};
 use std::path::Path;
@@ -56,10 +58,14 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
         _ => {
             let played = take::place(&raw.marks, &raw.played, raw.mic_at, secs);
             let mine = echo::cancel_long(&mic, &played, RATE);
-            let p0 = played
+            // Where the range began on the recording: its first sound, less the
+            // original's own digital silence before it (which plays as nothing).
+            let first_sound = played
                 .iter()
                 .position(|v| v.abs() > 1e-6)
                 .ok_or("原文没有放出来")?;
+            let quiet = original::silence_from(file, meta.start, 5.0).unwrap_or(0.0);
+            let p0 = first_sound.saturating_sub(at(quiet / rate));
             let to_frame = |t: f64| (p0 + at((t - meta.start).max(0.0) / rate)) / frame();
             let heard: Vec<(usize, usize)> = sentences
                 .iter()
@@ -190,6 +196,7 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
             peaks,
             group: Some(id.to_string()),
             source,
+            bluetooth: meta.bluetooth,
         };
         takes.push((take, sound));
         parts.push(ReadPart {
@@ -221,6 +228,7 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
         mine_secs: (last - first) as f64 * FRAME_SECS,
         lag_ms,
         peaks: take::peaks(&whole_r, PEAKS_PER_SEC),
+        bluetooth: meta.bluetooth,
     };
     Ok(Built {
         reading,
@@ -228,8 +236,6 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
         takes,
     })
 }
-
-const NOTHING: &str = "没听到你的声音，再试一次？";
 
 /// A sentence shadowed along the original: its window in the session's
 /// samples (within the whole file's `whole`), and where the original and you

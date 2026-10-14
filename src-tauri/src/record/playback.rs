@@ -188,6 +188,7 @@ mod tests {
             },
             group: None,
             source: None,
+            bluetooth: false,
         }
     }
 
@@ -223,6 +224,7 @@ mod tests {
             mine_secs: 1.0,
             lag_ms: None,
             peaks: vec![],
+            bluetooth: false,
         };
         let w = Take {
             id: "r-0".into(),

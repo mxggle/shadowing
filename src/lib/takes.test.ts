@@ -135,12 +135,14 @@ describe("notes", () => {
     expect(paceNote(take())).toBe("节奏和原句差不多");
     expect(paceNote(take({ mine: [2.6, 6.05] }))).toBe("比原句慢 50%");
     expect(paceNote(take({ mine: [2.6, 4.05] }))).toBe("比原句快 50%");
+    expect(paceNote(take({ rate: 0.85 }))).toBe("节奏和原句差不多（原句放的是 0.85×）");
   });
 
   it("lag", () => {
     expect(lagNote(null)).toBe("");
     expect(lagNote(40)).toBe("几乎和原声同步");
     expect(lagNote(420)).toBe("比原声晚 0.42 秒");
+    expect(lagNote(420, true)).toBe("戴蓝牙耳机时测不准晚多少");
   });
 
   it("when", () => {

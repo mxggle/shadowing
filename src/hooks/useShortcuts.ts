@@ -1,15 +1,34 @@
 import { useEffect } from "react";
 import { nextPlayMode, RATE_STEP } from "../audio/logic";
+import { isTypingTarget } from "../lib/focus";
 import { useApp } from "../store";
 import { flash, type FlashId } from "./useFlash";
 
-export const isTypingTarget = (target: EventTarget | null) => {
-  const el = target as HTMLElement | null;
-  return !!el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
-};
-
 /** Keys that step or nudge, so holding them down keeps going. Toggles (Space, L, S, R…) fire once per press. */
 const REPEATS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "[", "]", "{", "}", "-", "="]);
+
+type State = ReturnType<typeof useApp.getState>;
+
+/**
+ * While recording only the recording's own keys act: a paragraph finishes,
+ * cancels or puts the highlight right; a take skips the original, finishes or
+ * cancels. Other keys do nothing.
+ */
+function recordingKey(e: KeyboardEvent, s: State) {
+  const keys: Record<string, () => void> = s.live
+    ? {
+        " ": () => void s.finishReading(),
+        M: () => void s.finishReading(),
+        Escape: s.cancelReading,
+        "[": () => s.stepReading(-1),
+        "]": () => s.stepReading(1),
+      }
+    : { " ": s.advanceTake, m: s.advanceTake, M: s.advanceTake, Escape: s.cancelTake };
+  const run = keys[e.key];
+  e.preventDefault();
+  if (!run) return;
+  if (!e.repeat || e.key === "[" || e.key === "]") run();
+}
 
 export function useShortcuts() {
   useEffect(() => {
@@ -17,6 +36,7 @@ export function useShortcuts() {
       if (isTypingTarget(e.target)) return;
       const s = useApp.getState();
       if (s.settingsOpen || s.wizardOpen || s.statsOpen) return;
+      if ((s.live || s.rec) && !(e.metaKey || e.ctrlKey || e.altKey)) return recordingKey(e, s);
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
         const command: Record<string, (() => void) | false> = {
           b: s.toggleShelf,
@@ -32,29 +52,9 @@ export function useShortcuts() {
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      // Reading a paragraph: finish, cancel, or put the highlight right.
-      if (s.live) {
-        const keys: Record<string, () => void> = {
-          " ": () => void s.finishReading(),
-          M: () => void s.finishReading(),
-          Escape: s.cancelReading,
-          "[": () => s.stepReading(-1),
-          "]": () => s.stepReading(1),
-        };
-        e.preventDefault();
-        if (!e.repeat || e.key === "[" || e.key === "]") keys[e.key]?.();
-        return;
-      }
       if (s.playingReading && (e.key === " " || e.key === "Escape")) {
         e.preventDefault();
         s.stopReadingPlayback();
-        return;
-      }
-      // Recording: only the keys of the take itself.
-      if (s.rec) {
-        const take: Record<string, () => void> = { " ": s.advanceTake, m: s.advanceTake, M: s.advanceTake, Escape: s.cancelTake };
-        e.preventDefault();
-        if (!e.repeat) take[e.key]?.();
         return;
       }
       // A take playing back: Space or Esc stops it (instead of starting the track).
@@ -82,8 +82,9 @@ export function useShortcuts() {
         I: [() => s.toggleExplain()],
         e: [() => s.editSentence()],
         E: [() => s.editSentence()],
-        m: [() => void s.startTake()],
-        M: [() => void s.startReading()],
+        // ⇧M a paragraph, M a sentence (by Shift, not the letter's case: Caps Lock doesn't count).
+        m: [() => void (e.shiftKey ? s.startReading() : s.startTake())],
+        M: [() => void (e.shiftKey ? s.startReading() : s.startTake())],
         p: [() => s.replayTake()],
         P: [() => s.replayTake()],
         r: [() => s.setPlayMode(nextPlayMode(s.settings.playMode)), "playMode"],

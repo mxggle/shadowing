@@ -91,8 +91,16 @@ pub fn record_step(recorder: State<'_, Recorder>, by: i32) {
     recorder.step(by);
 }
 
+/// Only for an audio file the webview may use (its recordings are keyed by its path).
+fn allowed(state: &AppState, audio: &str) -> Result<(), String> {
+    state.audio(audio).map(|_| ())
+}
+
 #[tauri::command]
 pub fn record_readings(state: State<'_, AppState>, audio: String) -> Vec<Reading> {
+    if allowed(&state, &audio).is_err() {
+        return Vec::new();
+    }
     saved::readings(&state.data_dir(), &audio)
 }
 
@@ -103,6 +111,7 @@ pub fn record_delete_reading(
     audio: String,
     id: String,
 ) -> Result<(), String> {
+    allowed(&state, &audio)?;
     saved::delete_reading(&state.data_dir(), &audio, &id)
 }
 
@@ -115,16 +124,21 @@ pub fn record_play_reading(
     id: String,
     what: replay::ReadingPart,
 ) -> Result<replay::ReadingPlaying, String> {
+    allowed(&state, &audio)?;
     replay::play_reading(app.clone(), &player, &state.data_dir(), &audio, &id, what)
 }
 
 #[tauri::command]
 pub fn record_takes(state: State<'_, AppState>, audio: String) -> Vec<Take> {
+    if allowed(&state, &audio).is_err() {
+        return Vec::new();
+    }
     saved::list(&state.data_dir(), &audio)
 }
 
 #[tauri::command]
 pub fn record_delete(state: State<'_, AppState>, audio: String, id: String) -> Result<(), String> {
+    allowed(&state, &audio)?;
     saved::delete(&state.data_dir(), &audio, &id)
 }
 
@@ -137,6 +151,7 @@ pub fn record_play(
     id: String,
     what: What,
 ) -> Result<Playing, String> {
+    allowed(&state, &audio)?;
     playback::play(app.clone(), &player, &state.data_dir(), &audio, &id, what)
 }
 

@@ -50,7 +50,7 @@ function PeekTake({ take }: { take: Take }) {
   const playing = useApp((s) => s.playingTake?.id === take.id);
   const { playTake, stopTake } = useApp.getState();
   const both = comparePart(take);
-  const note = inTurns(take) ? paceNote(take) : lagNote(take.lagMs);
+  const note = inTurns(take) ? paceNote(take) : lagNote(take.lagMs, take.bluetooth);
   return (
     <div className="max-w-[560px] pt-1 pb-1.5">
       <TakeWaves

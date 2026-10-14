@@ -182,6 +182,7 @@ mod tests {
             mine_secs: 2.8,
             lag_ms: None,
             peaks: vec![],
+            bluetooth: false,
         }
     }
 

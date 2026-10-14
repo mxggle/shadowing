@@ -3,6 +3,7 @@
 // words that sum one up.
 import type { Reading, ReadingPlaying, Section, Take } from "./api";
 import { sectionIndexOf, sectionRange } from "./sections";
+import { BLUETOOTH_LAG } from "./takes";
 
 /** What to read: the section you're in, or the whole text. */
 export type ReadingScope = "section" | "all";
@@ -13,6 +14,15 @@ export function readingRange(scope: ReadingScope, sections: Section[], current: 
   return sectionRange(sections, sectionIndexOf(sections, Math.max(0, current)), count);
 }
 
+/** What a reading was of, to read it again: the whole text, or the section it's in. */
+export function scopeOf(reading: Pick<Reading, "start" | "end">, sentences: { start: number; end: number }[]): ReadingScope {
+  const first = sentences[0];
+  const last = sentences[sentences.length - 1];
+  if (!first || !last) return "section";
+  const close = (a: number, b: number) => Math.abs(a - b) < 0.6;
+  return close(reading.start, first.start) && close(reading.end, last.end) ? "all" : "section";
+}
+
 /** Readings of the stretch `start`–`end` (the same paragraph, allowing small edits to its edges), oldest first. */
 export function readingsFor(readings: Reading[], start: number, end: number): Reading[] {
   const close = (a: number, b: number) => Math.abs(a - b) < 0.6;
@@ -21,7 +31,11 @@ export function readingsFor(readings: Reading[], start: number, end: number): Re
 
 /** "你 52.3 秒 · 原文 47.0 秒，慢 11%" or, shadowing, the lag. */
 export function readingNote(r: Reading): string {
-  if (r.mode === "shadow") return r.lagMs === null ? "" : r.lagMs < 80 ? "几乎和原声同步" : `平均比原声晚 ${(r.lagMs / 1000).toFixed(2)} 秒`;
+  if (r.mode === "shadow") {
+    if (r.lagMs === null) return "";
+    if (r.bluetooth) return BLUETOOTH_LAG;
+    return r.lagMs < 80 ? "几乎和原声同步" : `平均比原声晚 ${(r.lagMs / 1000).toFixed(2)} 秒`;
+  }
   const ratio = r.mineSecs / Math.max(0.1, r.originalSecs);
   const times = `你 ${r.mineSecs.toFixed(1)} 秒 · 原文 ${r.originalSecs.toFixed(1)} 秒`;
   if (ratio > 1.1) return `${times}，慢 ${Math.round((ratio - 1) * 100)}%`;
@@ -35,6 +49,17 @@ export const saidCount = (r: Reading) => r.parts.filter((p) => p.take).length;
 /** Which sentence of the reading (and on which lane) a playing clip is on `secs` in. */
 export function stretchAt(p: Pick<ReadingPlaying, "stretches">, secs: number) {
   return p.stretches.find((s) => secs >= s.clipAt && secs < s.clipAt + s.len) ?? null;
+}
+
+/**
+ * The sentence (`part`) a playing reading is on: that of the last stretch
+ * begun (the first before any), so the pauses between sentences — and yours
+ * inside them — keep the sentence just heard.
+ */
+export function partAt(p: Pick<ReadingPlaying, "stretches">, secs: number): number | null {
+  let part = p.stretches[0]?.part ?? null;
+  for (const s of p.stretches) if (s.clipAt <= secs) part = s.part;
+  return part;
 }
 
 /**

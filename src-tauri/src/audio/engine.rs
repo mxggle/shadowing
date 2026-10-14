@@ -259,9 +259,15 @@ impl Engine {
                 }
             }
             Cmd::Clip(clip) => match clip {
-                Some(c) => {
+                Some(mut c) => {
                     if let Some(old) = self.clip.take() {
                         self.bin(Trash::Clip(old));
+                    }
+                    if c.rate != self.dev_sr {
+                        // Prepared for the rate before the output changed: it would play at the wrong speed.
+                        c.stop();
+                        self.end_clip(c);
+                        return;
                     }
                     self.pause();
                     self.shared.clip.store(c.id, Relaxed);

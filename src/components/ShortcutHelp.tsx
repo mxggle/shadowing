@@ -1,6 +1,6 @@
 import { Keyboard } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { isTypingTarget } from "../hooks/useShortcuts";
+import { isTypingTarget } from "../lib/focus";
 import { useApp } from "../store";
 import { IconButton, Kbd } from "./ui";
 

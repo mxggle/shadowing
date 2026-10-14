@@ -40,14 +40,23 @@ mod mac {
         (status == 0).then_some(value)
     }
 
-    /// The built-in microphone's name, when the default input is a Bluetooth headset.
-    pub fn instead_of_headset() -> Option<String> {
-        let default = get_default_device_id(true)?;
-        let bluetooth = [
+    fn bluetooth(device: u32) -> bool {
+        let kinds = [
             kAudioDeviceTransportTypeBluetooth,
             kAudioDeviceTransportTypeBluetoothLE,
         ];
-        if !transport(default).is_some_and(|t| bluetooth.contains(&t)) {
+        transport(device).is_some_and(|t| kinds.contains(&t))
+    }
+
+    /// The default output is Bluetooth earphones (their delay isn't reported reliably).
+    pub fn bluetooth_output() -> bool {
+        get_default_device_id(false).is_some_and(bluetooth)
+    }
+
+    /// The built-in microphone's name, when the default input is a Bluetooth headset.
+    pub fn instead_of_headset() -> Option<String> {
+        let default = get_default_device_id(true)?;
+        if !bluetooth(default) {
             return None;
         }
         let built_in = get_audio_device_ids_for_scope(Scope::Input)
@@ -67,4 +76,14 @@ pub fn preferred_input() -> Option<String> {
     return mac::instead_of_headset();
     #[cfg(not(target_os = "macos"))]
     None
+}
+
+/// Whether the original plays through Bluetooth earphones: they add a delay of
+/// their own (0.1–0.3 s) that isn't measured, so how far behind you shadowed
+/// can't be told.
+pub fn bluetooth_output() -> bool {
+    #[cfg(target_os = "macos")]
+    return std::env::var("SHADOWING_OUTPUT_DEVICE").is_err() && mac::bluetooth_output();
+    #[cfg(not(target_os = "macos"))]
+    false
 }

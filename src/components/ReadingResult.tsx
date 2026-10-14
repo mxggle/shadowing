@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight, Play, Square, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import type { Reading, ReadingWhat } from "../lib/api";
-import { readingNote, readingsFor, saidCount } from "../lib/readings";
+import { readingNote, readingsFor, saidCount, scopeOf } from "../lib/readings";
 import { sentenceIndexAt } from "../lib/sentences";
 import { whenRecorded } from "../lib/takes";
 import { useApp } from "../store";
@@ -23,6 +23,7 @@ export function ReadingBar({ reading }: { reading: Reading }) {
   const i = others.findIndex((r) => r.id === reading.id);
   const said = saidCount(reading);
   const first = useApp((s) => sentenceIndexAt(s.transcript?.sentences ?? [], reading.parts[0]?.start + 0.01));
+  const scope = useApp((s) => scopeOf(reading, s.transcript?.sentences ?? []));
   const bar = useRef<HTMLDivElement>(null);
   // Just read (the list followed you to the end) or picked from the menu: bring it into view.
   useEffect(() => {
@@ -71,7 +72,7 @@ export function ReadingBar({ reading }: { reading: Reading }) {
           <IconButton title="删除这次整段录音（连同分出来的每句）" onClick={() => void deleteReading(reading.id)}>
             <Trash2 />
           </IconButton>
-          <Button className="h-7 px-2.5" title="再读一遍 (⇧M)" onClick={() => void startReading({ mode: reading.mode, at: first, scope: "section" })}>
+          <Button className="h-7 px-2.5" title="再读一遍 (⇧M)" onClick={() => void startReading({ mode: reading.mode, at: first, scope })}>
             <span className="size-2 rounded-full bg-danger" />
             再读一遍
           </Button>

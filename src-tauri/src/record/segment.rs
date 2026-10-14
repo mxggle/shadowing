@@ -20,6 +20,8 @@ const LONG: f64 = 1.0;
 const HINT: f64 = 60.0;
 /// 跟着原文读: how far a boundary may move to land in a pause.
 const SNAP_SECS: f64 = 0.35;
+/// …and how much longer than the original you may go on with the last sentence.
+const OVERRUN_SECS: f64 = 3.0;
 
 /// Where each sentence is in the recording: (first, last + 1) voiced frame.
 pub type Spans = Vec<(usize, usize)>;
@@ -155,11 +157,32 @@ pub fn shadowing(voiced: &[bool], heard: &[(usize, usize)], lag: usize) -> Spans
         .map_or(0, |h| (h.0 + lag).saturating_sub(snap))
         .min(len);
     let to = heard.last().map_or(len, |h| h.1 + lag + snap * 3).min(len);
+    // Still speaking there (fallen behind at the end): on to where your voice stops.
+    let to = overrun(voiced, to, (OVERRUN_SECS / FRAME_SECS) as usize);
     let mut bounds = bounds;
     for i in 1..bounds.len() {
         bounds[i] = bounds[i].max(bounds[i - 1]);
     }
     spans(voiced, &bounds, from, to.max(from))
+}
+
+/// From `at`, the end of the voice still going on there (pauses shorter than a
+/// real one don't stop it), at most `max` frames further.
+fn overrun(voiced: &[bool], at: usize, max: usize) -> usize {
+    let limit = (at + max).min(voiced.len());
+    let (mut end, mut quiet) = (at, 0);
+    for (i, &v) in voiced.iter().enumerate().take(limit).skip(at) {
+        if v {
+            end = i + 1;
+            quiet = 0;
+        } else {
+            quiet += 1;
+            if quiet >= PAUSE_FRAMES {
+                break;
+            }
+        }
+    }
+    end
 }
 
 #[cfg(test)]
@@ -273,5 +296,21 @@ mod tests {
         let s = shadowing(&v, &[(50, 250), (290, 440)], 40);
         let s: Vec<(f64, f64)> = s.into_iter().map(secs).collect();
         assert_eq!(s, vec![(0.9, 2.9), (3.2, 4.8)]);
+    }
+
+    #[test]
+    fn falling_behind_at_the_end_keeps_your_last_words() {
+        // As above, but you go on with the last sentence until 6.6 s (a short breath at 5.0 s).
+        let v = take(&[
+            (false, 0.9),
+            (true, 2.0),
+            (false, 0.3),
+            (true, 1.8),
+            (false, 0.05),
+            (true, 1.6),
+            (false, 1.0),
+        ]);
+        let s = shadowing(&v, &[(50, 250), (290, 440)], 40);
+        assert_eq!(secs(s[1]), (3.2, 6.65));
     }
 }

@@ -159,7 +159,7 @@ export function LiveReadingBar() {
           <>
             <span className="flex shrink-0 items-center gap-1.5 font-medium text-fg">
               <span className="relative grid size-2.5 place-items-center">
-                <span className="absolute size-2.5 animate-ping rounded-full bg-danger/50" />
+                <span className="absolute size-2.5 rounded-full bg-danger/25" />
                 <span className="size-2 rounded-full bg-danger" />
               </span>
               {label}

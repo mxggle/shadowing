@@ -20,6 +20,7 @@ fn take(id: &str) -> Take {
         },
         group: None,
         source: None,
+        bluetooth: false,
     }
 }
 
@@ -76,6 +77,7 @@ fn readings_keep_their_sentence_takes() {
         mine_secs: 4.5,
         lag_ms: None,
         peaks: vec![],
+        bluetooth: false,
     };
     let sound = (vec![0.0; 10], vec![0.2; 10]);
     let piece = |id: &str| {
@@ -119,4 +121,39 @@ fn readings_keep_their_sentence_takes() {
         !wav_path(root.path(), audio, "r1").exists()
             && !wav_path(root.path(), audio, "r1-1").exists()
     );
+}
+
+#[test]
+fn a_list_that_cant_be_read_is_kept_aside_not_overwritten() {
+    let root = tempfile::tempdir().unwrap();
+    let audio = "/music/a.mp3";
+    add(root.path(), audio, take("t1"), &[0.1], &[0.1]).unwrap();
+    let path = dir(root.path(), audio).join("takes.json");
+    let damaged = fs::read_to_string(&path)
+        .unwrap()
+        .replace("\"shadow\"", "\"humming\"");
+    fs::write(&path, &damaged).unwrap();
+    assert!(list(root.path(), audio).is_empty());
+    let aside = dir(root.path(), audio).join("takes.corrupt.json");
+    assert_eq!(
+        fs::read_to_string(&aside).unwrap(),
+        damaged,
+        "the old list is still there"
+    );
+    add(root.path(), audio, take("t2"), &[0.1], &[0.1]).unwrap();
+    assert_eq!(list(root.path(), audio).len(), 1);
+}
+
+#[test]
+fn only_listed_takes_are_deleted() {
+    let root = tempfile::tempdir().unwrap();
+    let audio = "/music/a.mp3";
+    add(root.path(), audio, take("t1"), &[0.1], &[0.1]).unwrap();
+    let outside = root.path().join("keep.wav");
+    fs::write(&outside, b"x").unwrap();
+    assert!(delete(root.path(), audio, "../../keep").is_err());
+    assert!(delete(root.path(), audio, "t9").is_err());
+    assert!(delete_reading(root.path(), audio, "r9").is_err());
+    assert!(outside.exists());
+    assert_eq!(list(root.path(), audio).len(), 1);
 }

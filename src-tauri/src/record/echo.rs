@@ -40,7 +40,7 @@ pub fn cancel(mic: &[f32], played: &[f32], rate: u32) -> Vec<f32> {
         return mic.to_vec();
     };
     let lead = (LEAD_SECS * rate as f64) as isize;
-    let far = shift(&far, delay as isize - lead);
+    let far = shift(&far, delay - lead);
     let taps = (PATH_SECS * rate as f64) as usize + lead as usize;
     let path = echo_path(mic, &far, taps);
     let echo = convolve(&far, &path, mic.len());
@@ -83,7 +83,9 @@ pub fn cancel_long(mic: &[f32], played: &[f32], rate: u32) -> Vec<f32> {
 }
 
 /// Samples by which the echo trails `far` in `mic`, if there is an echo.
-fn delay(mic: &[f32], far: &[f32], rate: u32) -> Option<usize> {
+/// The echo's lag behind `far` in samples; negative when the mic hears it
+/// before the copy says it was played (the output's timestamps running late).
+fn delay(mic: &[f32], far: &[f32], rate: u32) -> Option<isize> {
     let n = (mic.len() * 2).next_power_of_two();
     let mut planner = RealFftPlanner::<f32>::new();
     let (fwd, inv) = (planner.plan_fft_forward(n), planner.plan_fft_inverse(n));
@@ -116,7 +118,7 @@ fn delay(mic: &[f32], far: &[f32], rate: u32) -> Option<usize> {
         .copied()
         .fold((0, 0.0), |a, b| if b.1 > a.1 { b } else { a });
     let background = lags.iter().map(|l| l.1).sum::<f32>() / lags.len().max(1) as f32;
-    (peak > PEAK_MIN * background.max(1e-12)).then_some(best.max(0) as usize)
+    (peak > PEAK_MIN * background.max(1e-12)).then_some(best)
 }
 
 /// `x` moved later by `by` samples (earlier if negative), same length.
@@ -427,6 +429,22 @@ mod tests {
         eprintln!("voice kept {kept:.1} dB, follows the voice {before:.2} → {after:.2}");
         assert!(kept > -6.0, "{kept}");
         assert!(after > 0.9 && after > before + 0.1, "{before} → {after}");
+    }
+
+    #[test]
+    fn an_echo_heard_before_its_copy_is_removed_too() {
+        // The output's timestamps run 45 ms late (another app enlarged the
+        // buffers): the echo, 25 ms after the sound, comes 20 ms before its copy.
+        let played = speech("ja/ごんぎつね.mp3", 8);
+        let echo: Vec<f32> = room(&played).iter().map(|e| e * 0.3).collect();
+        let late_by = RATE as usize * 45 / 1000;
+        let mut copy = vec![0.0; late_by];
+        copy.extend_from_slice(&played[..played.len() - late_by]);
+        let out = cancel(&echo, &copy, RATE);
+        let r = RATE as usize..echo.len();
+        let erle = db(energy(&echo[r.clone()]), energy(&out[r]));
+        eprintln!("echo reduction with the copy late: {erle:.1} dB");
+        assert!(erle > 20.0, "{erle}");
     }
 
     #[test]

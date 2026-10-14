@@ -22,8 +22,8 @@ const SILENT_MIC_SECS: f64 = 1.5;
 const LEVEL_EVERY: Duration = Duration::from_millis(33);
 /// The speech threshold is re-estimated this often (frames).
 const THRESHOLD_EVERY: usize = 10;
-const ERR_BLOCKED: &str =
-    "麦克风没有声音：请在“系统设置 → 隐私与安全性 → 麦克风”里允许 Shadowing，然后再试";
+const ERR_BLOCKED: &str = "麦克风没有声音：如果刚才弹出了使用麦克风的提示，点“允许”后再录一次；\
+    否则请在“系统设置 → 隐私与安全性 → 麦克风”里允许 Shadowing";
 
 pub enum Msg {
     Turn(Rules),

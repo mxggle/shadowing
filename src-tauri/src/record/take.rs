@@ -64,8 +64,11 @@ pub struct Built {
     pub lag_ms: Option<i32>,
 }
 
-/// None when there's no voice in the take.
-pub fn build(raw: &Raw, mode: Mode) -> Option<Built> {
+pub const NOTHING: &str = "没听到你的声音，再试一次？";
+const NOT_PLAYED: &str = "原句没有放出来（刚开始就跳过了，或者声音被关掉了），这次没有保存";
+
+/// Fails when the original never sounded, or there's no voice of yours.
+pub fn build(raw: &Raw, mode: Mode) -> Result<Built, &'static str> {
     let mic = convert(&raw.mic, raw.mic_rate, RATE);
     let played = place(
         &raw.marks,
@@ -84,15 +87,16 @@ pub fn build(raw: &Raw, mode: Mode) -> Option<Built> {
         let turn = turn.min(mine.len());
         mine[..turn].fill(0.0);
     }
-    let original_span = span(&played, &active(&played))?;
+    let original_span = span(&played, &active(&played)).ok_or(NOT_PLAYED)?;
     let mine_span = span(&mine, &vad::voiced(&levels(&mine)))
-        .map(|(a, b)| ((a - LEAD_SECS).max(0.0), b + TAIL_SECS))?;
+        .map(|(a, b)| ((a - LEAD_SECS).max(0.0), b + TAIL_SECS))
+        .ok_or(NOTHING)?;
     if mode == Mode::Listen {
         let cut =
             |x: &[f32], (a, b): (f64, f64)| x[at(a).min(x.len())..at(b).min(x.len())].to_vec();
         let (original, mine, original_span, mine_span) =
             turns(&cut(&played, original_span), &cut(&mine, mine_span));
-        return Some(Built {
+        return Ok(Built {
             original,
             mine,
             original_span,
@@ -110,7 +114,7 @@ pub fn build(raw: &Raw, mode: Mode) -> Option<Built> {
     let lag_ms = (mode == Mode::Shadow)
         .then(|| lag(&original, &mine_cut))
         .flatten();
-    Some(Built {
+    Ok(Built {
         original,
         mine: mine_cut,
         original_span,
