@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight, Ear, LoaderCircle, Mic, Play, Square, Trash2, X } from "lucide-react";
 import { useMemo } from "react";
 import type { RecordMode, Take, TakePart } from "../lib/api";
-import { comparePart, inTurns, lagNote, paceNote, takesFor, whenRecorded } from "../lib/takes";
+import { comparePart, inTurns, lagNote, paceNote, playheadAt, takesFor, whenRecorded } from "../lib/takes";
 import { recordTarget, type Rec, type RecordAt } from "../recordSlice";
 import { useApp } from "../store";
 import { TakeWaves } from "./TakeWaves";
@@ -207,7 +207,7 @@ function Result({ take }: { take: Take }) {
   return (
     <div className="flex flex-col gap-2.5">
       <div>
-        <TakeWaves take={take} playing={playing} onPlay={(lane) => toggle(lane)} />
+        <TakeWaves take={take} head={playing ? playheadAt(playing.parts, playing.secs) : NOWHERE} onPlay={(lane) => toggle(lane)} />
         {note && <p className="mt-0.5 pl-[2.75rem] text-[12px] text-faint">{note}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
@@ -230,6 +230,8 @@ function Result({ take }: { take: Take }) {
     </div>
   );
 }
+
+const NOWHERE = { original: null, mine: null };
 
 function PlayButton({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: string }) {
   return (

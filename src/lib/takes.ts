@@ -16,6 +16,19 @@ export function takesFor(takes: Take[], start: number, end: number): Take[] {
   });
 }
 
+/**
+ * The take to show for a sentence: the first of `prefer` that is one of its
+ * takes (the one being looked at, or one from the reading playing), else the latest.
+ */
+export function peekTake(takes: Take[], start: number, end: number, prefer: (string | null | undefined)[]): Take | undefined {
+  const own = takesFor(takes, start, end);
+  for (const id of prefer) {
+    const t = id ? own.find((t) => t.id === id) : undefined;
+    if (t) return t;
+  }
+  return own.at(-1);
+}
+
 /** Number of takes per sentence (by index), for the marks on the rows. */
 export function takeCounts(takes: Take[], sentences: { start: number; end: number }[]): number[] {
   return sentences.map((s) => takesFor(takes, s.start, s.end).length);

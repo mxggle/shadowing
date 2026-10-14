@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Reading } from "./api";
-import { partHead, partsBySentence, readingNote, readingRange, readingsFor, saidCount, stretchAt } from "./readings";
+import { headOnTake, readingNote, readingRange, readingsFor, saidCount, stretchAt } from "./readings";
 
 const reading = (over: Partial<Reading> = {}): Reading => ({
   id: "r",
@@ -64,20 +64,15 @@ describe("stretchAt", () => {
   });
 });
 
-describe("partHead", () => {
+describe("headOnTake", () => {
+  const take = { original: [0.1, 2.1] as [number, number], mine: [3, 7] as [number, number] };
   const p = { stretches: [{ clipAt: 0, len: 2, part: 0, lane: "original" as const }, { clipAt: 2.5, len: 4, part: 0, lane: "mine" as const }, { clipAt: 7, len: 2, part: 1, lane: "mine" as const }] };
-  it("runs along your part of a sentence only", () => {
-    expect(partHead(p, 1, 0)).toBeNull(); // the original is playing
-    expect(partHead(p, 3.5, 0)).toBe(0.25);
-    expect(partHead(p, 3.5, 1)).toBeNull();
-    expect(partHead(p, 8, 1)).toBe(0.5);
-    expect(partHead(p, 6.8, 0)).toBeNull(); // the gap between
+  it("follows the original, then you, on the take's own timeline", () => {
+    expect(headOnTake(p, 1, 0, take)).toEqual({ original: 1.1, mine: null });
+    expect(headOnTake(p, 3.5, 0, take)).toEqual({ original: null, mine: 4 });
   });
-});
-
-describe("partsBySentence", () => {
-  it("puts each part under the sentence it starts in", () => {
-    const at = (secs: number) => (secs < 20 ? 3 : 4);
-    expect([...partsBySentence(reading(), at)]).toEqual([[3, 0], [4, 1]]);
+  it("is nowhere while another sentence, or the gap between, plays", () => {
+    expect(headOnTake(p, 8, 0, take)).toEqual({ original: null, mine: null });
+    expect(headOnTake(p, 2.2, 0, take)).toEqual({ original: null, mine: null });
   });
 });

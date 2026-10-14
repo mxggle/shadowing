@@ -1,7 +1,7 @@
 // Rules for reading a whole paragraph (整段录音), kept pure for tests: which
 // sentences a reading covers, which readings belong to a paragraph, and the
 // words that sum one up.
-import type { Reading, ReadingPlaying, Section } from "./api";
+import type { Reading, ReadingPlaying, Section, Take } from "./api";
 import { sectionIndexOf, sectionRange } from "./sections";
 
 /** What to read: the section you're in, or the whole text. */
@@ -37,14 +37,18 @@ export function stretchAt(p: Pick<ReadingPlaying, "stretches">, secs: number) {
   return p.stretches.find((s) => secs >= s.clipAt && secs < s.clipAt + s.len) ?? null;
 }
 
-/** How far through sentence `part` of you a playing reading is (0–1); null while it isn't sounding you there. */
-export function partHead(p: Pick<ReadingPlaying, "stretches">, secs: number, part: number): number | null {
+/**
+ * Where a playing reading is on `take` (the one cut for sentence `part`), lane by
+ * lane, in the take's own seconds: its stretches of the clip map onto the take's
+ * original and your voice.
+ */
+export function headOnTake(p: Pick<ReadingPlaying, "stretches">, secs: number, part: number, take: Pick<Take, "original" | "mine">): { original: number | null; mine: number | null } {
   const s = stretchAt(p, secs);
-  if (!s || s.part !== part || s.lane === "original") return null;
-  return Math.min(1, Math.max(0, (secs - s.clipAt) / Math.max(0.01, s.len)));
-}
-
-/** Which part of `r` each sentence (by index) is, for the strips under the rows. */
-export function partsBySentence(r: Pick<Reading, "parts">, sentenceAt: (secs: number) => number): Map<number, number> {
-  return new Map(r.parts.map((p, k) => [sentenceAt(p.start + 0.01), k]));
+  if (!s || s.part !== part) return { original: null, mine: null };
+  const f = Math.min(1, Math.max(0, (secs - s.clipAt) / Math.max(0.01, s.len)));
+  const on = ([a, b]: [number, number]) => a + f * (b - a);
+  if (s.lane === "original") return { original: on(take.original), mine: null };
+  if (s.lane === "mine") return { original: null, mine: on(take.mine) };
+  // Both at once (跟着读): one timeline for both voices.
+  return { original: on(take.mine), mine: on(take.mine) };
 }

@@ -1,22 +1,23 @@
 import { BetweenHorizontalStart, FileUp, Languages, PenLine, Play, Repeat, Replace, Trash2 } from "lucide-react";
 import { Fragment, memo, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import type { Reading, Sentence, Suggestion } from "../lib/api";
+import type { Sentence, Suggestion } from "../lib/api";
 import { explainKey, type Explain } from "../explainSlice";
 import { sectionIndexOf, sectionsOf } from "../lib/sections";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
-import { partsBySentence, stretchAt } from "../lib/readings";
+import { stretchAt } from "../lib/readings";
 import { takeCounts } from "../lib/takes";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { ExplainNote } from "./Explain";
 import { ProofreadBar, ProofreadButton, SuggestionNote } from "./Proofread";
 import { LiveReadingBar, ReadingButton } from "./Reading";
-import { ReadingBar, ReadingStrip } from "./ReadingResult";
+import { ReadingBar } from "./ReadingResult";
 import { MicButton, RecorderCard } from "./Recorder";
 import { ReplaceBar } from "./ReplaceBar";
 import { SentenceEditor } from "./SentenceEditor";
 import { SectionHeading, SectionMenu } from "./Sections";
 import { SentenceText, UnsureCount } from "./SentenceText";
+import { TakePeek } from "./TakePeek";
 import { IconButton } from "./ui";
 
 /**
@@ -39,9 +40,7 @@ export function SentenceList() {
   });
   const reading = useApp((s) => (s.live?.phase === "reading" ? s.live : null));
   const shown = useApp((s) => s.readings.find((r) => r.id === s.shownReading) ?? null);
-  // A reading being looked at: its line above the paragraph, your part of it under each sentence.
-  const shownParts = useMemo(() => (shown ? partsBySentence(shown, (secs) => sentenceIndexAt(sentences, secs)) : null), [shown, sentences]);
-  const shownAt = shownParts ? Math.min(...shownParts.keys()) : -1;
+  const shownAt = useMemo(() => (shown ? sentenceIndexAt(sentences, shown.start + 0.01) : -1), [shown, sentences]);
   const loopSentence = useApp((s) => s.loopSentence);
   const editing = useApp((s) => s.editing?.index ?? null);
   const find = useApp((s) => s.replace?.find ?? "");
@@ -56,6 +55,9 @@ export function SentenceList() {
   const takes = useApp((s) => s.takes);
   const counts = useMemo(() => takeCounts(takes, sentences), [takes, sentences]);
   const recordAt = useApp((s) => s.recordAt);
+  // Like lyrics: the sentence playing (or paused on) opens to show your take, if you've recorded it.
+  const recording = useApp((s) => !!s.live || !!s.rec);
+  const peekAt = !recording && active >= 0 && (counts[active] ?? 0) > 0 ? active : -1;
   const sections = useApp((s) => sectionsOf(s.transcript));
   const headed = sections.length > 1;
   const starts = useMemo(() => new Map(sections.map((x, k) => [x.start, k])), [sections]);
@@ -93,8 +95,7 @@ export function SentenceList() {
                   takes={counts[i] ?? 0}
                   reading={!!reading && i === active && i >= reading.first && i < reading.end}
                   recorder={recordAt === i}
-                  shown={shownParts?.has(i) ? shown : null}
-                  part={shownParts?.get(i) ?? -1}
+                  peek={i === peekAt}
                   voices={voices}
                   turn={voices && startsTurn(sentences, i)}
                   opensSection={headed && k !== undefined}
@@ -167,7 +168,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
  * One sentence. With more than one voice (`voices`), a column names the
  * speaker where their turn starts (`turn`), like a script, and turns get a little air between them.
  */
-const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, takes, recorder, shown, part, reading, voices, turn, opensSection, canSplit }: {
+const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, takes, recorder, peek, reading, voices, turn, opensSection, canSplit }: {
   index: number;
   sentence: Sentence;
   active: boolean;
@@ -182,9 +183,8 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
   /** Recordings of you saying it, and whether its recorder card is open. */
   takes: number;
   recorder: boolean;
-  /** The paragraph reading shown, and which of its parts this sentence is. */
-  shown: Reading | null;
-  part: number;
+  /** Open its latest take under it: the sentence playing, when you've recorded it. */
+  peek: boolean;
   /** The sentence being read now, in a paragraph recording. */
   reading: boolean;
   voices: boolean;
@@ -250,7 +250,7 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
           </p>
         )}
         {suggestions?.map((s) => <SuggestionNote key={`${s.from}→${s.to}`} suggestion={s} />)}
-        {shown && !recorder && <ReadingStrip reading={shown} part={part} />}
+        {takes > 0 && !recorder && !editing && <TakePeek sentence={sentence} open={peek} />}
         {explain?.open && <ExplainNote index={index} entry={explain} />}
         {recorder && <RecorderCard at={index} />}
       </div>

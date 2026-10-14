@@ -1,6 +1,5 @@
 import type { Take } from "../lib/api";
-import { formatSecs, lanes, mineSecs, playheadAt } from "../lib/takes";
-import type { PlayingTake } from "../recordSlice";
+import { formatSecs, lanes, mineSecs } from "../lib/takes";
 
 /** Peaks are stored 50 a second. */
 const PER_SEC = 50;
@@ -10,17 +9,21 @@ const MAX_BARS = 160;
 /**
  * The original above, you below, drawn to the same scale: 听完再说 lines both up
  * at their first sound, 边听边说 keeps the real timeline (the lag shows). A
- * playhead runs along whichever is playing; a click plays that voice.
+ * playhead runs along whichever is playing (`head`, in the take's seconds); a
+ * click plays that voice. `compact`: thinner lanes, for the sentence playing.
  */
-export function TakeWaves({ take, playing, onPlay }: {
+export function TakeWaves({ take, head, onPlay, compact, titles }: {
   take: Take;
-  playing: PlayingTake | null;
+  head: { original: number | null; mine: number | null };
   onPlay: (lane: "original" | "mine") => void;
+  compact?: boolean;
+  /** What a click on each lane does, when it isn't just that voice. */
+  titles?: string;
 }) {
   const l = lanes(take);
-  const head = playing ? playheadAt(playing.parts, playing.secs) : { original: null, mine: null };
+  const height = compact ? "h-5" : "h-9";
   return (
-    <div className="grid grid-cols-[2.25rem_1fr_3.25rem] items-center gap-x-2 gap-y-1">
+    <div className={`grid grid-cols-[2.25rem_1fr_3.25rem] items-center gap-x-2 ${compact ? "gap-y-0.5" : "gap-y-1"}`}>
       <Lane
         label="原句"
         peaks={take.peaks.original}
@@ -29,6 +32,8 @@ export function TakeWaves({ take, playing, onPlay }: {
         secs={take.original[1] - take.original[0]}
         head={head.original}
         tone="text-fg/35"
+        height={height}
+        title={titles}
         onClick={() => onPlay("original")}
       />
       <Lane
@@ -39,13 +44,15 @@ export function TakeWaves({ take, playing, onPlay }: {
         secs={mineSecs(take)}
         head={head.mine}
         tone="text-fg/80"
+        height={height}
+        title={titles}
         onClick={() => onPlay("mine")}
       />
     </div>
   );
 }
 
-function Lane({ label, peaks, from, width, secs, head, tone, onClick }: {
+function Lane({ label, peaks, from, width, secs, head, tone, height, title, onClick }: {
   label: string;
   peaks: number[];
   from: number;
@@ -54,6 +61,8 @@ function Lane({ label, peaks, from, width, secs, head, tone, onClick }: {
   secs: number;
   head: number | null;
   tone: string;
+  height: string;
+  title?: string;
   onClick: () => void;
 }) {
   const samples = Math.max(1, Math.round(width * PER_SEC));
@@ -70,9 +79,9 @@ function Lane({ label, peaks, from, width, secs, head, tone, onClick }: {
     <>
       <span className="text-[11px] text-faint">{label}</span>
       <button
-        title={`听${label}`}
+        title={title ?? `听${label}`}
         onClick={onClick}
-        className={`relative h-9 w-full rounded-[6px] transition-colors hover:bg-hover ${tone}`}
+        className={`relative ${height} w-full rounded-[6px] transition-colors hover:bg-hover ${tone}`}
       >
         <svg viewBox={`0 0 ${bars} 2`} preserveAspectRatio="none" className="size-full" aria-hidden>
           {heights.map((h, i) =>

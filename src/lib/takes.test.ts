@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Take } from "./api";
-import { lagNote, lanes, paceNote, playheadAt, takeCounts, takesFor, whenRecorded } from "./takes";
+import { lagNote, lanes, paceNote, peekTake, playheadAt, takeCounts, takesFor, whenRecorded } from "./takes";
 
 const take = (over: Partial<Take> = {}): Take => ({
   id: "1",
@@ -38,6 +38,17 @@ describe("takesFor", () => {
   it("counts per sentence", () => {
     const sentences = [{ start: 10, end: 12 }, { start: 12, end: 14 }];
     expect(takeCounts([take(), take({ id: "2" })], sentences)).toEqual([2, 0]);
+  });
+});
+
+describe("peekTake", () => {
+  const takes = [take(), take({ id: "2" }), take({ id: "3", start: 12, end: 14 })];
+  it("shows the latest of the sentence's takes", () => {
+    expect(peekTake(takes, 10, 12, [])?.id).toBe("2");
+    expect(peekTake(takes, 20, 22, [])).toBeUndefined();
+  });
+  it("prefers one being looked at or played, if it is this sentence's", () => {
+    expect(peekTake(takes, 10, 12, [null, "3", "1"])?.id).toBe("1");
   });
 });
 
