@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Take } from "./api";
-import { lagNote, lanes, paceNote, peekTake, playheadAt, takeCounts, takesFor, whenRecorded } from "./takes";
+import { lagNote, lanes, nextTake, paceNote, peekTake, playheadAt, sentenceOf, takeCounts, takesFor, whenRecorded } from "./takes";
 
 const take = (over: Partial<Take> = {}): Take => ({
   id: "1",
@@ -49,6 +49,29 @@ describe("peekTake", () => {
   });
   it("prefers one being looked at or played, if it is this sentence's", () => {
     expect(peekTake(takes, 10, 12, [null, "3", "1"])?.id).toBe("1");
+  });
+});
+
+describe("listening on", () => {
+  const sentences = [{ start: 10, end: 12 }, { start: 12, end: 14 }, { start: 14, end: 16 }, { start: 16, end: 18 }];
+  const takes = [
+    take({ id: "a" }),
+    take({ id: "c1", start: 14, end: 16, group: "r" }),
+    take({ id: "c2", start: 14, end: 16 }),
+    take({ id: "d", start: 16, end: 18 }),
+  ];
+  it("knows which sentence a take is of", () => {
+    expect(sentenceOf(take({ start: 14.1, end: 16 }), sentences)).toBe(2);
+    expect(sentenceOf(take({ start: 40, end: 42 }), sentences)).toBe(-1);
+  });
+  it("goes on to the next recorded sentence, passing over the rest", () => {
+    expect(nextTake(takes, sentences, 0)).toEqual({ index: 2, take: takes[2] });
+    expect(nextTake(takes, sentences, 2)?.take.id).toBe("d");
+    expect(nextTake(takes, sentences, 3)).toBeNull();
+  });
+  it("stays with the reading it started in", () => {
+    expect(nextTake(takes, sentences, 0, "r")?.take.id).toBe("c1");
+    expect(nextTake(takes, sentences, 2, "r")?.take.id).toBe("d");
   });
 });
 

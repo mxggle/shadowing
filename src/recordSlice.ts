@@ -2,12 +2,14 @@
 // once (听完再说: then it's your turn; 边听边说: you speak over it) → Rust says
 // when you've stopped → the take is kept and, by default, played back against
 // the original. Works without headphones: Rust takes the original out of the mic.
+// Playing a take back goes on to the next recorded sentence, the same way
+// (一起听 / 对比 / 原句 / 我的), so a whole text can be listened through.
 import { listen } from "@tauri-apps/api/event";
 import type { AudioEngine } from "./audio/engine";
 import { isLoopActive } from "./audio/logic";
 import { api, type ClipPart, type RecordMode, type Settings, type Take, type TakePart } from "./lib/api";
 import { sentenceIndexAt } from "./lib/sentences";
-import { comparePart, takesFor } from "./lib/takes";
+import { comparePart, nextTake, sentenceOf, takesFor } from "./lib/takes";
 import type { AppState } from "./store";
 
 /** Where the recorder is: under a sentence, or (without a transcript) the A–B loop. */
@@ -33,6 +35,8 @@ export interface Rec {
 export interface PlayingTake {
   id: string;
   what: TakePart;
+  /** At its end, go on to the next recorded sentence (not after a fresh recording's replay). */
+  chain: boolean;
   clip: number;
   parts: ClipPart[];
   duration: number;
@@ -60,7 +64,8 @@ export interface RecordState {
   cancelTake(): void;
   /** Space while recording: skip the rest of the original, or finish. */
   advanceTake(): void;
-  playTake(id: string, what: TakePart): Promise<void>;
+  /** Plays a take, then (`chain`, the default) each recorded sentence after it the same way. */
+  playTake(id: string, what: TakePart, chain?: boolean): Promise<void>;
   /** P: your last take here against the original (or stop it). */
   replayTake(): void;
   stopTake(): void;
@@ -113,7 +118,31 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
     const p = get().playingTake;
     if (!p || p.clip !== payload.clip) return;
     set({ playingTake: payload.playing ? { ...p, secs: payload.secs } : null });
+    if (!payload.playing && p.chain) playOn(p);
   });
+
+  /** Bumped by every play and stop; `stoppedAt` is the bump of the last stop. A play
+   *  that was stopped while it started is stopped once it has; one that another play
+   *  took over from is left to it. */
+  let playing = 0;
+  let stoppedAt = -1;
+
+  /**
+   * A take played to its end: the next recorded sentence, the same way. Its
+   * card, left behind, closes; the track moves along (unless looping), so
+   * stopping leaves you on the sentence you got to.
+   */
+  function playOn(p: PlayingTake) {
+    const s = get();
+    const sentences = s.transcript?.sentences ?? [];
+    const take = s.takes.find((t) => t.id === p.id);
+    const from = take ? sentenceOf(take, sentences) : -1;
+    const next = from < 0 ? null : nextTake(s.takes, sentences, from, take?.group);
+    if (!next || s.rec || s.live) return;
+    if (s.recordAt === from) set({ recordAt: null, recError: null });
+    if (!isLoopActive(s.loop)) get().seek(sentences[next.index].start);
+    void get().playTake(next.take.id, p.what);
+  }
 
   /** Default place: the looped / current sentence, else the A–B loop. */
   function here(): RecordAt | null {
@@ -199,7 +228,7 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       try {
         const take = (await api.record.finish()).takes[0];
         set((s) => ({ rec: null, takes: take ? [...s.takes, take] : s.takes, shownTake: take?.id ?? null }));
-        if (take && get().settings.recordReplay) void get().playTake(take.id, comparePart(take));
+        if (take && get().settings.recordReplay) void get().playTake(take.id, comparePart(take), false);
       } catch (e) {
         set({ rec: null, recError: String(e) });
       }
@@ -212,14 +241,19 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       void api.record.cancel();
     },
 
-    async playTake(id, what) {
+    async playTake(id, what, chain = true) {
       const path = get().current?.path;
       if (!path || get().rec) return;
+      const mine = ++playing;
+      // Playing from now (clip −1 until it starts): the list moves to its sentence
+      // without a gap, and the end of the clip it replaces isn't one to go on from.
+      set({ playingTake: { id, what, chain, clip: -1, parts: [], duration: 0, secs: 0 }, shownTake: id, recError: null });
       try {
         const p = await api.record.play(path, id, what);
-        set({ playingTake: { id, what, ...p, secs: 0 }, shownTake: id, recError: null });
+        if (mine !== playing) return void (stoppedAt === playing && api.record.stop());
+        set({ playingTake: { id, what, chain, ...p, secs: 0 } });
       } catch (e) {
-        set({ recError: String(e) });
+        if (mine === playing) set({ playingTake: null, recError: String(e) });
       }
     },
 
@@ -235,6 +269,7 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
     },
 
     stopTake() {
+      stoppedAt = ++playing;
       if (!get().playingTake) return;
       set({ playingTake: null });
       void api.record.stop();

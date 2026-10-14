@@ -5,7 +5,7 @@ import { explainKey, type Explain } from "../explainSlice";
 import { sectionIndexOf, sectionsOf } from "../lib/sections";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
 import { stretchAt } from "../lib/readings";
-import { takeCounts } from "../lib/takes";
+import { sentenceOf, takeCounts } from "../lib/takes";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { ExplainNote } from "./Explain";
@@ -30,8 +30,12 @@ export function SentenceList() {
   const sentences = useApp((s) => s.transcript?.sentences ?? []);
   const active = useApp((s) => {
     if (!s.transcript) return -1;
-    // Reading on your own: the sentence you're on; playing a reading back: the one playing.
+    // Reading on your own: the sentence you're on; playing a reading or a take back: the one playing.
     if (s.live?.mode === "read" && s.live.phase === "reading") return s.live.current;
+    // Listening through your takes: the sentence of the one playing.
+    const take = s.playingTake && s.takes.find((t) => t.id === s.playingTake!.id);
+    const of = take ? sentenceOf(take, s.transcript.sentences) : -1;
+    if (of >= 0) return of;
     const p = s.playingReading;
     const stretch = p && stretchAt(p, p.secs);
     const part = stretch && s.readings.find((r) => r.id === p.id)?.parts[stretch.part];

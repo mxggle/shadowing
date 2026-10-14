@@ -29,6 +29,25 @@ export function peekTake(takes: Take[], start: number, end: number, prefer: (str
   return own.at(-1);
 }
 
+/** The sentence (by index) a take was recorded against; -1 for none (an A–B loop, or a sentence since removed). */
+export function sentenceOf(take: Pick<Take, "start" | "end">, sentences: { start: number; end: number }[]): number {
+  return sentences.findIndex((s) => takesFor([take as Take], s.start, s.end).length > 0);
+}
+
+/**
+ * Listening on through the text: the next sentence after `from` you've
+ * recorded, and its take — from the same reading as the one before
+ * (`group`) if there is one, else the latest. Sentences not recorded are passed over.
+ */
+export function nextTake(takes: Take[], sentences: { start: number; end: number }[], from: number, group?: string | null): { index: number; take: Take } | null {
+  for (let i = from + 1; i < sentences.length; i++) {
+    const own = takesFor(takes, sentences[i].start, sentences[i].end);
+    if (!own.length) continue;
+    return { index: i, take: (group && own.find((t) => t.group === group)) || own[own.length - 1] };
+  }
+  return null;
+}
+
 /** Number of takes per sentence (by index), for the marks on the rows. */
 export function takeCounts(takes: Take[], sentences: { start: number; end: number }[]): number[] {
   return sentences.map((s) => takesFor(takes, s.start, s.end).length);

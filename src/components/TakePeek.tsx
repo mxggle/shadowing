@@ -9,8 +9,9 @@ import { TakeWaves } from "./TakeWaves";
 /**
  * Under the sentence playing (or paused on, or looped) once you've recorded
  * it: your take against the original, opening up like the current line of
- * lyrics and closing again as playback moves on. A click plays the comparison;
- * the full card (how to record, earlier takes, 再录一次) is the mic's.
+ * lyrics and closing again as playback moves on. A click plays the comparison,
+ * and on through the recorded sentences after it; the full card (how to
+ * record, earlier takes, 再录一次) is the mic's.
  */
 export const TakePeek = memo(function TakePeek({ sentence, open }: { sentence: Sentence; open: boolean }) {
   // Kept a moment after closing, so it can fold away.
@@ -46,7 +47,7 @@ function Peek({ start, end }: { start: number; end: number }) {
 
 function PeekTake({ take }: { take: Take }) {
   const head = useApp(useShallow((s) => headOf(s, take)));
-  const playing = useApp((s) => (s.playingTake?.id === take.id ? s.playingTake.what : null));
+  const playing = useApp((s) => s.playingTake?.id === take.id);
   const { playTake, stopTake } = useApp.getState();
   const both = comparePart(take);
   const note = inTurns(take) ? paceNote(take) : lagNote(take.lagMs);
@@ -56,8 +57,8 @@ function PeekTake({ take }: { take: Take }) {
         compact
         take={take}
         head={head}
-        titles={playing === both ? "停" : inTurns(take) ? "听这句的对比：先原句，再你的 (P)" : "听这句：原句和你的一起放 (P)"}
-        onPlay={() => (playing === both ? stopTake() : void playTake(take.id, both))}
+        titles={playing ? "停 (空格)" : inTurns(take) ? "从这句听下去：每句先原句，再你的 (P)" : "从这句听下去：原句和你的一起放 (P)"}
+        onPlay={() => (playing ? stopTake() : void playTake(take.id, both))}
       />
       {note && <p className="mt-0.5 pl-[2.75rem] text-[12px] leading-4 text-faint">{note}</p>}
     </div>

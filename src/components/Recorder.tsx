@@ -211,13 +211,13 @@ function Result({ take }: { take: Take }) {
         {note && <p className="mt-0.5 pl-[2.75rem] text-[12px] text-faint">{note}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
-        <PlayButton active={playing?.what === both} onClick={() => toggle(both)} title={turns ? "先放原句，再放你的 (P)" : "两个一起放，听合不合拍 (P)"}>
+        <PlayButton active={playing?.what === both} onClick={() => toggle(both)} title={turns ? "从这句听下去：每句先放原句，再放你的 (P)" : "从这句听下去：原句和你的一起放，听合不合拍 (P)"}>
           {turns ? "对比" : "一起听"}
         </PlayButton>
-        <PlayButton active={playing?.what === "original"} onClick={() => toggle("original")} title="只听原句">
+        <PlayButton active={playing?.what === "original"} onClick={() => toggle("original")} title="从这句听下去：只听原句">
           原句
         </PlayButton>
-        <PlayButton active={playing?.what === "mine"} onClick={() => toggle("mine")} title="只听你的">
+        <PlayButton active={playing?.what === "mine"} onClick={() => toggle("mine")} title="从这句听下去：只听你的">
           我的
         </PlayButton>
         <span className="ml-auto flex items-center gap-1">

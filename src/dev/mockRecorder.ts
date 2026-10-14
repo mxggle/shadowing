@@ -204,12 +204,14 @@ function startClip(duration: number) {
   window.clearInterval(clipTimer);
   const id = ++clip;
   const started = performance.now();
-  clipTimer = window.setInterval(() => {
+  // Its own timer: the end can start the next clip (listening on) before this one stops.
+  const timer = window.setInterval(() => {
     const secs = (performance.now() - started) / 1000;
     const playing = secs < duration;
+    if (!playing) window.clearInterval(timer);
     void emit("recorder:clip", { clip: id, secs, playing });
-    if (!playing) window.clearInterval(clipTimer);
   }, 33);
+  clipTimer = timer;
   return { clip: id, duration };
 }
 
