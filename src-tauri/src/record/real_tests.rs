@@ -319,7 +319,12 @@ fn real_record_takes() {
         );
         let _ = say.wait();
         let t = Instant::now();
+        let checked = Instant::now();
         let silent = !recorder.round().expect("after the silent time");
+        println!(
+            "{mode:?} after round 3 (silent): {} ms to find nothing",
+            checked.elapsed().as_millis()
+        );
         assert!(silent, "{mode:?}: the third time had nothing of yours");
         let take = recorder
             .finish(&player, root.path(), true)
@@ -393,7 +398,13 @@ fn real_record_rounds() {
         let started = Instant::now();
         for round in 1..=3 {
             if round > 1 {
+                let checked = Instant::now();
                 let voiced = recorder.round().expect("another round");
+                println!(
+                    "{mode:?} between rounds {} and {round}: {} ms to keep it aside",
+                    round - 1,
+                    checked.elapsed().as_millis()
+                );
                 assert!(voiced, "{mode:?} round {}: had your voice", round - 1);
             }
             let opened = Instant::now();
@@ -419,7 +430,12 @@ fn real_record_rounds() {
                 opened.elapsed().as_secs_f64()
             );
         }
+        let checked = Instant::now();
         let silent = !recorder.round().expect("after the silent time");
+        println!(
+            "{mode:?} after round 3 (silent): {} ms to find nothing",
+            checked.elapsed().as_millis()
+        );
         assert!(silent, "{mode:?}: the third time had nothing of yours");
         let take = recorder
             .finish(&player, root.path(), true)
