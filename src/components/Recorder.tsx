@@ -132,9 +132,9 @@ function Live({ rec }: { rec: Rec }) {
     );
   }
   const listening = rec.phase === "listening";
-  const advance = advanceOf(rec);
-  const label = advanceLabel(advance, rec.again);
+  const label = advanceLabel(rec);
   const count = countOf(rec);
+  const hint = hintOf(rec);
   return (
     <div className="flex flex-col gap-2">
       <div className="flex h-9 items-center gap-3">
@@ -157,21 +157,19 @@ function Live({ rec }: { rec: Rec }) {
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Button className="h-7 px-2.5" title={`${label} (空格)`} onClick={advanceTake}>
-          {advance !== "skip" && <Square size={10} fill="currentColor" strokeWidth={0} />}
+          {advanceOf(rec) !== "skip" && <Square size={10} fill="currentColor" strokeWidth={0} />}
           {label}
         </Button>
         <button title="取消 (Esc)" className="text-[12px] text-faint hover:text-fg" onClick={cancelTake}>
           取消
         </button>
         <span className="ml-auto text-right text-[12px] text-faint" title={rec.mic ? `用「${rec.mic}」录音` : undefined}>
-          {!rec.again ? (
-            hintOf(rec)
-          ) : rec.max !== null && rec.n >= rec.max ? (
-            "最后一遍，说完到下一句"
-          ) : (
+          {hint.text}
+          {hint.space !== undefined && (
             <>
-              说完自动接下一遍，满意了按 <Kbd>空格</Kbd>
-              {rec.max !== null && " 到下一句"}
+              {" "}
+              <Kbd>空格</Kbd>
+              {hint.space}
             </>
           )}
         </span>

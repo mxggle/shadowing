@@ -179,7 +179,8 @@ function begin(meta: RecordMeta) {
       // Like the mic, it stays open after stopping by itself: another time through may follow.
       // Nothing said after the original (听完再说) waits a while, as Rust does (shorter here).
       const nothing = meta.mode === "listen" && !s.voiced && since > 3;
-      if (since > 0 && (nothing || (s.voiced || meta.mode === "shadow") && quietFor > 0.8) && !s.done) {
+      const pause = meta.mode === "shadow" ? 0.6 : 0.8;
+      if (since > 0 && (nothing || (s.voiced || meta.mode === "shadow") && quietFor > pause) && !s.done) {
         s.done = true;
         void emit("recorder:auto", nothing ? "nothing" : "pause");
       }
@@ -274,7 +275,7 @@ export async function mockRecord(cmd: string, a: Record<string, never>): Promise
       const [voiced, kept] = [session?.voiced, session?.kept];
       const meta = stop();
       if (!meta) return { takes: [], reading: null };
-      if (!meta.sentences?.length && !voiced && !kept) throw "没听到你的声音，再试一次？";
+      if (!meta.sentences?.length && !voiced && !kept) throw meta.mode === "shadow" ? "没听到你的声音：原句一放就跟着说，再试一次？" : "没听到你的声音，再试一次？";
       await new Promise((r) => setTimeout(r, meta.mode === "shadow" ? 700 : 300));
       if (meta.sentences?.length) return makeReading(meta, Date.now());
       const take = makeTake(meta, Date.now(), 0.95 + rand() * 0.3);

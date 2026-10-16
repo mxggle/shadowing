@@ -12,6 +12,9 @@ const QUIETEST_DB: f32 = -55.0;
 const SPEECH_FRAMES: usize = 15;
 /// Right after the original stops, its echo is still dying away in the room.
 const ECHO_TAIL_FRAMES: usize = 15;
+/// Speaking along, your voice only needs to stand this far above the room:
+/// shadowing is often said under the breath, a little behind the original.
+const ALONG_ABOVE_DB: f32 = 6.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,12 +31,15 @@ pub enum Stop {
 pub struct Rules {
     /// Quiet after speech that ends the take.
     pub pause_secs: f64,
-    /// No speech at all for this long after your turn starts.
+    /// No speech at all for this long after your turn starts (not `along`).
     pub wait_secs: f64,
     /// Longest your turn may last.
     pub max_secs: f64,
-    /// You were already speaking when the turn began (shadowing).
-    pub speaking: bool,
+    /// You speak along with the original (边听边说): the turn begins once it
+    /// has finished, with you still on your last words (you're a little
+    /// behind). It ends when you stop, or at `max_secs` all the same; a quieter
+    /// voice counts as still speaking, and there's no waiting for you to start.
+    pub along: bool,
 }
 
 /// Level in dBFS of one frame.
@@ -57,19 +63,35 @@ pub fn threshold(levels: &[f32]) -> f32 {
     (floor(levels) + ABOVE_FLOOR_DB).max(QUIETEST_DB)
 }
 
+/// The speech threshold for speaking along (`Rules::along`), from the room's
+/// noise floor (`floor`).
+pub fn along_threshold(room: f32) -> f32 {
+    (room + ALONG_ABOVE_DB).max(QUIETEST_DB)
+}
+
 /// Whether the take should stop, given every frame level so far, the frame your
 /// turn began at and the speech threshold (`threshold` of the levels, kept up to date by the caller).
 pub fn verdict(levels: &[f32], turn: usize, rules: &Rules, thr: f32) -> Option<Stop> {
     let since = levels.len().saturating_sub(turn);
     let secs = |frames: usize| frames as f64 * FRAME_SECS;
+    if rules.along {
+        // The echo has stopped: what's left above the room is you.
+        let thr = along_threshold(thr - ABOVE_FLOOR_DB);
+        let quiet = levels[turn.min(levels.len())..]
+            .iter()
+            .rev()
+            .take_while(|&&l| l <= thr)
+            .count();
+        let done = secs(quiet) >= rules.pause_secs || secs(since) >= rules.max_secs;
+        return done.then_some(Stop::Pause);
+    }
     if secs(since) >= rules.max_secs {
         return Some(Stop::Long);
     }
-    let start = (turn + if rules.speaking { 0 } else { ECHO_TAIL_FRAMES }).min(levels.len());
+    let start = (turn + ECHO_TAIL_FRAMES).min(levels.len());
     let turn_levels = &levels[start..];
     let voiced = turn_levels.iter().filter(|&&l| l > thr).count();
-    let heard = rules.speaking || voiced >= SPEECH_FRAMES;
-    if !heard {
+    if voiced < SPEECH_FRAMES {
         return (secs(since) >= rules.wait_secs).then_some(Stop::Nothing);
     }
     let quiet = turn_levels.iter().rev().take_while(|&&l| l <= thr).count();
@@ -80,7 +102,11 @@ pub fn verdict(levels: &[f32], turn: usize, rules: &Rules, thr: f32) -> Option<S
 /// above the threshold, and in a stretch that mostly is (a lone 10 ms blip of
 /// leftover echo or a click isn't speech).
 pub fn voiced(levels: &[f32]) -> Vec<bool> {
-    let thr = threshold(levels);
+    voiced_over(levels, threshold(levels))
+}
+
+/// `voiced`, against a given threshold.
+pub fn voiced_over(levels: &[f32], thr: f32) -> Vec<bool> {
     let loud: Vec<bool> = levels.iter().map(|&l| l > thr).collect();
     let near = |i: usize| {
         loud[i.saturating_sub(5)..(i + 6).min(loud.len())]
@@ -99,7 +125,13 @@ mod tests {
         pause_secs: 0.8,
         wait_secs: 5.0,
         max_secs: 20.0,
-        speaking: false,
+        along: false,
+    };
+    const ALONG: Rules = Rules {
+        pause_secs: 0.6,
+        wait_secs: 3.0,
+        max_secs: 2.5,
+        along: true,
     };
 
     /// Room noise at −70 dB with speech (−25 dB) in the given frame ranges.
@@ -152,20 +184,51 @@ mod tests {
     }
 
     #[test]
-    fn shadowing_stops_once_you_stop() {
-        let rules = Rules {
-            speaking: true,
-            pause_secs: 0.7,
-            ..LISTEN
-        };
+    fn along_it_stops_once_you_stop() {
+        // The original ends at frame 200; you finish 0.3 s later.
         let levels = take(400, 0..230);
-        assert_eq!(
-            verdict(&levels[..250], 200, &rules, threshold(&levels[..250])),
-            None
+        let at = |n: usize| verdict(&levels[..n], 200, &ALONG, threshold(&levels[..n]));
+        assert_eq!(at(250), None);
+        assert_eq!(at(285), None, "0.55 s after you stopped");
+        assert_eq!(at(290), Some(Stop::Pause));
+    }
+
+    #[test]
+    fn along_a_quiet_voice_still_counts() {
+        // A fan at −60, you under your breath at −50 (as measured in a real
+        // take): not speech by the usual threshold, but you're still finishing.
+        let levels: Vec<f32> = (0..400)
+            .map(|i| match i {
+                150..300 => -50.0 + (i % 4) as f32,
+                _ => -60.0 + (i % 3) as f32,
+            })
+            .collect();
+        assert!(
+            levels[250] <= threshold(&levels[..260]),
+            "too quiet for 听完再说"
         );
+        let at = |n: usize| verdict(&levels[..n], 200, &ALONG, threshold(&levels[..n]));
+        assert_eq!(at(280), None, "still going 0.8 s after the original");
+        assert_eq!(at(360), Some(Stop::Pause), "0.6 s after you stopped");
+    }
+
+    #[test]
+    fn along_already_quiet_it_stops_soon_after_the_original() {
+        let levels = take(400, 0..150);
+        let at = |n: usize| verdict(&levels[..n], 200, &ALONG, threshold(&levels[..n]));
+        assert_eq!(at(255), None);
+        assert_eq!(at(260), Some(Stop::Pause), "no waiting for you to start");
+    }
+
+    #[test]
+    fn along_it_stops_a_little_after_the_original_whatever_happens() {
+        let levels = take(600, 100..600);
+        let at = |n: usize| verdict(&levels[..n], 200, &ALONG, threshold(&levels[..n]));
+        assert_eq!(at(440), None);
         assert_eq!(
-            verdict(&levels[..300], 200, &rules, threshold(&levels[..300])),
-            Some(Stop::Pause)
+            at(450),
+            Some(Stop::Pause),
+            "an end like any other: 连续录 goes on to the next time"
         );
     }
 

@@ -65,7 +65,11 @@ pub struct Built {
 }
 
 pub const NOTHING: &str = "没听到你的声音，再试一次？";
+/// 边听边说 with nothing of yours: most likely you waited for the original to finish.
+pub const NOTHING_ALONG: &str = "没听到你的声音：原句一放就跟着说，再试一次？";
 const NOT_PLAYED: &str = "原句没有放出来（刚开始就跳过了，或者声音被关掉了），这次没有保存";
+/// Speaking along, you may come in a moment before the original (you've heard it before).
+const EARLY_SECS: f64 = 0.3;
 
 /// Fails when the original never sounded, or there's no voice of yours.
 pub fn build(raw: &Raw, mode: Mode) -> Result<Built, &'static str> {
@@ -76,21 +80,32 @@ pub fn build(raw: &Raw, mode: Mode) -> Result<Built, &'static str> {
         raw.mic_at,
         raw.mic.len() as f64 / raw.mic_rate as f64,
     );
+    let original_span = span(&played, &active(&played)).ok_or(NOT_PLAYED)?;
+    // The room as the mic heard it: removing the echo also turns the room
+    // down wherever the original played, so the cleaned take's own quietest
+    // moments are well below it.
+    let room = vad::floor(&levels(&mic));
     let mut mine = if played.iter().any(|v| v.abs() > 1e-4) {
         echo::cancel(&mic, &played, RATE)
     } else {
         mic
     };
-    let turn = (raw.turn as f64 * RATE as f64 / raw.mic_rate.max(1) as f64) as usize;
-    if mode == Mode::Listen {
+    let (voiced, nothing) = if mode == Mode::Shadow {
+        // Nobody shadows what hasn't started: before it, it's the room.
+        let from = at(original_span.0 - EARLY_SECS).min(mine.len());
+        mine[..from].fill(0.0);
+        let thr = vad::along_threshold(room);
+        (vad::voiced_over(&levels(&mine), thr), NOTHING_ALONG)
+    } else {
         // Before your turn the mic only heard the original.
+        let turn = (raw.turn as f64 * RATE as f64 / raw.mic_rate.max(1) as f64) as usize;
         let turn = turn.min(mine.len());
         mine[..turn].fill(0.0);
-    }
-    let original_span = span(&played, &active(&played)).ok_or(NOT_PLAYED)?;
-    let mine_span = span(&mine, &vad::voiced(&levels(&mine)))
+        (vad::voiced(&levels(&mine)), NOTHING)
+    };
+    let mine_span = span(&mine, &voiced)
         .map(|(a, b)| ((a - LEAD_SECS).max(0.0), b + TAIL_SECS))
-        .ok_or(NOTHING)?;
+        .ok_or(nothing)?;
     if mode == Mode::Listen {
         let cut =
             |x: &[f32], (a, b): (f64, f64)| x[at(a).min(x.len())..at(b).min(x.len())].to_vec();
