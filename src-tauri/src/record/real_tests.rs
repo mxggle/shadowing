@@ -10,6 +10,7 @@ use super::take::{self, Raw, RATE};
 use super::{echo, mic, saved, vad};
 use crate::audio::{tap, EventSink, Player, Status};
 use std::path::Path;
+use std::process::Child;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::Arc;
 use std::thread;
@@ -242,7 +243,7 @@ impl super::Signals for Caught {
 }
 
 /// A stand-in learner: macOS `say` through the built-in speakers, `after` seconds from now.
-fn learner_says(after: f64, text: &str) -> std::process::Child {
+fn learner_says(after: f64, text: &str) -> Child {
     std::process::Command::new("sh")
         .arg("-c")
         .arg(format!(
@@ -582,4 +583,333 @@ fn real_record_paragraph() {
             .unwrap();
         }
     }
+}
+
+/// What a take captured, at `RATE` on the mic's timeline: the mic, the output
+/// as heard there, and the mic with the echo taken out (as `take::build` does).
+fn lanes(raw: &Raw) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+    let mic = take::convert(&raw.mic, raw.mic_rate, RATE);
+    let secs = raw.mic.len() as f64 / raw.mic_rate as f64;
+    let heard = take::place(&raw.marks, &raw.played, raw.mic_at, secs);
+    let cleaned = echo::cancel(&mic, &heard, RATE);
+    (mic, heard, cleaned)
+}
+
+/// Where the original sounds in `heard` (seconds), and its longest silence in between.
+fn sounding(heard: &[f32]) -> ((f64, f64), f64) {
+    let on: Vec<bool> = take::levels(heard).iter().map(|&l| l > -60.0).collect();
+    let first = on.iter().position(|&v| v).unwrap_or(0);
+    let last = on.iter().rposition(|&v| v).unwrap_or(0);
+    let (mut gap, mut run) = (0, 0);
+    for &v in &on[first..=last] {
+        run = if v { 0 } else { run + 1 };
+        gap = gap.max(run);
+    }
+    let f = vad::FRAME_SECS;
+    ((first as f64 * f, (last + 1) as f64 * f), gap as f64 * f)
+}
+
+/// How loud your voice is once the echo is out: the loudest tenth of the
+/// 10 ms frames (the room and what's left of the original are quieter; the
+/// VAD's own floor isn't the room's here, echo removal presses it down too).
+fn voice_level(levels: &[f32]) -> f32 {
+    let mut v = levels.to_vec();
+    v.sort_by(f32::total_cmp);
+    v[v.len() * 9 / 10]
+}
+
+/// Paused from `paused` on, about 2 s: the "learner" says `aside` meanwhile
+/// (it mustn't end up in the take), then starts on `next` so that it's heard
+/// just after going on (`say` takes about half a second to start). How long
+/// it was paused, and `next` on its way.
+fn hold_on(paused: Instant, aside: &str, next: Option<&str>) -> (f64, Option<Child>) {
+    let _ = learner_says(0.3, aside).wait();
+    let until = |secs: f64| {
+        let left = secs - paused.elapsed().as_secs_f64();
+        thread::sleep(Duration::from_secs_f64(left.max(0.1)));
+    };
+    until(1.65);
+    let next = next.map(|words| learner_says(0.0, words));
+    until(2.0);
+    (paused.elapsed().as_secs_f64(), next)
+}
+
+/// The deck's play key during a take (`hold.rs`), on the real speakers and
+/// microphone. Paused partway through the original for about 2 s while the
+/// "learner" says something else, then going on: the take should be as if
+/// there had been no pause — the original in one piece, nothing of the pause
+/// in it, the echo taken out as well across the splice as elsewhere. Then
+/// paused in your turn (听完再说, the original over): nothing plays on, and it
+/// still stops by itself once you stop. The takes end with `end`, not `finish`,
+/// to keep what was captured (the echo is measured on the mic); `take::build`
+/// is what `finish` keeps.
+#[test]
+#[ignore = "plays audio out loud, speaks with `say` and records the microphone"]
+fn real_record_pause() {
+    use super::{Meta, Mode, Recorder, Stop};
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/ja/ごんぎつね.mp3");
+    let audio = path.to_string_lossy().into_owned();
+    let player = Player::new(Arc::new(Quiet));
+    player.set_volume(0.6).unwrap();
+    player
+        .load(audio.clone(), path.clone(), 0.0, false)
+        .unwrap();
+    let recorder = Recorder::default();
+    let (a, b) = (1.0, 4.5);
+    let line = "これは、わたしが小さいときに、聞いたお話です";
+    let (first, rest) = ("これは、わたしが", "小さいときに、聞いたお話です");
+    let aside = "ちょっとまって";
+    let meta = |mode| Meta {
+        audio: audio.clone(),
+        start: a,
+        end: b,
+        text: line.into(),
+        mode,
+        rate: 1.0,
+        bluetooth: false,
+        sentences: vec![],
+    };
+    let secs = |since: Instant| since.elapsed().as_secs_f64();
+    let keep = |name: String, wav: Vec<u8>| {
+        if let Ok(dir) = std::env::var("SHADOWING_OUT") {
+            std::fs::write(Path::new(&dir).join(name), wav).unwrap();
+        }
+    };
+
+    // 听完再说 paused in the original's first words (you're quiet all through
+    // it); 边听边说 just into its second phrase, after you've said the first
+    // along with it (you go on with the rest once it plays on).
+    for (mode, pause_at) in [(Mode::Listen, 0.9), (Mode::Shadow, 2.4)] {
+        let shadow = mode == Mode::Shadow;
+        let caught = Caught::default();
+        recorder
+            .begin(caught.clone(), &player, meta(mode), path.clone())
+            .expect("begin");
+        let begun = Instant::now();
+        player.play_range(a, b).unwrap();
+        let mut along = shadow.then(|| learner_says(0.0, first));
+        thread::sleep(Duration::from_secs_f64(pause_at));
+        let splice = secs(begun);
+        assert!(!recorder.pause(&player, true), "pausing plays nothing");
+        let paused = Instant::now();
+        assert!(
+            !player.status().playing,
+            "{mode:?}: the original paused too"
+        );
+        if let Some(s) = along.as_mut() {
+            assert!(
+                s.try_wait().unwrap().is_some(),
+                "the first words were over before the pause"
+            );
+        }
+        let (held, _) = hold_on(paused, aside, None);
+        assert!(
+            recorder.pause(&player, false),
+            "{mode:?}: the original plays on"
+        );
+        let mut after = shadow.then(|| learner_says(0.0, rest));
+        wait_for("the original", 10.0, || !player.status().playing);
+        let played = secs(begun) - held;
+        recorder.turn();
+        let mut turn_said = (!shadow).then(|| learner_says(0.6, line));
+        wait_for("the take to stop by itself", 20.0, || {
+            !caught.0.lock().unwrap().0.is_empty()
+        });
+        for s in [&mut along, &mut after, &mut turn_said]
+            .into_iter()
+            .flatten()
+        {
+            let _ = s.wait();
+        }
+        let wall = secs(begun);
+        let raw = recorder.end(&player).expect("a take").1.expect("captured");
+        let kept = raw.mic.len() as f64 / raw.mic_rate as f64;
+        let turn = raw.turn as f64 / raw.mic_rate as f64;
+        let (mic, heard, cleaned) = lanes(&raw);
+        let ((on, off), gap) = sounding(&heard);
+        let levels = take::levels(&cleaned);
+        let voice_db = voice_level(&levels);
+        // Around the splice you're quiet (边听边说: from the end of your first
+        // words to the rest), the original sounding on both sides (not yet in
+        // its own pause, where nothing presses the room down). The aside, had
+        // it got in, would be about as loud as your voice.
+        let near = if shadow { (-0.3, 0.35) } else { (-0.5, 0.4) };
+        let w = take::at(splice + near.0)..take::at(splice + near.1).min(mic.len());
+        let frame = take::at(vad::FRAME_SECS);
+        let said_near = levels[w.start / frame..w.end / frame]
+            .iter()
+            .filter(|&&l| l > voice_db - 10.0)
+            .count() as f64
+            * vad::FRAME_SECS;
+        let (mic_near, clean_near) = (db(&mic[w.clone()]), db(&cleaned[w]));
+        // Away from it: all of the original (听完再说), its start before you join in (边听边说).
+        let away = if shadow {
+            (0.1, 0.5)
+        } else {
+            (0.3, turn - 0.1)
+        };
+        let w = take::at(away.0)..take::at(away.1).min(mic.len());
+        let (mic_away, clean_away) = (db(&mic[w.clone()]), db(&cleaned[w]));
+        println!(
+            "\n{mode:?}: paused {held:.2} s at {splice:.2} s; mic kept {kept:.2} s of {wall:.2} s ({:.2} s less)",
+            wall - kept
+        );
+        println!(
+            "  the original: sounded {:.2} s (wall clock {played:.2} s, range {:.2} s), longest gap {gap:.2} s",
+            off - on,
+            b - a
+        );
+        println!(
+            "  echo: around the splice {mic_near:.1} → {clean_near:.1} dBFS ({:.1} dB less); \
+             {} {mic_away:.1} → {clean_away:.1} dBFS ({:.1} dB less)",
+            mic_near - clean_near,
+            if shadow {
+                "before you join in"
+            } else {
+                "all of the original"
+            },
+            mic_away - clean_away
+        );
+        println!(
+            "  around the splice: {clean_near:.1} dBFS, {said_near:.2} s within 10 dB of your voice ({voice_db:.1} dBFS)"
+        );
+        keep(
+            format!("pause-{mode:?}-mic-vs-cleaned.wav"),
+            super::wav::stereo_wav(&mic, &cleaned),
+        );
+        // `say` (the "learner") plays at the system volume: too low, and it's
+        // hardly above the room, so the take finds no voice (not the pause's fault).
+        assert!(
+            mic_away > -48.0,
+            "the mic hardly heard the speakers ({mic_away:.1} dBFS): turn the output up to about 50 %"
+        );
+        let built = take::build(&raw, mode).expect("the take is kept");
+        let (o, m) = (built.original_span, built.mine_span);
+        println!(
+            "  take: file {:.1} s (the splice at {:.2} s), original {:.2}–{:.2}, you {:.2}–{:.2}, lag {:?} ms",
+            built.original.len().max(built.mine.len()) as f64 / RATE as f64,
+            splice - on + o.0,
+            o.0,
+            o.1,
+            m.0,
+            m.1,
+            built.lag_ms
+        );
+        keep(
+            format!("pause-{mode:?}.wav"),
+            super::wav::encode(&built.original, &built.mine, take::in_turns(mode)),
+        );
+        let caught = caught.0.lock().unwrap();
+        assert!(caught.1.is_empty(), "errors: {:?}", caught.1);
+        assert_eq!(
+            caught.0,
+            [Stop::Pause],
+            "{mode:?}: stopped once you stopped"
+        );
+        assert!(
+            (kept - (wall - held)).abs() < 0.25,
+            "{mode:?}: the paused time is left out"
+        );
+        assert!(
+            (played - (b - a)).abs() < 0.35,
+            "{mode:?}: the original went on where it paused"
+        );
+        assert!(
+            (off - on - (b - a)).abs() < 0.4 && gap < 1.0,
+            "{mode:?}: the original in one piece"
+        );
+        assert!(
+            said_near < 0.05 && voice_db - clean_near > 12.0,
+            "{mode:?}: nothing of the pause (the aside) in the take"
+        );
+        assert!(
+            mic_near - clean_near > 8.0,
+            "{mode:?}: echo removal across the splice"
+        );
+        assert!((o.1 - o.0 - (b - a)).abs() < 0.6, "the original's length");
+        assert!(m.1 - m.0 > 1.5, "your voice was kept");
+        if shadow {
+            assert!(
+                built.lag_ms.is_some_and(|l| (100..1500).contains(&l)),
+                "a lag was measured"
+            );
+        } else {
+            assert!(m.0 > o.1 - 0.2, "you come after the original");
+        }
+    }
+
+    // Paused in your turn (听完再说, the original over): nothing plays on, the
+    // quiet while paused doesn't count, and it stops by itself once you stop.
+    let caught = Caught::default();
+    recorder
+        .begin(caught.clone(), &player, meta(Mode::Listen), path.clone())
+        .expect("begin");
+    let begun = Instant::now();
+    player.play_range(a, b).unwrap();
+    wait_for("the original", 10.0, || !player.status().playing);
+    recorder.turn();
+    let _ = learner_says(0.6, first).wait();
+    let splice = secs(begun);
+    assert!(!recorder.pause(&player, true), "pausing plays nothing");
+    let (held, said) = hold_on(Instant::now(), aside, Some(rest));
+    let while_paused = caught.0.lock().unwrap().0.clone();
+    assert!(
+        !recorder.pause(&player, false),
+        "the original was over: nothing plays on"
+    );
+    let resumed = Instant::now();
+    assert!(!player.status().playing);
+    wait_for("the take to stop by itself", 20.0, || {
+        !caught.0.lock().unwrap().0.is_empty()
+    });
+    let stopped = secs(resumed);
+    let _ = said.map(|mut s| s.wait());
+    let wall = secs(begun);
+    let raw = recorder.end(&player).expect("a take").1.expect("captured");
+    let kept = raw.mic.len() as f64 / raw.mic_rate as f64;
+    let built = take::build(&raw, Mode::Listen).expect("the take is kept");
+    let (o, m) = (built.original_span, built.mine_span);
+    // The quiet between your first words and the rest, the splice in it: a
+    // pause this long (`Rules::pause_secs`) would have ended the take.
+    let levels = take::levels(&built.mine);
+    let voice_db = voice_level(&levels);
+    let (mut quiet, mut run) = (0, 0);
+    for &l in &levels[(m.0 / vad::FRAME_SECS) as usize..(m.1 / vad::FRAME_SECS) as usize] {
+        run = if l < voice_db - 15.0 { run + 1 } else { 0 };
+        quiet = quiet.max(run);
+    }
+    println!(
+        "\nListen, paused in your turn: {held:.2} s at {splice:.2} s, stopped by itself {stopped:.2} s after going on; \
+         mic kept {kept:.2} s of {wall:.2} s ({:.2} s less)",
+        wall - kept
+    );
+    println!(
+        "  take: original {:.2}–{:.2}, you {:.2}–{:.2} ({:.2} s), longest quiet in it {:.2} s (the splice is in it)",
+        o.0,
+        o.1,
+        m.0,
+        m.1,
+        m.1 - m.0,
+        quiet as f64 * vad::FRAME_SECS
+    );
+    keep(
+        "pause-turn.wav".into(),
+        super::wav::encode(&built.original, &built.mine, true),
+    );
+    let caught = caught.0.lock().unwrap();
+    assert!(caught.1.is_empty(), "errors: {:?}", caught.1);
+    assert!(
+        while_paused.is_empty(),
+        "stopped while paused: {while_paused:?}"
+    );
+    assert_eq!(caught.0, [Stop::Pause], "stopped once you stopped");
+    assert!(
+        (kept - (wall - held)).abs() < 0.25,
+        "the paused time is left out"
+    );
+    // Your first words and the rest, not the aside or the paused time between.
+    assert!(
+        (3.0..5.5).contains(&(m.1 - m.0)),
+        "your voice, without the pause"
+    );
 }
