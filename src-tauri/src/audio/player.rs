@@ -106,6 +106,7 @@ impl Player {
             });
             ctl.shadow_time = start_secs;
             ctl.shadow_playing = autoplay;
+            ctl.held = false;
             ctl.shadow_repeats = 0;
             self.cmd
                 .send(Cmd::Load(Box::new(session), start, autoplay))?;
@@ -115,7 +116,10 @@ impl Player {
     }
 
     pub fn unload(&self) -> Result<(), String> {
-        lock(&self.ctl).track = None;
+        let mut ctl = lock(&self.ctl);
+        ctl.track = None;
+        ctl.held = false;
+        drop(ctl);
         self.loop_latest.fetch_add(1, Relaxed);
         self.cmd.send(Cmd::Unload)?;
         self.emit();
@@ -140,6 +144,7 @@ impl Player {
     pub fn play(&self) -> Result<(), String> {
         self.with_track(|c| {
             c.shadow_playing = true;
+            c.held = false;
             Some(Cmd::Play)
         })
     }
@@ -147,14 +152,39 @@ impl Player {
     pub fn pause(&self) -> Result<(), String> {
         self.with_track(|c| {
             c.shadow_playing = false;
+            c.held = false;
             Some(Cmd::Pause)
         })
+    }
+
+    /// A recording paused: the track pauses where it is, a range (`play_range`)
+    /// keeping its end, so `resume_held` plays the rest of it.
+    pub fn hold(&self) -> Result<(), String> {
+        self.with_track(|c| {
+            c.shadow_playing = false;
+            c.held = true;
+            Some(Cmd::Hold(true))
+        })
+    }
+
+    /// The recording goes on: the track plays on if `hold` paused it while it
+    /// played and nothing has moved it since. Returns whether it does (a range
+    /// that ended before the hold doesn't).
+    pub fn resume_held(&self) -> Result<bool, String> {
+        let mut going = false;
+        self.with_track(|c| {
+            going = std::mem::take(&mut c.held) && self.shared.held();
+            c.shadow_playing |= going;
+            Some(Cmd::Hold(false))
+        })?;
+        Ok(going)
     }
 
     pub fn toggle(&self) -> Result<(), String> {
         let playing = self.status().playing;
         self.with_track(|c| {
             c.shadow_playing = !playing;
+            c.held = false;
             Some(Cmd::Toggle)
         })
     }
@@ -168,6 +198,7 @@ impl Player {
             let secs = clamp_time(time, t.duration);
             let frame = ((secs * t.sr as f64).round() as u64).min(t.total.saturating_sub(1));
             c.shadow_time = secs;
+            c.held = false;
             Some(Cmd::Seek(frame))
         })
     }
@@ -226,6 +257,7 @@ impl Player {
             if c.track.is_some() {
                 c.shadow_playing = false;
             }
+            c.held = false;
         }
         self.cmd
             .send(Cmd::Clip(Some(Box::new(Clip::new(id, samples, rate)))))?;
@@ -235,6 +267,16 @@ impl Player {
 
     pub fn stop_clip(&self) -> Result<(), String> {
         self.cmd.send(Cmd::Clip(None))
+    }
+
+    /// Pauses the clip playing (where it is) or lets it go on.
+    pub fn hold_clip(&self, on: bool) -> Result<(), String> {
+        self.cmd.send(Cmd::HoldClip(on))
+    }
+
+    /// The clip playing now is paused.
+    pub fn clip_held(&self) -> bool {
+        self.shared.clip_held.load(Relaxed)
     }
 
     /// The clip playing now and how far in it is (seconds).

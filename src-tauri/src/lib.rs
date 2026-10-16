@@ -353,6 +353,7 @@ pub fn run() {
             audio::commands::player_status,
             record::commands::record_begin,
             record::commands::record_turn,
+            record::commands::record_pause,
             record::commands::record_round,
             record::commands::record_cancel,
             record::commands::record_finish,
@@ -365,7 +366,8 @@ pub fn run() {
             record::commands::record_takes,
             record::commands::record_delete,
             record::commands::record_play,
-            record::commands::record_stop
+            record::commands::record_stop,
+            record::commands::record_pause_clip
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

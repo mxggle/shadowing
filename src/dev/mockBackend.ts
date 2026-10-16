@@ -202,6 +202,16 @@ let seq = 0;
 const status = () => ({ path: player.path, time: player.time, duration: player.duration, playing: player.playing, repeats: player.repeats, seq: ++seq });
 const push = () => void emit("player:status", status());
 
+/** Like the engine's hold: a recording paused pauses the track, a range keeping its end; going on plays it
+ *  on if it was playing (and nothing has moved it since). Returns, going on, whether it does. */
+let [held, recordingPaused] = [false, false];
+function holdTrack(paused: boolean): boolean {
+  const going = !paused && held;
+  [held, recordingPaused] = [paused && player.playing, paused];
+  if (paused || going) Object.assign(player, { playing: going }), push();
+  return going;
+}
+
 setInterval(() => {
   if (!player.playing) return;
   // Practice time like Rust's clock, sped up 60× so the goal ring visibly fills (a second plays as a minute).
@@ -260,6 +270,10 @@ export function installMockBackend() {
     (cmd, args) => {
       const a = (args ?? {}) as Record<string, never>;
       if (cmd === "record_play") Object.assign(player, { playing: false }), push(); // the take plays over the paused track
+      if (cmd === "record_pause") return mockRecord(cmd, a).then(() => holdTrack(a.paused));
+      if (/^player_(load|unload|play|pause|toggle|seek)/.test(cmd)) held = false;
+      // A paused recording ending: the original held for it won't go on (as if paused there).
+      if (/^record_(begin|cancel|finish)$/.test(cmd) && recordingPaused) [held, recordingPaused, player.stop] = [false, false, null];
       if (cmd.startsWith("record_")) return mockRecord(cmd, a);
       switch (cmd) {
         case "get_snapshot":

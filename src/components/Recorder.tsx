@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Ear, LoaderCircle, Mic, Play, Repeat2, Square, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Ear, LoaderCircle, Mic, Pause, Play, Repeat2, Square, Trash2, X } from "lucide-react";
 import { useMemo } from "react";
 import { isLoopActive } from "../audio/logic";
 import type { RecordMode, Take, TakePart } from "../lib/api";
@@ -138,7 +138,11 @@ function Live({ rec }: { rec: Rec }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex h-9 items-center gap-3">
-        {listening ? (
+        {rec.paused ? (
+          <span className="flex items-center gap-1.5 font-medium text-fg" title="按底部的播放键继续">
+            <Pause size={13} fill="currentColor" strokeWidth={0} className="shrink-0" /> 已暂停
+          </span>
+        ) : listening ? (
           <span className="flex items-center gap-1.5 font-medium text-fg">
             <Ear size={15} className="shrink-0" /> 先听原句
           </span>
@@ -212,10 +216,10 @@ function Problem({ message, at, looping }: { message: string; at: RecordAt; loop
 
 function Result({ take, at, looping }: { take: Take; at: RecordAt; looping: boolean }) {
   const playing = useApp((s) => (s.playingTake?.id === take.id ? s.playingTake : null));
-  const { playTake, stopTake, deleteTake } = useApp.getState();
+  const { playTake, stopTake, pausePlayingTake, deleteTake } = useApp.getState();
   const turns = inTurns(take);
   const both: TakePart = comparePart(take);
-  const toggle = (what: TakePart) => (playing?.what === what ? stopTake() : void playTake(take.id, what));
+  const toggle = (what: TakePart) => (playing?.what !== what ? void playTake(take.id, what) : playing.paused ? pausePlayingTake(false) : stopTake());
   const note = turns ? paceNote(take) : lagNote(take.lagMs, take.bluetooth);
   return (
     <div className="flex flex-col gap-2.5">
@@ -224,9 +228,10 @@ function Result({ take, at, looping }: { take: Take; at: RecordAt; looping: bool
         {note && <p className="mt-0.5 pl-[3.75rem] text-[12px] text-faint">{note}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
-        <PlayButton active={playing?.what === both} onClick={() => toggle(both)} title={turns ? "从这句听下去：每句先放原句，再放你的 (P)" : "从这句听下去：原句和你的一起放，听合不合拍 (P)"}>
+        <PlayButton active={playing?.what === both} paused={playing?.paused} onClick={() => toggle(both)} title={turns ? "从这句听下去：每句先放原句，再放你的 (P)" : "从这句听下去：原句和你的一起放，听合不合拍 (P)"}>
           {turns ? "对比" : "一起听"}
         </PlayButton>
+        {playing?.paused && <span className="text-[12px] text-faint">已暂停</span>}
         <span className="ml-auto flex items-center gap-1">
           <IconButton title="删除这次录音" onClick={() => void deleteTake(take.id)}>
             <Trash2 />
@@ -240,10 +245,11 @@ function Result({ take, at, looping }: { take: Take; at: RecordAt; looping: bool
 
 const NOWHERE = { original: null, mine: null };
 
-function PlayButton({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: string }) {
+/** Pressed while it plays (■ stops it); paused, ▶ goes on. */
+function PlayButton({ active, paused = false, onClick, title, children }: { active: boolean; paused?: boolean; onClick: () => void; title: string; children: string }) {
   return (
     <Button title={title} aria-pressed={active} onClick={onClick} className={`h-7 px-2.5 ${active ? "!bg-press" : ""}`}>
-      {active ? <Square size={9} fill="currentColor" strokeWidth={0} /> : <Play size={10} fill="currentColor" strokeWidth={0} />}
+      {active && !paused ? <Square size={9} fill="currentColor" strokeWidth={0} /> : <Play size={10} fill="currentColor" strokeWidth={0} />}
       {children}
     </Button>
   );

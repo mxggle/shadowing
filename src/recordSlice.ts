@@ -6,7 +6,8 @@
 // 连续录 (the card's button, or M while it loops; lib/rounds.ts) says it again
 // and again: the mic stays open, Rust starts afresh each time and keeps the
 // time before aside; Space keeps one and stops. 逐句跟读 (drillSlice.ts) runs
-// takes like that one sentence after another.
+// takes like that one sentence after another. The deck's play key pauses a
+// take where it is and goes on (lib/playKey.ts; Rust leaves the time out).
 // Playing takes back is in takePlayback.ts.
 import { listen } from "@tauri-apps/api/event";
 import type { AudioEngine } from "./audio/engine";
@@ -14,6 +15,7 @@ import { isLoopActive } from "./audio/logic";
 import { api, type RecordMode, type Settings, type Take } from "./lib/api";
 import { blurField } from "./lib/focus";
 import { sentenceIndexAt } from "./lib/sentences";
+import { goingOn } from "./lib/playKey";
 import { advanceOf, goesAgain, recordsAgain } from "./lib/rounds";
 import { comparePart, takesFor } from "./lib/takes";
 import type { AppState } from "./store";
@@ -40,6 +42,8 @@ export interface Rec {
   along: boolean;
   /** 边听边说: the original has finished, you're on your last words (Rust stops it soon). */
   tail: boolean;
+  /** Paused (the deck's play key): the mic, the original and stopping by itself all wait. */
+  paused: boolean;
   /** Recent mic levels (0–1), newest last, for the live meter. */
   levels: number[];
   /** Seconds since your turn began. */
@@ -72,6 +76,8 @@ export interface RecordState extends TakePlayback {
   cancelTake(): void;
   /** Space / M while recording: skip the rest of the original (听完再说), or keep this time (or the one before) and stop. */
   advanceTake(): void;
+  /** Pauses the take where it is, or goes on with it. */
+  pauseTake(paused: boolean): Promise<void>;
   /** P: your last take here against the original (or stop it). */
   replayTake(): void;
   deleteTake(id: string): Promise<void>;
@@ -116,6 +122,9 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
   let starts = 0;
   /** The time just said, being checked and kept aside (连续录): stopping waits for it. */
   let keeping: Promise<unknown> = Promise.resolve();
+  /** 连续录, by start number: the time through Rust is setting up, and one that waits for the take to go on. */
+  let rounding = -1;
+  let deferred = -1;
 
   void listen<{ level: number; speaking: boolean; secs: number }>("recorder:level", ({ payload }) => {
     const rec = get().rec;
@@ -162,6 +171,7 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
     patchRec({ n: rec.n + 1, ...opening(rec.mode), levels: [], secs: 0 });
     const round = api.record.round();
     keeping = round.catch(() => false);
+    rounding = mine;
     const going = () => !!get().rec && get().rec?.phase !== "saving";
     let voiced: boolean;
     try {
@@ -172,11 +182,14 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
         set({ recError: String(e) });
       }
       return;
+    } finally {
+      if (rounding === mine) rounding = -1;
     }
     // Kept or cancelled meanwhile (Space keeps the time just said once Rust has it aside).
     if (mine !== starts || !going()) return;
     if (!voiced) return void get().finishTake(true);
-    play();
+    if (get().rec?.paused) deferred = mine; // starts once it goes on
+    else play();
   }
 
   /** Default place: the looped / current sentence, else the A–B loop. */
@@ -232,7 +245,7 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
         recordAt: where,
         shownTake: null,
         recError: null,
-        rec: { at: where, ...target, mode, again, n: 1, max: how?.max ?? null, phase: "starting", along: false, tail: false, levels: [], secs: 0, mic: "" },
+        rec: { at: where, ...target, mode, again, n: 1, max: how?.max ?? null, phase: "starting", along: false, tail: false, paused: false, levels: [], secs: 0, mic: "" },
       });
       let mic: string;
       try {
@@ -250,7 +263,8 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
 
     playbackStopped() {
       const rec = get().rec;
-      if (!rec || rec.phase === "saving") return;
+      // Paused, the original waits (going on says whether it had ended).
+      if (!rec || rec.paused || rec.phase === "saving") return;
       if (rec.phase === "listening") patchRec({ phase: "speaking" });
       else if (rec.along && !rec.tail) patchRec({ tail: true });
       else return;
@@ -261,8 +275,27 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       const rec = get().rec;
       if (!rec || rec.phase === "starting" || rec.phase === "saving") return;
       const what = advanceOf(rec);
-      if (what === "skip") engine.pause(); // → playbackStopped: your turn
-      else void get().finishTake(what === "keepBefore");
+      if (what !== "skip") return void get().finishTake(what === "keepBefore");
+      engine.pause(); // → playbackStopped: your turn
+      if (!rec.paused) return;
+      // Paused: the original won't go on (the pause above lets it go); your turn, going on now.
+      patchRec({ paused: false });
+      void api.record.pause(false);
+      get().playbackStopped();
+    },
+
+    async pauseTake(paused) {
+      const rec = get().rec;
+      if (!rec || rec.paused === paused || rec.phase === "starting" || rec.phase === "saving") return;
+      const mine = starts;
+      patchRec({ paused });
+      const going = await api.record.pause(paused).catch(() => false);
+      const now = get().rec;
+      if (paused || mine !== starts || !now || now.paused || now.phase === "saving") return;
+      const next = goingOn({ ...now, going, waiting: rounding === mine ? "round" : deferred === mine ? "start" : null });
+      deferred = -1;
+      if (next === "start") play();
+      else if (next === "turn") get().playbackStopped();
     },
 
     async finishTake(previous = false) {

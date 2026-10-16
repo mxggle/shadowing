@@ -461,6 +461,9 @@ export const api = {
     begin: (meta: RecordMeta) => invoke<string>("record_begin", { meta }),
     /** The original has finished: the take may now stop by itself (`recorder:auto`). */
     turn: () => invoke<void>("record_turn"),
+    /** Pauses the take or paragraph being recorded (the original waits where it is; the time paused is
+     *  left out of the take), or lets it go on: then, whether the original plays on. */
+    pause: (paused: boolean) => invoke<boolean>("record_pause", { paused }),
     /** Another time through (连续录): the mic stays open, the take starts afresh. Whether the time just said had your voice (kept aside if so). */
     round: () => invoke<boolean>("record_round"),
     /** Stops and keeps the take, or the paragraph's reading and its sentences (echo of the original removed).
@@ -478,6 +481,8 @@ export const api = {
     /** Plays over the paused track; position arrives as `recorder:clip`. */
     play: (audio: string, id: string, what: TakePart) => invoke<Playing>("record_play", { audio, id, what }),
     stop: () => invoke<void>("record_stop"),
+    /** Pauses a take or reading playing back where it is, or lets it go on. */
+    pauseClip: (paused: boolean) => invoke<void>("record_pause_clip", { paused }),
     /** How much room recordings take (and how much is for audio that's gone). */
     space: () => invoke<RecordingSpace>("record_space"),
     /** Deletes the recordings of audio files that are gone; returns what's left. */

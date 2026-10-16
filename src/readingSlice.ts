@@ -3,7 +3,8 @@
 // and says which sentence you're on (`recorder:sentence`), and ends after the
 // last one. 跟着原文读: the original plays through and you shadow it; the
 // highlight is simply the playing sentence. Either way, finishing keeps the
-// whole reading and cuts a take per sentence (shown on each row).
+// whole reading and cuts a take per sentence (shown on each row). The deck's
+// play key pauses it (or a reading playing back) and goes on.
 import { listen } from "@tauri-apps/api/event";
 import type { AudioEngine } from "./audio/engine";
 import { api, type ParagraphMode, type Reading, type ReadingPlaying, type ReadingWhat, type Settings } from "./lib/api";
@@ -24,6 +25,8 @@ export interface LiveReading {
   current: number;
   /** 跟着原文读: the original has finished; you may still be finishing. */
   tail: boolean;
+  /** Paused (the deck's play key) since then (ms); the clock leaves it out. */
+  pausedAt: number | null;
   levels: number[];
   mic: string;
   startedAt: number;
@@ -33,6 +36,7 @@ export interface PlayingReading extends ReadingPlaying {
   id: string;
   what: ReadingWhat;
   secs: number;
+  paused: boolean;
 }
 
 export interface ReadingState {
@@ -50,8 +54,11 @@ export interface ReadingState {
   cancelReading(): void;
   /** 自己读: the highlight to the next (+1) / previous (−1) sentence by hand. */
   stepReading(by: 1 | -1): void;
+  /** Pauses the paragraph being recorded where it is, or goes on with it. */
+  pauseReading(paused: boolean): Promise<void>;
   playReading(id: string, what: ReadingWhat): Promise<void>;
   stopReadingPlayback(): void;
+  pausePlayingReading(paused: boolean): void;
   deleteReading(id: string): Promise<void>;
   showReading(id: string | null): void;
   setParagraphMode(how: ReadingHow): void;
@@ -131,7 +138,7 @@ export function createReadingSlice(set: Set, get: Get, engine: AudioEngine, pers
         readingError: null,
         shownReading: null,
         recordAt: null,
-        live: { first, end, mode: how, phase: "starting", current: first, tail: false, levels: [], mic: "", startedAt: Date.now() },
+        live: { first, end, mode: how, phase: "starting", current: first, tail: false, pausedAt: null, levels: [], mic: "", startedAt: Date.now() },
       });
       let mic: string;
       try {
@@ -156,7 +163,8 @@ export function createReadingSlice(set: Set, get: Get, engine: AudioEngine, pers
 
     readingPlaybackStopped() {
       const live = get().live;
-      if (live?.phase !== "reading" || live.mode !== "shadow" || live.tail) return;
+      // Paused, the original waits (going on says whether it had ended).
+      if (live?.phase !== "reading" || live.mode !== "shadow" || live.tail || live.pausedAt !== null) return;
       patch({ tail: true });
       void api.record.turn();
     },
@@ -201,13 +209,23 @@ export function createReadingSlice(set: Set, get: Get, engine: AudioEngine, pers
       void api.record.step(by);
     },
 
+    async pauseReading(paused) {
+      const live = get().live;
+      if (live?.phase !== "reading" || (live.pausedAt !== null) === paused) return;
+      const [mine, now] = [starts, Date.now()];
+      patch(paused ? { pausedAt: now } : { pausedAt: null, startedAt: live.startedAt + now - (live.pausedAt ?? now) });
+      const going = await api.record.pause(paused).catch(() => false);
+      // 跟着原文读: the original ended as you paused; you may still be finishing.
+      if (!paused && !going && mine === starts) get().readingPlaybackStopped();
+    },
+
     async playReading(id, what) {
       const path = get().current?.path;
       if (!path || get().live || get().rec) return;
       get().stopTake();
       try {
         const p = await api.record.playReading(path, id, what);
-        set({ playingReading: { id, what, ...p, secs: 0 }, shownReading: id, readingError: null });
+        set({ playingReading: { id, what, ...p, secs: 0, paused: false }, shownReading: id, readingError: null });
       } catch (e) {
         set({ readingError: String(e) });
       }
@@ -217,6 +235,13 @@ export function createReadingSlice(set: Set, get: Get, engine: AudioEngine, pers
       if (!get().playingReading) return;
       set({ playingReading: null });
       void api.record.stop();
+    },
+
+    pausePlayingReading(paused) {
+      const p = get().playingReading;
+      if (!p || p.paused === paused) return;
+      set({ playingReading: { ...p, paused } });
+      void api.record.pauseClip(paused);
     },
 
     async deleteReading(id) {

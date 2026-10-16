@@ -1,4 +1,4 @@
-import { AlertCircle, BookOpenText, LoaderCircle, Square, X } from "lucide-react";
+import { AlertCircle, BookOpenText, LoaderCircle, Pause, Square, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useDismiss } from "../hooks/useDismiss";
 import { readingHow, readingRange, readingsFor, type ReadingHow, type ReadingScope } from "../lib/readings";
@@ -152,9 +152,12 @@ function Choice({ label, value, options, onChange }: { label: string; value: str
 export function LiveReadingBar() {
   const live = useApp((s) => s.live);
   const { finishReading, cancelReading } = useApp.getState();
-  const secs = useClock(live?.phase === "reading" ? live.startedAt : null);
+  const paused = live?.pausedAt != null;
+  const ticking = useClock(live?.phase === "reading" && !paused ? live.startedAt : null);
   if (!live) return null;
   const reading = live.phase === "reading";
+  // Paused, the clock stands where it was (going on, it leaves the pause out).
+  const secs = live.pausedAt !== null ? (live.pausedAt - live.startedAt) / 1000 : ticking;
   const label = live.mode === "read" ? "自己读" : "跟着原文读";
   const at = live.mode === "read" ? live.current : null;
   return (
@@ -167,12 +170,16 @@ export function LiveReadingBar() {
           </span>
         ) : (
           <>
-            <span className="flex shrink-0 items-center gap-1.5 font-medium text-fg">
-              <span className="relative grid size-2.5 place-items-center">
-                <span className="absolute size-2.5 rounded-full bg-danger/25" />
-                <span className="size-2 rounded-full bg-danger" />
-              </span>
-              {label}
+            <span className="flex shrink-0 items-center gap-1.5 font-medium text-fg" title={paused ? "按底部的播放键继续" : undefined}>
+              {paused ? (
+                <Pause size={12} fill="currentColor" strokeWidth={0} />
+              ) : (
+                <span className="relative grid size-2.5 place-items-center">
+                  <span className="absolute size-2.5 rounded-full bg-danger/25" />
+                  <span className="size-2 rounded-full bg-danger" />
+                </span>
+              )}
+              {paused ? `${label} · 已暂停` : label}
             </span>
             {at !== null && (
               <span className="tabular shrink-0 text-[12px] text-muted">

@@ -1,7 +1,8 @@
 //! A clip's progress for the webview: `recorder:clip` events while it plays,
 //! and one when it's over, saying whether it played to its end (only then does
 //! listening on go to the next sentence). Listening to your takes is practice:
-//! the practice clock hears of it too.
+//! the practice clock hears of it too (paused, it hears so once and then
+//! nothing, as when the track is paused).
 
 use crate::audio::Player;
 use crate::practice::{Doing, Practice};
@@ -35,7 +36,7 @@ pub fn watch(app: AppHandle, clip: u64, audio: String) {
         }
     };
     let asked = Instant::now();
-    let mut started = false;
+    let (mut started, mut held) = (false, None);
     loop {
         let waited = asked.elapsed().as_secs_f64() >= START_SECS;
         let seen = seen(
@@ -67,7 +68,11 @@ pub fn watch(app: AppHandle, clip: u64, audio: String) {
             practice(Doing::Paused);
             return;
         }
-        practice(Doing::Playing);
+        let now = player.clip_held();
+        if let Some(doing) = doing(now, held) {
+            practice(doing);
+        }
+        held = Some(now);
         thread::sleep(Duration::from_millis(33));
     }
 }
@@ -96,9 +101,41 @@ fn seen(clip: u64, now: Option<(u64, f64)>, finished: bool, started: bool, waite
     }
 }
 
+/// What the practice clock hears while the clip lasts: playing, again and
+/// again; paused (`held`), once (`was`: held the time before, if any).
+fn doing(held: bool, was: Option<bool>) -> Option<Doing> {
+    match (held, was) {
+        (false, _) => Some(Doing::Playing),
+        (true, Some(true)) => None,
+        (true, _) => Some(Doing::Paused),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_paused_clip_is_practice_paused_once() {
+        assert_eq!(doing(false, None), Some(Doing::Playing));
+        assert_eq!(
+            doing(false, Some(false)),
+            Some(Doing::Playing),
+            "playing keeps saying so"
+        );
+        assert_eq!(doing(true, Some(false)), Some(Doing::Paused));
+        assert_eq!(
+            doing(true, None),
+            Some(Doing::Paused),
+            "paused before it was seen"
+        );
+        assert_eq!(
+            doing(true, Some(true)),
+            None,
+            "then nothing, so a long pause ends the session"
+        );
+        assert_eq!(doing(false, Some(true)), Some(Doing::Playing));
+    }
 
     #[test]
     fn a_clip_not_started_yet_isnt_over() {

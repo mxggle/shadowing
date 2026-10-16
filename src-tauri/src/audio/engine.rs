@@ -38,6 +38,11 @@ pub enum Cmd {
     Tap(Option<Box<Tap>>),
     /// Play a clip over the track (which pauses); `None` stops the current one.
     Clip(Option<Box<Clip>>),
+    /// A recording paused (true): pause, a range keeping its end; going on
+    /// (false): play on, if this paused it. Anything else that moves the track forgets it.
+    Hold(bool),
+    /// Pause (true) or go on with the clip playing.
+    HoldClip(bool),
 }
 
 #[allow(dead_code)]
@@ -65,6 +70,10 @@ pub struct Shared {
     pub clip_ms: AtomicU64,
     /// The last clip that played to its end (not stopped or replaced).
     pub clip_done: AtomicU64,
+    /// Paused by `Cmd::Hold(true)` while it played: going on plays it again.
+    held: AtomicBool,
+    /// The clip playing now is paused.
+    pub clip_held: AtomicBool,
 }
 
 impl Shared {
@@ -81,6 +90,9 @@ impl Shared {
     pub fn take_events(&self) -> u32 {
         self.events.swap(0, Relaxed)
     }
+    pub fn held(&self) -> bool {
+        self.held.load(Relaxed)
+    }
 }
 
 pub struct Engine {
@@ -94,6 +106,8 @@ pub struct Engine {
     fade_target: f32,
     pending_seek: Option<u64>,
     pending_pause: bool,
+    /// Paused for a recording (`Cmd::Hold`).
+    held: bool,
     vol: f32,
     vol_target: f32,
     rate: f64,
@@ -121,6 +135,7 @@ impl Engine {
             fade_target: 0.0,
             pending_seek: None,
             pending_pause: false,
+            held: false,
             vol: 1.0,
             vol_target: 1.0,
             rate: 1.0,
@@ -191,9 +206,11 @@ impl Engine {
                 self.fade_target = if autoplay { 1.0 } else { 0.0 };
                 self.pending_seek = None;
                 self.pending_pause = false;
+                self.held = false;
             }
             Cmd::Unload => {
                 self.shared.events.store(0, Relaxed);
+                self.held = false;
                 if let Some(old) = self.session.take() {
                     self.bin(Trash::Session(old));
                 }
@@ -220,6 +237,7 @@ impl Engine {
                 let t = t.min(s.total.saturating_sub(1));
                 s.ended = false;
                 s.reader.stop_at(None);
+                self.held = false;
                 if self.playing && self.fade > 0.0 {
                     self.pending_seek = Some(t);
                     self.fade_target = 0.0;
@@ -275,6 +293,22 @@ impl Engine {
                 }
                 None => self.stop_clip(),
             },
+            Cmd::Hold(true) => {
+                if self.playing && !self.pending_pause {
+                    self.held = true;
+                    self.stop_playing();
+                }
+            }
+            Cmd::Hold(false) => {
+                if self.held {
+                    self.play();
+                }
+            }
+            Cmd::HoldClip(on) => {
+                if let Some(c) = self.clip.as_mut() {
+                    c.hold(on);
+                }
+            }
         }
     }
 
@@ -309,18 +343,25 @@ impl Engine {
         }
         self.playing = true;
         self.pending_pause = false;
+        self.held = false;
         if self.pending_seek.is_none() {
             self.fade_target = 1.0;
         }
     }
 
     fn pause(&mut self) {
-        if !self.playing {
-            return;
-        }
+        self.held = false;
         if let Some(s) = self.session.as_mut() {
             s.reader.cancel_range();
         }
+        if self.playing {
+            self.stop_playing();
+        } else {
+            self.paused(); // a range held for a recording is over too
+        }
+    }
+
+    fn stop_playing(&mut self) {
         if self.fade > 0.0 {
             self.pending_pause = true;
             self.fade_target = 0.0;
@@ -329,10 +370,11 @@ impl Engine {
         }
     }
 
-    /// Now paused. A range caught in its end padding waits at its end, as when it plays out.
+    /// Now paused. A range caught in its end padding waits at its end, as when
+    /// it plays out (held, it's left to play out when the recording goes on).
     fn paused(&mut self) {
         self.playing = false;
-        if let Some(s) = self.session.as_mut() {
+        if let Some(s) = self.session.as_mut().filter(|_| !self.held) {
             if let Some(stop) = s.reader.settle() {
                 s.seek(stop);
             }
@@ -416,7 +458,11 @@ impl Engine {
     }
 
     fn publish(&mut self, device_pending: usize) {
-        let clip = self.clip.is_some();
+        // A paused clip, silent by now, lets the output idle.
+        let clip = self.clip.as_ref().is_some_and(|c| !c.silent());
+        let clip_held = self.clip.as_ref().is_some_and(|c| c.held());
+        self.shared.clip_held.store(clip_held, Relaxed);
+        self.shared.held.store(self.held, Relaxed);
         let Some(s) = self.session.as_deref_mut() else {
             self.shared.repeats.store(0, Relaxed);
             self.shared.playing.store(false, Relaxed);

@@ -5,6 +5,7 @@
 mod decode;
 mod device;
 mod engine;
+mod hold;
 mod record;
 mod timing;
 
