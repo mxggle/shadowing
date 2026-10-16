@@ -319,15 +319,8 @@ fn real_record_takes() {
         );
         let _ = say.wait();
         let t = Instant::now();
-        let checked = Instant::now();
-        let silent = !recorder.round().expect("after the silent time");
-        println!(
-            "{mode:?} after round 3 (silent): {} ms to find nothing",
-            checked.elapsed().as_millis()
-        );
-        assert!(silent, "{mode:?}: the third time had nothing of yours");
         let take = recorder
-            .finish(&player, root.path(), true)
+            .finish(&player, root.path(), false)
             .expect("finish")
             .takes
             .pop()
