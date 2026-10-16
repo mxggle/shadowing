@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Ear, LoaderCircle, Mic, Play, Square, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Ear, LoaderCircle, Mic, Play, Repeat2, Square, Trash2, X } from "lucide-react";
 import { useMemo } from "react";
 import { isLoopActive } from "../audio/logic";
 import type { RecordMode, Take, TakePart } from "../lib/api";
@@ -12,8 +12,8 @@ import { Button, IconButton, Kbd } from "./ui";
 /**
  * 跟读录音, under the sentence (or the A–B loop) being practised: while
  * recording, what's happening and what to do; afterwards your take against
- * the original, earlier takes, and 再录一次. While it loops, a take goes again
- * and again until you keep one (连续录, lib/rounds.ts).
+ * the original, earlier takes, and 录一遍 / 连续录 (again and again until you
+ * keep one, lib/rounds.ts; M is that while it loops).
  */
 export function RecorderCard({ at }: { at: RecordAt }) {
   const rec = useApp((s) => (s.rec?.at === at ? s.rec : null));
@@ -34,7 +34,7 @@ export function RecorderCard({ at }: { at: RecordAt }) {
         {!rec && takes.length > 1 && take && <History takes={takes} take={take} />}
       </div>
       <div className="mt-2">
-        {rec ? <Live rec={rec} /> : error ? <Problem message={error} looping={looping} /> : take ? <Result take={take} looping={looping} /> : <Ready looping={looping} />}
+        {rec ? <Live rec={rec} /> : error ? <Problem message={error} at={at} looping={looping} /> : take ? <Result take={take} at={at} looping={looping} /> : <Ready at={at} looping={looping} />}
       </div>
       <IconButton title="收起 (Esc)" onClick={closeRecorder} className="absolute top-2 right-1.5 !h-6 !min-w-6">
         <X />
@@ -90,29 +90,34 @@ function History({ takes, take }: { takes: Take[]; take: Take }) {
   );
 }
 
-function Ready({ looping }: { looping: boolean }) {
-  const note = useApp((s) => readyNote(s.settings.recordMode, looping));
+function Ready({ at, looping }: { at: RecordAt; looping: boolean }) {
+  const note = useApp((s) => readyNote(s.settings.recordMode));
   return (
-    <div className="flex items-center gap-3">
-      <RecordButton looping={looping} />
-      <span>
-        按 <Kbd>M</Kbd> 开始：{note}
-      </span>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <RecordButtons at={at} looping={looping} />
+      <span>{note}</span>
     </div>
   );
 }
 
-/** `looping`: the take will go again and again (连续录). */
-function RecordButton({ retry, looping }: { retry?: boolean; looping: boolean }) {
+/** 录一遍 and 连续录; M is the one that fits: 连续录 while it loops (`looping`). */
+function RecordButtons({ at, looping }: { at: RecordAt; looping: boolean }) {
+  const { startTake } = useApp.getState();
   return (
-    <Button
-      title={looping ? "循环中：一遍遍接着录，满意了按空格留下 (M)" : "录一次 (M)"}
-      onClick={() => void useApp.getState().startTake()}
-      className="h-7 px-2.5"
-    >
-      <span className="size-2 rounded-full bg-danger" />
-      {looping ? "连续录" : retry ? "再录一次" : "开始录音"}
-    </Button>
+    <span className="flex items-center gap-1.5">
+      <Button title={looping ? "录一遍" : "录一遍 (M)"} onClick={() => void startTake(at, { again: false })} className="h-7 px-2.5">
+        <span className="size-2 rounded-full bg-danger" />
+        录一遍
+      </Button>
+      <Button
+        title={`一遍遍接着说，满意了按空格留下${looping ? " (M)" : "（循环这一句时按 M 也是它）"}`}
+        onClick={() => void startTake(at, { again: true })}
+        className="h-7 px-2.5"
+      >
+        <Repeat2 size={13} />
+        连续录
+      </Button>
+    </span>
   );
 }
 
@@ -159,12 +164,15 @@ function Live({ rec }: { rec: Rec }) {
           取消
         </button>
         <span className="ml-auto text-right text-[12px] text-faint" title={rec.mic ? `用「${rec.mic}」录音` : undefined}>
-          {rec.again ? (
+          {!rec.again ? (
+            hintOf(rec)
+          ) : rec.max !== null && rec.n >= rec.max ? (
+            "最后一遍，说完到下一句"
+          ) : (
             <>
               说完自动接下一遍，满意了按 <Kbd>空格</Kbd>
+              {rec.max !== null && " 到下一句"}
             </>
-          ) : (
-            hintOf(rec)
           )}
         </span>
       </div>
@@ -195,16 +203,16 @@ function Meter({ levels }: { levels: number[] }) {
   );
 }
 
-function Problem({ message, looping }: { message: string; looping: boolean }) {
+function Problem({ message, at, looping }: { message: string; at: RecordAt; looping: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
       <span className="min-w-0 text-danger">{message}</span>
-      <RecordButton retry looping={looping} />
+      <RecordButtons at={at} looping={looping} />
     </div>
   );
 }
 
-function Result({ take, looping }: { take: Take; looping: boolean }) {
+function Result({ take, at, looping }: { take: Take; at: RecordAt; looping: boolean }) {
   const playing = useApp((s) => (s.playingTake?.id === take.id ? s.playingTake : null));
   const { playTake, stopTake, deleteTake } = useApp.getState();
   const turns = inTurns(take);
@@ -225,7 +233,7 @@ function Result({ take, looping }: { take: Take; looping: boolean }) {
           <IconButton title="删除这次录音" onClick={() => void deleteTake(take.id)}>
             <Trash2 />
           </IconButton>
-          <RecordButton retry looping={looping} />
+          <RecordButtons at={at} looping={looping} />
         </span>
       </div>
     </div>

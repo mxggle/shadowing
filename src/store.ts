@@ -4,6 +4,7 @@ import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition
 import { listen } from "@tauri-apps/api/event";
 import { api, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
+import { createDrillSlice, type DrillState } from "./drillSlice";
 import { createExplainSlice, type ExplainState } from "./explainSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
 import { createPracticeSlice, type PracticeState } from "./practiceSlice";
@@ -14,7 +15,7 @@ import { createReshapeSlice, type ReshapeState } from "./reshapeSlice";
 import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./transcriptSlice";
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState {
+export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -162,7 +163,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3 },
     current: null,
     playing: false,
     time: 0,
@@ -185,6 +186,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createUpdateSlice(set, get),
     ...createRecordSlice(set, get, engine, persistSettings),
     ...createReadingSlice(set, get, engine, persistSettings),
+    ...createDrillSlice(set, get, engine, persistSettings),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);

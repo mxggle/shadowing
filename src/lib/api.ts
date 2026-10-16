@@ -29,8 +29,12 @@ export interface Settings {
   recordMode: RecordMode;
   /** Play the take back (against the original) as soon as it's recorded. */
   recordReplay: boolean;
-  /** A whole paragraph: read it on your own, or along with the original. */
+  /** A whole paragraph: read it on your own, or along with the original… */
   paragraphMode: ParagraphMode;
+  /** …or 逐句跟读 instead (see readingHow; a field of its own so older versions can still read the settings). */
+  paragraphDrill: boolean;
+  /** 逐句跟读: times each sentence is said before the next (1–20). */
+  drillRounds: number;
 }
 
 /** 听完再说 / 边听边说 for one sentence; "read" is reading a paragraph on your own. */

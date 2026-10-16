@@ -10,6 +10,7 @@ import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { ExplainNote } from "./Explain";
 import { ProofreadBar, ProofreadButton, SuggestionNote } from "./Proofread";
+import { DrillBar } from "./Drill";
 import { LiveReadingBar, ReadingButton, ReadingProblem } from "./Reading";
 import { ReadingBar } from "./ReadingResult";
 import { MicButton, RecorderCard } from "./Recorder";
@@ -72,8 +73,10 @@ export function SentenceList() {
   const voices = speakerCount(sentences) > 1;
   const list = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
-  // Hold the list still while a sentence is corrected, matches are looked through, or you're recording.
-  useFollow(list, active, !reading && (editing !== null || !!find || recordAt !== null));
+  // Hold the list still while a sentence is corrected, matches are looked through, or you're recording
+  // (going through a paragraph, it follows you).
+  const drilling = useApp((s) => !!s.drill);
+  useFollow(list, active, !reading && !drilling && (editing !== null || !!find || recordAt !== null));
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
@@ -124,13 +127,10 @@ function Header({ scrolled }: { scrolled: boolean }) {
   const replacing = useApp((s) => !!s.replace);
   const { importTranscript, removeTranscript, openReplace, closeReplace } = useApp.getState();
   const live = useApp((s) => !!s.live);
+  const drilling = useApp((s) => !!s.drill);
   if (!transcript) return null;
-  if (live) {
-    return (
-      <div className="shrink-0 border-b border-line">
-        <LiveReadingBar />
-      </div>
-    );
+  if (live || drilling) {
+    return <div className="shrink-0 border-b border-line">{live ? <LiveReadingBar /> : <DrillBar />}</div>;
   }
   const voices = speakerCount(transcript.sentences);
   return (

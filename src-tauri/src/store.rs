@@ -30,6 +30,12 @@ pub struct Settings {
     pub record_replay: bool,
     /// A whole paragraph: read it on your own, or along with the original.
     pub paragraph_mode: crate::record::Mode,
+    /// 整段录音 picked 逐句跟读 instead (sentence by sentence). A field of its own,
+    /// not a third `paragraph_mode`: an older version can't read a mode it doesn't
+    /// know and would start this file fresh, but skips a field it doesn't know.
+    pub paragraph_drill: bool,
+    /// 逐句跟读: times each sentence is said before the next (the frontend keeps it to 1–20).
+    pub drill_rounds: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -53,6 +59,8 @@ impl Default for Settings {
             record_mode: crate::record::Mode::Listen,
             record_replay: true,
             paragraph_mode: crate::record::Mode::Read,
+            paragraph_drill: false,
+            drill_rounds: 3,
         }
     }
 }
@@ -199,6 +207,17 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn drilling_still_writes_a_paragraph_mode_older_versions_know() {
+        let settings = Settings {
+            paragraph_drill: true,
+            ..Settings::default()
+        };
+        let json = serde_json::to_value(&settings).unwrap();
+        assert_eq!(json["paragraphMode"], "read");
+        assert_eq!(json["paragraphDrill"], true);
+    }
 
     #[test]
     fn round_trip_and_defaults() {

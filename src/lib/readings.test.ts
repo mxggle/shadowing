@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Reading } from "./api";
-import { headOnTake, partAt, readingNote, readingRange, readingsFor, saidCount, scopeOf, stretchAt } from "./readings";
+import { headOnTake, howSettings, partAt, readingHow, readingNote, readingRange, readingsFor, saidCount, scopeOf, stretchAt } from "./readings";
 
 const reading = (over: Partial<Reading> = {}): Reading => ({
   id: "r",
@@ -106,5 +106,17 @@ describe("scopeOf", () => {
   it("else the section", () => {
     expect(scopeOf({ start: 3, end: 8 }, sentences)).toBe("section");
     expect(scopeOf({ start: 1, end: 3 }, [])).toBe("section");
+  });
+});
+
+describe("how 整段录音 goes", () => {
+  it("is 逐句跟读 when picked, otherwise the paragraph mode", () => {
+    expect(readingHow({ paragraphMode: "shadow", paragraphDrill: false })).toBe("shadow");
+    expect(readingHow({ paragraphMode: "shadow", paragraphDrill: true })).toBe("drill");
+  });
+
+  it("picking 逐句跟读 leaves the paragraph mode a mode older versions know", () => {
+    expect(howSettings("drill")).toEqual({ paragraphDrill: true });
+    expect(howSettings("read")).toEqual({ paragraphMode: "read", paragraphDrill: false });
   });
 });
