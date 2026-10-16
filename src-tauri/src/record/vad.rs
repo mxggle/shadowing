@@ -75,13 +75,11 @@ pub fn verdict(levels: &[f32], turn: usize, rules: &Rules, thr: f32) -> Option<S
     let since = levels.len().saturating_sub(turn);
     let secs = |frames: usize| frames as f64 * FRAME_SECS;
     if rules.along {
-        // The echo has stopped: what's left above the room is you.
+        // The echo has stopped: what's left above the room is you, in a
+        // stretch that mostly is (the room itself flickers up that far).
         let thr = along_threshold(thr - ABOVE_FLOOR_DB);
-        let quiet = levels[turn.min(levels.len())..]
-            .iter()
-            .rev()
-            .take_while(|&&l| l <= thr)
-            .count();
+        let you = voiced_over(&levels[turn.min(levels.len()).saturating_sub(5)..], thr);
+        let quiet = you.iter().rev().take_while(|&&v| !v).count().min(since);
         let done = secs(quiet) >= rules.pause_secs || secs(since) >= rules.max_secs;
         return done.then_some(Stop::Pause);
     }
@@ -210,6 +208,22 @@ mod tests {
         let at = |n: usize| verdict(&levels[..n], 200, &ALONG, threshold(&levels[..n]));
         assert_eq!(at(280), None, "still going 0.8 s after the original");
         assert_eq!(at(360), Some(Stop::Pause), "0.6 s after you stopped");
+    }
+
+    #[test]
+    fn along_the_room_flickering_up_is_not_you() {
+        // Every 9th frame of the room 8 dB up (10 ms frames of a real room
+        // reach 5–6 dB above its quietest): alone, they aren't speech.
+        let levels: Vec<f32> = (0..400)
+            .map(|i| match i {
+                0..150 => -30.0,
+                _ if i % 9 == 0 => -52.0,
+                _ => -60.0 + (i % 3) as f32,
+            })
+            .collect();
+        let at = |n: usize| verdict(&levels[..n], 200, &ALONG, threshold(&levels[..n]));
+        assert_eq!(at(255), None);
+        assert_eq!(at(260), Some(Stop::Pause), "not waiting for the cap");
     }
 
     #[test]
