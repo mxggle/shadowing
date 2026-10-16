@@ -758,6 +758,8 @@ function render() {
 
 function setRate(v) {
   rate = Math.min(2, Math.max(0.5, Math.round(v * 20) / 20));
+  // Changing speed while the sentence plays for a take: compare against the speed you heard.
+  if (take.phase === "listen" || take.phase === "wait") take.rate = rate;
   audio.playbackRate = rate;
   audio.preservesPitch = true; audio.webkitPreservesPitch = true;
   render();
@@ -805,8 +807,10 @@ audio.addEventListener("ended", () => {
   render();
 });
 
+const busy = () => take.phase === "listen" || take.phase === "wait" || take.phase === "rec" || take.phase === "saving";
+
 function toggle() {
-  if (take.phase === "listen" || take.phase === "rec") return;
+  if (busy()) return;
   stopPlayback();
   if (audio.paused) {
     if (audio.currentTime < LINES[cur].s || audio.currentTime >= LINES[cur].e) audio.currentTime = LINES[cur].s;
@@ -826,7 +830,7 @@ script.onclick = (e) => {
   const r = e.target.closest(".line");
   if (!r || e.target.closest(".note, .take")) return;
   const i = +r.dataset.i;
-  if (take.phase === "listen" || take.phase === "rec") return;
+  if (busy()) return;
   if (i !== cur) go(i, true); else if (audio.paused) toggle();
   sheet.focus({ preventScroll: true });
 };
@@ -834,9 +838,9 @@ sheet.addEventListener("keydown", (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key;
   if (e.target.closest("button") && (k === " " || k === "Enter")) return;
-  const busy = take.phase === "listen" || take.phase === "rec";
-  if (k === "Escape") { if (busy) cancelTake(); else if (take.phase) closeTake(); else return; }
-  else if (busy) { if (k === " ") finishTake(); else return; }
+  const b = busy();
+  if (k === "Escape") { if (b) cancelTake(); else if (take.phase) closeTake(); else return; }
+  else if (b) { if (k === " ") finishTake(); else return; }
   else if (k === " ") toggle();
   else if (k === "l" || k === "L" || k === "s" || k === "S") { if (!e.repeat) $("loop").click(); }
   else if (k === "[") go(cur - 1, !audio.paused);
@@ -891,13 +895,14 @@ function voiced(data, sr, from, to) {
 }
 
 function startTake() {
-  if (take.phase === "listen" || take.phase === "rec") return;
+  if (take.phase === "listen" || take.phase === "rec" || take.phase === "saving") return;
   stopPlayback();
-  const c = ctx();
-  if (!c || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showError("这个浏览器不能录音。换 Chrome、Safari 或 Edge 再试，或者直接下载应用。"); return; }
-  loadOriginal().catch(() => {});
+  if (take.phase && take.line !== cur) closeTake();
   Object.assign(take, { phase: "listen", line: cur, rate, chunks: [], mine: null, mineRange: null, levels: [], secs: 0, error: "", playing: null, stream: null });
   $("rec").setAttribute("aria-pressed", "true");
+  const c = ctx();
+  if (!c || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { take.asked = null; showError("这个浏览器不能录音。换 Chrome、Safari 或 Edge 再试，或者直接下载应用。"); return; }
+  loadOriginal().catch(() => {});
   // Ask for the mic while the sentence plays, so it's ready when it's your turn.
   const asked = take.asked = navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
     .then((s) => { if (take.asked !== asked || !take.phase || take.phase === "done") { s.getTracks().forEach((t) => t.stop()); return null; } take.stream = s; if (take.phase === "wait") beginCapture(); return s; })
@@ -911,6 +916,9 @@ function startTake() {
 
 function beginCapture() {
   const c = ctx();
+  // Never record the sample: whatever is playing stops when it's your turn.
+  stopAt = onStop = null;
+  if (!audio.paused) audio.pause();
   take.phase = "rec";
   take.sr = c.sampleRate;
   srcNode = c.createMediaStreamSource(take.stream);
@@ -958,7 +966,10 @@ async function finishTake() {
   const range = voiced(all, take.sr, 0, all.length / take.sr);
   if (!range) { showError("没听到你的声音。靠近麦克风一点，再录一次。"); return; }
   take.mine = all; take.mineRange = range;
+  const id = take.asked;
   try { await loadOriginal(); } catch (e) { decoded = null; }
+  // Closed, or a new take started, while the original was still decoding.
+  if (take.asked !== id || take.phase !== "saving") return;
   if (decoded && !origMono) origMono = mono(decoded);
   const l = LINES[take.line];
   take.orig = origMono ? (voiced(origMono, decoded.sampleRate, l.s, l.e) || [l.s, l.e]) : [l.s, l.e];
