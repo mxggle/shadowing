@@ -1,7 +1,7 @@
 // Playing takes back (part of the 跟读录音 slice): a take is an engine clip
 // over the paused track; at its end it goes on to the next recorded sentence,
 // the same way (一起听 / 对比 / 原句 / 我的), so a whole text can be listened
-// through. Playing the track stops it.
+// through. Playing the track stops it; the deck's play key pauses it where it is.
 import { listen } from "@tauri-apps/api/event";
 import type { AudioEngine } from "./audio/engine";
 import { isLoopActive } from "./audio/logic";
@@ -18,6 +18,8 @@ export interface PlayingTake {
   parts: ClipPart[];
   duration: number;
   secs: number;
+  /** Paused where it is (the deck's play key). */
+  paused: boolean;
 }
 
 export interface TakePlayback {
@@ -25,6 +27,8 @@ export interface TakePlayback {
   /** Plays a take, then (`chain`, the default) each recorded sentence after it the same way. */
   playTake(id: string, what: TakePart, chain?: boolean): Promise<void>;
   stopTake(): void;
+  /** Pauses the take playing back where it is, or goes on with it. */
+  pausePlayingTake(paused: boolean): void;
   /** The track started playing: a take playing, or about to, gives way to it. */
   trackPlaying(): void;
 }
@@ -74,14 +78,15 @@ export function createTakePlayback(set: Set, get: Get, engine: AudioEngine): Tak
       const mine = ++playing;
       // Playing from now (clip −1 until it starts): the list moves to its sentence
       // without a gap, and the end of the clip it replaces isn't one to go on from.
-      set({ playingTake: { id, what, chain, clip: -1, parts: [], duration: 0, secs: 0 }, shownTake: id, recError: null });
+      set({ playingTake: { id, what, chain, clip: -1, parts: [], duration: 0, secs: 0, paused: false }, shownTake: id, recError: null });
       try {
         const p = await api.record.play(path, id, what);
         if (mine !== playing) {
           if (stoppedAt === playing) void (resume ? engine.play() : api.record.stop());
           return;
         }
-        set({ playingTake: { id, what, chain, ...p, secs: 0 } });
+        // Paused while it started: the pause reached Rust after it, and holds it.
+        set((s) => ({ playingTake: { id, what, chain, ...p, secs: 0, paused: s.playingTake?.paused ?? false } }));
       } catch (e) {
         if (mine !== playing) return;
         set({ playingTake: null });
@@ -97,6 +102,13 @@ export function createTakePlayback(set: Set, get: Get, engine: AudioEngine): Tak
       if (!get().playingTake) return;
       set({ playingTake: null });
       void api.record.stop();
+    },
+
+    pausePlayingTake(paused) {
+      const p = get().playingTake;
+      if (!p || p.paused === paused) return;
+      set({ playingTake: { ...p, paused } });
+      void api.record.pauseClip(paused);
     },
 
     trackPlaying() {

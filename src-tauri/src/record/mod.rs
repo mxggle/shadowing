@@ -7,7 +7,8 @@
 //! `finish` builds the take (echo removed, trimmed; `take.rs`) and stores it
 //! (`saved.rs`). Takes play back as engine clips (`playback.rs`). Recording
 //! while the sentence loops, it's said again and again: `round` before each
-//! time (`rounds.rs`).
+//! time (`rounds.rs`). `pause` holds a take where it is, the original too, and
+//! goes on from there (`hold.rs`).
 //!
 //! A paragraph is one session too (`Meta::sentences`): read on your own
 //! (`Mode::Read`, the highlight follows your voice: `follow.rs`) or along with
@@ -18,6 +19,7 @@ pub mod commands;
 mod devices;
 mod echo;
 mod follow;
+mod hold;
 mod mic;
 mod original;
 mod playback;
@@ -94,6 +96,8 @@ pub trait Signals: Send + 'static {
     /// Reading on your own: the sentence you're on now.
     fn sentence(&self, index: usize);
     fn error(&self, message: &str);
+    /// The take paused (true) or went on: no levels come while it's paused.
+    fn held(&self, _on: bool) {}
     /// The microphone has closed.
     fn ended(&self) {}
 }
@@ -131,6 +135,8 @@ struct Session {
     done: Receiver<Result<Raw, String>>,
     /// Said again and again: the last time before this one with your voice (`rounds.rs`).
     kept: Option<take::Built>,
+    /// Paused (`pause`).
+    held: bool,
 }
 
 #[derive(Default)]
@@ -181,6 +187,7 @@ impl Recorder {
             tx,
             done,
             kept: None,
+            held: false,
         });
         Ok(name)
     }
@@ -207,6 +214,9 @@ impl Recorder {
             .recv_timeout(Duration::from_secs(3))
             .unwrap_or_else(|_| Err("录音没有结束".into()));
         let _ = player.set_tap(None);
+        if s.held {
+            let _ = player.pause(); // the original held for it won't go on: as if it was paused
+        }
         Some((s, raw))
     }
 

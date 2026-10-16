@@ -54,6 +54,11 @@ impl Signals for Live {
     fn error(&self, message: &str) {
         self.app.error(message);
     }
+    fn held(&self, on: bool) {
+        if on {
+            self.practice(Doing::Paused); // going on, the levels say so again
+        }
+    }
     fn ended(&self) {
         self.practice(Doing::Paused);
     }
@@ -62,6 +67,17 @@ impl Signals for Live {
 #[tauri::command]
 pub fn record_turn(recorder: State<'_, Recorder>) {
     recorder.turn();
+}
+
+/// Pauses the take or paragraph being recorded (`paused`), or lets it go on.
+/// Going on, whether the original plays on (it was playing when paused).
+#[tauri::command]
+pub fn record_pause(
+    player: State<'_, Player>,
+    recorder: State<'_, Recorder>,
+    paused: bool,
+) -> bool {
+    recorder.pause(&player, paused)
 }
 
 /// Another time through (连续录): the take starts afresh, the mic stays open.
@@ -169,6 +185,12 @@ pub fn record_play(
 #[tauri::command]
 pub fn record_stop(player: State<'_, Player>) -> Result<(), String> {
     player.stop_clip()
+}
+
+/// Pauses the take or reading playing back (where it is), or lets it go on.
+#[tauri::command]
+pub fn record_pause_clip(player: State<'_, Player>, paused: bool) -> Result<(), String> {
+    player.hold_clip(paused)
 }
 
 /// How much room recordings take, and how much of it is for audio that's gone.

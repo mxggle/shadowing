@@ -18,8 +18,9 @@ export function ReadingBar({ reading }: { reading: Reading }) {
   const others = useMemo(() => readingsFor(all, reading.start, reading.end), [all, reading.start, reading.end]);
   const playing = useApp((s) => (s.playingReading?.id === reading.id ? s.playingReading : null));
   const error = useApp((s) => s.readingError);
-  const { playReading, stopReadingPlayback, deleteReading, showReading, startReading } = useApp.getState();
-  const toggle = (what: ReadingWhat) => (playing?.what === what ? stopReadingPlayback() : void playReading(reading.id, what));
+  const { playReading, stopReadingPlayback, pausePlayingReading, deleteReading, showReading, startReading } = useApp.getState();
+  const toggle = (what: ReadingWhat) =>
+    playing?.what !== what ? void playReading(reading.id, what) : playing.paused ? pausePlayingReading(false) : stopReadingPlayback();
   const i = others.findIndex((r) => r.id === reading.id);
   const said = saidCount(reading);
   const first = useApp((s) => sentenceIndexAt(s.transcript?.sentences ?? [], reading.parts[0]?.start + 0.01));
@@ -57,17 +58,18 @@ export function ReadingBar({ reading }: { reading: Reading }) {
         </IconButton>
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-1.5">
-        <PlayButton active={playing?.what === "turns"} onClick={() => toggle("turns")} title="每句先放原文，再放你的">
+        <PlayButton active={playing?.what === "turns"} paused={playing?.paused} onClick={() => toggle("turns")} title="每句先放原文，再放你的">
           逐句对比
         </PlayButton>
-        <PlayButton active={playing?.what === "mine"} onClick={() => toggle("mine")} title="从头到尾听你读的">
+        <PlayButton active={playing?.what === "mine"} paused={playing?.paused} onClick={() => toggle("mine")} title="从头到尾听你读的">
           我的整段
         </PlayButton>
         {reading.mode === "shadow" && (
-          <PlayButton active={playing?.what === "together"} onClick={() => toggle("together")} title="原文和你一起放，听合不合拍">
+          <PlayButton active={playing?.what === "together"} paused={playing?.paused} onClick={() => toggle("together")} title="原文和你一起放，听合不合拍">
             一起听
           </PlayButton>
         )}
+        {playing?.paused && <span>已暂停</span>}
         <span className="ml-auto flex items-center gap-1">
           <IconButton title="删除这次整段录音（连同分出来的每句）" onClick={() => void deleteReading(reading.id)}>
             <Trash2 />
@@ -83,10 +85,10 @@ export function ReadingBar({ reading }: { reading: Reading }) {
   );
 }
 
-function PlayButton({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: string }) {
+function PlayButton({ active, paused = false, onClick, title, children }: { active: boolean; paused?: boolean; onClick: () => void; title: string; children: string }) {
   return (
     <Button title={title} aria-pressed={active} onClick={onClick} className={`h-7 px-2.5 ${active ? "!bg-press" : ""}`}>
-      {active ? <Square size={9} fill="currentColor" strokeWidth={0} /> : <Play size={10} fill="currentColor" strokeWidth={0} />}
+      {active && !paused ? <Square size={9} fill="currentColor" strokeWidth={0} /> : <Play size={10} fill="currentColor" strokeWidth={0} />}
       {children}
     </Button>
   );

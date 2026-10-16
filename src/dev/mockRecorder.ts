@@ -1,6 +1,7 @@
 // Browser-only fake of 跟读录音 (src-tauri/src/record) for UI work: a pretend
 // voice that starts after your turn begins and stops ~a sentence later, takes
 // with made-up waveforms, and clip playback that only moves the playhead.
+// Paused (record_pause / record_pause_clip), the voice and the clip stand still.
 import { emit } from "@tauri-apps/api/event";
 import type { ClipPart, Finished, Playing, Reading, ReadingPlaying, ReadingWhat, RecordMeta, Take, TakePart } from "../lib/api";
 
@@ -59,7 +60,7 @@ export function seedTakes(audio: string, sentence: { start: number; end: number;
  * says nothing, which stops it: `round` counts them, `voiced` says whether this one had a voice,
  * `kept` whether one before did (put aside, as Rust does).
  */
-let session: { meta: RecordMeta; timer: number; turnAt: number | null; t: number; from: number; done: boolean; round: number; voiced: boolean; kept: boolean } | null = null;
+let session: { meta: RecordMeta; timer: number; turnAt: number | null; t: number; from: number; done: boolean; round: number; voiced: boolean; kept: boolean; paused: boolean } | null = null;
 const QUIET_FROM = 4;
 
 /** A paragraph: 自己读 moves the highlight a sentence at a time, then finishes; 跟着原文读 finishes once the original has. */
@@ -76,8 +77,10 @@ function beginReading(meta: RecordMeta) {
     round: 1,
     voiced: true,
     kept: false,
+    paused: false,
     timer: window.setInterval(() => {
       const s = session!;
+      if (s.paused) return;
       s.t += 0.033;
       const talking = Math.sin(s.t * 9) > -0.3;
       void emit("recorder:level", { level: talking ? 0.5 + rand() * 0.4 : 0.08, speaking: talking, secs: s.t });
@@ -161,8 +164,10 @@ function begin(meta: RecordMeta) {
     round: 1,
     voiced: false,
     kept: false,
+    paused: false,
     timer: window.setInterval(() => {
       const s = session!;
+      if (s.paused) return;
       s.t += 0.033;
       const said = (s.meta.end - s.meta.start) / s.meta.rate;
       const since = s.turnAt === null ? -1 : s.t - s.turnAt;
@@ -214,6 +219,8 @@ function parts(take: Take, what: TakePart): ClipPart[] {
 
 let clip = 0;
 let clipTimer = 0;
+/** The clip playing: when it (would have) started, and since when it's paused. */
+let clipAt = { started: 0, pausedAt: null as number | null };
 /** Pretend two tracks' audio has gone missing, to see the clean-up in the settings. */
 let space = { bytes: 86_400_000, missingTracks: 2, missingBytes: 12_300_000 };
 function play(audio: string, id: string, what: TakePart): Playing {
@@ -228,10 +235,11 @@ function play(audio: string, id: string, what: TakePart): Playing {
 function startClip(duration: number) {
   window.clearInterval(clipTimer);
   const id = ++clip;
-  const started = performance.now();
+  const at = { started: performance.now(), pausedAt: null as number | null };
+  clipAt = at;
   // Its own timer: the end can start the next clip (listening on) before this one stops.
   const timer = window.setInterval(() => {
-    const secs = (performance.now() - started) / 1000;
+    const secs = ((at.pausedAt ?? performance.now()) - at.started) / 1000;
     const playing = secs < duration;
     if (!playing) {
       window.clearInterval(timer);
@@ -241,6 +249,17 @@ function startClip(duration: number) {
   }, 33);
   clipTimer = timer;
   return { clip: id, duration };
+}
+
+/** Like the engine: a paused clip stays where it is, and goes on from there. */
+function pauseClip(paused: boolean) {
+  if (!clipTimer) return;
+  const now = performance.now();
+  if (paused) clipAt.pausedAt ??= now;
+  else if (clipAt.pausedAt !== null) {
+    clipAt.started += now - clipAt.pausedAt;
+    clipAt.pausedAt = null;
+  }
 }
 
 /** Like the engine: stopping a clip (record_stop, or playing the track) isn't its end. */
@@ -260,6 +279,12 @@ export async function mockRecord(cmd: string, a: Record<string, never>): Promise
       return "MacBook Pro Microphone";
     case "record_turn":
       if (session && session.turnAt === null) session.turnAt = session.t;
+      return null;
+    case "record_pause": // the track's side (held, going on) is mockBackend's
+      if (session) session.paused = a.paused;
+      return null;
+    case "record_pause_clip":
+      pauseClip(a.paused);
       return null;
     case "record_round": {
       if (!session) throw "录音已经停了，再录一次吧";

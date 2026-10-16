@@ -153,3 +153,31 @@ fn the_original_playing_during_a_take_is_playback() {
     let s = c.sessions();
     assert_eq!((s[0].end - s[0].start, s[0].played), (7 * S, 3 * S + 60));
 }
+
+#[test]
+fn a_paused_recording_or_playback_is_a_pause() {
+    // The deck's play key pauses a take (or your take playing back): the
+    // recorder says Paused once and then nothing until it goes on.
+    let mut c = Clock::default();
+    let busy = |c: &mut Clock, from: u64, to: u64, doing| {
+        let mut t = T0 + from * S;
+        while t <= T0 + to * S {
+            c.busy(t, "/a.mp3", doing);
+            t += 100;
+        }
+    };
+    busy(&mut c, 0, 4, Doing::Recording);
+    c.busy(T0 + 4 * S, "/a.mp3", Doing::Paused);
+    // Back within the idle limit: one session, the pause in it like any pause.
+    busy(&mut c, 34, 38, Doing::Recording);
+    c.busy(T0 + 38 * S, "/a.mp3", Doing::Paused);
+    let s = c.sessions();
+    assert_eq!((s.len(), s[0].end - s[0].start), (1, 38 * S));
+    // Paused for 5 minutes: the session ended where it paused; playing your take later starts another.
+    busy(&mut c, 338, 344, Doing::Playing);
+    c.busy(T0 + 344 * S, "/a.mp3", Doing::Paused);
+    let s = c.sessions();
+    assert_eq!(s.len(), 2);
+    assert_eq!(s[0].end, T0 + 38 * S);
+    assert_eq!((s[1].end - s[1].start, s[1].played), (6 * S, 6 * S));
+}

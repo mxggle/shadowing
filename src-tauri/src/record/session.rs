@@ -3,13 +3,15 @@
 //! take can stop. Reading a paragraph on your own, it also follows which
 //! sentence you're on (`follow.rs`). Said again and again while the sentence
 //! loops, each time is handed back before the next (`Msg::Round`), the mic left
-//! open, and the take starts afresh.
+//! open, and the take starts afresh. Paused (`Msg::Hold`), what's heard
+//! meanwhile is left out and nothing moves on (`hold.rs`).
 
 use super::follow::{Follow, Step};
+use super::hold::{Hold, Played};
 use super::take::{Mode, Raw};
 use super::vad::{self, Rules, Stop};
 use super::{mic, rules, Level, Meta, Signals};
-use crate::audio::tap::{Mark, TapRx};
+use crate::audio::tap::TapRx;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::thread;
@@ -34,6 +36,8 @@ pub enum Msg {
     Turn(Rules),
     /// By hand, reading on your own: next (+1) / previous (−1) sentence.
     Step(i32),
+    /// Paused (true) or going on.
+    Hold(bool),
     Stop,
 }
 
@@ -94,7 +98,8 @@ pub fn run(
     let _ = ready.send(Ok(mic.name.clone()));
     let frame = (mic.rate as f64 * vad::FRAME_SECS) as usize;
     let (mut buf, mut levels) = (Vec::<f32>::new(), Vec::<f32>::new());
-    let (mut marks, mut played) = (Vec::new(), Vec::new());
+    let (mut played, mut fresh) = (Played::default(), Vec::new());
+    let mut hold = Hold::new(mic.first_at.load(Relaxed), mic.rate);
     let (mut turn, mut rules_now, mut stopped) = (None::<usize>, None::<Rules>, false);
     let (mut last_emit, mut loudest, mut sound) = (Instant::now(), f32::MIN, false);
     let (mut follow, mut threshold) = (None::<Follow>, vad::threshold(&[]));
@@ -119,30 +124,43 @@ pub fn run(
                     }
                 }
             }
+            Ok(Msg::Hold(on)) if on != hold.paused() => {
+                hold.set(on);
+                if on {
+                    played.cut(hold.cuts());
+                }
+                loudest = f32::MIN; // no level of before the pause after it
+                out.held(on);
+            }
+            Ok(Msg::Hold(_)) => {}
             Ok(Msg::Stop) | Err(RecvTimeoutError::Disconnected) => break,
             Err(RecvTimeoutError::Timeout) => {}
         }
         while let Ok(v) = mic.samples.pop() {
-            sound |= v != 0.0;
-            buf.push(v);
-        }
-        while let Ok(m) = tap_rx.marks.pop() {
-            marks.push(m);
-        }
-        while let Ok(v) = tap_rx.samples.pop() {
-            if follow.is_none() {
-                played.push(v); // reading on your own, nothing is played
+            if hold.mic() {
+                sound |= v != 0.0;
+                buf.push(v);
             }
         }
+        // Marks first: their samples, copied before them, are all in by then.
+        fresh.extend(std::iter::from_fn(|| tap_rx.marks.pop().ok()));
+        while let Ok(v) = tap_rx.samples.pop() {
+            if follow.is_none() {
+                played.samples.push(v); // reading on your own, nothing is played
+            }
+        }
+        for m in fresh.drain(..) {
+            played.mark(m, hold.cuts());
+        }
         if let Some(reply) = round.take() {
-            let (marks, played) = take_played(&mut marks, &mut played);
+            let (marks, samples) = played.take();
             let raw = Raw {
                 mic_at: later(mic.first_at.load(Relaxed), dropped, mic.rate),
                 turn: turn.map_or(0, |t| t * frame),
                 mic: std::mem::take(&mut buf),
                 mic_rate: mic.rate,
                 marks,
-                played,
+                played: samples,
                 followed: None,
             };
             dropped += raw.mic.len();
@@ -183,7 +201,7 @@ pub fn run(
             break;
         }
         let stop = match (turn, rules_now) {
-            (Some(t), Some(r)) => vad::verdict(&levels, t, &r, threshold),
+            (Some(t), Some(r)) if !hold.paused() => vad::verdict(&levels, t, &r, threshold),
             _ => None,
         };
         if let Some(stop) = stop.filter(|_| !stopped) {
@@ -209,53 +227,21 @@ pub fn run(
             turn: turn.map_or(0, |t| t * frame),
             mic: buf,
             mic_rate: mic.rate,
-            marks,
-            played,
+            marks: played.marks,
+            played: played.samples,
             followed: follow.map(|f| f.followed()),
         }),
     });
 }
 
-/// Takes out the output blocks taken so far. Their samples come in before their
-/// marks, so samples past the last mark (a block still on its way) stay.
-fn take_played(marks: &mut Vec<Mark>, played: &mut Vec<f32>) -> (Vec<Mark>, Vec<f32>) {
-    let n: usize = marks.iter().map(|m| m.frames as usize).sum();
-    let taken = played.drain(..n.min(played.len())).collect();
-    (std::mem::take(marks), taken)
-}
-
 /// Host time (ns) of the mic sample `n` samples after the one heard `at`.
-fn later(at: u64, n: usize, rate: u32) -> u64 {
+pub(super) fn later(at: u64, n: usize, rate: u32) -> u64 {
     at + (n as u128 * 1_000_000_000 / rate.max(1) as u128) as u64
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn a_new_round_keeps_a_block_still_on_its_way() {
-        let mark = |frames| Mark {
-            at: 0,
-            frames,
-            rate: 48_000,
-        };
-        let mut marks = vec![mark(3), mark(2)];
-        let mut played = vec![1.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0];
-        let (taken, out) = take_played(&mut marks, &mut played);
-        assert_eq!(taken.len(), 2);
-        assert_eq!(
-            out,
-            [1.0, 1.0, 1.0, 2.0, 2.0],
-            "the marked blocks go with them"
-        );
-        assert!(marks.is_empty());
-        assert_eq!(
-            played,
-            [3.0, 3.0],
-            "the next block's samples, its mark to come"
-        );
-    }
 
     #[test]
     fn the_mic_timeline_moves_on_by_what_was_dropped() {

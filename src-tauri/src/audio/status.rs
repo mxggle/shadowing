@@ -57,6 +57,8 @@ pub struct Ctl {
     pub shadow_time: f64,
     pub shadow_playing: bool,
     pub shadow_repeats: u32,
+    /// Held for a recording (`Player::hold`), and nothing since has moved the track.
+    pub held: bool,
     pub rate: f64,
     pub seq: u64,
 }
@@ -68,6 +70,7 @@ impl Default for Ctl {
             shadow_time: 0.0,
             shadow_playing: false,
             shadow_repeats: 0,
+            held: false,
             rate: 1.0,
             seq: 0,
         }

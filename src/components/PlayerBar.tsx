@@ -2,8 +2,9 @@ import { Pause, Play, RotateCcw, RotateCw, SkipBack, SkipForward } from "lucide-
 import { useState } from "react";
 import { useFlash } from "../hooks/useFlash";
 import { formatTime } from "../lib/time";
+import { playKeyTitle } from "../lib/playKey";
 import { sectionName, sectionsOf } from "../lib/sections";
-import { useApp } from "../store";
+import { playKeyOf, useApp } from "../store";
 import { LoopStrip, useLoopPhase } from "./Loop";
 import { PlaybackMenu } from "./PlaybackMenu";
 import { Scrubber } from "./Scrubber";
@@ -110,8 +111,10 @@ function Dot({ phase }: { phase: "idle" | "armed" | "active" }) {
 
 function Transport() {
   const hasTrack = useApp((s) => !!s.current);
-  const hasTracks = useApp((s) => !!s.current || !!s.folder?.tracks.length);
-  const playing = useApp((s) => s.playing);
+  // Whatever is going on: a recording or a playback, else the track.
+  const running = useApp((s) => playKeyOf(s).running);
+  const enabled = useApp((s) => playKeyOf(s).enabled);
+  const title = useApp((s) => playKeyTitle(playKeyOf(s)));
   const seekStep = useApp((s) => s.settings.seekStep);
   const { toggle, jump, step } = useApp.getState();
   const disabled = !hasTrack;
@@ -127,9 +130,9 @@ function Transport() {
       <DeckButton title={`后退 ${seekStep} 秒 (←)`} flash="back" disabled={disabled} onClick={() => jump(-1)} className="size-10 rounded-full">
         <StepIcon icon={RotateCcw} seconds={seekStep} />
       </DeckButton>
-      <DeckButton ink title="播放 / 暂停 (空格)" flash="toggle" disabled={!hasTracks} onClick={toggle} className="mx-1.5 size-11 rounded-full">
-        <span key={playing ? "pause" : "play"} className="grid animate-pop place-items-center">
-          {playing ? <Pause size={19} fill="currentColor" strokeWidth={0} /> : <Play size={19} fill="currentColor" strokeWidth={0} className="ml-0.5" />}
+      <DeckButton ink title={title} flash="toggle" disabled={!enabled} onClick={toggle} className="mx-1.5 size-11 rounded-full">
+        <span key={running ? "pause" : "play"} className="grid animate-pop place-items-center">
+          {running ? <Pause size={19} fill="currentColor" strokeWidth={0} /> : <Play size={19} fill="currentColor" strokeWidth={0} className="ml-0.5" />}
         </span>
       </DeckButton>
       <DeckButton title={`前进 ${seekStep} 秒 (→)`} flash="forward" disabled={disabled} onClick={() => jump(1)} className="size-10 rounded-full">

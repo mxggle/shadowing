@@ -3,6 +3,7 @@ import { AudioEngine } from "./audio/engine";
 import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, trackAfter, type Loop, type PlayMode } from "./audio/logic";
 import { listen } from "@tauri-apps/api/event";
 import { api, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
+import { playKey } from "./lib/playKey";
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createDrillSlice, type DrillState } from "./drillSlice";
 import { createExplainSlice, type ExplainState } from "./explainSlice";
@@ -47,6 +48,7 @@ export interface AppState extends TranscriptState, CorrectState, ReshapeState, P
   chooseFolder(): Promise<void>;
   rescan(): Promise<void>;
   open(track: Track, autoplay?: boolean): void;
+  /** The deck's play key: pauses / goes on with a recording or a playback, else plays / pauses the track. */
   toggle(): void;
   seek(t: number): void;
   seekBy(delta: number): void;
@@ -71,6 +73,18 @@ function loadShelfOpen(): boolean {
     return true;
   }
 }
+
+/** What the deck's play key does now (lib/playKey.ts). */
+export const playKeyOf = ({ rec, live, drill, playingTake, playingReading, playing, current, folder }: AppState) =>
+  playKey({
+    rec,
+    live: live && { phase: live.phase, paused: live.pausedAt !== null },
+    drill,
+    playingTake,
+    playingReading,
+    playing,
+    hasTracks: !!current || !!folder?.tracks.length,
+  });
 
 const SAVE_EVERY_MS = 2000;
 /** Holding = or typing a seek step changes settings many times a second; write once it settles. */
@@ -268,6 +282,17 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     toggle() {
+      const key = playKeyOf(get());
+      if (key.target !== "track") {
+        if (!key.enabled) return;
+        const s = get();
+        const pause = key.running;
+        if (key.target === "take") void s.pauseTake(pause);
+        else if (key.target === "reading") void s.pauseReading(pause);
+        else if (key.target === "takePlayback") s.pausePlayingTake(pause);
+        else s.pausePlayingReading(pause);
+        return;
+      }
       if (micOpen(get())) return;
       const { current, folder } = get();
       if (!current) {
