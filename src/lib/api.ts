@@ -392,6 +392,13 @@ export const api = {
   editTranscript: (path: string, edits: SentenceEdit[]) => invoke<Transcript>("transcript_edit", { path, edits }),
   /** Split, merged or renamed sections, saved in the app; returns the transcript as saved. */
   setSections: (path: string, sections: Section[]) => invoke<Transcript>("transcript_sections", { path, sections }),
+  /** Cuts sentence `index` in two at `at` (string offset in its text), the time at a pause heard near there. */
+  splitSentence: (path: string, index: number, at: number) => invoke<Transcript>("transcript_split", { path, index, at }),
+  /** Joins sentence `index` with the one after it. */
+  mergeSentences: (path: string, index: number) => invoke<Transcript>("transcript_merge", { path, index }),
+  /** Undoes a cut or join: `sentences` back in place of the `count` at `at`, with these sections. */
+  restoreSentences: (path: string, at: number, count: number, sentences: Sentence[], sections: Section[]) =>
+    invoke<Transcript>("transcript_restore", { path, at, count, sentences, sections }),
   proofread: {
     /** Asks the explanation model for misheard words; changes nothing. Progress: `proofread:progress`. */
     start: (path: string) => invoke<Suggestion[]>("transcript_proofread", { path }),

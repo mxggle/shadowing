@@ -252,6 +252,28 @@ async function scenario() {
     app().mergeSection(1);
     const merged = await waitFor(async () => (await api.getTranscript(english.path))?.sections?.length === 1, 2000);
     check("merged back into one section", merged, JSON.stringify(app().transcript?.sections));
+
+    // Cutting a sentence at the cursor: the time lands on the pause `say` leaves after the comma; joining and ⌘Z put it back.
+    const whole = transcript.sentences[1];
+    app().editSentence(1);
+    await app().splitDraft(whole.text.indexOf(",") + 1);
+    saved = await api.getTranscript(english.path);
+    const [part1, part2] = saved?.sentences.slice(1) ?? [];
+    check(
+      "cut at the cursor lands on the pause heard there",
+      saved?.sentences.length === 3 && part1.text.endsWith("hear,") && part2.text.startsWith("right") && part2.start - part1.end > 0.05,
+      `${part1?.text} | ${part2?.text} · ${part1?.end.toFixed(2)}–${part2?.start.toFixed(2)}`,
+    );
+    check("correcting goes on in the second part", app().editing?.index === 2 && app().editing?.caret === 0);
+    app().cancelEdit();
+    await app().mergeSentence(1);
+    saved = await api.getTranscript(english.path);
+    check("joined back into one sentence", saved?.sentences.length === 2 && saved.sentences[1].text === whole.text, saved?.sentences[1].text);
+    await app().undoEdit();
+    await app().undoEdit();
+    saved = await api.getTranscript(english.path);
+    const back = saved?.sentences[1];
+    check("undo puts the cut sentence back", saved?.sentences.length === 2 && back?.start === whole.start && back.end === whole.end && back.text === whole.text, JSON.stringify(back));
   }
 
   // 9–11. AI settings, transcription and proofreading against the fake server (smokeAi.ts).

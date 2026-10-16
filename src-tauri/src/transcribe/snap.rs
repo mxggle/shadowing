@@ -7,7 +7,7 @@ use crate::transcript::Sentence;
 
 /// 20 ms frames.
 const FRAME: usize = RATE as usize / 50;
-const FRAME_SECS: f64 = FRAME as f64 / RATE as f64;
+pub(crate) const FRAME_SECS: f64 = FRAME as f64 / RATE as f64;
 
 /// Loudness (dB) of each 20 ms frame, fed piece by piece as the audio is decoded.
 #[derive(Default)]
@@ -37,12 +37,12 @@ const EARLIER: f64 = 0.35;
 const LATER_END: f64 = 0.6;
 const LATER_START: f64 = 0.35;
 /// A pause has to be this long, and this much quieter than the speech around it.
-const MIN_PAUSE: f64 = 0.06;
-const MIN_DEPTH_DB: f32 = 10.0;
+pub(crate) const MIN_PAUSE: f64 = 0.06;
+pub(crate) const MIN_DEPTH_DB: f32 = 10.0;
 /// Frames within this of the quietest one count as the same pause.
-const QUIET_DB: f32 = 6.0;
+pub(crate) const QUIET_DB: f32 = 6.0;
 /// Let the last sound ring out a little before the loop jumps back.
-const TAIL: f64 = 0.08;
+pub(crate) const TAIL: f64 = 0.08;
 
 pub fn snap(sentences: &mut [Sentence], db: &[f32]) {
     let duration = db.len() as f64 * FRAME_SECS;
