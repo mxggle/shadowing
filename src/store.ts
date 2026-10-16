@@ -162,7 +162,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, recordListens: 0, recordRepeats: 1, paragraphMode: "read" },
     current: null,
     playing: false,
     time: 0,

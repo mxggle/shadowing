@@ -1,9 +1,11 @@
 import { ChevronLeft, ChevronRight, Ear, LoaderCircle, Mic, Play, Square, Trash2, X } from "lucide-react";
 import { useMemo } from "react";
 import type { RecordMode, Take, TakePart } from "../lib/api";
+import { isLast, nextStep, planNote, planOf, stepCount } from "../lib/rounds";
 import { comparePart, inTurns, lagNote, paceNote, playheadAt, takesFor, whenRecorded } from "../lib/takes";
 import { recordTarget, type Rec, type RecordAt } from "../recordSlice";
 import { useApp } from "../store";
+import { PlanButton } from "./RecordPlan";
 import { TakeWaves } from "./TakeWaves";
 import { Button, IconButton, Kbd } from "./ui";
 
@@ -25,8 +27,9 @@ export function RecorderCard({ at }: { at: RecordAt }) {
 
   return (
     <div className="relative mt-1 mb-2 animate-fade rounded-[10px] border border-line px-3 pt-2 pb-2.5 text-[13px] text-muted">
-      <div className="flex h-7 items-center gap-2 pr-7">
+      <div className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 pr-7">
         <ModeSwitch disabled={!!rec} />
+        <PlanButton disabled={!!rec} />
         {!rec && takes.length > 1 && take && <History takes={takes} take={take} />}
       </div>
       <div className="mt-2">
@@ -87,11 +90,12 @@ function History({ takes, take }: { takes: Take[]; take: Take }) {
 }
 
 function Ready() {
+  const note = useApp((s) => planNote(planOf(s.settings.recordListens, s.settings.recordRepeats), s.settings.recordMode));
   return (
     <div className="flex items-center gap-3">
       <RecordButton />
       <span>
-        按 <Kbd>M</Kbd> 开始：先放一遍原句，然后轮到你说。
+        按 <Kbd>M</Kbd> 开始：{note}
       </span>
     </div>
   );
@@ -117,12 +121,15 @@ function Live({ rec }: { rec: Rec }) {
     );
   }
   const listening = rec.phase === "listening";
+  const hearing = rec.step.kind === "hear";
+  const last = isLast(rec.plan, rec.step);
+  const count = stepCount(rec.plan, rec.step);
   return (
     <div className="flex flex-col gap-2">
       <div className="flex h-9 items-center gap-3">
         {listening ? (
           <span className="flex items-center gap-1.5 font-medium text-fg">
-            <Ear size={15} className="shrink-0" /> 先听原句
+            <Ear size={15} className="shrink-0" /> {hearing ? "只听原句" : "先听原句"}
           </span>
         ) : (
           <span className="flex items-center gap-1.5 font-medium text-fg">
@@ -133,30 +140,35 @@ function Live({ rec }: { rec: Rec }) {
             {rec.along ? "跟着说" : "轮到你了"}
           </span>
         )}
+        {count && <span className="tabular -ml-1 text-[12px] whitespace-nowrap text-muted">{count}</span>}
         {listening || rec.along ? <OriginalProgress rec={rec} /> : <Meter levels={rec.levels} />}
         {!listening && !rec.along && <span className="tabular w-10 text-right font-mono text-[12px] text-fg">{rec.secs.toFixed(1)}</span>}
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Button className="h-7 px-2.5" title={listening || rec.along ? "跳过原句 (空格)" : "说完了 (空格)"} onClick={advanceTake}>
+        <Button className="h-7 px-2.5" title={listening || rec.along ? "跳过原句 (空格)" : last ? "说完了 (空格)" : "这遍说完了，下一遍 (空格)"} onClick={advanceTake}>
           {listening || rec.along ? (
             "跳过原句"
-          ) : (
+          ) : last ? (
             <>
               <Square size={10} fill="currentColor" strokeWidth={0} /> 说完了
             </>
+          ) : (
+            "下一遍"
           )}
         </Button>
         <button className="text-[12px] text-faint hover:text-fg" onClick={cancelTake}>
           取消
         </button>
         <span className="ml-auto text-right text-[12px] text-faint" title={rec.mic ? `用「${rec.mic}」录音` : undefined}>
-          {listening ? (
+          {hearing ? (
+            <>听完{nextStep(rec.plan, rec.step)?.kind === "hear" ? "再放一遍" : "就开始跟读"}</>
+          ) : listening ? (
             <>听完就轮到你</>
           ) : rec.along ? (
-            <>原句放完后，你停下就结束</>
+            <>原句放完后，你停下就{last ? "结束" : "进入下一遍"}</>
           ) : (
             <>
-              说完会自动停 · <Kbd>空格</Kbd> 结束 · <Kbd>Esc</Kbd> 取消
+              {last ? "说完会自动停" : "说完自动进入下一遍"} · <Kbd>空格</Kbd> {last ? "结束" : "下一遍"} · <Kbd>Esc</Kbd> 取消
             </>
           )}
         </span>

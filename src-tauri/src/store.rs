@@ -28,6 +28,10 @@ pub struct Settings {
     pub record_mode: crate::record::Mode,
     /// Play a take back against the original as soon as it's recorded.
     pub record_replay: bool,
+    /// 跟读方案: times the original plays first only to listen, then times you
+    /// say it (only the last is kept). The webview keeps them in range.
+    pub record_listens: u32,
+    pub record_repeats: u32,
     /// A whole paragraph: read it on your own, or along with the original.
     pub paragraph_mode: crate::record::Mode,
 }
@@ -52,6 +56,8 @@ impl Default for Settings {
             daily_goals: Vec::new(),
             record_mode: crate::record::Mode::Listen,
             record_replay: true,
+            record_listens: 0,
+            record_repeats: 1,
             paragraph_mode: crate::record::Mode::Read,
         }
     }

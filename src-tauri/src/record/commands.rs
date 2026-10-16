@@ -64,6 +64,12 @@ pub fn record_turn(recorder: State<'_, Recorder>) {
     recorder.turn();
 }
 
+/// Another time through (跟读方案): the take starts afresh, the mic stays open.
+#[tauri::command]
+pub fn record_round(recorder: State<'_, Recorder>) -> Result<(), String> {
+    recorder.round()
+}
+
 #[tauri::command]
 pub fn record_cancel(player: State<'_, Player>, recorder: State<'_, Recorder>) {
     recorder.cancel(&player);

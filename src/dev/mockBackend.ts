@@ -249,7 +249,7 @@ export function installMockBackend() {
     folder: fresh ? null : { root, name: "日本語ポッドキャスト", tracks },
     missingFolder: null,
     lastTrack: fresh ? null : tracks[1].path,
-    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }], recordMode: "listen", recordReplay: true, paragraphMode: "read" },
+    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }], recordMode: "listen", recordReplay: true, recordListens: 0, recordRepeats: 1, paragraphMode: "read" },
     progress: {
       [tracks[0].path]: { position: 178, duration: 180, updatedAt: 0 },
       [tracks[1].path]: { position: 64, duration: 200, updatedAt: 0 },
