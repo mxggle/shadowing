@@ -5,7 +5,8 @@
 //! original (`player_play_range`), says when your turn starts (`turn`), and
 //! gets level events and, once you've stopped speaking, `recorder:auto`.
 //! `finish` builds the take (echo removed, trimmed; `take.rs`) and stores it
-//! (`saved.rs`). Takes play back as engine clips (`playback.rs`).
+//! (`saved.rs`). Takes play back as engine clips (`playback.rs`). Saying it
+//! several times in a row, `round` starts the take afresh before each time.
 //!
 //! A paragraph is one session too (`Meta::sentences`): read on your own
 //! (`Mode::Read`, the highlight follows your voice: `follow.rs`) or along with
@@ -179,6 +180,16 @@ impl Recorder {
         if let Some(s) = self.lock().as_ref() {
             let _ = s.tx.send(Msg::Step(by));
         }
+    }
+
+    /// Another time through the sentence (跟读方案): what was captured so far is
+    /// dropped and the take waits for a new turn; the mic stays open, so there's no
+    /// gap for it to open again. Fails once the take has stopped (too long, an error).
+    pub fn round(&self) -> Result<(), String> {
+        self.lock()
+            .as_ref()
+            .and_then(|s| s.tx.send(Msg::Round).ok())
+            .ok_or_else(|| "录音已经停了，再录一次吧".to_string())
     }
 
     /// The original has finished: from now on the take may stop by itself.

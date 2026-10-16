@@ -1,13 +1,15 @@
 //! One take's thread: owns the microphone stream (not `Send`), drains the mic
 //! and the output tap, keeps 10 ms levels, reports them, and says when the
 //! take can stop. Reading a paragraph on your own, it also follows which
-//! sentence you're on (`follow.rs`).
+//! sentence you're on (`follow.rs`). A sentence said several times in a row
+//! (跟读方案) starts afresh each time (`Msg::Round`) with the mic left open:
+//! only the last time is kept.
 
 use super::follow::{Follow, Step};
 use super::take::{Mode, Raw};
 use super::vad::{self, Rules, Stop};
 use super::{mic, rules, Level, Meta, Signals};
-use crate::audio::tap::TapRx;
+use crate::audio::tap::{Mark, TapRx};
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::thread;
@@ -26,6 +28,8 @@ const ERR_BLOCKED: &str = "麦克风没有声音：如果刚才弹出了使用�
     否则请在“系统设置 → 隐私与安全性 → 麦克风”里允许 Shadowing";
 
 pub enum Msg {
+    /// Another time through: drop what was captured, wait for a new turn.
+    Round,
     Turn(Rules),
     /// By hand, reading on your own: next (+1) / previous (−1) sentence.
     Step(i32),
@@ -98,9 +102,10 @@ pub fn run(
         turn = Some(0);
         rules_now = Some(r);
     }
-    let mut error = None;
+    let (mut error, mut afresh, mut dropped) = (None, false, 0usize);
     loop {
         match rx.recv_timeout(Duration::from_millis(10)) {
+            Ok(Msg::Round) => afresh = true,
             Ok(Msg::Turn(r)) => {
                 turn.get_or_insert(levels.len());
                 rules_now = Some(r);
@@ -127,6 +132,14 @@ pub fn run(
             if follow.is_none() {
                 played.push(v); // reading on your own, nothing is played
             }
+        }
+        if std::mem::take(&mut afresh) {
+            dropped += buf.len();
+            buf.clear();
+            levels.clear();
+            drop_played(&mut marks, &mut played);
+            (turn, rules_now, stopped) = (None, None, false);
+            threshold = vad::threshold(&[]);
         }
         while (levels.len() + 1) * frame <= buf.len() {
             let at = levels.len();
@@ -182,7 +195,7 @@ pub fn run(
     let _ = done.send(match error {
         Some(e) => Err(e),
         None => Ok(Raw {
-            mic_at: mic.first_at.load(Relaxed),
+            mic_at: later(mic.first_at.load(Relaxed), dropped, mic.rate),
             turn: turn.map_or(0, |t| t * frame),
             mic: buf,
             mic_rate: mic.rate,
@@ -191,4 +204,48 @@ pub fn run(
             followed: follow.map(|f| f.followed()),
         }),
     });
+}
+
+/// Drops the output blocks taken so far. Their samples come in before their
+/// marks, so samples past the last mark (a block still on its way) stay.
+fn drop_played(marks: &mut Vec<Mark>, played: &mut Vec<f32>) {
+    let n: usize = marks.iter().map(|m| m.frames as usize).sum();
+    played.drain(..n.min(played.len()));
+    marks.clear();
+}
+
+/// Host time (ns) of the mic sample `n` samples after the one heard `at`.
+fn later(at: u64, n: usize, rate: u32) -> u64 {
+    at + (n as u128 * 1_000_000_000 / rate.max(1) as u128) as u64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_new_round_keeps_a_block_still_on_its_way() {
+        let mark = |frames| Mark {
+            at: 0,
+            frames,
+            rate: 48_000,
+        };
+        let mut marks = vec![mark(3), mark(2)];
+        let mut played = vec![1.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0];
+        drop_played(&mut marks, &mut played);
+        assert!(marks.is_empty());
+        assert_eq!(
+            played,
+            [3.0, 3.0],
+            "the next block's samples, its mark to come"
+        );
+    }
+
+    #[test]
+    fn the_mic_timeline_moves_on_by_what_was_dropped() {
+        assert_eq!(later(5_000_000_000, 48_000, 48_000), 6_000_000_000);
+        assert_eq!(later(1, 0, 44_100), 1);
+        // Hours of samples don't overflow.
+        assert_eq!(later(0, 48_000 * 3600 * 10, 48_000), 36_000 * 1_000_000_000);
+    }
 }

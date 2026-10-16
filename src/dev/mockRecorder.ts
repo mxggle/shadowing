@@ -53,7 +53,8 @@ export function seedTakes(audio: string, sentence: { start: number; end: number;
   takes.set(audio, [makeTake(meta, Date.now() - 26 * 60 * 60_000, 1.35), makeTake(meta, Date.now() - 2 * 60 * 60_000, 1.12)]);
 }
 
-let session: { meta: RecordMeta; timer: number; turnAt: number | null; t: number } | null = null;
+/** `from`: when this time through began (record_round starts another); `done`: it has stopped by itself. */
+let session: { meta: RecordMeta; timer: number; turnAt: number | null; t: number; from: number; done: boolean } | null = null;
 
 /** A paragraph: 自己读 moves the highlight a sentence at a time, then finishes; 跟着原文读 finishes once the original has. */
 function beginReading(meta: RecordMeta) {
@@ -64,6 +65,8 @@ function beginReading(meta: RecordMeta) {
     meta,
     turnAt: null,
     t: 0,
+    from: 0,
+    done: false,
     timer: window.setInterval(() => {
       const s = session!;
       s.t += 0.033;
@@ -144,6 +147,8 @@ function begin(meta: RecordMeta) {
     meta,
     turnAt: null,
     t: 0,
+    from: 0,
+    done: false,
     timer: window.setInterval(() => {
       const s = session!;
       s.t += 0.033;
@@ -154,11 +159,12 @@ function begin(meta: RecordMeta) {
       const [talking, quietFor] =
         meta.mode === "listen"
           ? [since > 0.6 && since < 0.6 + said * 1.1, since - 0.6 - said * 1.1]
-          : [s.t > 0.4 && (since < 0 || since < 0.45), since < 0 ? -1 : since - 0.45];
+          : [s.t - s.from > 0.4 && (since < 0 || since < 0.45), since < 0 ? -1 : since - 0.45];
       const level = talking ? 0.55 + rand() * 0.4 : 0.08 + rand() * 0.05;
       void emit("recorder:level", { level, speaking: talking, secs: Math.max(0, since) });
-      if (since > 0 && quietFor > 0.8) {
-        window.clearInterval(s.timer);
+      // Like the mic, it stays open after stopping by itself: another time through may follow.
+      if (since > 0 && quietFor > 0.8 && !s.done) {
+        s.done = true;
         void emit("recorder:auto", "pause");
       }
     }, 33),
@@ -237,6 +243,10 @@ export async function mockRecord(cmd: string, a: Record<string, never>): Promise
       return "MacBook Pro Microphone";
     case "record_turn":
       if (session && session.turnAt === null) session.turnAt = session.t;
+      return null;
+    case "record_round":
+      if (!session) throw "录音已经停了，再录一次吧";
+      Object.assign(session, { from: session.t, turnAt: null, done: false });
       return null;
     case "record_cancel":
       stop();

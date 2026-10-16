@@ -353,6 +353,7 @@ pub fn run() {
             audio::commands::player_status,
             record::commands::record_begin,
             record::commands::record_turn,
+            record::commands::record_round,
             record::commands::record_cancel,
             record::commands::record_finish,
             record::commands::record_step,

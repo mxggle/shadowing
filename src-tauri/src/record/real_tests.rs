@@ -354,6 +354,113 @@ fn real_record_takes() {
     assert_eq!(saved::list(root.path(), &audio).len(), 2);
 }
 
+/// A 跟读方案 as the app runs it, on the real speakers and microphone: the
+/// sentence once only to hear it, then said three times in a row (`round`
+/// before each, the mic left open). The "learner" says only its first words the
+/// first two times and all of it the last time: the take is that last time.
+#[test]
+#[ignore = "plays audio out loud, speaks with `say` and records the microphone"]
+fn real_record_rounds() {
+    use super::{Meta, Mode, Recorder};
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/ja/ごんぎつね.mp3");
+    let audio = path.to_string_lossy().into_owned();
+    let player = Player::new(Arc::new(Quiet));
+    player.set_volume(0.6).unwrap();
+    player
+        .load(audio.clone(), path.clone(), 0.0, false)
+        .unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let recorder = Recorder::default();
+    let (a, b) = (1.0, 4.5);
+    let line = "これは、わたしが小さいときに、聞いたお話です";
+    for mode in [Mode::Listen, Mode::Shadow] {
+        let caught = Caught::default();
+        let meta = Meta {
+            audio: audio.clone(),
+            start: a,
+            end: b,
+            text: line.into(),
+            mode,
+            rate: 1.0,
+            bluetooth: false,
+            sentences: vec![],
+        };
+        recorder
+            .begin(caught.clone(), &player, meta, path.clone())
+            .expect("begin");
+        let started = Instant::now();
+        // Only hearing it: nothing said, no turn.
+        player.play_range(a, b).unwrap();
+        wait_for("the listen", 10.0, || !player.status().playing);
+        for round in 1..=3 {
+            recorder.round().expect("another round");
+            let opened = Instant::now();
+            player.play_range(a, b).unwrap();
+            let words = if round < 3 { "これは" } else { line };
+            let after = if mode == Mode::Listen {
+                b - a + 0.6
+            } else {
+                0.4
+            };
+            let mut say = learner_says(after, words);
+            wait_for("the original", 10.0, || !player.status().playing);
+            recorder.turn();
+            wait_for("the round to stop by itself", 20.0, || {
+                caught.0.lock().unwrap().0.len() == round
+            });
+            let _ = say.wait();
+            println!(
+                "{mode:?} round {round}: stopped ({:?}) {:.1} s after it began",
+                caught.0.lock().unwrap().0[round - 1],
+                opened.elapsed().as_secs_f64()
+            );
+        }
+        let take = recorder
+            .finish(&player, root.path())
+            .expect("finish")
+            .takes
+            .pop()
+            .expect("a take");
+        let (o, m) = (take.original, take.mine);
+        println!(
+            "{mode:?}: {:.1} s in all; kept file {:.1} s, original {:.2}–{:.2}, you {:.2}–{:.2}, lag {:?} ms",
+            started.elapsed().as_secs_f64(),
+            take.duration,
+            o.0,
+            o.1,
+            m.0,
+            m.1,
+            take.lag_ms
+        );
+        let caught = caught.0.lock().unwrap();
+        assert!(caught.1.is_empty(), "errors: {:?}", caught.1);
+        assert!(
+            caught.0.iter().all(|&s| s == super::Stop::Pause),
+            "{:?}",
+            caught.0
+        );
+        assert!((o.1 - o.0 - (b - a)).abs() < 0.6, "one original, not four");
+        assert!(m.1 - m.0 > 1.5, "the last time (all of it), not これは");
+        if mode == Mode::Listen {
+            assert!(m.0 > o.1 - 0.2, "you come after the original");
+        } else {
+            assert!(
+                take.lag_ms.is_some_and(|l| (100..1500).contains(&l)),
+                "a lag was measured"
+            );
+        }
+        if let Ok(dir) = std::env::var("SHADOWING_OUT") {
+            let wav = saved::wav_path(root.path(), &audio, &take.id);
+            std::fs::copy(wav, Path::new(&dir).join(format!("rounds-{mode:?}.wav"))).unwrap();
+        }
+    }
+    assert_eq!(
+        saved::list(root.path(), &audio).len(),
+        2,
+        "one take per plan"
+    );
+}
+
 /// A paragraph in one go, as the app does it: three sentences of the sample,
 /// read by `say` with pauses between them — on its own (自己读: the highlight
 /// should follow, and it should end by itself), then along with the original.
