@@ -2,9 +2,10 @@
 // once (听完再说: then it's your turn; 边听边说: you speak over it) → Rust says
 // when you've stopped → the take is kept and, by default, played back against
 // the original. Works without headphones: Rust takes the original out of the mic.
-// Recording while the sentence loops (连续录, lib/rounds.ts), it's said again
+// 连续录 (the card's button, or M while it loops; lib/rounds.ts) says it again
 // and again: the mic stays open, Rust starts afresh each time and keeps the
-// time before aside; Space keeps one and stops.
+// time before aside; Space keeps one and stops. 逐句跟读 (drillSlice.ts) runs
+// takes like that one sentence after another.
 // Playing takes back is in takePlayback.ts.
 import { listen } from "@tauri-apps/api/event";
 import type { AudioEngine } from "./audio/engine";
@@ -12,7 +13,7 @@ import { isLoopActive } from "./audio/logic";
 import { api, type RecordMode, type Settings, type Take } from "./lib/api";
 import { blurField } from "./lib/focus";
 import { sentenceIndexAt } from "./lib/sentences";
-import { advanceOf, recordsAgain } from "./lib/rounds";
+import { advanceOf, goesAgain, recordsAgain } from "./lib/rounds";
 import { comparePart, takesFor } from "./lib/takes";
 import type { AppState } from "./store";
 import { createTakePlayback, type TakePlayback } from "./takePlayback";
@@ -25,10 +26,12 @@ export interface Rec {
   start: number;
   end: number;
   mode: RecordMode;
-  /** Recording while it loops: again and again until you keep one (连续录). */
+  /** Again and again until you keep one (连续录). */
   again: boolean;
   /** Which time through, from 1. */
   n: number;
+  /** 逐句跟读: at most this many times, then the next sentence (null: not drilling). */
+  max: number | null;
   /** starting: opening the mic · listening: the original plays (听完再说) ·
    *  speaking: your turn (`along`: the original is still playing, 边听边说) · saving: building the take. */
   phase: "starting" | "listening" | "speaking" | "saving";
@@ -55,8 +58,11 @@ export interface RecordState extends TakePlayback {
   /** Opens or closes the card (default: the current sentence); with no takes there yet it starts one. */
   toggleRecorder(at?: RecordAt): void;
   closeRecorder(): void;
-  /** Records a take (default: the current sentence, or the A–B loop); while it loops, again and again. */
-  startTake(at?: RecordAt): Promise<void>;
+  /**
+   * Records a take (default: the current sentence, or the A–B loop): once, or
+   * again and again (`again`; by default, while it loops), at most `max` times.
+   */
+  startTake(at?: RecordAt, how?: { again?: boolean; max?: number }): Promise<void>;
   /** Stops and keeps the take; `previous`: said again and again, the time before this one. */
   finishTake(previous?: boolean): Promise<void>;
   cancelTake(): void;
@@ -119,7 +125,7 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
     if (payload === "long") return void get().finishTake();
     // Only once your turn has begun: the stop of a time before may still be on its way.
     if (rec.phase !== "speaking" || rec.along) return;
-    if (rec.again) void again();
+    if (goesAgain(rec)) void again();
     else void get().finishTake();
   });
   void listen<string>("recorder:error", ({ payload }) => {
@@ -201,7 +207,7 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       set({ recordAt: null, shownTake: null, recError: null });
     },
 
-    async startTake(at) {
+    async startTake(at, how) {
       const s = get();
       if (s.rec) return;
       const where = at ?? (s.recordAt !== null && recordTarget(s, s.recordAt) ? s.recordAt : here());
@@ -211,20 +217,21 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       get().stopReadingPlayback();
       blurField();
       const mode = s.settings.recordMode;
-      const again = recordsAgain(where, s.loopSentence, isLoopActive(s.loop));
+      const again = how?.again ?? recordsAgain(where, s.loopSentence, isLoopActive(s.loop));
       const mine = ++starts;
       set({
         recordAt: where,
         shownTake: null,
         recError: null,
-        rec: { at: where, ...target, mode, again, n: 1, phase: "starting", along: false, levels: [], secs: 0, mic: "" },
+        rec: { at: where, ...target, mode, again, n: 1, max: how?.max ?? null, phase: "starting", along: false, levels: [], secs: 0, mic: "" },
       });
       let mic: string;
       try {
         mic = await api.record.begin({ audio: s.current.path, ...target, mode, rate: s.settings.rate });
       } catch (e) {
-        if (mine === starts) set({ rec: null, recError: String(e) });
-        return;
+        if (mine !== starts) return;
+        set({ rec: null, recError: String(e) });
+        return void get().drillNext(false);
       }
       if (mine !== starts) return; // cancelled and started again: the newer one has the mic now
       if (!get().rec) return void api.record.cancel(); // cancelled while the mic opened
@@ -258,15 +265,18 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       const still = () => get().rec?.phase === "saving" && get().current?.path === path;
       try {
         const take = (await api.record.finish(previous)).takes[0];
-        if (!still()) return;
+        if (!still()) return void get().drillNext(false);
         set((s) => ({ rec: null, takes: take ? [...s.takes, take] : s.takes, shownTake: take?.id ?? null }));
+        if (get().drillNext(true)) return; // on to the next sentence
         if (take && get().settings.recordReplay) void get().playTake(take.id, comparePart(take), false);
       } catch (e) {
         if (still()) set({ rec: null, recError: String(e) });
+        get().drillNext(false);
       }
     },
 
     cancelTake() {
+      get().drillNext(false);
       // Once saving, Rust has the take: it can't be called back (leaving the track clears it, `open`).
       if (!get().rec || get().rec?.phase === "saving") return;
       if (!engine.paused) engine.pause();

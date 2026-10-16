@@ -1,9 +1,17 @@
 // Rules for reading a whole paragraph (整段录音), kept pure for tests: which
 // sentences a reading covers, which readings belong to a paragraph, and the
 // words that sum one up.
-import type { Reading, ReadingPlaying, Section, Take } from "./api";
+import type { ParagraphMode, Reading, ReadingPlaying, Section, Settings, Take } from "./api";
 import { sectionIndexOf, sectionRange } from "./sections";
 import { BLUETOOTH_LAG } from "./takes";
+
+/** How 整段录音 goes: read on your own, along with the original, or 逐句跟读. */
+export type ReadingHow = ParagraphMode | "drill";
+
+export const readingHow = (s: Pick<Settings, "paragraphMode" | "paragraphDrill">): ReadingHow => (s.paragraphDrill ? "drill" : s.paragraphMode);
+
+/** The settings that pick `how` (逐句跟读 leaves the other choice as it was). */
+export const howSettings = (how: ReadingHow): Partial<Settings> => (how === "drill" ? { paragraphDrill: true } : { paragraphMode: how, paragraphDrill: false });
 
 /** What to read: the section you're in, or the whole text. */
 export type ReadingScope = "section" | "all";

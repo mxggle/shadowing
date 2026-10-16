@@ -11,7 +11,7 @@ import { TakeWaves } from "./TakeWaves";
  * it: your take against the original, opening up like the current line of
  * lyrics and closing again as playback moves on. A click plays the comparison,
  * and on through the recorded sentences after it; the full card (how to
- * record, earlier takes, 再录一次) is the mic's.
+ * record, earlier takes, 录一遍 / 连续录) is the mic's.
  */
 export const TakePeek = memo(function TakePeek({ sentence, open }: { sentence: Sentence; open: boolean }) {
   // Kept a moment after closing, so it can fold away.

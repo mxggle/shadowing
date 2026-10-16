@@ -7,7 +7,7 @@
 import { listen } from "@tauri-apps/api/event";
 import type { AudioEngine } from "./audio/engine";
 import { api, type ParagraphMode, type Reading, type ReadingPlaying, type ReadingWhat, type Settings } from "./lib/api";
-import { readingRange, readingsFor, type ReadingScope } from "./lib/readings";
+import { howSettings, readingHow, readingRange, readingsFor, type ReadingHow, type ReadingScope } from "./lib/readings";
 import { sectionsOf } from "./lib/sections";
 import { blurField } from "./lib/focus";
 import { sentenceIndexAt } from "./lib/sentences";
@@ -44,7 +44,7 @@ export interface ReadingState {
   readingError: string | null;
 
   loadReadings(path: string): Promise<void>;
-  /** Starts reading the section you're in, or the one sentence `at` is in (or everything); ⇧M. */
+  /** Starts reading the section you're in, or the one sentence `at` is in (or everything); ⇧M. 逐句跟读 is drillSlice.ts. */
   startReading(opts?: { scope?: ReadingScope; mode?: ParagraphMode; at?: number }): Promise<void>;
   finishReading(): Promise<void>;
   cancelReading(): void;
@@ -54,7 +54,7 @@ export interface ReadingState {
   stopReadingPlayback(): void;
   deleteReading(id: string): Promise<void>;
   showReading(id: string | null): void;
-  setParagraphMode(mode: ParagraphMode): void;
+  setParagraphMode(how: ReadingHow): void;
   /** The track paused: a 跟着原文读 original has played to its end. */
   readingPlaybackStopped(): void;
 }
@@ -115,8 +115,9 @@ export function createReadingSlice(set: Set, get: Get, engine: AudioEngine, pers
       const s = get();
       const list = s.transcript?.sentences ?? [];
       if (!s.current || !list.length || s.live || s.rec) return;
-      const how = mode ?? s.settings.paragraphMode;
-      if (mode) persistSettings({ paragraphMode: mode });
+      const how = mode ?? readingHow(s.settings);
+      if (how === "drill") return get().startDrill({ scope, at });
+      if (mode) persistSettings(howSettings(mode));
       const here = at ?? s.loopSentence ?? sentenceIndexAt(list, engine.time);
       const [first, end] = readingRange(scope, sectionsOf(s.transcript), here, list.length);
       if (end <= first) return;
@@ -239,8 +240,8 @@ export function createReadingSlice(set: Set, get: Get, engine: AudioEngine, pers
       set({ shownReading: id, readingError: null });
     },
 
-    setParagraphMode(paragraphMode) {
-      persistSettings({ paragraphMode });
+    setParagraphMode(how) {
+      persistSettings(howSettings(how));
     },
   };
 }

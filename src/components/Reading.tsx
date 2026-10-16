@@ -1,16 +1,19 @@
 import { AlertCircle, BookOpenText, LoaderCircle, Square, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useDismiss } from "../hooks/useDismiss";
-import type { ParagraphMode } from "../lib/api";
-import { readingRange, readingsFor, type ReadingScope } from "../lib/readings";
+import { readingHow, readingRange, readingsFor, type ReadingHow, type ReadingScope } from "../lib/readings";
+import { drillNote } from "../lib/rounds";
 import { sectionIndexOf, sectionName, sectionsOf } from "../lib/sections";
 import { sentenceIndexAt } from "../lib/sentences";
 import { useApp } from "../store";
+import { RoundsInput } from "./Drill";
 import { Button, IconButton, Kbd } from "./ui";
 
-const MODES: { mode: ParagraphMode; label: string; note: string }[] = [
+const MODES: { mode: ReadingHow; label: string; note: string }[] = [
   { mode: "read", label: "自己读", note: "不放原文，你按自己的速度读；停顿一下，高亮就跳到下一句。" },
   { mode: "shadow", label: "跟着原文读", note: "原文一直往下放，你跟着读（不戴耳机也可以，录进来的原文会被去掉）。" },
+  // The line depends on 每句几遍: drillNote.
+  { mode: "drill", label: "逐句跟读", note: "" },
 ];
 
 /**
@@ -37,7 +40,7 @@ export function ReadingButton() {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   useDismiss(open, () => setOpen(false), root);
-  const busy = useApp((s) => !!s.live || !!s.rec);
+  const busy = useApp((s) => !!s.live || !!s.rec || !!s.drill);
   return (
     <div ref={root} className="relative">
       <IconButton title="整段录音 (⇧M)" active={open} disabled={busy} onClick={() => setOpen(!open)}>
@@ -49,7 +52,8 @@ export function ReadingButton() {
 }
 
 function ReadingMenu({ onClose }: { onClose: () => void }) {
-  const mode = useApp((s) => s.settings.paragraphMode);
+  const mode = useApp((s) => readingHow(s.settings));
+  const note = useApp((s) => (mode === "drill" ? drillNote(s.settings.recordMode, s.settings.drillRounds) : MODES.find((m) => m.mode === mode)?.note));
   const sections = useApp((s) => sectionsOf(s.transcript));
   const count = useApp((s) => s.transcript?.sentences.length ?? 0);
   const here = useApp((s) => s.loopSentence ?? Math.max(0, sentenceIndexAt(s.transcript?.sentences ?? [], s.time)));
@@ -66,9 +70,9 @@ function ReadingMenu({ onClose }: { onClose: () => void }) {
     return readingsFor(s.readings, list[first].start, list[end - 1].end).at(-1);
   };
   return (
-    <div className="absolute top-full right-0 z-20 mt-1.5 w-[300px] origin-top-right animate-pop-in rounded-[12px] bg-raised p-3 text-[13px] shadow-lift">
+    <div className="absolute top-full right-0 z-20 mt-1.5 w-[320px] origin-top-right animate-pop-in rounded-[12px] bg-raised p-3 text-[13px] shadow-lift">
       <p className="font-heading text-[14px] font-semibold">整段录音</p>
-      <p className="mt-0.5 text-[12px] leading-relaxed text-muted">一口气读完，系统按句子分开保存，读完逐句对比。</p>
+      <p className="mt-0.5 text-[12px] leading-relaxed text-muted">读一整段，系统按句子分开保存，读完逐句对比。</p>
       {sections.length > 1 && (
         <Choice
           label="读哪些"
@@ -80,8 +84,14 @@ function ReadingMenu({ onClose }: { onClose: () => void }) {
           onChange={(v) => setScope(v as ReadingScope)}
         />
       )}
-      <Choice label="怎么读" value={mode} options={MODES.map((m) => [m.mode, m.label])} onChange={(v) => setParagraphMode(v as ParagraphMode)} />
-      <p className="mt-1.5 text-[12px] leading-relaxed text-faint">{MODES.find((m) => m.mode === mode)?.note}</p>
+      <Choice label="怎么读" value={mode} options={MODES.map((m) => [m.mode, m.label])} onChange={(v) => setParagraphMode(v as ReadingHow)} />
+      {mode === "drill" && (
+        <div className="mt-2.5 flex items-start gap-2">
+          <span className="mt-2 w-12 shrink-0 text-[12px] text-muted">每句</span>
+          <RoundsInput />
+        </div>
+      )}
+      <p className="mt-1.5 text-[12px] leading-relaxed text-faint">{note}</p>
       <div className="mt-3 flex items-center gap-2">
         <Button
           primary
@@ -94,7 +104,7 @@ function ReadingMenu({ onClose }: { onClose: () => void }) {
           <span className="size-2 rounded-full bg-danger" />
           开始录 {end - first} 句
         </Button>
-        {past > 0 && (
+        {past > 0 && mode !== "drill" && (
           <Button
             className="h-8"
             title="看上次的整段录音"
