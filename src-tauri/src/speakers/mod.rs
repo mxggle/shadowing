@@ -57,6 +57,7 @@ fn model(dir: &Path, cancel: &AtomicBool) -> Result<PathBuf, String> {
             dest: &dest,
             size: SIZE,
             sha256: SHA256,
+            host: "Hugging Face",
         };
         tauri::async_runtime::block_on(download::download(&spec, cancel, |_, _| {}))?;
     }

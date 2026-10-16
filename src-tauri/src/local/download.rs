@@ -1,6 +1,6 @@
-//! Resumable, verified model downloads: bytes go to `<file>.part` (kept across
-//! cancels and restarts, resumed with an HTTP Range request), the SHA-256 is
-//! checked, and only then is the file renamed into place.
+//! Resumable, verified downloads (models, practice packs): bytes go to `<file>.part`
+//! (kept across cancels and restarts, resumed with an HTTP Range request), the
+//! SHA-256 is checked, and only then is the file renamed into place.
 
 use crate::ai::http::{client, describe_status};
 use sha2::{Digest, Sha256};
@@ -33,6 +33,8 @@ pub struct Spec<'a> {
     pub dest: &'a Path,
     pub size: u64,
     pub sha256: &'a str,
+    /// Who serves it, for messages: "Hugging Face", "素材库".
+    pub host: &'a str,
 }
 
 /// `progress(done, total)` in bytes.
@@ -62,7 +64,7 @@ pub async fn download(
             req = req.header(reqwest::header::RANGE, format!("bytes={have}-"));
         }
         let mut res = tokio::select! {
-            r = req.send() => r.map_err(|e| net_error(&e))?,
+            r = req.send() => r.map_err(|e| net_error(&e, spec.host))?,
             _ = cancelled(cancel) => return Err(CANCELLED.into()),
         };
         let status = res.status().as_u16();
@@ -72,7 +74,7 @@ pub async fn download(
             hasher = Sha256::new();
         } else if status != 200 && status != 206 {
             let body = res.text().await.unwrap_or_default();
-            return Err(describe_status(status, &body, "Hugging Face"));
+            return Err(describe_status(status, &body, spec.host));
         }
         let mut file = OpenOptions::new()
             .create(true)
@@ -80,7 +82,7 @@ pub async fn download(
             .append(have > 0)
             .truncate(have == 0)
             .open(&part)
-            .map_err(|e| format!("无法写入模型文件：{e}"))?;
+            .map_err(|e| format!("无法写入文件：{e}"))?;
         progress(have, spec.size);
         // Cancel is checked while waiting for bytes too, not only when they arrive.
         loop {
@@ -90,12 +92,12 @@ pub async fn download(
             };
             let Some(chunk) = next
                 .map_err(|_| STALLED.to_string())?
-                .map_err(|e| net_error(&e))?
+                .map_err(|e| net_error(&e, spec.host))?
             else {
                 break;
             };
             file.write_all(&chunk)
-                .map_err(|e| format!("无法写入模型文件：{e}"))?;
+                .map_err(|e| format!("无法写入文件：{e}"))?;
             hasher.update(&chunk);
             have += chunk.len() as u64;
             progress(have, spec.size);
@@ -123,9 +125,15 @@ fn hash_file(path: &Path, hasher: &mut Sha256) -> Result<(), String> {
     }
 }
 
-fn net_error(e: &reqwest::Error) -> String {
+fn net_error(e: &reqwest::Error, host: &str) -> String {
     if e.is_connect() || e.is_timeout() {
-        "下载中断：无法连接到 Hugging Face，请检查网络后重试（已下载的部分会保留）".into()
+        // A space between Chinese and a Latin name, none between Chinese words.
+        let gap = if host.starts_with(|c: char| c.is_ascii()) {
+            " "
+        } else {
+            ""
+        };
+        format!("下载中断：无法连接到{gap}{host}，请检查网络后重试（已下载的部分会保留）")
     } else {
         format!("下载中断：{e}（已下载的部分会保留）")
     }
@@ -199,6 +207,7 @@ mod tests {
             dest: &dest,
             size: BODY.len() as u64,
             sha256: &sha(BODY),
+            host: "test",
         };
         let mut last = (0, 0);
         download(&spec, &AtomicBool::new(false), |d, t| last = (d, t))
@@ -220,6 +229,7 @@ mod tests {
             dest: &dest,
             size: BODY.len() as u64,
             sha256: &sha(b"something else"),
+            host: "test",
         };
         let err = download(&spec, &AtomicBool::new(false), |_, _| {})
             .await
@@ -239,6 +249,7 @@ mod tests {
             dest: &dest,
             size: BODY.len() as u64,
             sha256: &sha(BODY),
+            host: "test",
         };
         let err = download(&spec, &AtomicBool::new(true), |_, _| {})
             .await
@@ -273,6 +284,7 @@ mod tests {
             dest: &dest,
             size: BODY.len() as u64,
             sha256: &sha(BODY),
+            host: "test",
         };
         let cancel = Arc::new(AtomicBool::new(false));
         let flag = cancel.clone();

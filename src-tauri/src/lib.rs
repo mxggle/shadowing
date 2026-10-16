@@ -4,6 +4,7 @@ mod explain;
 mod guide;
 mod library;
 mod local;
+mod packs;
 mod practice;
 mod proofread;
 mod record;
@@ -53,12 +54,17 @@ impl AppState {
         self.data.lock().unwrap().folder.clone()
     }
 
-    /// Canonical path if it is inside the approved folder or the bundled samples.
+    /// Canonical path if it is inside the approved folder, the bundled samples
+    /// or the downloaded practice packs (both managed by the app).
     pub fn allowed(&self, path: &Path) -> Option<PathBuf> {
-        [self.root(), self.samples.clone()]
-            .into_iter()
-            .flatten()
-            .find_map(|root| library::resolve_inside(&root, path))
+        [
+            self.root(),
+            self.samples.clone(),
+            packs::existing_root(self),
+        ]
+        .into_iter()
+        .flatten()
+        .find_map(|root| library::resolve_inside(&root, path))
     }
 
     /// An audio file the webview may use (play, transcribe, attach subtitles to).
@@ -277,6 +283,7 @@ pub fn run() {
             app.manage(ai::secrets::Secrets(store));
             app.manage(transcribe::commands::Jobs::default());
             app.manage(local::Downloads::default());
+            app.manage(packs::Downloads::default());
             app.manage(proofread::Proofreading::default());
             app.manage(update::Pending::default());
             let practice = std::sync::Arc::new(practice::Practice::open(
@@ -317,6 +324,11 @@ pub fn run() {
             local::local_download,
             local::local_cancel_download,
             local::local_delete,
+            packs::packs_catalog,
+            packs::packs_download,
+            packs::packs_cancel,
+            packs::packs_remove,
+            packs::packs_open,
             transcribe::commands::transcribe_start,
             transcribe::commands::transcribe_cancel,
             transcribe::commands::transcribe_running,

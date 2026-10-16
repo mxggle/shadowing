@@ -68,6 +68,17 @@ pub fn save(dir: &Path, audio: &str, sentences: &[Sentence], answer: Saved) -> s
     store::write_atomic(&path(dir, audio), &serde_json::to_vec(&file)?)
 }
 
+/// Replaces all of a track's answers (a practice pack brings its own).
+pub fn save_all(dir: &Path, audio: &str, answers: Vec<Saved>) -> std::io::Result<()> {
+    let _writing = WRITING.lock().unwrap_or_else(|e| e.into_inner());
+    let file = File {
+        version: 1,
+        audio: audio.to_string(),
+        answers,
+    };
+    store::write_atomic(&path(dir, audio), &serde_json::to_vec(&file)?)
+}
+
 pub fn remove(dir: &Path, audio: &str) -> std::io::Result<()> {
     match std::fs::remove_file(path(dir, audio)) {
         Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),

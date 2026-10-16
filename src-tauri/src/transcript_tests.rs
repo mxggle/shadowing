@@ -15,6 +15,7 @@ fn transcript(text: &str) -> Transcript {
         }],
         edited: false,
         sections: sections::whole(),
+        speakers: Vec::new(),
     }
 }
 

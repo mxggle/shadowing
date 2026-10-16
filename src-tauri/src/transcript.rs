@@ -49,6 +49,9 @@ pub struct Transcript {
     /// Files saved before sections existed get them worked out on load.
     #[serde(default)]
     pub sections: Vec<Section>,
+    /// Names for the voices (店員, 客), by `Sentence::speaker`; shown as A, B… without.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub speakers: Vec<String>,
 }
 
 impl Transcript {
@@ -60,6 +63,7 @@ impl Transcript {
             sentences,
             edited: false,
             sections,
+            speakers: Vec::new(),
         }
     }
 

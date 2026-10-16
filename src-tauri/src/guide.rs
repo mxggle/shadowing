@@ -18,6 +18,9 @@ pub struct Guide {
     pub practiced: bool,
     /// Contextual tips already shown once.
     pub tips: Vec<String>,
+    /// How the learner started: "beginner" (ready-made packs, nothing to set up)
+    /// or "expert" (own audio, Whisper and AI); "" before choosing.
+    pub mode: String,
 }
 
 #[tauri::command]

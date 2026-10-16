@@ -166,6 +166,7 @@ pub fn local_download(
                 dest: &dest,
                 size: model.size,
                 sha256: model.sha256,
+                host: "Hugging Face",
             };
             let mut last = Instant::now() - Duration::from_secs(1);
             let result = tauri::async_runtime::block_on(download::download(

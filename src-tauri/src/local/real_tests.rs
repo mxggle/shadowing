@@ -31,6 +31,7 @@ async fn fetch(id: &str, stop_after: Option<u64>) -> Result<(), String> {
         dest: &dest,
         size: m.size,
         sha256: m.sha256,
+        host: "Hugging Face",
     };
     let cancel = AtomicBool::new(false);
     let started = Instant::now();
