@@ -28,6 +28,7 @@ src/                      前端
   lib/practice.ts         学习记录：按天（4 点换日）汇总练习时间、每天的目标、连续达标天数，有单元测试
   lib/takes.ts            跟读录音：哪些录音属于哪一句、两条波形怎么对齐、节奏 / 延迟的说法，有单元测试
   lib/readings.ts         整段录音：读哪些句子、哪些整段录音属于这一段、快慢的说法，有单元测试
+  lib/rounds.ts           连续录（循环中按 M 一遍遍接着录）：空格留下哪一遍、卡片上的说法，有单元测试
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置；ui.tsx 共用的按键与表单件；
                           Transcript.tsx 句子列表，Sections.tsx 段落小标题和顶部的段落菜单，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
@@ -56,7 +57,7 @@ src-tauri/src/
                           take.rs 对齐、裁剪、音量、跟读延迟，saved.rs 存在 app data 的 recordings/（每次一个 WAV + takes.json；
                           wav.rs：听完再说 / 自己读是单声道“先原句、再你”，边听边说是立体声“左原句、右你”；跟着原文读的每句不另存，
                           指向整段文件里的一段），space.rs 录音占用和清理找不到原音频的录音（设置里），
-                          playback.rs 回放（引擎的 clip；watch.rs 报告放到哪、是不是放完了）；
+                          playback.rs 回放（引擎的 clip；watch.rs 报告放到哪、是不是放完了），rounds.rs 连续录（每遍之前把刚说完的一遍取出、有声音就放在一边，停下时留下哪一遍）；
                           整段：follow.rs 自己读时跟踪读到哪一句（也记下高亮在每个句界移动的位置、读到了第几句）、segment.rs 读完按停顿 / 原文时间拆句、original.rs 从音频切出每句原文、
                           reading.rs 拼成整段 + 每句一条录音、replay.rs 整段回放（我的整段 / 一起听 / 逐句对比）
   reshape/                拆句 / 合并句 / 撤销：cut.rs 在光标处断开（按字数估时间、再挪到附近的停顿上），mod.rs 合并、

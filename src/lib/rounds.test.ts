@@ -1,72 +1,66 @@
 import { describe, expect, it } from "vitest";
-import { firstStep, isLast, isPlain, nextStep, planLabel, planNote, planOf, stepCount, type RoundPlan, type Step } from "./rounds";
+import { advanceLabel, advanceOf, countOf, hintOf, readyNote, recordsAgain, type Turns } from "./rounds";
 
-/** Every step of a plan, in order. */
-function walk(plan: RoundPlan): Step[] {
-  const steps: Step[] = [];
-  for (let s: Step | null = firstStep(plan); s; s = nextStep(plan, s)) steps.push(s);
-  return steps;
-}
+const at = (t: Partial<Turns>): Turns => ({ again: false, n: 1, phase: "speaking", along: false, ...t });
 
-describe("planOf", () => {
-  it("defaults to one time, nothing before it", () => {
-    expect(planOf(undefined, undefined)).toEqual({ listens: 0, repeats: 1 });
-    expect(isPlain(planOf(undefined, undefined))).toBe(true);
+describe("recordsAgain", () => {
+  it("is what is looping: the sentence looped, or the A–B loop", () => {
+    expect(recordsAgain(3, 3, true)).toBe(true);
+    expect(recordsAgain("loop", null, true)).toBe(true);
   });
 
-  it("keeps settings in range", () => {
-    expect(planOf(7, 0)).toEqual({ listens: 3, repeats: 1 });
-    expect(planOf(-1, 9)).toEqual({ listens: 0, repeats: 5 });
-    expect(planOf(1.6, Number.NaN)).toEqual({ listens: 2, repeats: 1 });
+  it("is one time otherwise: another sentence, or nothing looping", () => {
+    expect(recordsAgain(4, 3, true)).toBe(false);
+    expect(recordsAgain(3, null, true)).toBe(false);
+    expect(recordsAgain(3, 3, false)).toBe(false);
   });
 });
 
-describe("steps", () => {
-  it("a plain take is one round, and it's kept", () => {
-    const plan = planOf(0, 1);
-    expect(walk(plan)).toEqual([{ kind: "say", n: 1 }]);
-    expect(isLast(plan, firstStep(plan))).toBe(true);
+describe("advanceOf", () => {
+  it("one time: skip the original, then you're done", () => {
+    expect(advanceOf(at({ phase: "listening" }))).toBe("skip");
+    expect(advanceOf(at({ along: true }))).toBe("skip");
+    expect(advanceOf(at({}))).toBe("keep");
   });
 
-  it("hears first, then says it each time; only the last is kept", () => {
-    const plan = planOf(1, 3);
-    const steps = walk(plan);
-    expect(steps).toEqual([
-      { kind: "hear", n: 1 },
-      { kind: "say", n: 1 },
-      { kind: "say", n: 2 },
-      { kind: "say", n: 3 },
-    ]);
-    expect(steps.map((s) => isLast(plan, s))).toEqual([false, false, false, true]);
+  it("again and again, the first time is the same: nothing said yet to keep", () => {
+    expect(advanceOf(at({ again: true, phase: "listening" }))).toBe("skip");
+    expect(advanceOf(at({ again: true, along: true }))).toBe("skip");
   });
 
-  it("several listens, one time said", () => {
-    expect(walk(planOf(2, 1)).map((s) => s.kind)).toEqual(["hear", "hear", "say"]);
+  it("then, while the original plays again, it keeps the time before", () => {
+    expect(advanceOf(at({ again: true, n: 2, phase: "listening" }))).toBe("keepBefore");
+    expect(advanceOf(at({ again: true, n: 3, along: true }))).toBe("keepBefore");
+  });
+
+  it("and on your turn, this time", () => {
+    expect(advanceOf(at({ again: true, n: 3 }))).toBe("keep");
   });
 });
 
-describe("labels", () => {
-  it("counts only what there's more than one of", () => {
-    const plan = planOf(2, 3);
-    expect(stepCount(plan, { kind: "hear", n: 1 })).toBe("1 / 2");
-    expect(stepCount(plan, { kind: "say", n: 2 })).toBe("第 2 / 3 遍");
-    expect(stepCount(planOf(1, 1), { kind: "hear", n: 1 })).toBeNull();
-    expect(stepCount(planOf(1, 1), { kind: "say", n: 1 })).toBeNull();
+describe("what the card says", () => {
+  it("names what Space does", () => {
+    expect(advanceLabel("skip", true)).toBe("跳过原句");
+    expect(advanceLabel("keep", false)).toBe("说完了");
+    expect(advanceLabel("keep", true)).toBe("留下这遍");
+    expect(advanceLabel("keepBefore", true)).toBe("留下上一遍");
   });
 
-  it("names the plan on its button", () => {
-    expect(planLabel(planOf(0, 1))).toBe("跟读 1 遍");
-    expect(planLabel(planOf(1, 3))).toBe("听 1 · 跟读 3 遍");
+  it("counts only again and again", () => {
+    expect(countOf(at({}))).toBeNull();
+    expect(countOf(at({ again: true, n: 3 }))).toBe("第 3 遍");
   });
 
-  it("says what M will do", () => {
-    expect(planNote(planOf(0, 1), "listen")).toBe("先放一遍原句，然后轮到你说。");
-    expect(planNote(planOf(0, 1), "shadow")).toBe("原句一放就跟着说。");
-    expect(planNote(planOf(1, 1), "shadow")).toBe("先只听 1 遍，再跟着原句说。");
-    expect(planNote(planOf(1, 3), "shadow")).toBe("先只听 1 遍，再跟着原句说 3 遍，只保存最后一遍。");
-    expect(planNote(planOf(0, 3), "shadow")).toBe("跟着原句说 3 遍，只保存最后一遍。");
-    expect(planNote(planOf(1, 1), "listen")).toBe("先只听 1 遍，再放一遍原句，然后轮到你说。");
-    expect(planNote(planOf(0, 2), "listen")).toBe("每遍先放原句、再轮到你说，连说 2 遍，只保存最后一遍。");
-    expect(planNote(planOf(2, 2), "listen")).toBe("先只听 2 遍，然后每遍先放原句、再轮到你说，连说 2 遍，只保存最后一遍。");
+  it("says what happens next, one line", () => {
+    expect(hintOf(at({ phase: "listening" }))).toBe("听完就轮到你");
+    expect(hintOf(at({ along: true }))).toBe("原句放完后，你停下就结束");
+    expect(hintOf(at({}))).toBe("说完会自动停");
+  });
+
+  it("says before it starts how it'll go", () => {
+    expect(readyNote("listen", false)).toBe("先放一遍原句，然后轮到你说。");
+    expect(readyNote("shadow", false)).toBe("原句一放就跟着说。");
+    expect(readyNote("listen", true)).toContain("满意了按空格留下");
+    expect(readyNote("shadow", true)).toContain("满意了按空格留下");
   });
 });

@@ -1,18 +1,19 @@
 import { ChevronLeft, ChevronRight, Ear, LoaderCircle, Mic, Play, Square, Trash2, X } from "lucide-react";
 import { useMemo } from "react";
+import { isLoopActive } from "../audio/logic";
 import type { RecordMode, Take, TakePart } from "../lib/api";
-import { isLast, nextStep, planNote, planOf, stepCount } from "../lib/rounds";
+import { advanceLabel, advanceOf, countOf, hintOf, readyNote, recordsAgain } from "../lib/rounds";
 import { comparePart, inTurns, lagNote, paceNote, playheadAt, takesFor, whenRecorded } from "../lib/takes";
 import { recordTarget, type Rec, type RecordAt } from "../recordSlice";
 import { useApp } from "../store";
-import { PlanButton } from "./RecordPlan";
 import { TakeWaves } from "./TakeWaves";
 import { Button, IconButton, Kbd } from "./ui";
 
 /**
  * 跟读录音, under the sentence (or the A–B loop) being practised: while
  * recording, what's happening and what to do; afterwards your take against
- * the original, earlier takes, and 再录一次.
+ * the original, earlier takes, and 再录一次. While it loops, a take goes again
+ * and again until you keep one (连续录, lib/rounds.ts).
  */
 export function RecorderCard({ at }: { at: RecordAt }) {
   const rec = useApp((s) => (s.rec?.at === at ? s.rec : null));
@@ -23,17 +24,17 @@ export function RecorderCard({ at }: { at: RecordAt }) {
   const shown = useApp((s) => s.shownTake);
   const takes = useMemo(() => (start !== null && end !== null ? takesFor(all, start, end) : []), [all, start, end]);
   const take = takes.find((t) => t.id === shown) ?? takes[takes.length - 1];
+  const looping = useApp((s) => recordsAgain(at, s.loopSentence, isLoopActive(s.loop)));
   const { closeRecorder } = useApp.getState();
 
   return (
     <div className="relative mt-1 mb-2 animate-fade rounded-[10px] border border-line px-3 pt-2 pb-2.5 text-[13px] text-muted">
       <div className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 pr-7">
         <ModeSwitch disabled={!!rec} />
-        <PlanButton disabled={!!rec} />
         {!rec && takes.length > 1 && take && <History takes={takes} take={take} />}
       </div>
       <div className="mt-2">
-        {rec ? <Live rec={rec} /> : error ? <Problem message={error} /> : take ? <Result take={take} /> : <Ready />}
+        {rec ? <Live rec={rec} /> : error ? <Problem message={error} looping={looping} /> : take ? <Result take={take} looping={looping} /> : <Ready looping={looping} />}
       </div>
       <IconButton title="收起 (Esc)" onClick={closeRecorder} className="absolute top-2 right-1.5 !h-6 !min-w-6">
         <X />
@@ -89,11 +90,11 @@ function History({ takes, take }: { takes: Take[]; take: Take }) {
   );
 }
 
-function Ready() {
-  const note = useApp((s) => planNote(planOf(s.settings.recordListens, s.settings.recordRepeats), s.settings.recordMode));
+function Ready({ looping }: { looping: boolean }) {
+  const note = useApp((s) => readyNote(s.settings.recordMode, looping));
   return (
     <div className="flex items-center gap-3">
-      <RecordButton />
+      <RecordButton looping={looping} />
       <span>
         按 <Kbd>M</Kbd> 开始：{note}
       </span>
@@ -101,11 +102,16 @@ function Ready() {
   );
 }
 
-function RecordButton({ again }: { again?: boolean }) {
+/** `looping`: the take will go again and again (连续录). */
+function RecordButton({ retry, looping }: { retry?: boolean; looping: boolean }) {
   return (
-    <Button title="录一次 (M)" onClick={() => void useApp.getState().startTake()} className="h-7 px-2.5">
+    <Button
+      title={looping ? "循环中：一遍遍接着录，满意了按空格留下 (M)" : "录一次 (M)"}
+      onClick={() => void useApp.getState().startTake()}
+      className="h-7 px-2.5"
+    >
       <span className="size-2 rounded-full bg-danger" />
-      {again ? "再录一次" : "开始录音"}
+      {looping ? "连续录" : retry ? "再录一次" : "开始录音"}
     </Button>
   );
 }
@@ -121,15 +127,15 @@ function Live({ rec }: { rec: Rec }) {
     );
   }
   const listening = rec.phase === "listening";
-  const hearing = rec.step.kind === "hear";
-  const last = isLast(rec.plan, rec.step);
-  const count = stepCount(rec.plan, rec.step);
+  const advance = advanceOf(rec);
+  const label = advanceLabel(advance, rec.again);
+  const count = countOf(rec);
   return (
     <div className="flex flex-col gap-2">
       <div className="flex h-9 items-center gap-3">
         {listening ? (
           <span className="flex items-center gap-1.5 font-medium text-fg">
-            <Ear size={15} className="shrink-0" /> {hearing ? "只听原句" : "先听原句"}
+            <Ear size={15} className="shrink-0" /> 先听原句
           </span>
         ) : (
           <span className="flex items-center gap-1.5 font-medium text-fg">
@@ -145,31 +151,20 @@ function Live({ rec }: { rec: Rec }) {
         {!listening && !rec.along && <span className="tabular w-10 text-right font-mono text-[12px] text-fg">{rec.secs.toFixed(1)}</span>}
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Button className="h-7 px-2.5" title={listening || rec.along ? "跳过原句 (空格)" : last ? "说完了 (空格)" : "这遍说完了，下一遍 (空格)"} onClick={advanceTake}>
-          {listening || rec.along ? (
-            "跳过原句"
-          ) : last ? (
-            <>
-              <Square size={10} fill="currentColor" strokeWidth={0} /> 说完了
-            </>
-          ) : (
-            "下一遍"
-          )}
+        <Button className="h-7 px-2.5" title={`${label} (空格)`} onClick={advanceTake}>
+          {advance !== "skip" && <Square size={10} fill="currentColor" strokeWidth={0} />}
+          {label}
         </Button>
-        <button className="text-[12px] text-faint hover:text-fg" onClick={cancelTake}>
+        <button title="取消 (Esc)" className="text-[12px] text-faint hover:text-fg" onClick={cancelTake}>
           取消
         </button>
         <span className="ml-auto text-right text-[12px] text-faint" title={rec.mic ? `用「${rec.mic}」录音` : undefined}>
-          {hearing ? (
-            <>听完{nextStep(rec.plan, rec.step)?.kind === "hear" ? "再放一遍" : "就开始跟读"}</>
-          ) : listening ? (
-            <>听完就轮到你</>
-          ) : rec.along ? (
-            <>原句放完后，你停下就{last ? "结束" : "进入下一遍"}</>
-          ) : (
+          {rec.again ? (
             <>
-              {last ? "说完会自动停" : "说完自动进入下一遍"} · <Kbd>空格</Kbd> {last ? "结束" : "下一遍"} · <Kbd>Esc</Kbd> 取消
+              说完自动接下一遍，满意了按 <Kbd>空格</Kbd>
             </>
+          ) : (
+            hintOf(rec)
           )}
         </span>
       </div>
@@ -200,16 +195,16 @@ function Meter({ levels }: { levels: number[] }) {
   );
 }
 
-function Problem({ message }: { message: string }) {
+function Problem({ message, looping }: { message: string; looping: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
       <span className="min-w-0 text-danger">{message}</span>
-      <RecordButton again />
+      <RecordButton retry looping={looping} />
     </div>
   );
 }
 
-function Result({ take }: { take: Take }) {
+function Result({ take, looping }: { take: Take; looping: boolean }) {
   const playing = useApp((s) => (s.playingTake?.id === take.id ? s.playingTake : null));
   const { playTake, stopTake, deleteTake } = useApp.getState();
   const turns = inTurns(take);
@@ -219,24 +214,18 @@ function Result({ take }: { take: Take }) {
   return (
     <div className="flex flex-col gap-2.5">
       <div>
-        <TakeWaves take={take} head={playing ? playheadAt(playing.parts, playing.secs) : NOWHERE} onPlay={(lane) => toggle(lane)} />
-        {note && <p className="mt-0.5 pl-[2.75rem] text-[12px] text-faint">{note}</p>}
+        <TakeWaves take={take} head={playing ? playheadAt(playing.parts, playing.secs) : NOWHERE} onPlay={(lane) => toggle(lane)} playing={playing?.what} />
+        {note && <p className="mt-0.5 pl-[3.75rem] text-[12px] text-faint">{note}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
         <PlayButton active={playing?.what === both} onClick={() => toggle(both)} title={turns ? "从这句听下去：每句先放原句，再放你的 (P)" : "从这句听下去：原句和你的一起放，听合不合拍 (P)"}>
           {turns ? "对比" : "一起听"}
         </PlayButton>
-        <PlayButton active={playing?.what === "original"} onClick={() => toggle("original")} title="从这句听下去：只听原句">
-          原句
-        </PlayButton>
-        <PlayButton active={playing?.what === "mine"} onClick={() => toggle("mine")} title="从这句听下去：只听你的">
-          我的
-        </PlayButton>
         <span className="ml-auto flex items-center gap-1">
           <IconButton title="删除这次录音" onClick={() => void deleteTake(take.id)}>
             <Trash2 />
           </IconButton>
-          <RecordButton again />
+          <RecordButton retry looping={looping} />
         </span>
       </div>
     </div>

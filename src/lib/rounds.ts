@@ -1,63 +1,54 @@
-// 跟读方案 for one take: hear the sentence a few times (only listening), then
-// say it several times in a row, each time the take's way (听完再说: the
-// original, then you; 边听边说: you along with it). Only the last time is kept;
-// the ones before are practice. The store walks these steps (recordSlice.ts).
+// 连续录: recording while the sentence (or the A–B loop) loops, it's said again
+// and again, each time the take's way (听完再说: the original, then you;
+// 边听边说: you along with it), the mic left open. Space keeps the time you're
+// on (while the original plays again: the one before) and stops; a time with
+// nothing of yours stops it too, keeping the one before. Without a loop a take
+// is one time, as always. The store walks this (recordSlice.ts); Rust keeps
+// the time before aside (record/rounds.rs).
 import type { RecordMode } from "./api";
 
-export const LISTENS = { min: 0, max: 3 };
-export const REPEATS = { min: 1, max: 5 };
-
-export interface RoundPlan {
-  /** Times the original plays before you first speak, only to listen. */
-  listens: number;
-  /** Times you say it; the last one is kept. */
-  repeats: number;
+/** Where a take is, as far as these rules care. */
+export interface Turns {
+  /** Recording while it loops: again and again until you keep one. */
+  again: boolean;
+  /** Which time through, from 1. */
+  n: number;
+  phase: "starting" | "listening" | "speaking" | "saving";
+  /** 边听边说 with the original still playing. */
+  along: boolean;
 }
 
-/** Where a take is: hearing the original only, or saying it (`n` counts from 1). */
-export type Step = { kind: "hear"; n: number } | { kind: "say"; n: number };
-
-const clamp = (v: number, { min, max }: { min: number; max: number }) => Math.min(max, Math.max(min, Math.round(Number.isFinite(v) ? v : min)));
-
-/** A plan from settings (anything out of range is brought back in). */
-export function planOf(listens: number | undefined, repeats: number | undefined): RoundPlan {
-  return { listens: clamp(listens ?? 0, LISTENS), repeats: clamp(repeats ?? 1, REPEATS) };
+/** Recording at `at` goes again and again: that's what is looping. */
+export function recordsAgain(at: number | "loop", loopSentence: number | null, looping: boolean): boolean {
+  return looping && (at === "loop" || at === loopSentence);
 }
 
-export function firstStep(plan: RoundPlan): Step {
-  return plan.listens > 0 ? { kind: "hear", n: 1 } : { kind: "say", n: 1 };
+/** What Space (or the card's button) does: skip the rest of the original, keep this time, or keep the one before. */
+export type Advance = "skip" | "keep" | "keepBefore";
+
+export function advanceOf(t: Turns): Advance {
+  if (t.phase === "listening" || t.along) return t.again && t.n > 1 ? "keepBefore" : "skip";
+  return "keep";
 }
 
-/** The step after `step`, or null once the last time has been said (keep it). */
-export function nextStep(plan: RoundPlan, step: Step): Step | null {
-  if (step.kind === "hear") return step.n < plan.listens ? { kind: "hear", n: step.n + 1 } : { kind: "say", n: 1 };
-  return step.n < plan.repeats ? { kind: "say", n: step.n + 1 } : null;
+/** The card's button for it. */
+export function advanceLabel(a: Advance, again: boolean): string {
+  if (a === "skip") return "跳过原句";
+  if (a === "keepBefore") return "留下上一遍";
+  return again ? "留下这遍" : "说完了";
 }
 
-/** Saying it for the last time: this one is kept. */
-export const isLast = (plan: RoundPlan, step: Step) => step.kind === "say" && step.n >= plan.repeats;
+/** Next to 轮到你了 while recording again and again: 第 3 遍. */
+export const countOf = (t: Turns) => (t.again ? `第 ${t.n} 遍` : null);
 
-/** Just the one time, nothing before it (as it was before plans). */
-export const isPlain = (plan: RoundPlan) => plan.listens === 0 && plan.repeats === 1;
-
-/** Shown while recording, next to 只听原句 / 轮到你了: 1 / 2, 第 2 / 3 遍; null when there's only the one. */
-export function stepCount(plan: RoundPlan, step: Step): string | null {
-  if (step.kind === "hear") return plan.listens > 1 ? `${step.n} / ${plan.listens}` : null;
-  return plan.repeats > 1 ? `第 ${step.n} / ${plan.repeats} 遍` : null;
-}
-
-/** On the plan's button: 跟读 1 遍 · 听 1 · 跟读 3 遍. */
-export function planLabel(plan: RoundPlan): string {
-  return `${plan.listens ? `听 ${plan.listens} · ` : ""}跟读 ${plan.repeats} 遍`;
+/** The one line while recording one time (again and again, the card says how to keep one). */
+export function hintOf(t: Turns): string {
+  if (t.phase === "listening") return "听完就轮到你";
+  return t.along ? "原句放完后，你停下就结束" : "说完会自动停";
 }
 
 /** What pressing M will do, in a sentence. */
-export function planNote(plan: RoundPlan, mode: RecordMode): string {
-  const hear = plan.listens ? `先只听 ${plan.listens} 遍，` : "";
-  if (mode === "shadow") {
-    const along = plan.repeats > 1 ? `跟着原句说 ${plan.repeats} 遍，只保存最后一遍` : "跟着原句说";
-    return hear ? `${hear}再${along}。` : plan.repeats > 1 ? `${along}。` : "原句一放就跟着说。";
-  }
-  if (plan.repeats === 1) return `${hear}${hear ? "再" : "先"}放一遍原句，然后轮到你说。`;
-  return `${hear}${hear ? "然后" : ""}每遍先放原句、再轮到你说，连说 ${plan.repeats} 遍，只保存最后一遍。`;
+export function readyNote(mode: RecordMode, again: boolean): string {
+  if (again) return mode === "shadow" ? "跟着循环的原句一遍遍说，满意了按空格留下。" : "每遍先放原句再轮到你，一遍遍接着录，满意了按空格留下。";
+  return mode === "shadow" ? "原句一放就跟着说。" : "先放一遍原句，然后轮到你说。";
 }

@@ -64,10 +64,14 @@ pub fn record_turn(recorder: State<'_, Recorder>) {
     recorder.turn();
 }
 
-/// Another time through (跟读方案): the take starts afresh, the mic stays open.
+/// Another time through (连续录): the take starts afresh, the mic stays open.
+/// Whether the time just said had your voice (off the main thread: that takes
+/// removing the echo).
 #[tauri::command]
-pub fn record_round(recorder: State<'_, Recorder>) -> Result<(), String> {
-    recorder.round()
+pub async fn record_round(app: AppHandle) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || app.state::<Recorder>().round())
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -76,8 +80,9 @@ pub fn record_cancel(player: State<'_, Player>, recorder: State<'_, Recorder>) {
 }
 
 /// Stops and keeps the take (off the main thread: removing the echo takes a moment).
+/// `previous`: said again and again, keep the time before this one.
 #[tauri::command]
-pub async fn record_finish(app: AppHandle) -> Result<Finished, String> {
+pub async fn record_finish(app: AppHandle, previous: Option<bool>) -> Result<Finished, String> {
     use tauri::Manager;
     tauri::async_runtime::spawn_blocking(move || {
         let (state, player, recorder) = (
@@ -85,7 +90,7 @@ pub async fn record_finish(app: AppHandle) -> Result<Finished, String> {
             app.state::<Player>(),
             app.state::<Recorder>(),
         );
-        recorder.finish(&player, &state.data_dir())
+        recorder.finish(&player, &state.data_dir(), previous.unwrap_or(false))
     })
     .await
     .map_err(|e| e.to_string())?

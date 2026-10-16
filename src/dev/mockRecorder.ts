@@ -53,8 +53,14 @@ export function seedTakes(audio: string, sentence: { start: number; end: number;
   takes.set(audio, [makeTake(meta, Date.now() - 26 * 60 * 60_000, 1.35), makeTake(meta, Date.now() - 2 * 60 * 60_000, 1.12)]);
 }
 
-/** `from`: when this time through began (record_round starts another); `done`: it has stopped by itself. */
-let session: { meta: RecordMeta; timer: number; turnAt: number | null; t: number; from: number; done: boolean } | null = null;
+/**
+ * `from`: when this time through began (record_round starts another); `done`: it has stopped by itself.
+ * Said again and again (连续录), the pretend learner talks the first `QUIET_FROM - 1` times, then
+ * says nothing, which stops it: `round` counts them, `voiced` says whether this one had a voice,
+ * `kept` whether one before did (put aside, as Rust does).
+ */
+let session: { meta: RecordMeta; timer: number; turnAt: number | null; t: number; from: number; done: boolean; round: number; voiced: boolean; kept: boolean } | null = null;
+const QUIET_FROM = 4;
 
 /** A paragraph: 自己读 moves the highlight a sentence at a time, then finishes; 跟着原文读 finishes once the original has. */
 function beginReading(meta: RecordMeta) {
@@ -67,6 +73,9 @@ function beginReading(meta: RecordMeta) {
     t: 0,
     from: 0,
     done: false,
+    round: 1,
+    voiced: true,
+    kept: false,
     timer: window.setInterval(() => {
       const s = session!;
       s.t += 0.033;
@@ -149,6 +158,9 @@ function begin(meta: RecordMeta) {
     t: 0,
     from: 0,
     done: false,
+    round: 1,
+    voiced: false,
+    kept: false,
     timer: window.setInterval(() => {
       const s = session!;
       s.t += 0.033;
@@ -156,16 +168,20 @@ function begin(meta: RecordMeta) {
       const since = s.turnAt === null ? -1 : s.t - s.turnAt;
       // Listen: you start 0.6 s into your turn and talk a little longer than the original.
       // Shadow: you start 0.4 s after the original and finish 0.45 s after it.
-      const [talking, quietFor] =
+      const [voice, quietFor] =
         meta.mode === "listen"
           ? [since > 0.6 && since < 0.6 + said * 1.1, since - 0.6 - said * 1.1]
           : [s.t - s.from > 0.4 && (since < 0 || since < 0.45), since < 0 ? -1 : since - 0.45];
+      const talking = voice && s.round < QUIET_FROM;
+      s.voiced ||= talking;
       const level = talking ? 0.55 + rand() * 0.4 : 0.08 + rand() * 0.05;
       void emit("recorder:level", { level, speaking: talking, secs: Math.max(0, since) });
       // Like the mic, it stays open after stopping by itself: another time through may follow.
-      if (since > 0 && quietFor > 0.8 && !s.done) {
+      // Nothing said after the original (听完再说) waits a while, as Rust does (shorter here).
+      const nothing = meta.mode === "listen" && !s.voiced && since > 3;
+      if (since > 0 && (nothing || (s.voiced || meta.mode === "shadow") && quietFor > 0.8) && !s.done) {
         s.done = true;
-        void emit("recorder:auto", "pause");
+        void emit("recorder:auto", nothing ? "nothing" : "pause");
       }
     }, 33),
   };
@@ -244,16 +260,21 @@ export async function mockRecord(cmd: string, a: Record<string, never>): Promise
     case "record_turn":
       if (session && session.turnAt === null) session.turnAt = session.t;
       return null;
-    case "record_round":
+    case "record_round": {
       if (!session) throw "录音已经停了，再录一次吧";
-      Object.assign(session, { from: session.t, turnAt: null, done: false });
-      return null;
+      await new Promise((r) => setTimeout(r, 150)); // removing the echo
+      const voiced = session.voiced;
+      Object.assign(session, { from: session.t, turnAt: null, done: false, round: session.round + 1, voiced: false, kept: session.kept || voiced });
+      return voiced;
+    }
     case "record_cancel":
       stop();
       return null;
     case "record_finish": {
+      const [voiced, kept] = [session?.voiced, session?.kept];
       const meta = stop();
       if (!meta) return { takes: [], reading: null };
+      if (!meta.sentences?.length && !voiced && !kept) throw "没听到你的声音，再试一次？";
       await new Promise((r) => setTimeout(r, meta.mode === "shadow" ? 700 : 300));
       if (meta.sentences?.length) return makeReading(meta, Date.now());
       const take = makeTake(meta, Date.now(), 0.95 + rand() * 0.3);
