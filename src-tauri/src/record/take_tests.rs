@@ -130,6 +130,64 @@ fn shadow_take_removes_the_original_and_measures_the_lag() {
     assert!((lag_ms - 400).abs() <= 30, "lag {lag_ms}");
 }
 
+/// 边听边说 in a room with a fan (−52 dBFS, as in a real take): the mic opens
+/// 1.2 s before the original (3 s, its echo 25 ms later) and runs 1.2 s past
+/// it. `you`: your voice, from 0.4 s into the original to 0.4 s past its end,
+/// at this level against the fan (`None`: you say nothing).
+fn along(you: Option<f32>) -> Raw {
+    let original = speech("ja/ごんぎつね.mp3", 3.0, MIC);
+    let lead = MIC as usize * 12 / 10;
+    let (marks, played) = tap(&original, 1_200_000_000);
+    let mut seed = 1u32;
+    let mut mic: Vec<f32> = (0..lead + original.len() + lead)
+        .map(|_| {
+            seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            ((seed >> 8) as f32 / (1u32 << 24) as f32 - 0.5) * 0.0087
+        })
+        .collect();
+    for (i, v) in original.iter().enumerate() {
+        mic[lead + 1200 + i] += v * 0.3;
+    }
+    if let Some(above) = you {
+        let voice = speech("en/The Tale of Peter Rabbit.mp3", 3.0, MIC);
+        let g = 0.0025 * 10f32.powf(above / 20.0) / rms(&voice);
+        let at = lead + MIC as usize * 4 / 10;
+        for (i, v) in voice.iter().enumerate() {
+            mic[at + i] += v * g;
+        }
+    }
+    Raw {
+        mic,
+        mic_rate: MIC,
+        mic_at: 0,
+        marks,
+        played,
+        turn: lead + original.len(),
+        followed: None,
+    }
+}
+
+#[test]
+fn along_the_room_before_the_original_is_not_you() {
+    // Removing the echo turns the room down while the original plays, so the
+    // fan before it stood out as a voice: a take of 1.2 s of fan.
+    assert_eq!(build(&along(None), Mode::Shadow).err(), Some(NOTHING_ALONG));
+}
+
+#[test]
+fn along_a_quiet_voice_is_found() {
+    // 12 dB above the fan, well under the original's echo: shadowing under your breath.
+    let b = build(&along(Some(12.0)), Mode::Shadow).expect("a take");
+    let (o, m) = (b.original_span, b.mine_span);
+    let you = m.0 + LEAD_SECS - o.0;
+    assert!((0.3..0.6).contains(&you), "you start 0.4 s in: {you:.2}");
+    let past = m.1 - TAIL_SECS - o.1;
+    assert!(
+        (0.2..0.6).contains(&past),
+        "and finish 0.4 s past it: {past:.2}"
+    );
+}
+
 #[test]
 fn saying_nothing_is_no_take() {
     let original = speech("ja/ごんぎつね.mp3", 2.0, MIC);

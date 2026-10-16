@@ -286,25 +286,27 @@ fn rules(meta: &Meta) -> Rules {
             pause_secs: 4.0,
             wait_secs: 10.0,
             max_secs: said * 3.0 + 10.0,
-            speaking: false,
+            along: false,
         },
         Mode::Shadow if paragraph => Rules {
             pause_secs: 1.0,
             wait_secs: 3.0,
             max_secs: 6.0,
-            speaking: true,
+            along: true,
         },
         Mode::Listen => Rules {
             pause_secs: 0.8,
             wait_secs: 5.0,
             max_secs: (said * 2.0 + 3.0).max(6.0),
-            speaking: false,
+            along: false,
         },
+        // Once the original has finished, only your last words (you're a
+        // little behind it, more so in a long sentence).
         Mode::Shadow => Rules {
-            pause_secs: 0.7,
+            pause_secs: 0.6,
             wait_secs: 3.0,
-            max_secs: 4.0,
-            speaking: true,
+            max_secs: (2.0 + said * 0.1).min(3.5),
+            along: true,
         },
     }
 }

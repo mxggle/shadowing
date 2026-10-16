@@ -1,7 +1,8 @@
 // 跟读录音 part of the single store. A take: open the mic → play the sentence
-// once (听完再说: then it's your turn; 边听边说: you speak over it) → Rust says
-// when you've stopped → the take is kept and, by default, played back against
-// the original. Works without headphones: Rust takes the original out of the mic.
+// once (听完再说: then it's your turn; 边听边说: you speak over it, and once it
+// has finished Rust waits only for your last words) → Rust says when you've
+// stopped → the take is kept and, by default, played back against the
+// original. Works without headphones: Rust takes the original out of the mic.
 // 连续录 (the card's button, or M while it loops; lib/rounds.ts) says it again
 // and again: the mic stays open, Rust starts afresh each time and keeps the
 // time before aside; Space keeps one and stops. 逐句跟读 (drillSlice.ts) runs
@@ -33,9 +34,12 @@ export interface Rec {
   /** 逐句跟读: at most this many times, then the next sentence (null: not drilling). */
   max: number | null;
   /** starting: opening the mic · listening: the original plays (听完再说) ·
-   *  speaking: your turn (`along`: the original is still playing, 边听边说) · saving: building the take. */
+   *  speaking: your turn (边听边说: the whole take, `along`) · saving: building the take. */
   phase: "starting" | "listening" | "speaking" | "saving";
+  /** 边听边说: you speak along with the original. */
   along: boolean;
+  /** 边听边说: the original has finished, you're on your last words (Rust stops it soon). */
+  tail: boolean;
   /** Recent mic levels (0–1), newest last, for the live meter. */
   levels: number[];
   /** Seconds since your turn began. */
@@ -66,7 +70,7 @@ export interface RecordState extends TakePlayback {
   /** Stops and keeps the take; `previous`: said again and again, the time before this one. */
   finishTake(previous?: boolean): Promise<void>;
   cancelTake(): void;
-  /** Space / M while recording: skip the rest of the original, or keep this time (or the one before) and stop. */
+  /** Space / M while recording: skip the rest of the original (听完再说), or keep this time (or the one before) and stop. */
   advanceTake(): void;
   /** P: your last take here against the original (or stop it). */
   replayTake(): void;
@@ -123,8 +127,8 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
     if (!rec) return;
     // Too long: Rust has closed the mic, whatever the take was doing.
     if (payload === "long") return void get().finishTake();
-    // Only once your turn has begun: the stop of a time before may still be on its way.
-    if (rec.phase !== "speaking" || rec.along) return;
+    // Only once the original has finished: the stop of a time before may still be on its way.
+    if (rec.phase !== "speaking" || (rec.along && !rec.tail)) return;
     if (goesAgain(rec)) void again();
     else void get().finishTake();
   });
@@ -133,12 +137,15 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
     get().cancelTake();
     set({ recError: payload });
   });
+  /** How a time through begins: the original on its own (听完再说), or you along with it. */
+  const opening = (mode: RecordMode): Pick<Rec, "phase" | "along" | "tail"> =>
+    mode === "shadow" ? { phase: "speaking", along: true, tail: false } : { phase: "listening", along: false, tail: false };
+
   /** A time through, the take's way: the original, with you after it (听完再说) or along with it. */
   function play() {
     const rec = get().rec;
     if (!rec) return;
-    const along = rec.mode === "shadow";
-    patchRec({ phase: along ? "speaking" : "listening", along, levels: [], secs: 0 });
+    patchRec({ ...opening(rec.mode), levels: [], secs: 0 });
     engine.playRange(rec.start, rec.end);
   }
 
@@ -151,21 +158,23 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
     const rec = get().rec;
     if (!rec) return;
     const mine = ++starts;
-    patchRec({ n: rec.n + 1, phase: "listening", along: false, levels: [], secs: 0 });
+    // As the next time begins (Space now keeps the one just said).
+    patchRec({ n: rec.n + 1, ...opening(rec.mode), levels: [], secs: 0 });
     const round = api.record.round();
     keeping = round.catch(() => false);
+    const going = () => !!get().rec && get().rec?.phase !== "saving";
     let voiced: boolean;
     try {
       voiced = await round;
     } catch (e) {
-      if (mine === starts && get().rec?.phase === "listening") {
+      if (mine === starts && going()) {
         get().cancelTake();
         set({ recError: String(e) });
       }
       return;
     }
     // Kept or cancelled meanwhile (Space keeps the time just said once Rust has it aside).
-    if (mine !== starts || get().rec?.phase !== "listening") return;
+    if (mine !== starts || !going()) return;
     if (!voiced) return void get().finishTake(true);
     play();
   }
@@ -223,7 +232,7 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
         recordAt: where,
         shownTake: null,
         recError: null,
-        rec: { at: where, ...target, mode, again, n: 1, max: how?.max ?? null, phase: "starting", along: false, levels: [], secs: 0, mic: "" },
+        rec: { at: where, ...target, mode, again, n: 1, max: how?.max ?? null, phase: "starting", along: false, tail: false, levels: [], secs: 0, mic: "" },
       });
       let mic: string;
       try {
@@ -241,8 +250,10 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
 
     playbackStopped() {
       const rec = get().rec;
-      if (!rec || rec.phase === "saving" || !(rec.phase === "listening" || rec.along)) return;
-      patchRec({ phase: "speaking", along: false });
+      if (!rec || rec.phase === "saving") return;
+      if (rec.phase === "listening") patchRec({ phase: "speaking" });
+      else if (rec.along && !rec.tail) patchRec({ tail: true });
+      else return;
       void api.record.turn();
     },
 
