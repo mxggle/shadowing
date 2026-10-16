@@ -12,3 +12,6 @@
 - 页面上显示的版本号（`data-app-version`）在发版时由 `scripts/bump-version.sh` 一起改，`scripts/check-version.sh` 会检查它和应用版本一致。
 
 本地预览：`npx serve site`。跟读按钮要用麦克风，只能在 `localhost` 或 https 下用，直接双击打开 `index.html` 不行。
+- `packs/`：应用里「素材库」的内容。`packs/manifest.json` 列出所有素材包，每个素材包在 `packs/<id>/<版本>/` 下（`pack.json` 和音频）。
+  应用从 `https://shadowing.nihongo.day/packs/manifest.json` 读列表，所以合并到 `main` 就上线。由 `scripts/packs/build.py` 生成，
+  说明和出处见 [packs/README.md](packs/README.md)。`vercel.json` 给版本目录下的文件设了一年缓存：已发布的版本不要原地改，改内容就升版本号。

@@ -18,7 +18,8 @@ src/                      前端
   audio/logic.ts          纯函数规则（循环、恢复位置、速度），有单元测试
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，改字幕在 correctSlice.ts，
                           AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts，
-                          学习记录与每日目标在 practiceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts）
+                          学习记录与每日目标在 practiceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts，
+                          素材库在 packsSlice.ts）
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句），有单元测试
   lib/sections.ts         对话段落规则（分段、合并、改名、整段循环、{ } 换段），有单元测试
   lib/edits.ts            改字幕的规则（改动取整词、查找匹配、全部替换），有单元测试
@@ -27,6 +28,7 @@ src/                      前端
   lib/practice.ts         学习记录：按天（4 点换日）汇总练习时间、每天的目标、连续达标天数，有单元测试
   lib/takes.ts            跟读录音：哪些录音属于哪一句、两条波形怎么对齐、节奏 / 延迟的说法，有单元测试
   lib/readings.ts         整段录音：读哪些句子、哪些整段录音属于这一段、快慢的说法，有单元测试
+  lib/packs.ts            素材库：素材卡片上该显示什么（下载 / 进度 / 开始练习 / 更新）、大小和时长的说法，有单元测试
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置；ui.tsx 共用的按键与表单件；
                           Transcript.tsx 句子列表，Sections.tsx 段落小标题和顶部的段落菜单，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
@@ -35,7 +37,9 @@ src/                      前端
                           Reading.tsx 整段录音（开始菜单、录音时的标题条），ReadingResult.tsx 读完的结果（段落上方一行）；
                           Practice.tsx 学习记录面板（PracticeCharts.tsx 柱状图和日历，PracticeGoal.tsx 顶栏目标圆环和目标一行）；
                           settings/ 是设置面板；
-                          guide/ 是引导：Welcome.tsx 欢迎页（第一次打开是 Onboarding.tsx 四步新手引导，步骤内容在 OnboardingSteps.tsx）、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示
+                          guide/ 是引导：Welcome.tsx 欢迎页（第一次打开是 Onboarding.tsx：先选新手 / 自己配置，自己配置是四步引导，步骤内容在 OnboardingSteps.tsx；
+                          新手之后没打开文件夹时是素材库页）、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示；
+                          packs/ 是素材库：Packs.tsx 素材库页（新手）、顶栏按钮和弹出的素材库，PackCard.tsx 一套素材的卡片
   dev/smoke.ts            应用内自测脚本（只在 smoke 模式加载）
 src-tauri/src/
   lib.rs                  AppState + 命令注册
@@ -58,6 +62,10 @@ src-tauri/src/
                           playback.rs 回放（引擎的 clip；watch.rs 报告放到哪、是不是放完了）；
                           整段：follow.rs 自己读时跟踪读到哪一句（也记下高亮在每个句界移动的位置、读到了第几句）、segment.rs 读完按停顿 / 原文时间拆句、original.rs 从音频切出每句原文、
                           reading.rs 拼成整段 + 每句一条录音、replay.rs 整段回放（我的整段 / 一起听 / 逐句对比）
+  packs/                  素材库：format.rs 网站上的 manifest.json 和每套素材的 pack.json（落盘前全部检查：文件名、大小、sha256、句子时间、说话人），
+                          install.rs 下载到 app data 的 素材库/.downloading/<id>/（可续传、逐个校验），全部到齐后移到 素材库/<文件夹>/，
+                          字幕（带说话人名字）和解释存进 transcripts/、explanations/，最后写 .pack.json 表示装好了；删除时一起清掉；
+                          mod.rs 命令（列表、下载、取消、删除、打开）。素材库文件夹和 samples/ 一样是应用自己管理、已授权的目录
   explain/                解释这一句：把一句（带前后几句）发给「句子解释」的模型，reply.rs 只留下译文、生词、语法点并封顶，saved.rs 把答案存在 app data 的 explanations/（句子被改过就作废）
   proofread/              AI 校对：把字幕（没把握的字用〔〕标出）发给「句子解释」的模型，reply.rs 只留下能精确套用的小改动
   transcribe/             转写：pcm.rs 解码成 16 kHz 单声道、chunk.rs 在停顿处切块、cloud.rs 上传、
@@ -94,7 +102,7 @@ src-tauri/src/
 ## 约定
 
 - 保持小：单个文件尽量 < 300 行；新增依赖需要说明理由。
-- 只有用户在原生对话框里选择的文件夹（加上应用自带的只读 `samples/`）才被授权；Rust 命令访问文件前都要经过
+- 只有用户在原生对话框里选择的文件夹（加上应用自带的只读 `samples/` 和应用自己下载的 `素材库/`）才被授权；Rust 命令访问文件前都要经过
   `AppState::audio` / `allowed`（内部用 `resolve_inside`）。
 - 所有对外网络请求都从 Rust 发出（不经 WebView）；前端只传服务 id，不传 URL 或 Key 去请求。
 - 新规则优先写成纯函数并加测试（TS 放 `*.test.ts`，Rust 放模块内 `#[cfg(test)]`）。
@@ -123,7 +131,13 @@ npm run dev                           # 浏览器 + mock 后端，只用来调 U
 npm run app                           # 开发模式启动应用
 SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的数据文件夹（看第一次打开的新手引导，不动真实数据；
                                       # 加 SHADOWING_MODELS_DIR=~/Library/Application\ Support/dev.shadowing.app/models 可复用已下载的模型）
+python3 -m http.server 8765 --directory site &   # 素材库用本地的 site/packs（网站上线前测试下载）：
+SHADOWING_PACKS_URL=http://127.0.0.1:8765/packs/manifest.json npm run app   # （只在调试版生效）
 ```
+
+- 素材包的制作：`scripts/packs/<id>.json` 是对话脚本（每句的说话人、原文、翻译、生词、语法点），`scripts/packs/build.py` 逐句合成语音、
+  拼成每段音频、写出 `site/packs/` 下的文件和 manifest，说明见脚本开头和 [site/packs/README.md](site/packs/README.md)。
+  已经发布的版本不要原地改（网站对 `packs/<id>/<版本>/` 下的文件缓存一年）：改了内容就把版本号加一。
 
 - smoke 模式使用临时 state 文件和内存里的 Key 存储，不影响真实数据和钥匙串。
 - 真实模型手动测试（会下载到应用的 models 文件夹）：
