@@ -29,9 +29,6 @@ export interface Settings {
   recordMode: RecordMode;
   /** Play the take back (against the original) as soon as it's recorded. */
   recordReplay: boolean;
-  /** 跟读方案: times the original plays first only to listen (0–3), then times you say it (1–5; the last is kept). */
-  recordListens: number;
-  recordRepeats: number;
   /** A whole paragraph: read it on your own, or along with the original. */
   paragraphMode: ParagraphMode;
 }
@@ -460,10 +457,11 @@ export const api = {
     begin: (meta: RecordMeta) => invoke<string>("record_begin", { meta }),
     /** The original has finished: the take may now stop by itself (`recorder:auto`). */
     turn: () => invoke<void>("record_turn"),
-    /** Another time through (跟读方案): the mic stays open, what it captured so far is dropped. */
-    round: () => invoke<void>("record_round"),
-    /** Stops and keeps the take, or the paragraph's reading and its sentences (echo of the original removed). */
-    finish: () => invoke<Finished>("record_finish"),
+    /** Another time through (连续录): the mic stays open, the take starts afresh. Whether the time just said had your voice (kept aside if so). */
+    round: () => invoke<boolean>("record_round"),
+    /** Stops and keeps the take, or the paragraph's reading and its sentences (echo of the original removed).
+     *  `previous`: said again and again (连续录), keep the time before this one. */
+    finish: (previous = false) => invoke<Finished>("record_finish", { previous }),
     /** Reading on your own: next (+1) / previous (−1) sentence by hand. */
     step: (by: 1 | -1) => invoke<void>("record_step", { by }),
     readings: (audio: string) => invoke<Reading[]>("record_readings", { audio }),

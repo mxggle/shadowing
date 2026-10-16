@@ -1,4 +1,5 @@
-import type { Take } from "../lib/api";
+import { Play, Square } from "lucide-react";
+import type { Take, TakePart } from "../lib/api";
 import { formatSecs, lanes, mineSecs } from "../lib/takes";
 
 /** Peaks are stored 50 a second. */
@@ -10,22 +11,26 @@ const MAX_BARS = 160;
  * The original above, you below, drawn to the same scale: 听完再说 lines both up
  * at their first sound, 边听边说 keeps the real timeline (the lag shows). A
  * playhead runs along whichever is playing (`head`, in the take's seconds); a
- * click plays that voice. `compact`: thinner lanes, for the sentence playing.
+ * click plays that voice, and so does the ▶ by its name (`playing`: the one
+ * that is). `compact`: thinner lanes and plain names, for the sentence playing.
  */
-export function TakeWaves({ take, head, onPlay, compact, titles }: {
+export function TakeWaves({ take, head, onPlay, compact, titles, playing }: {
   take: Take;
   head: { original: number | null; mine: number | null };
   onPlay: (lane: "original" | "mine") => void;
   compact?: boolean;
   /** What a click on each lane does, when it isn't just that voice. */
   titles?: string;
+  playing?: TakePart | null;
 }) {
   const l = lanes(take);
   const height = compact ? "h-5" : "h-9";
   return (
-    <div className={`grid grid-cols-[2.25rem_1fr_3.25rem] items-center gap-x-2 ${compact ? "gap-y-0.5" : "gap-y-1"}`}>
+    <div className={`grid ${compact ? "grid-cols-[2.25rem_1fr_3.25rem] gap-y-0.5" : "grid-cols-[3.25rem_1fr_3.25rem] gap-y-1"} items-center gap-x-2`}>
       <Lane
         label="原句"
+        named={!compact}
+        on={playing === "original"}
         peaks={take.peaks.original}
         from={l.original}
         width={l.width}
@@ -38,6 +43,8 @@ export function TakeWaves({ take, head, onPlay, compact, titles }: {
       />
       <Lane
         label="我的"
+        named={!compact}
+        on={playing === "mine"}
         peaks={take.peaks.mine}
         from={l.mine}
         width={l.width}
@@ -52,8 +59,11 @@ export function TakeWaves({ take, head, onPlay, compact, titles }: {
   );
 }
 
-function Lane({ label, peaks, from, width, secs, head, tone, height, title, onClick }: {
+function Lane({ label, named, on, peaks, from, width, secs, head, tone, height, title, onClick }: {
   label: string;
+  /** The name is a ▶ button (`on`: that voice is playing). */
+  named: boolean;
+  on: boolean;
   peaks: number[];
   from: number;
   width: number;
@@ -77,7 +87,21 @@ function Lane({ label, peaks, from, width, secs, head, tone, height, title, onCl
   const x = head === null ? null : (head - from) / width;
   return (
     <>
-      <span className="text-[11px] text-faint">{label}</span>
+      {named ? (
+        <button
+          title={`从这句听下去：只听${label}`}
+          aria-pressed={on}
+          onClick={onClick}
+          className={`flex h-6 items-center gap-1 justify-self-start rounded-[6px] px-1.5 text-[11px] transition-[background-color,color,scale] duration-150 active:scale-95 ${
+            on ? "bg-press text-fg" : "text-muted hover:bg-hover hover:text-fg"
+          }`}
+        >
+          {on ? <Square size={8} fill="currentColor" strokeWidth={0} /> : <Play size={9} fill="currentColor" strokeWidth={0} />}
+          {label}
+        </button>
+      ) : (
+        <span className="text-[11px] text-faint">{label}</span>
+      )}
       <button
         title={title ?? `听${label}`}
         onClick={onClick}

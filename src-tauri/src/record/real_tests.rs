@@ -319,8 +319,10 @@ fn real_record_takes() {
         );
         let _ = say.wait();
         let t = Instant::now();
+        let silent = !recorder.round().expect("after the silent time");
+        assert!(silent, "{mode:?}: the third time had nothing of yours");
         let take = recorder
-            .finish(&player, root.path())
+            .finish(&player, root.path(), true)
             .expect("finish")
             .takes
             .pop()
@@ -354,10 +356,10 @@ fn real_record_takes() {
     assert_eq!(saved::list(root.path(), &audio).len(), 2);
 }
 
-/// A 跟读方案 as the app runs it, on the real speakers and microphone: the
-/// sentence once only to hear it, then said three times in a row (`round`
-/// before each, the mic left open). The "learner" says only its first words the
-/// first two times and all of it the last time: the take is that last time.
+/// 连续录 as the app runs it, on the real speakers and microphone: the sentence
+/// said again and again (`round` before each time after the first, the mic left
+/// open). The "learner" says only its first words, then all of it, then nothing:
+/// the silent time stops it, and the take is the time before (all of it).
 #[test]
 #[ignore = "plays audio out loud, speaks with `say` and records the microphone"]
 fn real_record_rounds() {
@@ -389,34 +391,38 @@ fn real_record_rounds() {
             .begin(caught.clone(), &player, meta, path.clone())
             .expect("begin");
         let started = Instant::now();
-        // Only hearing it: nothing said, no turn.
-        player.play_range(a, b).unwrap();
-        wait_for("the listen", 10.0, || !player.status().playing);
         for round in 1..=3 {
-            recorder.round().expect("another round");
+            if round > 1 {
+                let voiced = recorder.round().expect("another round");
+                assert!(voiced, "{mode:?} round {}: had your voice", round - 1);
+            }
             let opened = Instant::now();
             player.play_range(a, b).unwrap();
-            let words = if round < 3 { "これは" } else { line };
+            let words = [Some("これは"), Some(line), None][round - 1];
             let after = if mode == Mode::Listen {
                 b - a + 0.6
             } else {
                 0.4
             };
-            let mut say = learner_says(after, words);
+            let mut say = words.map(|w| learner_says(after, w));
             wait_for("the original", 10.0, || !player.status().playing);
             recorder.turn();
             wait_for("the round to stop by itself", 20.0, || {
                 caught.0.lock().unwrap().0.len() == round
             });
-            let _ = say.wait();
+            if let Some(say) = say.as_mut() {
+                let _ = say.wait();
+            }
             println!(
                 "{mode:?} round {round}: stopped ({:?}) {:.1} s after it began",
                 caught.0.lock().unwrap().0[round - 1],
                 opened.elapsed().as_secs_f64()
             );
         }
+        let silent = !recorder.round().expect("after the silent time");
+        assert!(silent, "{mode:?}: the third time had nothing of yours");
         let take = recorder
-            .finish(&player, root.path())
+            .finish(&player, root.path(), true)
             .expect("finish")
             .takes
             .pop()
@@ -434,13 +440,15 @@ fn real_record_rounds() {
         );
         let caught = caught.0.lock().unwrap();
         assert!(caught.1.is_empty(), "errors: {:?}", caught.1);
-        assert!(
-            caught.0.iter().all(|&s| s == super::Stop::Pause),
-            "{:?}",
-            caught.0
-        );
-        assert!((o.1 - o.0 - (b - a)).abs() < 0.6, "one original, not four");
-        assert!(m.1 - m.0 > 1.5, "the last time (all of it), not これは");
+        let quiet = if mode == Mode::Listen {
+            super::Stop::Nothing
+        } else {
+            super::Stop::Pause
+        };
+        use super::Stop::Pause;
+        assert_eq!(caught.0, [Pause, Pause, quiet], "how each time stopped");
+        assert!((o.1 - o.0 - (b - a)).abs() < 0.6, "one original, not three");
+        assert!(m.1 - m.0 > 1.5, "the second time (all of it), not これは");
         if mode == Mode::Listen {
             assert!(m.0 > o.1 - 0.2, "you come after the original");
         } else {
@@ -457,7 +465,7 @@ fn real_record_rounds() {
     assert_eq!(
         saved::list(root.path(), &audio).len(),
         2,
-        "one take per plan"
+        "one take each time it was recorded again and again"
     );
 }
 
@@ -530,7 +538,9 @@ fn real_record_paragraph() {
             started.elapsed().as_secs_f64()
         );
         let t = Instant::now();
-        let done = recorder.finish(&player, root.path()).expect("finish");
+        let done = recorder
+            .finish(&player, root.path(), false)
+            .expect("finish");
         let r = done.reading.expect("a reading");
         println!(
             "built in {:.2} s: {} takes; you {:.1} s, original {:.1} s, lag {:?}",

@@ -5,8 +5,9 @@
 //! original (`player_play_range`), says when your turn starts (`turn`), and
 //! gets level events and, once you've stopped speaking, `recorder:auto`.
 //! `finish` builds the take (echo removed, trimmed; `take.rs`) and stores it
-//! (`saved.rs`). Takes play back as engine clips (`playback.rs`). Saying it
-//! several times in a row, `round` starts the take afresh before each time.
+//! (`saved.rs`). Takes play back as engine clips (`playback.rs`). Recording
+//! while the sentence loops, it's said again and again: `round` before each
+//! time (`rounds.rs`).
 //!
 //! A paragraph is one session too (`Meta::sentences`): read on your own
 //! (`Mode::Read`, the highlight follows your voice: `follow.rs`) or along with
@@ -23,6 +24,7 @@ mod reading;
 #[cfg(test)]
 mod real_tests;
 mod replay;
+mod rounds;
 mod saved;
 mod segment;
 mod session;
@@ -37,6 +39,7 @@ use crate::audio::Player;
 use serde::{Deserialize, Serialize};
 use session::Msg;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicU64;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Mutex;
 use std::thread;
@@ -120,15 +123,19 @@ pub struct Level {
 }
 
 struct Session {
+    id: u64,
     meta: Meta,
     file: PathBuf,
     tx: Sender<Msg>,
     done: Receiver<Result<Raw, String>>,
+    /// Said again and again: the last time before this one with your voice (`rounds.rs`).
+    kept: Option<take::Built>,
 }
 
 #[derive(Default)]
 pub struct Recorder {
     session: Mutex<Option<Session>>,
+    ids: AtomicU64,
 }
 
 impl Recorder {
@@ -167,10 +174,12 @@ impl Recorder {
         };
         player.set_tap(Some(tap))?;
         *self.lock() = Some(Session {
+            id: self.next_id(),
             meta,
             file,
             tx,
             done,
+            kept: None,
         });
         Ok(name)
     }
@@ -182,16 +191,6 @@ impl Recorder {
         }
     }
 
-    /// Another time through the sentence (跟读方案): what was captured so far is
-    /// dropped and the take waits for a new turn; the mic stays open, so there's no
-    /// gap for it to open again. Fails once the take has stopped (too long, an error).
-    pub fn round(&self) -> Result<(), String> {
-        self.lock()
-            .as_ref()
-            .and_then(|s| s.tx.send(Msg::Round).ok())
-            .ok_or_else(|| "录音已经停了，再录一次吧".to_string())
-    }
-
     /// The original has finished: from now on the take may stop by itself.
     pub fn turn(&self) {
         if let Some(s) = self.lock().as_ref() {
@@ -199,7 +198,7 @@ impl Recorder {
         }
     }
 
-    fn end(&self, player: &Player) -> Option<(Meta, PathBuf, Result<Raw, String>)> {
+    fn end(&self, player: &Player) -> Option<(Session, Result<Raw, String>)> {
         let s = self.lock().take()?;
         let _ = s.tx.send(Msg::Stop);
         let raw = s
@@ -207,7 +206,7 @@ impl Recorder {
             .recv_timeout(Duration::from_secs(3))
             .unwrap_or_else(|_| Err("录音没有结束".into()));
         let _ = player.set_tap(None);
-        Some((s.meta, s.file, raw))
+        Some((s, raw))
     }
 
     pub fn cancel(&self, player: &Player) {
@@ -215,15 +214,22 @@ impl Recorder {
     }
 
     /// Stops; builds and keeps the take (or the reading). Empty if nothing was being recorded.
-    pub fn finish(&self, player: &Player, root: &Path) -> Result<Finished, String> {
-        let Some((meta, file, raw)) = self.end(player) else {
+    /// Said again and again, `previous` keeps the time before this one (`rounds.rs`).
+    pub fn finish(&self, player: &Player, root: &Path, previous: bool) -> Result<Finished, String> {
+        let Some((
+            Session {
+                meta, file, kept, ..
+            },
+            raw,
+        )) = self.end(player)
+        else {
             return Ok(Finished::default());
         };
-        let raw = raw?;
         let created = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_or(0, |d| d.as_millis() as u64);
         if !meta.sentences.is_empty() {
+            let raw = raw?;
             let id = created.to_string();
             let built = reading::build(&raw, &meta, &file, &id, created)?;
             let takes: Vec<Take> = built.takes.iter().map(|t| t.0.clone()).collect();
@@ -239,7 +245,9 @@ impl Recorder {
                 reading: Some(built.reading),
             });
         }
-        let built = take::build(&raw, meta.mode)?;
+        let now =
+            || take::build(raw.as_ref().map_err(Clone::clone)?, meta.mode).map_err(String::from);
+        let built = rounds::pick(now, kept, previous)?;
         let t = Take {
             id: created.to_string(),
             created,
