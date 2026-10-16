@@ -7,6 +7,7 @@ mod local;
 mod practice;
 mod proofread;
 mod record;
+mod reshape;
 mod sections;
 mod smoke;
 mod speakers;
@@ -325,6 +326,9 @@ pub fn run() {
             transcript::transcript_remove,
             transcript::transcript_edit,
             transcript::transcript_sections,
+            reshape::transcript_split,
+            reshape::transcript_merge,
+            reshape::transcript_restore,
             proofread::transcript_proofread,
             proofread::transcript_proofread_cancel,
             explain::sentence_explain,

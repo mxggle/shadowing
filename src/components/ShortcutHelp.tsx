@@ -4,11 +4,12 @@ import { isTypingTarget } from "../lib/focus";
 import { useApp } from "../store";
 import { IconButton, Kbd } from "./ui";
 
-type Group = { title: string; keys: [string[], string][] };
+type Group = { title: string; keys: [string[], string][]; column: 0 | 1 };
 
 const groups = (seekStep: number): Group[] => [
   {
     title: "播放",
+    column: 0,
     keys: [
       [["空格"], "播放 / 暂停"],
       [["←", "→"], `后退 / 前进 ${seekStep} 秒`],
@@ -19,6 +20,7 @@ const groups = (seekStep: number): Group[] => [
   },
   {
     title: "循环",
+    column: 0,
     keys: [
       [["L"], "设 A → 设 B → 取消"],
       [["Esc"], "取消循环"],
@@ -26,6 +28,7 @@ const groups = (seekStep: number): Group[] => [
   },
   {
     title: "字幕",
+    column: 1,
     keys: [
       [["S"], "循环当前句 / 取消"],
       [["[", "]"], "上一句 / 下一句"],
@@ -34,13 +37,23 @@ const groups = (seekStep: number): Group[] => [
       [["M"], "跟读录音（录音时：说完了）"],
       [["⇧", "M"], "整段录音（这一段或全文）"],
       [["P"], "回放录音和原句对比"],
+    ],
+  },
+  {
+    title: "修改字幕",
+    column: 1,
+    keys: [
       [["E"], "修改当前句"],
+      [["⇧", "↩"], "在光标处断开成两句"],
+      [["⌫"], "在句首：并入上一句"],
+      [["⌦"], "在句尾：并入下一句"],
       [["⌘", "F"], "查找和替换"],
-      [["⌘", "Z"], "撤销修改"],
+      [["⌘", "Z"], "撤销修改、断开或合并"],
     ],
   },
   {
     title: "其他",
+    column: 0,
     keys: [
       [["?"], "显示 / 隐藏本表"],
       [["⌘", "B"], "显示 / 隐藏左侧列表"],
@@ -83,25 +96,33 @@ export function ShortcutHelp() {
         <Keyboard />
       </IconButton>
       {open && (
-        <div className="absolute top-full right-0 z-20 mt-2 w-[272px] origin-top-right animate-pop-in rounded-[12px] bg-raised px-3.5 pt-3 pb-3.5 shadow-lift">
+        <div className="scrollbar-none absolute top-full right-0 z-20 mt-2 max-h-[calc(100vh-64px)] w-[544px] origin-top-right animate-pop-in overflow-y-auto rounded-[12px] bg-raised px-3.5 pt-3 pb-3.5 shadow-lift">
           <h2 className="text-[13px] font-semibold">键盘快捷键</h2>
-          {groups(seekStep).map((g) => (
-            <section key={g.title} className="mt-3">
-              <h3 className="mb-1.5 text-[11px] font-medium text-faint">{g.title}</h3>
-              <dl className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 text-[13px]">
-                {g.keys.map(([keys, label]) => (
-                  <div key={label} className="contents">
-                    <dt className="text-fg/90">{label}</dt>
-                    <dd className="flex justify-end gap-1">
-                      {keys.map((k) => (
-                        <Kbd key={k}>{k}</Kbd>
-                      ))}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          ))}
+          <div className="grid grid-cols-2 gap-x-6">
+            {([0, 1] as const).map((column) => (
+              <div key={column}>
+                {groups(seekStep)
+                  .filter((g) => g.column === column)
+                  .map((g) => (
+                    <section key={g.title} className="mt-3">
+                      <h3 className="mb-1.5 text-[11px] font-medium text-faint">{g.title}</h3>
+                      <dl className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 text-[13px]">
+                        {g.keys.map(([keys, label]) => (
+                          <div key={label} className="contents">
+                            <dt className="text-fg/90">{label}</dt>
+                            <dd className="flex justify-end gap-1">
+                              {keys.map((k) => (
+                                <Kbd key={k}>{k}</Kbd>
+                              ))}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </section>
+                  ))}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

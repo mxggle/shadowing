@@ -10,7 +10,7 @@ mod doubt;
 mod long;
 pub mod pcm;
 pub mod sentences;
-mod snap;
+pub(crate) mod snap;
 #[cfg(test)]
 mod tests;
 

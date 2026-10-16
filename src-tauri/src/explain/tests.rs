@@ -160,3 +160,46 @@ fn a_damaged_file_means_no_answers_not_an_error() {
     saved::save(dir.path(), "/a.mp3", &all, answer(0, "line 0", "零")).unwrap();
     assert_eq!(saved::load(dir.path(), "/a.mp3", &all).len(), 1);
 }
+
+#[test]
+fn answers_move_with_their_sentences_when_one_is_cut_in_two() {
+    let dir = tempfile::tempdir().unwrap();
+    let all = sentences(4);
+    for (i, zh) in ["零", "一", "二", "三"].iter().enumerate() {
+        saved::save(
+            dir.path(),
+            "/a.mp3",
+            &all,
+            answer(i, &format!("line {i}"), zh),
+        )
+        .unwrap();
+    }
+    // Sentence 1 cut in two: the ones after it move down one; its own answer
+    // waits at the first part, where it no longer matches.
+    saved::follow(dir.path(), "/a.mp3", |i| if i <= 1 { i } else { i + 1 }).unwrap();
+    let mut cut = all.clone();
+    cut.splice(1..2, [all[1].clone(), all[1].clone()]);
+    cut[1].text = "li".into();
+    cut[2].text = "ne 1".into();
+    let kept = |sentences: &[Sentence]| -> Vec<(usize, String)> {
+        saved::load(dir.path(), "/a.mp3", sentences)
+            .into_iter()
+            .map(|a| (a.index, a.explanation.translation))
+            .collect()
+    };
+    assert_eq!(
+        kept(&cut),
+        [(0, "零".into()), (3, "二".into()), (4, "三".into())]
+    );
+    // ⌘Z: the sentence is back as it was, and so is its answer.
+    saved::follow(
+        dir.path(),
+        "/a.mp3",
+        |i| if i <= 2 { i.min(1) } else { i - 1 },
+    )
+    .unwrap();
+    assert_eq!(kept(&all).len(), 4);
+    // Nothing kept: nothing written.
+    saved::follow(dir.path(), "/b.mp3", |i| i).unwrap();
+    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+}

@@ -10,10 +10,11 @@ import { createPracticeSlice, type PracticeState } from "./practiceSlice";
 import { createProofreadSlice, type ProofreadState } from "./proofreadSlice";
 import { createReadingSlice, type ReadingState } from "./readingSlice";
 import { createRecordSlice, micOpen, type RecordState } from "./recordSlice";
+import { createReshapeSlice, type ReshapeState } from "./reshapeSlice";
 import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./transcriptSlice";
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState {
+export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -176,6 +177,7 @@ export const useApp = create<AppState>((set, get) => {
     shelfOpen: loadShelfOpen(),
     ...createTranscriptSlice(set, get, engine, applyLoop),
     ...createCorrectSlice(set, get),
+    ...createReshapeSlice(set, get, engine, applyLoop),
     ...createProofreadSlice(set, get),
     ...createExplainSlice(set, get),
     ...createGuideSlice(set, get, engine),

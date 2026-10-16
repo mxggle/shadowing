@@ -1,5 +1,5 @@
-import { BetweenHorizontalStart, FileUp, Languages, PenLine, Play, Repeat, Replace, Trash2 } from "lucide-react";
-import { Fragment, memo, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { BetweenHorizontalStart, FileUp, FoldVertical, Languages, PenLine, Play, Repeat, Replace, Trash2 } from "lucide-react";
+import { Fragment, memo, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type RefObject } from "react";
 import type { Sentence, Suggestion } from "../lib/api";
 import { explainKey, type Explain } from "../explainSlice";
 import { sectionIndexOf, sectionsOf } from "../lib/sections";
@@ -107,6 +107,7 @@ export function SentenceList() {
                   turn={voices && startsTurn(sentences, i)}
                   opensSection={headed && k !== undefined}
                   canSplit={i > 0 && k === undefined}
+                  last={i === sentences.length - 1}
                 />
               </Fragment>
             );
@@ -176,7 +177,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
  * One sentence. With more than one voice (`voices`), a column names the
  * speaker where their turn starts (`turn`), like a script, and turns get a little air between them.
  */
-const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, takes, recorder, peek, reading, voices, turn, opensSection, canSplit }: {
+const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, takes, recorder, peek, reading, voices, turn, opensSection, canSplit, last }: {
   index: number;
   sentence: Sentence;
   active: boolean;
@@ -201,8 +202,10 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
   opensSection: boolean;
   /** A new section may start here: not the first sentence, nor one that starts a section already. */
   canSplit: boolean;
+  /** The last sentence: nothing after it to join. */
+  last: boolean;
 }) {
-  const { playSentence, toggleSentenceLoop, editSentence, toggleExplain, splitSection } = useApp.getState();
+  const { playSentence, toggleSentenceLoop, editSentence, toggleExplain, splitSection, mergeSentence } = useApp.getState();
   const explaining = !!explain?.open;
   const tone = reading ? "bg-danger-soft" : looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";
   const lit = active || looping || recorder;
@@ -274,22 +277,19 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
           <Languages size={14} strokeWidth={2.1} />
         </button>
         {canSplit && !editing && (
-          <button
-            title="从这句开始新段"
-            onClick={() => splitSection(index)}
-            className="grid size-[28px] place-items-center rounded-[8px] text-muted opacity-0 transition-[opacity,background-color,color,scale] duration-150 group-hover:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100 active:scale-90"
-          >
+          <HoverButton title="从这句开始新段" onClick={() => splitSection(index)}>
             <BetweenHorizontalStart size={14} strokeWidth={2.1} />
-          </button>
+          </HoverButton>
         )}
         {!editing && (
-          <button
-            title="修改这一句 (E)"
-            onClick={() => editSentence(index)}
-            className="grid size-[28px] place-items-center rounded-[8px] text-muted opacity-0 transition-[opacity,background-color,color,scale] duration-150 group-hover:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100 active:scale-90"
-          >
+          <HoverButton title="修改这一句 (E)" onClick={() => editSentence(index)}>
             <PenLine size={14} strokeWidth={2.1} />
-          </button>
+          </HoverButton>
+        )}
+        {!editing && !last && (
+          <HoverButton title="与下一句合并" onClick={() => void mergeSentence(index)}>
+            <FoldVertical size={14} strokeWidth={2.1} />
+          </HoverButton>
         )}
         <button
           title={looping ? "取消循环 (S)" : "循环这一句 (S)"}
@@ -311,6 +311,16 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
     </div>
   );
 });
+
+/** A row action that shows while the pointer is over the row. */
+function HoverButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      {...props}
+      className="grid size-[28px] place-items-center rounded-[8px] text-muted opacity-0 transition-[opacity,background-color,color,scale] duration-150 group-hover:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100 active:scale-90"
+    />
+  );
+}
 
 /** How far through the sentence playback is: a short line under its time. */
 function Meter({ sentence, looping }: { sentence: Sentence; looping: boolean }) {

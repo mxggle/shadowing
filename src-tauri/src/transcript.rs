@@ -75,7 +75,7 @@ impl Transcript {
 
     /// Changed by the learner: the copy in app data is now the app's own, and
     /// the file beside the audio stays untouched.
-    fn own(&mut self) {
+    pub(crate) fn own(&mut self) {
         if self.source == Source::Sidecar {
             self.source = Source::Imported;
         }
@@ -173,14 +173,17 @@ pub fn find_sidecar(audio: &Path) -> Option<PathBuf> {
 }
 
 /// Canonical audio path (approved folder or bundled samples), plus the transcripts dir.
-fn authorize(state: &AppState, path: &str) -> Result<(PathBuf, String, PathBuf), String> {
+pub(crate) fn authorize(
+    state: &AppState,
+    path: &str,
+) -> Result<(PathBuf, String, PathBuf), String> {
     let audio = state.audio(path)?;
     let key = audio.to_string_lossy().into_owned();
     Ok((audio, key, state.data_dir().join("transcripts")))
 }
 
 /// What a track shows: the transcript saved for it, else a subtitle file next to it.
-fn current(state: &AppState, audio: &Path, dir: &Path, key: &str) -> Option<Transcript> {
+pub(crate) fn current(state: &AppState, audio: &Path, dir: &Path, key: &str) -> Option<Transcript> {
     load(dir, key).or_else(|| {
         find_sidecar(audio)
             .and_then(|p| state.allowed(&p))

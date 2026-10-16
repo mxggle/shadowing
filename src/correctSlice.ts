@@ -1,8 +1,10 @@
 // Correcting part of the single store: editing one sentence's text, find and
-// replace across all of them, and undo. Every change goes through `applyEdits`.
+// replace across all of them, and undo. Every change of text goes through
+// `applyEdits`; cutting and joining sentences is in reshapeSlice.ts.
 import { api, type SentenceEdit } from "./lib/api";
 import { changedWord, matchingSentences, replaceEdits } from "./lib/edits";
 import { sentenceIndexAt } from "./lib/sentences";
+import type { Shape } from "./reshapeSlice";
 import type { AppState } from "./store";
 
 /** A sentence being corrected, with what has been typed so far. */
@@ -11,7 +13,12 @@ export interface Draft {
   index: number;
   original: string;
   text: string;
+  /** Where the cursor starts (default: the end). */
+  caret?: number;
 }
+
+/** One ⌘Z: earlier text of corrected sentences, or the sentences a cut or join replaced. */
+export type UndoStep = { edits: SentenceEdit[] } | { shape: Shape };
 
 /** The find-and-replace bar over the sentence list. */
 export interface ReplaceBar {
@@ -28,8 +35,8 @@ export interface ReplaceBar {
 export interface CorrectState {
   editing: Draft | null;
   replace: ReplaceBar | null;
-  /** Earlier text of corrected sentences, newest last, for ⌘Z. */
-  undo: SentenceEdit[][];
+  /** What ⌘Z takes back, newest last. */
+  undo: UndoStep[];
 
   /** Correct a sentence's text (default: the current one); one already open is saved first. */
   editSentence(i?: number): void;
@@ -46,8 +53,10 @@ export interface CorrectState {
   setReplace(fields: { find?: string; with?: string }): void;
   closeReplace(): void;
   replaceAll(): Promise<void>;
-  /** Puts back the text from before the last correction or replacement. */
+  /** Takes back the last correction, replacement, cut or join. */
   undoEdit(): Promise<void>;
+  /** Adds a step for ⌘Z to take back (only the latest are kept). */
+  rememberUndo(step: UndoStep): void;
   /** Applies edits as one undo step; false when they couldn't be saved. */
   applyEdits(edits: SentenceEdit[]): Promise<boolean>;
   /** After a correction: offers to replace `from` in the sentences that still have it. */
@@ -145,8 +154,12 @@ export function createCorrectSlice(set: Set, get: Get): CorrectState {
 
     async applyEdits(edits) {
       const previous = await commit(edits);
-      if (previous) set({ undo: [...get().undo, previous].slice(-UNDO_LIMIT) });
+      if (previous) get().rememberUndo({ edits: previous });
       return !!previous;
+    },
+
+    rememberUndo(step) {
+      set({ undo: [...get().undo, step].slice(-UNDO_LIMIT) });
     },
 
     offerReplace(from, to) {
@@ -193,11 +206,11 @@ export function createCorrectSlice(set: Set, get: Get): CorrectState {
       const last = undo[undo.length - 1];
       if (!last) return;
       set({ undo: undo.slice(0, -1) });
-      const restored = await commit(last);
+      const restored = "shape" in last ? await get().restoreShape(last.shape) : !!(await commit(last.edits));
       if (!restored && get().current === current) set({ undo }); // not saved: keep it to try again
       // A sentence open for correction whose text was just put back starts over.
       const open = get().editing;
-      if (restored && open && last.some((e) => e.index === open.index)) set({ editing: null });
+      if (restored && open && "edits" in last && last.edits.some((e) => e.index === open.index)) set({ editing: null });
       const bar = get().replace;
       if (restored && bar && bar.replaced !== null) set({ replace: { ...bar, replaced: null } });
     },

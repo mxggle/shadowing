@@ -36,18 +36,29 @@ fn still_current(answer: &Saved, sentences: &[Sentence]) -> bool {
     sentences.get(answer.index).map(|s| &s.text) == Some(&answer.text)
 }
 
-/// The track's answers that still match its sentences.
-pub fn load(dir: &Path, audio: &str, sentences: &[Sentence]) -> Vec<Saved> {
+/// Everything kept for a track, whether or not its sentences still say the same.
+fn read(dir: &Path, audio: &str) -> Vec<Saved> {
     let Ok(text) = std::fs::read_to_string(path(dir, audio)) else {
         return Vec::new();
     };
-    let Ok(file) = serde_json::from_str::<File>(&text) else {
-        return Vec::new();
-    };
-    if file.audio != audio {
-        return Vec::new();
+    match serde_json::from_str::<File>(&text) {
+        Ok(file) if file.audio == audio => file.answers,
+        _ => Vec::new(),
     }
-    file.answers
+}
+
+fn write(dir: &Path, audio: &str, answers: Vec<Saved>) -> std::io::Result<()> {
+    let file = File {
+        version: 1,
+        audio: audio.to_string(),
+        answers,
+    };
+    store::write_atomic(&path(dir, audio), &serde_json::to_vec(&file)?)
+}
+
+/// The track's answers that still match its sentences.
+pub fn load(dir: &Path, audio: &str, sentences: &[Sentence]) -> Vec<Saved> {
+    read(dir, audio)
         .into_iter()
         .filter(|a| still_current(a, sentences))
         .collect()
@@ -60,12 +71,23 @@ pub fn save(dir: &Path, audio: &str, sentences: &[Sentence], answer: Saved) -> s
     let mut answers = load(dir, audio, sentences);
     answers.retain(|a| a.index != answer.index);
     answers.push(answer);
-    let file = File {
-        version: 1,
-        audio: audio.to_string(),
-        answers,
-    };
-    store::write_atomic(&path(dir, audio), &serde_json::to_vec(&file)?)
+    write(dir, audio, answers)
+}
+
+/// Sentences were cut or joined: answers move with their sentences (`moved`
+/// says where sentence i is now). One for a sentence that changed no longer
+/// matches its words, so it isn't given back; it's moved to the first of the
+/// new sentences, and given back again if ⌘Z puts the sentence back as it was.
+pub fn follow(dir: &Path, audio: &str, moved: impl Fn(usize) -> usize) -> std::io::Result<()> {
+    let _writing = WRITING.lock().unwrap_or_else(|e| e.into_inner());
+    let mut answers = read(dir, audio);
+    if answers.is_empty() {
+        return Ok(());
+    }
+    for a in &mut answers {
+        a.index = moved(a.index);
+    }
+    write(dir, audio, answers)
 }
 
 pub fn remove(dir: &Path, audio: &str) -> std::io::Result<()> {

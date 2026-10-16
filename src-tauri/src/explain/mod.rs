@@ -100,6 +100,14 @@ fn track(state: &AppState, path: &str) -> Result<(String, transcript::Transcript
     Ok((audio, transcript))
 }
 
+/// Moves a track's answers along with its sentences, after some were cut or
+/// joined (`moved`: where sentence i is now; see `saved::follow`).
+pub fn follow(state: &AppState, audio: &str, moved: impl Fn(usize) -> usize) {
+    if let Err(e) = saved::follow(&dir(state), audio, moved) {
+        eprintln!("could not move the kept explanations: {e}");
+    }
+}
+
 /// Forgets a track's answers (its transcript was removed).
 pub fn forget(state: &AppState, audio: &str) {
     let _ = saved::remove(&dir(state), audio);

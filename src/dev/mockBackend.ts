@@ -5,6 +5,7 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import type { AiConfig, Explanation, Feature, PracticeSession, Preset, SavedExplanation, Section, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
 import { fresh, samples, sampleTranscripts } from "./mockSamples";
 import { mockRecord, seedTakes, stopClip } from "./mockRecorder";
+import { mockReshape } from "./mockReshape";
 
 const root = "/Mock/日本語ポッドキャスト";
 const tracks: Track[] = [
@@ -319,6 +320,10 @@ export function installMockBackend() {
           transcripts.set(a.path, edited);
           return edited;
         }
+        case "transcript_split":
+        case "transcript_merge":
+        case "transcript_restore":
+          return mockReshape(cmd, a, transcripts, keptExplanations);
         case "transcript_sections": {
           const t = transcripts.get(a.path);
           if (!t) throw "这个音频没有字幕";
