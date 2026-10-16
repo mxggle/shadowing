@@ -2,7 +2,7 @@
 // Simulates the Rust commands and player:* events; no real audio.
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { AiConfig, Explanation, Feature, PracticeSession, Preset, SavedExplanation, Section, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
+import type { AiConfig, Explanation, Feature, PackInfo, PracticeSession, Preset, SavedExplanation, Section, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
 import { fresh, samples, sampleTranscripts } from "./mockSamples";
 import { mockRecord, seedTakes, stopClip } from "./mockRecorder";
 
@@ -243,6 +243,43 @@ const practiceLog: PracticeSession[] = [];
   }
 }
 
+// 素材库: one pack, downloaded in ~3 s; its tracks come with speakers' names and explanations.
+const packRoot = "/App/素材库";
+const pack: PackInfo = {
+  id: "tokyo-daily",
+  version: 1,
+  title: "东京日常会话",
+  description: "便利店、餐厅、车站、诊所、问路、打工面试……10 段两个人的对话，每段 30–60 秒。",
+  language: "ja",
+  level: "N5–N4",
+  voice: "ai",
+  tracks: 10,
+  duration: 452,
+  size: 3_870_000,
+  installed: null,
+  folder: null,
+  available: true,
+};
+const packTracks: Track[] = ["01 コンビニで", "02 レストランで", "03 駅の窓口で"].map((name) => ({ path: `${packRoot}/东京日常会话/${name}.mp3`, name, relDir: "东京日常会话", size: 380_000 }));
+let packTimer = 0;
+let packCancelled = false;
+function mockPackDownload() {
+  let done = 0;
+  packCancelled = false;
+  packTimer = window.setInterval(() => {
+    const end = (s: object) => (window.clearInterval(packTimer), (packTimer = 0), void emit("packs:download", { id: pack.id, ...s }));
+    if (packCancelled) return end({ state: "cancelled" });
+    done = Math.min(pack.size, done + pack.size / 12);
+    if (done < pack.size) return void emit("packs:download", { state: "running", id: pack.id, done, total: pack.size });
+    Object.assign(pack, { installed: 1, folder: "东京日常会话" });
+    for (const t of packTracks) {
+      transcripts.set(t.path, { ...mockTranscript("素材库 · 东京日常会话", 12, true), speakers: ["店員", "客"] });
+      keptExplanations.set(t.path, lines.slice(0, 12).map((text, index) => ({ index, text, explanation: { source: "Shadowing 素材库", translation: `（演示）第 ${index + 1} 句的翻译。`, words: [], points: [] } })));
+    }
+    end({ state: "done" });
+  }, 250);
+}
+
 export function installMockBackend() {
   const snapshot: Snapshot = {
     folder: fresh ? null : { root, name: "日本語ポッドキャスト", tracks },
@@ -253,7 +290,7 @@ export function installMockBackend() {
       [tracks[0].path]: { position: 178, duration: 180, updatedAt: 0 },
       [tracks[1].path]: { position: 64, duration: 200, updatedAt: 0 },
     },
-    guide: { welcomed: !fresh, language: fresh ? "" : "ja", practiced: !fresh, tips: [] },
+    guide: { welcomed: !fresh, language: fresh ? "" : "ja", practiced: !fresh, tips: [], mode: fresh ? "" : "expert" },
   };
   mockIPC(
     (cmd, args) => {
@@ -389,6 +426,20 @@ export function installMockBackend() {
           return aiConfig;
         case "transcribe_start":
           return mockTranscribe(a.path, a.language, a.keep);
+        case "packs_catalog":
+          return delay(300).then(() => ({ packs: [pack], error: null, downloading: packTimer ? pack.id : null, root: packRoot }));
+        case "packs_download":
+          return mockPackDownload();
+        case "packs_cancel":
+          packCancelled = true;
+          return;
+        case "packs_remove":
+          Object.assign(pack, { installed: null, folder: null });
+          for (const t of packTracks) transcripts.delete(t.path);
+          return snapshot.folder?.root === packRoot ? null : snapshot.folder;
+        case "packs_open":
+          snapshot.folder = { root: packRoot, name: "素材库", tracks: packTracks };
+          return { folder: snapshot.folder, first: packTracks[0].path };
         case "sample_track":
           return samples[a.language === "ja" ? "ja" : "en"];
         case "guide_save":

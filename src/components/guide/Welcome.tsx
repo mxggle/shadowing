@@ -1,21 +1,24 @@
 import { FolderOpen, Pause, Repeat } from "lucide-react";
 import { useApp } from "../../store";
+import { PacksPage } from "../packs/Packs";
 import { TextLink } from "../ui";
 import { Onboarding } from "./Onboarding";
 
 /**
  * Shown while no folder is open. The first time it is the onboarding;
- * afterwards it's just "open a folder" (with the practice still a click away).
+ * afterwards a beginner gets the 素材库 and everyone else "open a folder"
+ * (with the practice and the 素材库 still a click away).
  */
 export function Welcome() {
   const guide = useApp((s) => s.guide);
-  return guide.welcomed ? <Returning /> : <Onboarding />;
+  if (!guide.welcomed) return <Onboarding />;
+  return guide.mode === "beginner" ? <PacksPage /> : <Returning />;
 }
 
 function Returning() {
   const guide = useApp((s) => s.guide);
   const missing = useApp((s) => s.missingFolder);
-  const { chooseFolder, startPractice } = useApp.getState();
+  const { chooseFolder, startPractice, setPacksOpen } = useApp.getState();
 
   return (
     <div data-tauri-drag-region className="scrollbar-none flex h-full items-center justify-center overflow-y-auto bg-paper px-10 py-12">
@@ -34,9 +37,10 @@ function Returning() {
           <BigButton onClick={() => void chooseFolder()}>
             <FolderOpen size={16} strokeWidth={1.9} /> 打开文件夹
           </BigButton>
-          <TextLink className="mt-5" onClick={() => void startPractice()}>
-            先用示例练一下
-          </TextLink>
+          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2">
+            <TextLink onClick={() => void startPractice()}>先用示例练一下</TextLink>
+            <TextLink onClick={() => setPacksOpen(true)}>素材库：下载现成的练习素材</TextLink>
+          </div>
         </div>
         <Preview language={guide.language === "en" ? "en" : "ja"} />
       </div>

@@ -168,6 +168,8 @@ export interface Guide {
   practiced: boolean;
   /** Contextual tips already shown once. */
   tips: string[];
+  /** How the learner started: ready-made packs ("beginner"), own audio and AI ("expert"); "" before choosing. */
+  mode: "" | "beginner" | "expert";
 }
 
 export interface Snapshot {
@@ -225,6 +227,8 @@ export interface Transcript {
   edited?: boolean;
   /** Where each section starts, the first at sentence 0 (missing = one section). */
   sections?: Section[];
+  /** Names for the voices by `Sentence.speaker` (店員, 客); A, B… without. */
+  speakers?: string[];
 }
 
 /** A word the AI thinks was misheard, shown under its sentence until accepted or ignored. */
@@ -356,6 +360,47 @@ export type DownloadStatus =
 
 export const LOCAL_PROVIDER = "local";
 
+/** A ready-made practice pack in 素材库 (src-tauri/src/packs). */
+export interface PackInfo {
+  id: string;
+  /** Goes up when the pack changes. */
+  version: number;
+  title: string;
+  description: string;
+  language: string;
+  /** "N5–N4" */
+  level: string;
+  /** "ai": voiced by speech synthesis (AI 配音). */
+  voice: string;
+  tracks: number;
+  /** Seconds of audio in all. */
+  duration: number;
+  /** Bytes to download. */
+  size: number;
+  /** Version on this Mac, if downloaded. */
+  installed: number | null;
+  /** Its folder in the library, if downloaded. */
+  folder: string | null;
+  /** On the server now (false: only the copy on this Mac is known, e.g. offline). */
+  available: boolean;
+}
+
+export interface Catalog {
+  packs: PackInfo[];
+  /** Why the server's list couldn't be read; downloaded packs still show. */
+  error: string | null;
+  downloading: string | null;
+  /** The packs folder (open in the library like any folder). */
+  root: string;
+}
+
+/** `packs:download` events; done/total in bytes. */
+export type PackStatus =
+  | { state: "running"; id: string; done: number; total: number }
+  | { state: "done"; id: string }
+  | { state: "failed"; id: string; message: string }
+  | { state: "cancelled"; id: string };
+
 /** A newer version on GitHub Releases. */
 export interface AvailableUpdate {
   version: string;
@@ -428,6 +473,17 @@ export const api = {
     download: (id: string) => invoke<void>("local_download", { id }),
     cancel: () => invoke<void>("local_cancel_download"),
     remove: (id: string) => invoke<LocalOverview>("local_delete", { id }),
+  },
+  packs: {
+    /** The server's list merged with what's downloaded. */
+    catalog: () => invoke<Catalog>("packs_catalog"),
+    /** Progress arrives as `packs:download`. */
+    download: (id: string) => invoke<void>("packs_download", { id }),
+    cancel: () => invoke<void>("packs_cancel"),
+    /** Deletes it; returns the open folder as it is now (null once the packs folder is left empty). */
+    remove: (id: string) => invoke<FolderListing | null>("packs_remove", { id }),
+    /** Opens the packs folder in the library; `first` is the pack's first track. */
+    open: (id: string) => invoke<{ folder: FolderListing; first: string | null }>("packs_open", { id }),
   },
   transcribe: {
     /**

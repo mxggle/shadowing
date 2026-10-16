@@ -3,7 +3,7 @@ import { Fragment, memo, useEffect, useMemo, useRef, useState, type RefObject } 
 import type { Sentence, Suggestion } from "../lib/api";
 import { explainKey, type Explain } from "../explainSlice";
 import { sectionIndexOf, sectionsOf } from "../lib/sections";
-import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
+import { sentenceIndexAt, speakerCount, speakerName, speakerWidth, startsTurn } from "../lib/sentences";
 import { partAt } from "../lib/readings";
 import { sentenceOf, takeCounts } from "../lib/takes";
 import { formatTime } from "../lib/time";
@@ -70,6 +70,7 @@ export function SentenceList() {
   const starts = useMemo(() => new Map(sections.map((x, k) => [x.start, k])), [sections]);
   const activeSection = active < 0 ? -1 : sectionIndexOf(sections, active);
   const voices = speakerCount(sentences) > 1;
+  const names = useApp((s) => s.transcript?.speakers);
   const list = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
   // Hold the list still while a sentence is corrected, matches are looked through, or you're recording.
@@ -104,6 +105,7 @@ export function SentenceList() {
                   recorder={recordAt === i}
                   peek={i === peekAt}
                   voices={voices}
+                  names={names}
                   turn={voices && startsTurn(sentences, i)}
                   opensSection={headed && k !== undefined}
                   canSplit={i > 0 && k === undefined}
@@ -176,7 +178,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
  * One sentence. With more than one voice (`voices`), a column names the
  * speaker where their turn starts (`turn`), like a script, and turns get a little air between them.
  */
-const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, takes, recorder, peek, reading, voices, turn, opensSection, canSplit }: {
+const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, takes, recorder, peek, reading, voices, names, turn, opensSection, canSplit }: {
   index: number;
   sentence: Sentence;
   active: boolean;
@@ -196,6 +198,8 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
   /** The sentence being read now, in a paragraph recording. */
   reading: boolean;
   voices: boolean;
+  /** The voices' names (店員, 客), when the transcript has them. */
+  names?: string[];
   turn: boolean;
   /** First sentence under a section heading (the heading already gives it air). */
   opensSection: boolean;
@@ -206,10 +210,11 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
   const explaining = !!explain?.open;
   const tone = reading ? "bg-danger-soft" : looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";
   const lit = active || looping || recorder;
-  const columns = voices ? "grid-cols-[3.25rem_1.75rem_1fr_auto]" : "grid-cols-[3.25rem_1fr_auto]";
+  const columns = voices ? "" : "grid-cols-[3.25rem_1fr_auto]";
   return (
     <div
       data-index={index}
+      style={voices ? { gridTemplateColumns: `3.25rem ${speakerWidth(names)}rem 1fr auto` } : undefined}
       className={`group grid ${columns} items-start gap-x-2 rounded-[12px] py-2 pr-1.5 pl-2 transition-colors duration-200 [contain-intrinsic-size:auto_48px] [content-visibility:auto] ${tone} ${turn && index > 0 && !opensSection ? "mt-3" : "mt-0.5"}`}
     >
       <div className="flex flex-col items-start">
@@ -237,10 +242,10 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
         <span className="flex h-[30px] items-center">
           {turn && sentence.speaker !== undefined && (
             <span
-              title={`说话人 ${speakerName(sentence.speaker)}`}
-              className={`tint grid size-5 place-items-center rounded-[5px] font-mono text-[11px] font-medium ${lit ? "text-fg" : "text-muted"}`}
+              title={`说话人 ${speakerName(sentence.speaker, names)}`}
+              className={`tint grid h-5 min-w-5 place-items-center rounded-[5px] text-[11px] font-medium whitespace-nowrap ${names?.length ? "px-1.5" : "font-mono"} ${lit ? "text-fg" : "text-muted"}`}
             >
-              {speakerName(sentence.speaker)}
+              {speakerName(sentence.speaker, names)}
             </span>
           )}
         </span>

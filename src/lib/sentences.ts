@@ -51,8 +51,16 @@ export function stepTarget(sentences: Sentence[], t: number, direction: 1 | -1):
 export const speakerCount = (sentences: Sentence[]) =>
   sentences.reduce((n, s) => (s.speaker === undefined ? n : Math.max(n, s.speaker + 1)), 0);
 
-/** "A", "B", … for speaker 0, 1, … */
-export const speakerName = (speaker: number) => String.fromCharCode(65 + speaker);
+/** The voice's name when the transcript has names (店員, 客), else "A", "B", … for speaker 0, 1, … */
+export const speakerName = (speaker: number, names?: string[]) => names?.[speaker]?.trim() || String.fromCharCode(65 + speaker);
+
+/** Width (rem) of the column naming the speakers: one letter, or the longest name. */
+export function speakerWidth(names?: string[]): number {
+  // A Latin letter is about half as wide as a CJK character.
+  const width = (name: string) => [...name.trim()].reduce((w, c) => w + (c.charCodeAt(0) < 0x2e80 ? 0.4 : 0.72), 0);
+  const longest = Math.max(0, ...(names ?? []).map(width));
+  return longest ? Math.max(1.75, Math.round((longest + 0.75) * 4) / 4) : 1.75;
+}
 
 /** A sentence that starts someone's turn: its speaker is known and differs from the one before. */
 export function startsTurn(sentences: Sentence[], i: number): boolean {

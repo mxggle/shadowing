@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Sentence } from "./api";
-import { sentenceIndexAt, sentenceLoop, speakerCount, speakerName, startsTurn, stepTarget } from "./sentences";
+import { sentenceIndexAt, sentenceLoop, speakerCount, speakerName, speakerWidth, startsTurn, stepTarget } from "./sentences";
 
 const s = (start: number, end: number): Sentence => ({ start, end, text: "" });
 const list = [s(1, 3), s(4, 6), s(10, 12)];
@@ -67,6 +67,17 @@ describe("speakers", () => {
   });
 
   it("names speakers A, B, C", () => {
-    expect([0, 1, 2].map(speakerName)).toEqual(["A", "B", "C"]);
+    expect([0, 1, 2].map((i) => speakerName(i))).toEqual(["A", "B", "C"]);
+    expect([0, 1, 2].map((i) => speakerName(i, ["店員", " 客 "]))).toEqual(["店員", "客", "C"]);
+  });
+});
+
+describe("speakerWidth", () => {
+  it("fits one letter without names, and the longest name with them", () => {
+    expect(speakerWidth()).toBe(1.75);
+    expect(speakerWidth([])).toBe(1.75);
+    expect(speakerWidth(["客", "A"])).toBe(1.75);
+    expect(speakerWidth(["店員", "客"])).toBe(2.25);
+    expect(speakerWidth(["お客さん", "店長"])).toBe(3.75);
   });
 });

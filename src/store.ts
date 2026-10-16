@@ -6,6 +6,7 @@ import { api, type AiConfig, type AiOverview, type DownloadStatus, type FolderLi
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createExplainSlice, type ExplainState } from "./explainSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
+import { createPacksSlice, type PacksState } from "./packsSlice";
 import { createPracticeSlice, type PracticeState } from "./practiceSlice";
 import { createProofreadSlice, type ProofreadState } from "./proofreadSlice";
 import { createReadingSlice, type ReadingState } from "./readingSlice";
@@ -13,7 +14,7 @@ import { createRecordSlice, micOpen, type RecordState } from "./recordSlice";
 import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./transcriptSlice";
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState {
+export interface AppState extends TranscriptState, CorrectState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, PacksState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -43,6 +44,10 @@ export interface AppState extends TranscriptState, CorrectState, ProofreadState,
   setAiConfig(config: AiConfig): void;
   setLocal(local: LocalOverview): void;
   chooseFolder(): Promise<void>;
+  /** Makes `folder` the open one; whatever was playing stops. */
+  showFolder(folder: FolderListing): void;
+  /** Stops and closes the current track (nothing plays, nothing is open). */
+  closeTrack(): void;
   rescan(): Promise<void>;
   open(track: Track, autoplay?: boolean): void;
   toggle(): void;
@@ -183,6 +188,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createUpdateSlice(set, get),
     ...createRecordSlice(set, get, engine, persistSettings),
     ...createReadingSlice(set, get, engine, persistSettings),
+    ...createPacksSlice(set, get),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
@@ -206,7 +212,7 @@ export const useApp = create<AppState>((set, get) => {
 
     setSettingsOpen(settingsOpen) {
       // One overlay at a time: ⌘, while the AI wizard is open replaces it (as the wizard replaces settings).
-      set(settingsOpen ? { settingsOpen, wizardOpen: false, statsOpen: false } : { settingsOpen });
+      set(settingsOpen ? { settingsOpen, wizardOpen: false, statsOpen: false, packsOpen: false } : { settingsOpen });
     },
     toggleShelf() {
       const shelfOpen = !get().shelfOpen;
@@ -229,15 +235,23 @@ export const useApp = create<AppState>((set, get) => {
 
     async chooseFolder() {
       const folder = await api.chooseFolder();
-      if (!folder) return;
+      if (folder) get().showFolder(folder);
+    },
+
+    showFolder(folder) {
+      get().closeTrack();
+      set({ folder, missingFolder: null, error: null, practicing: false });
+      if (!get().guide.welcomed) get().saveGuide({ welcomed: true });
+    },
+
+    closeTrack() {
       saveProgress(true);
       get().cancelTake();
       get().stopTake();
       get().cancelReading();
       get().stopReadingPlayback();
       engine.unload();
-      set({ takes: [], readings: [], rec: null, live: null, recordAt: null, folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, practicing: false });
-      if (!get().guide.welcomed) get().saveGuide({ welcomed: true });
+      set({ takes: [], readings: [], rec: null, live: null, recordAt: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, transcript: null, loopSentence: null, loopSection: null });
     },
 
     async rescan() {

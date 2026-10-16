@@ -81,6 +81,12 @@ export function SettingsDialog() {
               onClick={() => void useApp.getState().startPractice()}
             />
             <GuideRow
+              title="素材库"
+              description="下载现成的练习素材：字幕、说话人和每一句的解释都准备好了，不用设置 AI。"
+              action="打开"
+              onClick={() => useApp.getState().setPacksOpen(true)}
+            />
+            <GuideRow
               title="AI 设置向导"
               description="一步步设置转写和句子解释，最后用示例音频试一次。"
               action="打开"

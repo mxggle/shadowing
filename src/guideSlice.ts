@@ -10,6 +10,7 @@ export const TIPS = {
   sentenceLoop: "下次可以直接按 S 循环当前句，[ 和 ] 换到上一句 / 下一句。",
   rate: "按 − 和 = 也能调速度。",
   abLoop: "按 L 依次设 A、设 B、取消循环。",
+  pack: "点任意一句，从那句开始听；鼠标移到句子上，点右边的「文A」（或按 I）看翻译和生词。",
 } as const;
 export type TipId = keyof typeof TIPS;
 
@@ -43,7 +44,7 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
   let hintTimer = 0;
 
   return {
-    guide: { welcomed: false, language: "", practiced: false, tips: [] },
+    guide: { welcomed: false, language: "", practiced: false, tips: [], mode: "" },
     sample: null,
     practicing: false,
     wizardOpen: false,
@@ -82,7 +83,7 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
     },
 
     setWizardOpen(wizardOpen) {
-      set({ wizardOpen, settingsOpen: false, statsOpen: false });
+      set({ wizardOpen, settingsOpen: false, statsOpen: false, packsOpen: false });
     },
 
     tip(id) {

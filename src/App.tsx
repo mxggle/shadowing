@@ -4,6 +4,7 @@ import { AiWizard } from "./components/guide/AiWizard";
 import { Hint } from "./components/guide/Hint";
 import { Welcome } from "./components/guide/Welcome";
 import { Library, ShelfToggle } from "./components/Library";
+import { PacksButton, PacksDialog } from "./components/packs/Packs";
 import { PlayerBar } from "./components/PlayerBar";
 import { PracticeDialog } from "./components/Practice";
 import { PracticeButton } from "./components/PracticeGoal";
@@ -47,6 +48,7 @@ export default function App() {
     return (
       <>
         <Welcome />
+        <PacksDialog />
         <AiWizard />
         <UpdateNotice />
       </>
@@ -82,6 +84,7 @@ export default function App() {
             </>
           )}
           <Breadcrumb />
+          <PacksButton />
           <PracticeButton />
           <ShortcutHelp />
           <SettingsButton />
@@ -92,6 +95,7 @@ export default function App() {
       </main>
       <SettingsDialog />
       <PracticeDialog />
+      <PacksDialog />
       <AiWizard />
       <UpdateNotice />
     </div>

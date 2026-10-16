@@ -20,13 +20,31 @@ const FEATURES: [LucideIcon, string, string][] = [
 
 const STEPS = ["介绍", "本机转写", "登录 AI", "开始"] as const;
 
+type Path = "beginner" | "expert";
+
+const PATHS: { id: Path; title: string; text: string }[] = [
+  {
+    id: "beginner",
+    title: "我是新手，帮我全部弄好",
+    text: "直接下载现成的日语练习素材：字幕、说话人、每一句的翻译和讲解都准备好了。不用下载模型，也不用设置 AI。",
+  },
+  {
+    id: "expert",
+    title: "我会自己配置",
+    text: "练自己的音频，日语、英语都可以：在这台 Mac 上下载 Whisper 模型转写字幕，再登录 AI 解释句子。",
+  },
+];
+
 /**
- * First launch: what the app does and which language, then the two optional
- * AI pieces (a Whisper model for this Mac, a sign-in for explanations), then
- * the sample practice or the learner's own folder. Every choice is saved as
- * it is made, so quitting halfway loses nothing.
+ * First launch starts with a fork. A beginner goes straight to the 素材库
+ * (ready-made packs, nothing to set up). Otherwise: what the app does and which
+ * language, then the two optional AI pieces (a Whisper model for this Mac, a
+ * sign-in for explanations), then the sample practice or the learner's own
+ * folder. Every choice is saved as it is made, so quitting halfway loses nothing.
  */
 export function Onboarding() {
+  const chose = useApp((s) => s.guide.mode === "expert");
+  const [choosing, setChoosing] = useState(!chose);
   const [step, setStep] = useState(0);
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
 
@@ -34,20 +52,21 @@ export function Onboarding() {
     <div data-tauri-drag-region className="scrollbar-none h-full overflow-y-auto bg-paper px-10">
       {/* my-auto centres short steps and leaves room above and below when a step is taller than the window. */}
       <div className="mx-auto flex min-h-full w-full max-w-[880px] flex-col pt-10 pb-16">
-        <Steps step={step} onPick={setStep} />
-        <div key={step} className="my-auto flex animate-fade-in flex-col pt-12">
-          {step === 0 && <Intro onNext={next} />}
-          {step === 1 && (
+        {!choosing && <Steps step={step} onPick={setStep} />}
+        <div key={choosing ? "choose" : step} className="my-auto flex animate-fade-in flex-col pt-12">
+          {choosing && <Choose onExpert={() => setChoosing(false)} />}
+          {!choosing && step === 0 && <Intro onNext={next} onBack={() => setChoosing(true)} />}
+          {!choosing && step === 1 && (
             <Page title="在这台 Mac 上转写" onBack={() => setStep(0)} onNext={next} feature="transcribe">
               <ModelStep />
             </Page>
           )}
-          {step === 2 && (
+          {!choosing && step === 2 && (
             <Page title="登录 AI 服务" onBack={() => setStep(1)} onNext={next} feature="chat">
               <AccountStep />
             </Page>
           )}
-          {step === 3 && <Start onBack={() => setStep(2)} />}
+          {!choosing && step === 3 && <Start onBack={() => setStep(2)} />}
         </div>
       </div>
     </div>
@@ -84,7 +103,74 @@ function Steps({ step, onPick }: { step: number; onPick: (i: number) => void }) 
   );
 }
 
-function Intro({ onNext }: { onNext: () => void }) {
+/** Which way to start: everything done for you (recommended), or set it up yourself. */
+function Choose({ onExpert }: { onExpert: () => void }) {
+  const [pick, setPick] = useState<Path>("beginner");
+  const missing = useApp((s) => s.missingFolder);
+  const { saveGuide, setTranscribeLanguage } = useApp.getState();
+
+  function go() {
+    if (pick === "expert") {
+      saveGuide({ mode: "expert" });
+      onExpert();
+      return;
+    }
+    // The packs are Japanese; nothing else to ask. Welcome then shows the 素材库.
+    saveGuide({ mode: "beginner", language: "ja", welcomed: true });
+    if (!useApp.getState().settings.transcribeLanguage) setTranscribeLanguage("ja");
+  }
+
+  return (
+    <div className="grid w-full items-center gap-14 min-[880px]:grid-cols-[1fr_360px]">
+      <div className="flex flex-col items-start">
+        <p className="text-[13px] font-semibold tracking-[0.01em] text-muted">Shadowing</p>
+        <h1 className="mt-3 font-heading text-[34px] leading-[1.25] font-semibold tracking-[-0.015em] text-balance">
+          反复听、放慢，
+          <br />
+          一句一句跟读。
+        </h1>
+        {missing && (
+          <p className="mt-4 rounded-[8px] bg-danger-soft px-3 py-1.5 text-[12px] break-all text-danger">上次的文件夹无法打开：{missing}</p>
+        )}
+        <h2 className="mt-8 text-[13px] font-medium text-muted">你想怎么开始？</h2>
+        <div role="radiogroup" aria-label="开始方式" className="mt-2.5 flex w-full flex-col gap-2">
+          {PATHS.map((p) => {
+            const on = pick === p.id;
+            return (
+              <button
+                key={p.id}
+                role="radio"
+                aria-checked={on}
+                onClick={() => setPick(p.id)}
+                onDoubleClick={go}
+                className={`flex items-start gap-3 rounded-[14px] px-4 py-3 text-left transition-[background-color,box-shadow] duration-150 ${
+                  on ? "bg-raised shadow-[inset_0_0_0_1.5px_var(--fg)]" : "shadow-[inset_0_0_0_1px_var(--line-strong)] hover:bg-hover"
+                }`}
+              >
+                <span className={`mt-[3px] grid size-4 shrink-0 place-items-center rounded-full transition-colors ${on ? "bg-ink" : "shadow-[inset_0_0_0_1.5px_var(--line-strong)]"}`}>
+                  {on && <span className="size-1.5 rounded-full bg-on-ink" />}
+                </span>
+                <span className="min-w-0">
+                  <span className="flex items-center gap-2 text-[14px] font-semibold">
+                    {p.title}
+                    {p.id === "beginner" && (
+                      <span className="rounded-[4px] px-1 text-[11px] leading-4 font-medium text-ok shadow-[inset_0_0_0_1px_currentColor]">推荐</span>
+                    )}
+                  </span>
+                  <span className="mt-0.5 block text-[12px] leading-relaxed text-muted">{p.text}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <BigButton onClick={go}>{pick === "beginner" ? "开始" : "下一步"}</BigButton>
+      </div>
+      <Preview language="ja" />
+    </div>
+  );
+}
+
+function Intro({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const guide = useApp((s) => s.guide);
   const missing = useApp((s) => s.missingFolder);
   const { chooseFolder, saveGuide, setTranscribeLanguage } = useApp.getState();
@@ -141,9 +227,10 @@ function Intro({ onNext }: { onNext: () => void }) {
         <BigButton disabled={!guide.language} onClick={onNext}>
           下一步
         </BigButton>
-        <TextLink className="mt-6" onClick={() => void chooseFolder()}>
-          跳过引导，直接打开我的音频文件夹
-        </TextLink>
+        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2">
+          <TextLink onClick={() => void chooseFolder()}>跳过引导，直接打开我的音频文件夹</TextLink>
+          <TextLink onClick={onBack}>上一步</TextLink>
+        </div>
       </div>
       <Preview language={guide.language === "en" ? "en" : "ja"} />
     </div>

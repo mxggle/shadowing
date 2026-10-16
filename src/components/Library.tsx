@@ -3,7 +3,7 @@ import { Check, ChevronRight, ChevronsDownUp, ChevronsUpDown, FolderOpen, PanelL
 import { isFinished } from "../audio/logic";
 import type { FolderListing, Progress, Track } from "../lib/api";
 import { useApp } from "../store";
-import { Button, IconButton } from "./ui";
+import { Button, IconButton, TextLink } from "./ui";
 
 /** Shows or hides the sidebar; lives in the sidebar header while open and in the top bar once it is closed. */
 export function ShelfToggle() {
@@ -38,6 +38,9 @@ function NoFolder() {
         <Button onClick={() => void chooseFolder()}>
           <FolderOpen size={15} strokeWidth={1.8} /> 打开文件夹
         </Button>
+        <TextLink className="text-[12px]" onClick={() => useApp.getState().setPacksOpen(true)}>
+          或者从素材库下载现成的练习
+        </TextLink>
       </div>
     </aside>
   );
