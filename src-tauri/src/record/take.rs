@@ -4,6 +4,7 @@
 //! included) and you. 边听边说 keeps them in step (a stereo file); 听完再说
 //! lays them one after the other (`turns`), so they fit in one channel.
 
+use super::along;
 use super::echo;
 use super::follow::Followed;
 use super::vad::{self, FRAME_SECS};
@@ -95,7 +96,8 @@ pub fn build(raw: &Raw, mode: Mode) -> Result<Built, &'static str> {
         let from = at(original_span.0 - EARLY_SECS).min(mine.len());
         mine[..from].fill(0.0);
         let thr = vad::along_threshold(room);
-        (vad::voiced_over(&levels(&mine), thr), NOTHING_ALONG)
+        let yours = along::yours(&levels(&mine), &levels(&played), thr);
+        (yours.unwrap_or_default(), NOTHING_ALONG)
     } else {
         // Before your turn the mic only heard the original.
         let turn = (raw.turn as f64 * RATE as f64 / raw.mic_rate.max(1) as f64) as usize;

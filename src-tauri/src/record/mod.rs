@@ -13,6 +13,7 @@
 //! (`Mode::Read`, the highlight follows your voice: `follow.rs`) or along with
 //! the original; `reading.rs` cuts it into a take per sentence.
 
+mod along;
 pub mod commands;
 mod devices;
 mod echo;
