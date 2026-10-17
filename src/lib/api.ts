@@ -562,7 +562,8 @@ export const api = {
     /** `folder`: subfolder of the open folder ("" = the folder itself). Ends with an `import:status`. */
     start: (url: string, title: string, subtitles: string | null, folder: string) =>
       invoke<void>("import_start", { url, title, subtitles, folder }),
-    cancel: () => invoke<void>("import_cancel"),
+    /** Stops reading the link in the sheet, or the running download. */
+    cancel: (what: "resolve" | "download") => invoke<void>("import_cancel", { what }),
   },
   smokeMode: () => invoke<boolean>("smoke_mode"),
   smokeWindow: (minimized: boolean) => invoke<void>("smoke_window", { minimized }),

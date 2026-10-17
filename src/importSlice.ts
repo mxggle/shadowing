@@ -1,8 +1,10 @@
 // Plugins and 从链接导入 part of the single store. A plugin (src-tauri/src/plugins)
-// says what a link is, then downloads it in the background; the audio lands in the
-// open folder and the sidebar shows how it is going (ImportLink.tsx).
+// says what a link is, then downloads it in the background. Downloads queue up
+// here and run one at a time; each shows as a row in the folder group it lands in
+// (lib/imports.ts, Library.tsx), and becomes a normal track when it's done.
 import { listen } from "@tauri-apps/api/event";
 import { api, type ImportStatus, type PluginInfo, type Resolved } from "./lib/api";
+import { nextDownload, type Download } from "./lib/imports";
 import type { AppState } from "./store";
 
 export interface LinkImport {
@@ -18,39 +20,59 @@ export interface ImportState {
   plugins: PluginInfo[];
   /** The 从链接导入 sheet, while open. */
   linkImport: LinkImport | null;
-  /** The download in the sidebar, or how the last one ended until dismissed. */
-  importJob: ImportStatus | null;
-  /** Link of the last download, to try again. */
-  importUrl: string;
+  /** Downloads waiting, running (one) or failed, in the order they were asked for. */
+  downloads: Download[];
+  /** Settings should scroll to this part when it opens (“更多导入方式…”). */
+  settingsFocus: "plugins" | null;
   loadPlugins(): Promise<void>;
   setPlugins(plugins: PluginInfo[]): void;
   /** Opens the sheet; with a link (or one on the clipboard) it is read at once. */
   openImport(url?: string): Promise<void>;
   resolveImport(url: string): Promise<void>;
-  /** `folder`: subfolder of the open folder ("" = the folder itself). */
-  startImport(subtitles: string | null, folder: string): Promise<void>;
+  /** Queues the link the sheet read. `folder`: subfolder of the open folder ("" = the folder itself). */
+  startImport(subtitles: string | null, folder: string): void;
   closeImport(): void;
-  cancelImport(): void;
-  dismissImport(): void;
+  /** Stops a running download, or drops a waiting or failed one. */
+  dropDownload(id: number): void;
+  retryDownload(id: number): void;
   /** ⌘V outside a text field: a link on the clipboard opens the sheet. */
   pasteLink(): Promise<void>;
+  /** Settings, scrolled to 插件. */
+  showPlugins(): void;
   watchImports(): void;
 }
 
 type Get = () => AppState;
 type Set = (patch: Partial<AppState>) => void;
 
+let lastId = 0;
+
 export function createImportSlice(set: Set, get: Get): ImportState {
   const patch = (change: Partial<LinkImport>) => {
     const current = get().linkImport;
     if (current) set({ linkImport: { ...current, ...change } });
   };
+  const update = (id: number, change: Partial<Download>) =>
+    set({ downloads: get().downloads.map((d) => (d.id === id ? { ...d, ...change } : d)) });
+  const remove = (id: number) => set({ downloads: get().downloads.filter((d) => d.id !== id) });
+  const running = () => get().downloads.find((d) => d.state === "downloading");
+
+  /** Starts the next waiting download when none is running. */
+  const pump = () => {
+    const next = nextDownload(get().downloads);
+    if (!next) return;
+    update(next.id, { state: "downloading", message: "", done: 0, total: 0 });
+    api.imports.start(next.url, next.title, next.subtitles, next.folder).catch((e) => {
+      update(next.id, { state: "failed", message: String(e) });
+      pump();
+    });
+  };
 
   return {
     plugins: [],
     linkImport: null,
-    importJob: null,
-    importUrl: "",
+    downloads: [],
+    settingsFocus: null,
 
     async loadPlugins() {
       try {
@@ -83,38 +105,48 @@ export function createImportSlice(set: Set, get: Get): ImportState {
       }
     },
 
-    async startImport(subtitles, folder) {
+    startImport(subtitles, folder) {
       const link = get().linkImport;
       if (!link?.resolved) return;
-      const { title } = link.resolved;
-      try {
-        await api.imports.start(link.url, title, subtitles, folder);
-        set({
-          linkImport: null,
-          importUrl: link.url,
-          importJob: { state: "downloading", title, message: "开始下载", done: 0, total: 0 },
-        });
-      } catch (e) {
-        patch({ error: String(e) });
-      }
+      const download: Download = {
+        id: ++lastId,
+        url: link.url,
+        title: link.resolved.title,
+        subtitles,
+        folder,
+        state: "queued",
+        message: "",
+        done: 0,
+        total: 0,
+      };
+      set({ linkImport: null, downloads: [...get().downloads, download] });
+      pump();
     },
 
     closeImport() {
-      if (get().linkImport?.resolving) void api.imports.cancel();
+      if (get().linkImport?.resolving) void api.imports.cancel("resolve");
       set({ linkImport: null });
     },
 
-    cancelImport() {
-      void api.imports.cancel();
+    dropDownload(id) {
+      // A running one ends with a “cancelled” status, which takes its row away.
+      if (running()?.id === id) void api.imports.cancel("download");
+      else remove(id);
     },
 
-    dismissImport() {
-      set({ importJob: null });
+    retryDownload(id) {
+      update(id, { state: "queued", message: "" });
+      pump();
     },
 
     async pasteLink() {
       const url = await api.imports.clipboard().catch(() => null);
       if (url) await get().openImport(url);
+    },
+
+    showPlugins() {
+      set({ linkImport: null, settingsFocus: "plugins" });
+      get().setSettingsOpen(true);
     },
 
     watchImports() {
@@ -124,9 +156,27 @@ export function createImportSlice(set: Set, get: Get): ImportState {
           if (get().linkImport?.resolving) patch({ progress: { message, done, total } });
           return;
         }
-        if (payload.state === "cancelled") return set({ importJob: null });
-        set({ importJob: payload });
-        if (payload.state === "done") void get().rescan();
+        const current = running();
+        if (!current) return;
+        switch (payload.state) {
+          case "downloading":
+            update(current.id, { message: payload.message, done: payload.done, total: payload.total });
+            return;
+          case "failed":
+            update(current.id, { state: "failed", message: payload.message });
+            break;
+          case "cancelled":
+            remove(current.id);
+            break;
+          case "done":
+            // The row stays until the new track is listed, so nothing blinks out in between.
+            update(current.id, { state: "finishing" });
+            void get()
+              .rescan()
+              .finally(() => remove(current.id));
+            break;
+        }
+        pump();
       });
       void get().loadPlugins();
     },

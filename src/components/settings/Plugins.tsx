@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type PluginInfo, type PluginOffer } from "../../lib/api";
 import { useApp } from "../../store";
 import { Button } from "../ui";
@@ -10,6 +10,14 @@ export function PluginsSection() {
   const setPlugins = useApp((s) => s.setPlugins);
   const [offer, setOffer] = useState<PluginOffer | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Opened from 更多导入方式… (the ＋ menu) or an import that needs a plugin: show this part.
+  const focus = useApp((s) => s.settingsFocus);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focus !== "plugins") return;
+    ref.current?.scrollIntoView({ block: "start" });
+    useApp.setState({ settingsFocus: null });
+  }, [focus]);
 
   const pick = async () => {
     try {
@@ -31,7 +39,7 @@ export function PluginsSection() {
   };
 
   return (
-    <div className="mt-2 border-t border-line pt-5">
+    <div ref={ref} className="mt-2 scroll-mt-4 border-t border-line pt-5">
       <h3 className="text-[12px] font-medium text-faint">插件</h3>
       <p className="mt-1 text-[12px] leading-relaxed text-muted">
         插件给应用加上额外的功能，例如粘贴 YouTube 链接导入音频。插件是运行在这台 Mac 上的程序，只安装你信任的插件。

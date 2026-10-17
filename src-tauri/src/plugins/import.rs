@@ -1,7 +1,7 @@
 //! 从链接导入: finds the plugin that takes a link, asks it what the link is
 //! (`import/resolve`), then has it download into a staging folder
 //! (`import/run`) and moves the result into the open folder (accept.rs).
-//! One import at a time; progress goes out as `import:status`.
+//! One link read and one download at a time; progress goes out as `import:status`.
 
 use super::job::Job;
 use super::rpc::Process;
@@ -13,9 +13,43 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
 
-/// The import running now (resolving or downloading), to cancel it.
+/// What runs now, to cancel it. Reading a link (the confirmation sheet) and one
+/// download can run side by side; more downloads wait in the page's queue.
 #[derive(Default)]
-pub struct Imports(Mutex<Option<Arc<AtomicBool>>>);
+pub struct Imports {
+    resolving: Mutex<Option<Arc<AtomicBool>>>,
+    downloading: Mutex<Option<Arc<AtomicBool>>>,
+}
+
+#[derive(Clone, Copy)]
+enum Slot {
+    Resolving,
+    Downloading,
+}
+
+impl Imports {
+    fn slot(&self, slot: Slot) -> &Mutex<Option<Arc<AtomicBool>>> {
+        match slot {
+            Slot::Resolving => &self.resolving,
+            Slot::Downloading => &self.downloading,
+        }
+    }
+
+    /// Takes the slot; `None` while something else holds it.
+    fn claim(&self, slot: Slot) -> Option<Arc<AtomicBool>> {
+        let mut held = self.slot(slot).lock().unwrap();
+        if held.is_some() {
+            return None;
+        }
+        let cancel = Arc::new(AtomicBool::new(false));
+        *held = Some(cancel.clone());
+        Some(cancel)
+    }
+
+    fn release(&self, slot: Slot) {
+        *self.slot(slot).lock().unwrap() = None;
+    }
+}
 
 #[derive(Clone, Serialize)]
 #[serde(tag = "state", rename_all = "camelCase")]
@@ -76,22 +110,8 @@ pub struct Resolved {
     pub via: String,
 }
 
-/// Claims the one import slot; `None` while another import runs.
-fn claim(imports: &Imports) -> Option<Arc<AtomicBool>> {
-    let mut slot = imports.0.lock().unwrap();
-    if slot.is_some() {
-        return None;
-    }
-    let cancel = Arc::new(AtomicBool::new(false));
-    *slot = Some(cancel.clone());
-    Some(cancel)
-}
-
-pub(super) fn release(app: &AppHandle) {
-    *app.state::<Imports>().0.lock().unwrap() = None;
-}
-
-const BUSY: &str = "正在导入另一个链接，请等它完成";
+const READING: &str = "正在读取另一个链接，请稍等";
+const DOWNLOADING: &str = "正在下载另一个链接，请等它下载完";
 
 fn no_plugin(url: &str) -> String {
     if url.contains("youtube.com") || url.contains("youtu.be") {
@@ -161,7 +181,7 @@ pub fn import_resolve(
 ) -> Result<Resolved, String> {
     let url = url.trim().to_string();
     let (plugin, importer) = importer_for(&state, &url).ok_or_else(|| no_plugin(&url))?;
-    let cancel = claim(&imports).ok_or(BUSY)?;
+    let cancel = imports.claim(Slot::Resolving).ok_or(READING)?;
     let result = (|| {
         let mut process = open(&app, &plugin, &cancel)?;
         let mut notify = |method: &str, params: &Value| {
@@ -188,7 +208,7 @@ pub fn import_resolve(
         resolved.via = importer.title.clone();
         Ok(resolved)
     })();
-    release(&app);
+    imports.release(Slot::Resolving);
     result
 }
 
@@ -210,7 +230,7 @@ pub fn import_start(
         .ok_or("请先打开一个文件夹，导入的音频会放在里面")?;
     let url = url.trim().to_string();
     let (plugin, importer) = importer_for(&state, &url).ok_or_else(|| no_plugin(&url))?;
-    let cancel = claim(&imports).ok_or(BUSY)?;
+    let cancel = imports.claim(Slot::Downloading).ok_or(DOWNLOADING)?;
     let staging = super::root(&state).join(".jobs").join(format!(
         "{}-{}",
         plugin.manifest.id,
@@ -231,20 +251,26 @@ pub fn import_start(
         let app = app.clone();
         move || {
             let status = job.run(&app);
-            release(&app);
+            app.state::<Imports>().release(Slot::Downloading);
             let _ = app.emit("import:status", status);
         }
     });
     if let Err(e) = spawned {
-        release(&app);
+        imports.release(Slot::Downloading);
         return Err(e.to_string());
     }
     Ok(())
 }
 
+/// `what`: "resolve" (the link being read) or "download".
 #[tauri::command]
-pub fn import_cancel(imports: State<Imports>) {
-    if let Some(cancel) = imports.0.lock().unwrap().as_ref() {
+pub fn import_cancel(imports: State<Imports>, what: String) {
+    let slot = if what == "resolve" {
+        Slot::Resolving
+    } else {
+        Slot::Downloading
+    };
+    if let Some(cancel) = imports.slot(slot).lock().unwrap().as_ref() {
         cancel.store(true, Ordering::Relaxed);
     }
 }

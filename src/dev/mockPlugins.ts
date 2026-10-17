@@ -71,7 +71,11 @@ export async function mockPlugins(cmd: string, a: Record<string, never>, folder:
       cancelled = false;
       const total = 11_299_164;
       void (async () => {
-        for (let done = 0; done <= total; done += 1_400_000) {
+        if ((a.url as string).includes("fail")) {
+          await wait(1200);
+          return status({ state: "failed", title: a.title, message: "YouTube 要求登录确认不是机器人。过一会儿再试，或换个网络。" });
+        }
+        for (let done = 0; done <= total; done += 700_000) {
           if (cancelled) return status({ state: "cancelled", title: a.title });
           status({ state: "downloading", title: a.title, message: "下载音频", done, total });
           await wait(300);

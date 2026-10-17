@@ -1,22 +1,10 @@
-import { Link2, X } from "lucide-react";
+import { AlertCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Resolved } from "../lib/api";
-import { languageName, percent, pickSubtitle, progressText } from "../lib/imports";
+import { downloadLine, languageName, percent, pickSubtitle, progressText, type Download } from "../lib/imports";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { Button, fieldClass, IconButton, Kbd, TextLink } from "./ui";
-
-/** In the sidebar header once a plugin can import links. */
-export function ImportButton() {
-  const can = useApp((s) => s.plugins.some((p) => p.importers.length > 0 && !p.problem));
-  const open = useApp((s) => s.openImport);
-  if (!can) return null;
-  return (
-    <IconButton title="从链接导入 (⌘V)" onClick={() => void open()}>
-      <Link2 />
-    </IconButton>
-  );
-}
 
 function Bar({ done, total }: { done: number; total: number }) {
   const p = percent(done, total);
@@ -30,58 +18,69 @@ function Bar({ done, total }: { done: number; total: number }) {
   );
 }
 
-/** Top of the track list: the download going on, or how it ended. */
-export function ImportRow() {
-  const job = useApp((s) => s.importJob);
-  const tracks = useApp((s) => s.folder?.tracks);
-  if (!job || job.state === "resolving" || job.state === "cancelled") return null;
-  const s = useApp.getState();
-  const track = job.state === "done" ? tracks?.find((t) => t.path === job.path) : undefined;
+/**
+ * A link downloading, waiting its turn or failed, in the folder group it lands
+ * in. Once in the folder it gives way to the track itself.
+ */
+export function DownloadRow({ download: d }: { download: Download }) {
+  const drop = useApp((s) => s.dropDownload);
+  const retry = useApp((s) => s.retryDownload);
+  const failed = d.state === "failed";
   return (
-    <div className="mx-3 mb-2 rounded-[10px] bg-fill px-3 py-2.5 text-[12px]">
-      <div className="flex items-start gap-2">
-        <p className="min-w-0 flex-1 truncate font-script text-[13px] text-fg" title={job.title}>
-          {job.title}
-        </p>
-        <button
-          className="-mt-0.5 -mr-1 shrink-0 rounded-[6px] p-0.5 text-faint hover:bg-hover hover:text-fg"
-          title={job.state === "downloading" ? "取消导入" : "关闭"}
-          onClick={() => (job.state === "downloading" ? s.cancelImport() : s.dismissImport())}
-        >
-          <X size={14} />
-        </button>
-      </div>
-      {job.state === "downloading" && (
-        <div className="mt-1.5 flex flex-col gap-1.5">
-          <Bar done={job.done} total={job.total} />
-          <p className="tabular font-mono text-[11px] text-muted">{progressText(job.message, job.done, job.total)}</p>
-        </div>
-      )}
-      {job.state === "done" && (
-        <div className="mt-1 flex items-center gap-2 text-muted">
-          <span className="min-w-0 flex-1">{job.subtitles ? "已导入，带字幕" : "已导入"}</span>
-          {track && (
-            <TextLink
-              className="text-[12px]"
-              onClick={() => {
-                s.open(track);
-                s.dismissImport();
-              }}
-            >
-              打开
+    <div title={d.url} className="group/dl mx-2.5 my-px flex w-[calc(100%-1.25rem)] items-start gap-2 rounded-[8px] px-2.5 py-1.5 text-[13px]">
+      <DownloadMark download={d} />
+      <div className="min-w-0 flex-1">
+        <p className={`truncate leading-[18px] ${d.state === "downloading" ? "text-fg" : "text-fg/80"}`}>{d.title}</p>
+        <p className={`text-[11px] leading-4 ${failed ? "text-danger" : "tabular font-mono text-faint"}`}>{downloadLine(d)}</p>
+        {failed && (
+          <span className="mt-0.5 flex gap-3">
+            <TextLink className="text-[11px]" onClick={() => retry(d.id)}>
+              再试一次
             </TextLink>
-          )}
-        </div>
-      )}
-      {job.state === "failed" && (
-        <div className="mt-1 flex flex-col items-start gap-1">
-          <p className="leading-relaxed text-danger">{job.message}</p>
-          <TextLink className="text-[12px]" onClick={() => void s.openImport(s.importUrl)}>
-            再试一次
-          </TextLink>
-        </div>
+            <TextLink className="text-[11px]" onClick={() => drop(d.id)}>
+              不要了
+            </TextLink>
+          </span>
+        )}
+      </div>
+      {!failed && d.state !== "finishing" && (
+        <button
+          title={d.state === "downloading" ? "取消下载" : "不下载了"}
+          onClick={() => drop(d.id)}
+          className="-mr-1 grid size-[18px] shrink-0 place-items-center rounded-[5px] text-faint opacity-0 transition-opacity duration-150 group-hover/dl:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100"
+        >
+          <X size={12} strokeWidth={2.2} />
+        </button>
       )}
     </div>
+  );
+}
+
+/** A ring that fills as the download goes (spinning while the size isn't known); dashed while waiting. */
+function DownloadMark({ download: d }: { download: Download }) {
+  if (d.state === "failed") return <AlertCircle size={16} strokeWidth={2} className="mt-px shrink-0 text-danger" aria-hidden />;
+  const r = 6.5;
+  const around = 2 * Math.PI * r;
+  const p = d.state === "finishing" ? 100 : percent(d.done, d.total);
+  const spinning = d.state === "downloading" && p === null;
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className={`mt-px shrink-0 ${spinning ? "animate-spin" : ""}`}>
+      <circle cx="8" cy="8" r={r} fill="none" stroke="var(--track)" strokeWidth="2" strokeDasharray={d.state === "queued" ? "2.5 2.5" : undefined} />
+      {d.state !== "queued" && (
+        <circle
+          cx="8"
+          cy="8"
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray={`${((spinning ? 25 : (p ?? 0)) / 100) * around} ${around}`}
+          transform="rotate(-90 8 8)"
+          className="text-fg transition-[stroke-dasharray] duration-300"
+        />
+      )}
+    </svg>
   );
 }
 
@@ -174,10 +173,7 @@ function UrlField({ url, busy }: { url: string; busy: boolean }) {
 }
 
 function Problem({ message }: { message: string }) {
-  const openSettings = () => {
-    useApp.getState().closeImport();
-    useApp.getState().setSettingsOpen(true);
-  };
+  const openSettings = () => useApp.getState().showPlugins();
   return (
     <div className="mt-4 flex flex-col items-start gap-1.5">
       <p className="text-[13px] leading-relaxed text-danger">{message}</p>
@@ -197,14 +193,8 @@ function Confirm({ resolved }: { resolved: Resolved }) {
   const chooseFolder = useApp((s) => s.chooseFolder);
   const [subtitles, setSubtitles] = useState(() => pickSubtitle(resolved.subtitles, resolved.language, learning) ?? "");
   const [sub, setSub] = useState(resolved.via);
-  const [busy, setBusy] = useState(false);
   const meta = [resolved.uploader, resolved.duration ? formatTime(resolved.duration) : null, resolved.via].filter(Boolean);
 
-  const go = async () => {
-    setBusy(true);
-    await start(subtitles || null, sub);
-    setBusy(false);
-  };
 
   return (
     <div className="mt-5">
@@ -251,7 +241,7 @@ function Confirm({ resolved }: { resolved: Resolved }) {
       <div className="mt-4 flex justify-end gap-2">
         <Button onClick={() => useApp.getState().closeImport()}>取消</Button>
         {folder ? (
-          <Button primary disabled={busy} onClick={() => void go()}>
+          <Button primary onClick={() => start(subtitles || null, sub)}>
             下载
           </Button>
         ) : (
