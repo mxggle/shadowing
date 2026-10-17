@@ -25,11 +25,25 @@ fail() {
   exit 1
 }
 
-tmp="" mnt=""
+tmp="" mnt="" elevated=""
 trap 'fail "出了意外的错误（第 $LINENO 行）。"' ERR
 cleanup() {
   if [ -n "$mnt" ]; then hdiutil detach -quiet "$mnt" 2>/dev/null || hdiutil detach -quiet -force "$mnt" 2>/dev/null || true; fi
-  if [ -n "$tmp" ]; then rm -rf "$tmp" 2>/dev/null || true; fi
+  if [ -n "$tmp" ]; then
+    rm -rf "$tmp" 2>/dev/null || true
+    # 用 sudo 挪进来的旧版本普通权限删不掉；sudo 刚输过密码，-n 不会再问。
+    if [ -n "$elevated" ] && [ -e "$tmp" ]; then sudo -n rm -rf "$tmp" 2>/dev/null || true; fi
+  fi
+}
+
+# 挪动整个 .app（同一个磁盘上只是改名，要么成功要么原样不动）。没有权限时才用 sudo，第一次会要密码。
+move() {
+  mv "$1" "$2" 2>/dev/null && return 0
+  if [ -z "$elevated" ]; then
+    step "装进这个文件夹需要这台 Mac 的登录密码（输入时屏幕上不显示，输完按回车）："
+    elevated=1
+  fi
+  sudo mv "$1" "$2"
 }
 
 # curl 不看“系统设置”里的代理。平时开着代理上 GitHub 的，照着系统代理来（已经设了 https_proxy 等就不动）。
@@ -51,8 +65,9 @@ use_system_proxy() {
 
 download() { curl -fL --progress-bar --retry 2 --connect-timeout 20 -o "$tmp/Shadowing.dmg" "$URL" </dev/null; }
 
-# 正在运行的 Shadowing（不管从哪里打开的）先关掉，不然替换后打开的还是旧的那个。
-running() { pgrep -f '/Shadowing\.app/Contents/MacOS/' 2>/dev/null || true; }
+# 正在运行的 Shadowing（不管从哪里打开的）先关掉，不然替换后打开的还是旧的那个。按进程名找（应用里的可执行文件叫 shadowing），
+# 不按命令行找：命令行里提到这个路径的别的进程（比如终端里的命令）不能误杀。
+running() { pgrep -x shadowing 2>/dev/null || true; }
 quit_running() {
   local pids
   pids=$(running)
@@ -64,7 +79,7 @@ quit_running() {
     [ -n "$(running)" ] || return 0
     sleep 0.5
   done
-  pkill -9 -f '/Shadowing\.app/Contents/MacOS/' 2>/dev/null || true
+  pkill -9 -x shadowing 2>/dev/null || true
   sleep 0.5
 }
 
@@ -113,14 +128,11 @@ main() {
 
   if [ -z "${SHADOWING_NO_LAUNCH:-}" ]; then quit_running; fi
 
-  step "正在安装 Shadowing ${version} 到 $dest …"
-  # 旧版本先整个挪进临时文件夹（结束时一起删掉），挪不动就直接删，还不行才要密码。
-  if [ -e "$app" ] && ! mv "$app" "$tmp/old.app" 2>/dev/null && ! rm -rf "$app" 2>/dev/null; then
-    step "替换旧版本需要这台 Mac 的登录密码（输入时屏幕上不显示，输完按回车）："
-    sudo rm -rf "$app" || fail "没能删除旧版本：$app"
-  fi
-  if ! mv "$tmp/new/Shadowing.app" "$app" 2>/dev/null; then
-    if [ -e "$tmp/old.app" ]; then mv "$tmp/old.app" "$app" 2>/dev/null || true; fi
+  step "正在安装 Shadowing ${version:+$version }到 $dest …"
+  # 旧版本只挪开、不删（结束时随临时文件夹删掉），新版本放不进去时再挪回来。
+  if [ -e "$app" ]; then move "$app" "$tmp/old.app" || fail "没能挪开旧版本：$app"; fi
+  if ! move "$tmp/new/Shadowing.app" "$app"; then
+    if [ -e "$tmp/old.app" ] && [ ! -e "$app" ]; then move "$tmp/old.app" "$app" || true; fi
     fail "没能装进 $dest。"
   fi
   # 保险：curl 下载的本来就没有隔离标记，这里再清一次。
