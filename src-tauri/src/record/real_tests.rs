@@ -658,6 +658,9 @@ fn real_record_pause() {
     let (a, b) = (1.0, 4.5);
     let line = "これは、わたしが小さいときに、聞いたお話です";
     let (first, rest) = ("これは、わたしが", "小さいときに、聞いたお話です");
+    // 边听边说 going on: what the original says from there (paused between
+    // 村の and 茂平), so your loudness follows its, as the lag needs.
+    let picked_up = "もへいという";
     let aside = "ちょっとまって";
     let meta = |mode| Meta {
         audio: audio.clone(),
@@ -707,7 +710,7 @@ fn real_record_pause() {
             recorder.pause(&player, false),
             "{mode:?}: the original plays on"
         );
-        let mut after = shadow.then(|| learner_says(0.0, rest));
+        let mut after = shadow.then(|| learner_says(0.0, picked_up));
         wait_for("the original", 10.0, || !player.status().playing);
         let played = secs(begun) - held;
         recorder.turn();
