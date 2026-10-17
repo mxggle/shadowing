@@ -30,6 +30,7 @@ struct Progress {
 }
 
 const MENU_CHECK: &str = "update-check";
+const MENU_NEWS: &str = "whats-new";
 
 /// None when this is the newest version.
 #[tauri::command]
@@ -85,25 +86,31 @@ pub async fn update_install(app: AppHandle, pending: State<'_, Pending>) -> Resu
     Ok(())
 }
 
-/// The default menu with “检查更新…” under the app name; choosing it emits `update:check`.
+/// The default menu with “检查更新…” and “新功能…” under the app name; they emit
+/// `update:check` and `news:open`.
 pub fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let menu = Menu::default(app)?;
     if let Some(app_menu) = menu.items()?.first().and_then(|i| i.as_submenu().cloned()) {
-        // About, —, 检查更新…, —, Services…: in its own group under “About”, as in most Mac apps.
+        // About, —, 检查更新…, 新功能…, —, Services…: in their own group under “About”, as in most Mac apps.
         let check = MenuItem::with_id(app, MENU_CHECK, "检查更新…", true, None::<&str>)?;
+        let news = MenuItem::with_id(app, MENU_NEWS, "新功能…", true, None::<&str>)?;
         app_menu.insert(&check, 2)?;
-        app_menu.insert(&PredefinedMenuItem::separator(app)?, 3)?;
+        app_menu.insert(&news, 3)?;
+        app_menu.insert(&PredefinedMenuItem::separator(app)?, 4)?;
     }
     Ok(menu)
 }
 
 pub fn on_menu(app: &AppHandle, id: &str) {
-    if id == MENU_CHECK {
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.set_focus();
-        }
-        let _ = app.emit("update:check", ());
+    let event = match id {
+        MENU_CHECK => "update:check",
+        MENU_NEWS => "news:open",
+        _ => return,
+    };
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_focus();
     }
+    let _ = app.emit(event, ());
 }
 
 /// macOS runs a quarantined app opened in place from a random read-only copy (App Translocation);

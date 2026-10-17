@@ -1,26 +1,57 @@
 import { X } from "lucide-react";
+import { highlightsSince } from "../lib/changelog";
 import { noteLines, percent } from "../lib/update";
+import { releases } from "../releases";
 import { useApp } from "../store";
 import type { UpdateStatus } from "../updateSlice";
 import { Button, IconButton } from "./ui";
 
-/** Floating card under the top bar: a newer version, its download, or the answer to 检查更新…. */
+/** Floating card under the top bar: a newer version, its download, the answer to 检查更新…, or what an update just brought. */
 export function UpdateNotice() {
   const update = useApp((s) => s.update);
-  const shown = useApp((s) => s.updateNotice);
-  if (!shown || update.state === "idle") return null;
+  const shown = useApp((s) => s.updateNotice) && update.state !== "idle";
+  const updatedTo = useApp((s) => s.updatedTo);
+  if (!shown && !updatedTo) return null;
+  const { dismissUpdate, dismissUpdated } = useApp.getState();
   return (
     <div
       role="status"
       className="fixed top-[56px] right-3 z-20 w-[300px] animate-pop-in rounded-[12px] bg-raised p-4 text-[13px] shadow-lift"
     >
       {update.state !== "installing" && (
-        <IconButton title="关闭" className="absolute top-2 right-2" onClick={() => useApp.getState().dismissUpdate()}>
+        <IconButton title="关闭" className="absolute top-2 right-2" onClick={shown ? dismissUpdate : dismissUpdated}>
           <X />
         </IconButton>
       )}
-      <UpdateBody update={update} />
+      {shown ? <UpdateBody update={update} /> : updatedTo && <UpdatedBody version={updatedTo} />}
     </div>
+  );
+}
+
+/** Once, after an update: what it (and any version skipped on the way) brought, and 新功能 for the whole story. */
+function UpdatedBody({ version }: { version: string }) {
+  const { dismissUpdated, setNewsOpen } = useApp.getState();
+  const points = highlightsSince(releases, useApp.getState().guide.seenVersion, version);
+  return (
+    <>
+      <h3 className="pr-6 font-semibold">
+        已更新到 <span className="font-mono tabular">{version}</span>
+      </h3>
+      <ul className="mt-2.5 flex list-disc flex-col gap-1 pl-4 text-[12px] leading-relaxed text-muted">
+        {points.slice(0, 4).map((line, i) => (
+          <li key={i} className="line-clamp-2">
+            {line}
+          </li>
+        ))}
+        {points.length > 4 && <li className="list-none text-faint">……</li>}
+      </ul>
+      <div className="mt-3.5 flex justify-end gap-2">
+        <Button onClick={dismissUpdated}>知道了</Button>
+        <Button primary onClick={() => setNewsOpen(true)}>
+          看看新功能
+        </Button>
+      </div>
+    </>
   );
 }
 

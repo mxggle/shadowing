@@ -172,6 +172,8 @@ export interface Guide {
   practiced: boolean;
   /** Contextual tips already shown once. */
   tips: string[];
+  /** The version whose 新功能 the learner has seen ("" before that was remembered). */
+  seenVersion: string;
 }
 
 export interface Snapshot {

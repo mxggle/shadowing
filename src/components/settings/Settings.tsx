@@ -3,7 +3,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState } from "react";
 import type { Feature } from "../../lib/api";
 import { useApp } from "../../store";
-import { Button, IconButton } from "../ui";
+import { Button, IconButton, TextLink } from "../ui";
 import { ProviderSetup } from "./ProviderSetup";
 import { RecordingsRow } from "./Recordings";
 
@@ -134,8 +134,13 @@ function UpdateRow() {
   return (
     <div className="flex items-center gap-4 py-3">
       <div className="min-w-0 flex-1">
-        <h4 className="text-[13px] font-medium">
-          Shadowing <span className="font-mono tabular">{version}</span>
+        <h4 className="flex items-baseline gap-3 text-[13px] font-medium">
+          <span>
+            Shadowing <span className="font-mono tabular">{version}</span>
+          </span>
+          <TextLink className="text-[12px] font-normal" onClick={() => useApp.getState().setNewsOpen(true)}>
+            新功能
+          </TextLink>
         </h4>
         <p className="mt-0.5 text-[12px] leading-relaxed text-muted">{status}</p>
       </div>

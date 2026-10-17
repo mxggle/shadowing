@@ -43,7 +43,7 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
   let hintTimer = 0;
 
   return {
-    guide: { welcomed: false, language: "", practiced: false, tips: [] },
+    guide: { welcomed: false, language: "", practiced: false, tips: [], seenVersion: "" },
     sample: null,
     practicing: false,
     wizardOpen: false,
@@ -82,7 +82,7 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
     },
 
     setWizardOpen(wizardOpen) {
-      set({ wizardOpen, settingsOpen: false, statsOpen: false });
+      set({ wizardOpen, settingsOpen: false, statsOpen: false, newsOpen: false });
     },
 
     tip(id) {

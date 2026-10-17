@@ -264,7 +264,7 @@ export function installMockBackend() {
       [tracks[0].path]: { position: 178, duration: 180, updatedAt: 0 },
       [tracks[1].path]: { position: 64, duration: 200, updatedAt: 0 },
     },
-    guide: { welcomed: !fresh, language: fresh ? "" : "ja", practiced: !fresh, tips: [] },
+    guide: { welcomed: !fresh, language: fresh ? "" : "ja", practiced: !fresh, tips: [], seenVersion: "" },
   };
   mockIPC(
     (cmd, args) => {
