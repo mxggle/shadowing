@@ -3,6 +3,7 @@ import { Check, ChevronRight, ChevronsDownUp, ChevronsUpDown, FolderOpen, PanelL
 import { isFinished } from "../audio/logic";
 import type { FolderListing, Progress, Track } from "../lib/api";
 import { useApp } from "../store";
+import { ImportButton, ImportRow } from "./ImportLink";
 import { Button, IconButton } from "./ui";
 
 /** Shows or hides the sidebar; lives in the sidebar header while open and in the top bar once it is closed. */
@@ -86,6 +87,7 @@ function FolderView({ folder }: { folder: FolderListing }) {
             {allCollapsed ? <ChevronsUpDown /> : <ChevronsDownUp />}
           </IconButton>
         )}
+        <ImportButton />
         <IconButton title="重新扫描" disabled={scanning} onClick={() => void onRescan()}>
           <RefreshCw className={scanning ? "animate-spin" : ""} />
         </IconButton>
@@ -99,6 +101,7 @@ function FolderView({ folder }: { folder: FolderListing }) {
         <span className="tabular shrink-0 font-mono text-[11px] text-faint">{folder.tracks.length}</span>
       </div>
 
+      <ImportRow />
       <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto pb-6 [mask-image:linear-gradient(to_bottom,black_calc(100%-24px),transparent)]">
         {folder.tracks.length === 0 && (
           <div className="px-5 pt-2 text-[13px] leading-relaxed text-muted">

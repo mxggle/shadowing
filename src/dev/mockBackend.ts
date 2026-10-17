@@ -5,6 +5,7 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import type { AiConfig, Explanation, Feature, PracticeSession, Preset, SavedExplanation, Section, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
 import { fresh, samples, sampleTranscripts } from "./mockSamples";
 import { mockRecord, seedTakes, stopClip } from "./mockRecorder";
+import { mockPlugins } from "./mockPlugins";
 import { mockReshape } from "./mockReshape";
 
 const root = "/Mock/日本語ポッドキャスト";
@@ -278,6 +279,7 @@ export function installMockBackend() {
       // A paused recording ending: the original held for it won't go on (as if paused there).
       if (/^record_(begin|cancel|finish)$/.test(cmd) && recordingPaused) [held, recordingPaused, player.stop] = [false, false, null];
       if (cmd.startsWith("record_")) return mockRecord(cmd, a);
+      if (/^(plugins_|import_|rescan_folder$)/.test(cmd)) return mockPlugins(cmd, a, snapshot.folder);
       switch (cmd) {
         case "get_snapshot":
           return snapshot;

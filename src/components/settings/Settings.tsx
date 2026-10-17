@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Feature } from "../../lib/api";
 import { useApp } from "../../store";
 import { Button, IconButton, TextLink } from "../ui";
+import { PluginsSection } from "./Plugins";
 import { ProviderSetup } from "./ProviderSetup";
 import { RecordingsRow } from "./Recordings";
 
@@ -106,6 +107,7 @@ export function SettingsDialog() {
             <h3 className="text-[12px] font-medium text-faint">录音</h3>
             <RecordingsRow />
           </div>
+          <PluginsSection />
           <div className="mt-2 border-t border-line pt-5">
             <h3 className="text-[12px] font-medium text-faint">版本</h3>
             <UpdateRow />

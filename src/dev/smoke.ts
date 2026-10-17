@@ -295,7 +295,37 @@ async function scenario() {
   const kept = await api.getTranscript(sample.path);
   check("trial result is not saved", kept?.source === "sidecar" && app().transcript?.source === "sidecar", kept?.source);
 
-  // 11. Local whisper.cpp on a real model, if one has been downloaded (see smoke.sh).
+  // 11. 从链接导入 through a fake plugin (a shell script, see smoke.rs): the link resolves,
+  // the plugin "downloads" into staging, the app moves the audio into the folder and
+  // keeps the subtitles as a transcript that can be removed.
+  await app().loadPlugins();
+  check("fake plugin is listed", app().plugins.some((p) => p.id === "smoke-import" && !p.problem), JSON.stringify(app().plugins));
+  await app().openImport("https://smoke.example/watch?v=1");
+  const resolved = app().linkImport?.resolved;
+  check("link resolves through the plugin", resolved?.title === "Smoke import" && resolved.via === "Smoke", app().linkImport?.error ?? "");
+  await app().startImport("en", "smoke-import");
+  await waitFor(() => app().importJob?.state !== "downloading", 10000);
+  const done = app().importJob;
+  check("import lands in the folder", done?.state === "done" && done.subtitles && done.path.endsWith("/smoke-import/Smoke import.mp3"), JSON.stringify(done));
+  await waitFor(() => !!app().folder?.tracks.some((t) => t.relDir === "smoke-import"), 3000);
+  const imported = app().folder?.tracks.find((t) => t.relDir === "smoke-import");
+  check("rescan lists the imported track", !!imported, app().folder?.tracks.map((t) => t.name).join(" | "));
+  if (imported) {
+    const t = await api.getTranscript(imported.path);
+    check(
+      "its subtitles are a removable imported transcript",
+      t?.source === "imported" && t.origin === "Smoke 字幕 · en" && t.sentences.length === 2,
+      JSON.stringify(t && { source: t.source, origin: t.origin, sentences: t.sentences.length }),
+    );
+    app().open(imported, true);
+    const plays = await waitFor(async () => (await rust()) > 0.4 || !!app().error, 5000);
+    check("imported track plays", plays && !app().error, app().error ?? "");
+  }
+  await app().resolveImport("https://elsewhere.example/x");
+  check("a link no plugin takes says so", app().linkImport?.error === "没有能导入这个链接的插件", app().linkImport?.error ?? "");
+  app().closeImport();
+
+  // 12. Local whisper.cpp on a real model, if one has been downloaded (see smoke.sh).
   const local = await api.local.models();
   const small = local.models.find((m) => m.id === "small-q5_1");
   if (!local.supported || !small?.downloaded) {
@@ -317,7 +347,7 @@ async function scenario() {
     ja ? ja.sentences.map((x) => `${x.text}@${x.start.toFixed(2)}–${x.end.toFixed(2)}`).join(" ") : "none",
   );
 
-  // 12. Two voices taking turns: each turn is labelled with its speaker.
+  // 13. Two voices taking turns: each turn is labelled with its speaker.
   const dialogue = tracks.find((t) => t.name === "05 会話 二人")!;
   app().open(dialogue, false);
   await waitFor(() => engine.duration > 0, 3000);

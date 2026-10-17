@@ -109,14 +109,15 @@ v1 只做一个，接口按“以后还会有别的”来设计：
 
 | 方向 | 方法 | 内容 |
 | --- | --- | --- |
-| 应用 → 插件 | `initialize` | 协议版本、应用版本、界面语言、`dataDir`（插件的 `data/`）、插件设置 → 插件回报能力 |
-| 应用 → 插件 | `import/resolve` | `{ url }` → `{ title, duration, uploader, language, subtitles: ["ja", …], playlist?: { count } }`，用于导入前的确认 |
-| 应用 → 插件 | `import/run` | `{ url, options, outDir }`（`outDir` 是暂存文件夹）→ `{ files: [{ path, kind: "audio" \| "subtitle", lang? }], title, source }` |
-| 插件 → 应用 | `progress` | `{ phase, done, total, message }`，例如“准备 yt-dlp”“下载音频 3.2 / 9.8 MB”“下载字幕” |
+| 应用 → 插件 | `initialize` | `{ protocol, appVersion, dataDir }`（`dataDir` 是插件的 `data/`）→ `{ name, version }` |
+| 应用 → 插件 | `import/resolve` | `{ url, importer }`（`importer` 是 manifest 里匹配的那个 id）→ `{ title, duration?, uploader?, language?, subtitles: [{ lang, name }] }`，用于导入前的确认 |
+| 应用 → 插件 | `import/run` | `{ url, importer, outDir, subtitles }`（`outDir` 是暂存文件夹，`subtitles` 是要带的字幕语言或 null）→ `{ files: [{ path, kind: "audio" \| "subtitle", lang? }], title? }` |
+| 插件 → 应用 | `progress` | `{ message, done, total }`（字节，0 = 不知道），例如“下载 yt-dlp”“下载音频 3.2 / 9.8 MB” |
 | 插件 → 应用 | `log` | 调试构建里打印到终端 |
 | 应用 → 插件 | `$/cancel` | 取消；2 秒内不退出就结束进程 |
 
-插件进程：环境变量清空，只留 `PATH`（系统目录）、`HOME`、`LANG`，工作目录是插件的 `data/`。
+插件进程：环境变量清空，只留 `PATH`（系统目录）、`HOME`、`LANG`、`TMPDIR` 和代理变量，工作目录是插件的 `data/`。
+一个请求处理完，插件回一条带同一个 `id` 的 `result` 或 `error`（`error.message` 直接显示给用户，所以写成中文的一句话）。
 
 ### 应用怎么接收结果（插件碰不到用户的文件夹）
 
@@ -194,8 +195,13 @@ v1 只做一个，接口按“以后还会有别的”来设计：
 ## 交付顺序（每项一个可体验的提交，提交前 `npm run check`）
 
 0. ~~**原型**：先在终端里验证 `yt-dlp_macos` + `qjs` 能下 m4a 和人工字幕；量一下 QuickJS 解题要几秒。~~ 已做，结果见下面。
-1. **宿主最小版 + YouTube 插件 0.1**：开发者模式从本机文件夹加载插件；启动进程、JSON-RPC、进度、取消；`importers`；导入确认框和侧栏进度；
-   暂存 → 检查 → 移进文件夹。到这一步就能“粘贴链接 → 下载 → 播放 / 转写”。
+1. ~~**宿主最小版 + YouTube 插件 0.1**：开发者模式从本机文件夹加载插件；启动进程、JSON-RPC、进度、取消；`importers`；导入确认框和侧栏进度；
+   暂存 → 检查 → 移进文件夹。到这一步就能“粘贴链接 → 下载 → 播放 / 转写”。~~ 已做（`feat/plugins` 分支），和上面写的不一样的地方：
+   - 「从文件夹安装…」一直在设置里（还没有市场，没有它就装不了），不藏在开发者模式里。安装前的原生确认框列出 `permissions`。
+   - manifest 里没有通用的 `options`；字幕是协议里固定的一项（`import/run` 的 `subtitles`），这个应用的导入都离不开字幕。
+   - 没有做：插件的开关（装了就用，不想用就删除）、`imports.json`（记下来源链接）、文件菜单里的入口。
+   - 没装插件时粘贴 YouTube 链接，确认框里说“在 设置 → 插件 里安装”，带「打开设置」。
+   - YouTube 插件先放在这个仓库的 `plugins/youtube/`（单独的 Cargo 项目，`npm run check` 也查它），有市场以后再搬到自己的仓库。
 2. **安装和市场**：插件包格式、签名的 `plugins.json`、设置里的插件面板（浏览 / 安装 / 更新 / 卸载）、粘贴 YouTube 链接时提示安装。
    YouTube 插件挂到官方仓库，正式发布。
 3. **开放给第三方**：插件开发文档、模板仓库（Rust 和 Python 各一个示例）、提交和审核流程、仓库 CI 校验；
@@ -206,7 +212,8 @@ v1 只做一个，接口按“以后还会有别的”来设计：
 
 - Rust：没有。`minisign-verify`、`zip`、`semver`、`sha2`、`reqwest` 都已在树里；`tokio` 可能要多开 `process` 功能。
 - 前端：没有。
-- YouTube 插件（独立仓库）：自己的依赖，不进应用。
+- 实际（第 1 步）：应用没有加任何依赖（进程用 `std::process` 加线程，没开 tokio 的 `process`）。
+- YouTube 插件：`serde`、`serde_json`、`sha2`，下载和解压用 macOS 自带的 `curl`、`ditto`。不进应用。
 
 ## 风险 / 待验证
 

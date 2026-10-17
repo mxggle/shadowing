@@ -12,7 +12,8 @@
     "app": "tauri dev",
     "smoke": "scripts/smoke.sh",
     "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings && cargo test --manifest-path src-tauri/Cargo.toml",
-    "check": "npm run build && npm test && npm run check:rust"
+    "check:plugins": "cargo fmt --manifest-path plugins/youtube/Cargo.toml -- --check && cargo clippy --manifest-path plugins/youtube/Cargo.toml --all-targets -- -D warnings && cargo test --manifest-path plugins/youtube/Cargo.toml",
+    "check": "npm run build && npm test && npm run check:rust && npm run check:plugins"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.1",

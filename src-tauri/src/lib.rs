@@ -242,6 +242,9 @@ pub fn run() {
                     // Fresh every run: state.json and the transcripts saved beside it.
                     if let Some(dir) = path.parent() {
                         let _ = std::fs::remove_dir_all(dir);
+                        if let Err(e) = smoke::install_plugin(dir, &folder) {
+                            eprintln!("smoke plugin not installed: {e}");
+                        }
                     }
                     let data = Persisted {
                         folder: Some(folder),

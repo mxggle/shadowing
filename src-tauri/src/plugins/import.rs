@@ -3,15 +3,12 @@
 //! (`import/run`) and moves the result into the open folder (accept.rs).
 //! One import at a time; progress goes out as `import:status`.
 
-use super::accept::{self, Made};
-use super::manifest::Importer;
-use super::rpc::{Process, CANCELLED};
+use super::job::Job;
+use super::rpc::Process;
 use super::{importer_for, Installed};
-use crate::transcript::{self, Source};
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -79,13 +76,6 @@ pub struct Resolved {
     pub via: String,
 }
 
-#[derive(Deserialize)]
-struct RunResult {
-    #[serde(default)]
-    title: String,
-    files: Vec<Made>,
-}
-
 /// Claims the one import slot; `None` while another import runs.
 fn claim(imports: &Imports) -> Option<Arc<AtomicBool>> {
     let mut slot = imports.0.lock().unwrap();
@@ -97,7 +87,7 @@ fn claim(imports: &Imports) -> Option<Arc<AtomicBool>> {
     Some(cancel)
 }
 
-fn release(app: &AppHandle) {
+pub(super) fn release(app: &AppHandle) {
     *app.state::<Imports>().0.lock().unwrap() = None;
 }
 
@@ -112,7 +102,11 @@ fn no_plugin(url: &str) -> String {
 }
 
 /// Starts the plugin in its `data/` folder and says hello.
-fn open(app: &AppHandle, plugin: &Installed, cancel: &AtomicBool) -> Result<Process, String> {
+pub(super) fn open(
+    app: &AppHandle,
+    plugin: &Installed,
+    cancel: &AtomicBool,
+) -> Result<Process, String> {
     let data = plugin.data_dir();
     std::fs::create_dir_all(&data).map_err(|e| e.to_string())?;
     let mut process = Process::spawn(&plugin.program()?, &data)?;
@@ -126,7 +120,7 @@ fn open(app: &AppHandle, plugin: &Installed, cancel: &AtomicBool) -> Result<Proc
 }
 
 /// `progress` notes as (message, done, total).
-fn progress_of(method: &str, params: &Value) -> Option<(String, u64, u64)> {
+pub(super) fn progress_of(method: &str, params: &Value) -> Option<(String, u64, u64)> {
     if method == "log" {
         if cfg!(debug_assertions) {
             println!("[plugin log] {params}");
@@ -146,7 +140,11 @@ pub fn import_clipboard() -> Option<String> {
     let out = std::process::Command::new("/usr/bin/pbpaste")
         .output()
         .ok()?;
-    let text = String::from_utf8(out.stdout).ok()?;
+    as_link(&String::from_utf8(out.stdout).ok()?)
+}
+
+/// One web link and nothing else (a copied paragraph that mentions a link isn't one).
+fn as_link(text: &str) -> Option<String> {
     let text = text.trim();
     let link = (text.starts_with("https://") || text.starts_with("http://"))
         && text.len() < 2048
@@ -244,97 +242,24 @@ pub fn import_start(
     Ok(())
 }
 
-struct Job {
-    plugin: Installed,
-    importer: Importer,
-    url: String,
-    title: String,
-    subtitles: Option<String>,
-    /// The open folder, and the subfolder of it the audio goes in.
-    root: PathBuf,
-    folder: String,
-    /// Where the plugin writes; emptied afterwards.
-    staging: PathBuf,
-    cancel: Arc<AtomicBool>,
-}
-
-impl Job {
-    fn run(&self, app: &AppHandle) -> Status {
-        let _ = std::fs::remove_dir_all(&self.staging);
-        let result = std::fs::create_dir_all(&self.staging)
-            .map_err(|e| e.to_string())
-            .and_then(|_| self.download(app))
-            .and_then(|(title, picked)| self.keep(app, &title, picked));
-        let _ = std::fs::remove_dir_all(&self.staging);
-        let title = self.title.clone();
-        match result {
-            Ok(done) => done,
-            Err(e) if e == CANCELLED => Status::Cancelled { title },
-            Err(message) => Status::Failed { title, message },
-        }
-    }
-
-    /// The plugin's title for what it downloaded (else the one shown before), and its files.
-    fn download(&self, app: &AppHandle) -> Result<(String, accept::Picked), String> {
-        let mut process = open(app, &self.plugin, &self.cancel)?;
-        let mut notify = |method: &str, params: &Value| {
-            if let Some((message, done, total)) = progress_of(method, params) {
-                let title = self.title.clone();
-                let status = Status::Downloading {
-                    title,
-                    message,
-                    done,
-                    total,
-                };
-                let _ = app.emit("import:status", status);
-            }
-        };
-        let params = json!({
-            "url": self.url,
-            "importer": self.importer.id,
-            "outDir": self.staging,
-            "subtitles": self.subtitles,
-        });
-        let answer = process.call("import/run", params, &self.cancel, &mut notify)?;
-        let result: RunResult =
-            serde_json::from_value(answer).map_err(|e| format!("插件的回答看不懂：{e}"))?;
-        let title = Some(result.title)
-            .filter(|t| !t.trim().is_empty())
-            .unwrap_or_else(|| self.title.clone());
-        Ok((title, accept::pick(&self.staging, &result.files)?))
-    }
-
-    /// Moves the audio in; subtitles become the track's imported transcript (removable,
-    /// unlike a file next to the audio, so the learner can transcribe instead).
-    fn keep(&self, app: &AppHandle, title: &str, picked: accept::Picked) -> Result<Status, String> {
-        let state = app.state::<AppState>();
-        let dest = accept::place(&picked.audio, &self.root, &self.folder, title)?;
-        let audio = state.audio(&dest.to_string_lossy())?;
-        let key = audio.to_string_lossy().into_owned();
-        let mut subtitles = false;
-        if let Some((file, lang)) = picked.subtitle {
-            // The audio is in; subtitles that won't read are only a missed extra.
-            if let Ok(mut t) = transcript::read_subtitle(&file, Source::Imported) {
-                let via = &self.importer.title;
-                t.origin = match lang.as_str() {
-                    "" => format!("{via} 字幕"),
-                    lang => format!("{via} 字幕 · {lang}"),
-                };
-                let dir = state.data_dir().join("transcripts");
-                subtitles = !t.sentences.is_empty() && transcript::save(&dir, &key, &t).is_ok();
-            }
-        }
-        Ok(Status::Done {
-            title: title.to_string(),
-            path: key,
-            subtitles,
-        })
-    }
-}
-
 #[tauri::command]
 pub fn import_cancel(imports: State<Imports>) {
     if let Some(cancel) = imports.0.lock().unwrap().as_ref() {
         cancel.store(true, Ordering::Relaxed);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::as_link;
+
+    #[test]
+    fn only_a_lone_link_counts() {
+        let url = "https://youtu.be/FFMoTdeD1aM?si=x";
+        assert_eq!(as_link(&format!("  {url}\n")).as_deref(), Some(url));
+        assert_eq!(as_link("see https://youtu.be/x"), None);
+        assert_eq!(as_link("https://youtu.be/x and more"), None);
+        assert_eq!(as_link("youtu.be/x"), None);
+        assert_eq!(as_link(""), None);
     }
 }
