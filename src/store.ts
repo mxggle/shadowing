@@ -224,7 +224,7 @@ export const useApp = create<AppState>((set, get) => {
 
     setSettingsOpen(settingsOpen) {
       // One overlay at a time: ⌘, while the AI wizard is open replaces it (as the wizard replaces settings).
-      set(settingsOpen ? { settingsOpen, wizardOpen: false, statsOpen: false } : { settingsOpen });
+      set(settingsOpen ? { settingsOpen, wizardOpen: false, statsOpen: false, newsOpen: false } : { settingsOpen });
     },
     toggleShelf() {
       const shelfOpen = !get().shelfOpen;

@@ -1,7 +1,11 @@
 // In-app updates part of the single store. Rust checks GitHub Releases, downloads, swaps the
 // app and relaunches; this keeps what to show (the notice in UpdateNotice.tsx, the row in settings).
+// After an update it says “已更新到 …” once; 新功能 (WhatsNew.tsx) shows the bundled CHANGELOG.md.
+import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { api, type AvailableUpdate, type UpdateProgress } from "./lib/api";
+import { announces } from "./lib/changelog";
+import { releases } from "./releases";
 import type { AppState } from "./store";
 
 /** Let the window settle first; the check is quiet unless it finds something. */
@@ -24,7 +28,14 @@ export interface UpdateState {
   checkUpdate(manual: boolean): Promise<void>;
   installUpdate(): Promise<void>;
   dismissUpdate(): void;
-  /** Checks once a little after launch, and on 检查更新… in the app menu. */
+  /** 新功能: what each version brought (app menu, settings, the card after an update). */
+  newsOpen: boolean;
+  /** The version just updated to, while “已更新到 …” shows. */
+  updatedTo: string | null;
+  setNewsOpen(open: boolean): void;
+  /** Done with “已更新到 …”: remembered as seen. */
+  dismissUpdated(): void;
+  /** Checks once a little after launch, and on 检查更新… in the app menu; says what an update brought. */
   watchUpdates(): void;
 }
 
@@ -35,6 +46,8 @@ export function createUpdateSlice(set: Set, get: Get): UpdateState {
   return {
     update: { state: "idle" },
     updateNotice: false,
+    newsOpen: false,
+    updatedTo: null,
 
     async checkUpdate(manual) {
       const busy = get().update.state;
@@ -70,7 +83,28 @@ export function createUpdateSlice(set: Set, get: Get): UpdateState {
       set({ updateNotice: false, update: update.state === "available" ? update : { state: "idle" } });
     },
 
+    setNewsOpen(newsOpen) {
+      if (!newsOpen) return set({ newsOpen });
+      set({ newsOpen, settingsOpen: false, wizardOpen: false, statsOpen: false });
+      get().dismissUpdated();
+    },
+
+    dismissUpdated() {
+      const { updatedTo } = get();
+      if (!updatedTo) return;
+      set({ updatedTo: null });
+      get().saveGuide({ seenVersion: updatedTo });
+    },
+
     watchUpdates() {
+      void listen("news:open", () => get().setNewsOpen(true));
+      void getVersion().then((current) => {
+        const { guide } = get();
+        // A first run has nothing to compare with: this version's notes count as seen.
+        if (!guide.welcomed) {
+          if (guide.seenVersion !== current) get().saveGuide({ seenVersion: current });
+        } else if (announces(current, guide.seenVersion, true, releases)) set({ updatedTo: current });
+      });
       void listen<UpdateProgress>("update:progress", ({ payload }) => {
         const { update } = get();
         if (update.state === "installing") set({ update: { ...update, ...payload } });

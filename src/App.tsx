@@ -11,6 +11,7 @@ import { SettingsButton, SettingsDialog } from "./components/settings/Settings";
 import { ShortcutHelp } from "./components/ShortcutHelp";
 import { Stage } from "./components/Stage";
 import { UpdateNotice } from "./components/UpdateNotice";
+import { WhatsNewDialog } from "./components/WhatsNew";
 import { usePracticePing } from "./hooks/usePracticePing";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { api, isTauri } from "./lib/api";
@@ -48,6 +49,7 @@ export default function App() {
       <>
         <Welcome />
         <AiWizard />
+        <WhatsNewDialog />
         <UpdateNotice />
       </>
     );
@@ -93,6 +95,7 @@ export default function App() {
       <SettingsDialog />
       <PracticeDialog />
       <AiWizard />
+      <WhatsNewDialog />
       <UpdateNotice />
     </div>
   );

@@ -18,6 +18,8 @@ pub struct Guide {
     pub practiced: bool,
     /// Contextual tips already shown once.
     pub tips: Vec<String>,
+    /// The version whose 新功能 the learner has seen ("" before that was remembered).
+    pub seen_version: String,
 }
 
 #[tauri::command]

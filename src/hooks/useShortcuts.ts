@@ -35,7 +35,7 @@ export function useShortcuts() {
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return;
       const s = useApp.getState();
-      if (s.settingsOpen || s.wizardOpen || s.statsOpen) return;
+      if (s.settingsOpen || s.wizardOpen || s.statsOpen || s.newsOpen) return;
       if ((s.live || s.rec) && !(e.metaKey || e.ctrlKey || e.altKey)) return recordingKey(e, s);
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
         const command: Record<string, (() => void) | false> = {

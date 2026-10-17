@@ -16,7 +16,7 @@ export function usePracticePing() {
     let last = 0;
     const onActivity = () => {
       const s = useApp.getState();
-      if (!s.current || s.settingsOpen || s.wizardOpen || s.statsOpen || !document.hasFocus()) return;
+      if (!s.current || s.settingsOpen || s.wizardOpen || s.statsOpen || s.newsOpen || !document.hasFocus()) return;
       const now = Date.now();
       if (now - last < PING_EVERY_MS) return;
       last = now;
