@@ -38,6 +38,15 @@ export async function mockPlugins(cmd: string, a: Record<string, never>, folder:
   switch (cmd) {
     case "plugins_list":
       return plugins;
+    case "plugins_pick":
+      return {
+        name: "YouTube 导入",
+        version: "0.1.0",
+        author: "Shadowing",
+        description: plugins[0]?.description ?? "",
+        permissions: { network: ["youtube.com", "googlevideo.com", "github.com"], runs: "第一次使用时从 GitHub 下载 yt-dlp（约 51 MB）和 QuickJS（约 1 MB）" },
+        replacing: plugins.length ? "0.1.0" : null,
+      };
     case "plugins_install":
       return plugins;
     case "plugins_remove":

@@ -1,23 +1,33 @@
 import { useState } from "react";
-import { api, type PluginInfo } from "../../lib/api";
+import { api, type PluginInfo, type PluginOffer } from "../../lib/api";
 import { useApp } from "../../store";
 import { Button } from "../ui";
 import { formatBytes } from "./LocalModels";
 
-/** 插件: what's installed, removing one, and installing from a folder. */
+/** 插件: what's installed, removing one, and installing from a folder (picked, then confirmed here). */
 export function PluginsSection() {
   const plugins = useApp((s) => s.plugins);
   const setPlugins = useApp((s) => s.setPlugins);
+  const [offer, setOffer] = useState<PluginOffer | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const pick = async () => {
+    try {
+      setOffer(await api.plugins.pick());
+      setError(null);
+    } catch (e) {
+      setOffer(null);
+      setError(String(e));
+    }
+  };
   const install = async () => {
     try {
-      const list = await api.plugins.install();
-      if (list) setPlugins(list);
+      setPlugins(await api.plugins.install());
       setError(null);
     } catch (e) {
       setError(String(e));
     }
+    setOffer(null);
   };
 
   return (
@@ -31,9 +41,40 @@ export function PluginsSection() {
           <PluginRow key={p.id} plugin={p} onRemoved={setPlugins} />
         ))}
       </div>
-      <div className="mt-3 flex items-center gap-3">
-        <Button onClick={() => void install()}>从文件夹安装…</Button>
-        {error && <p className="min-w-0 flex-1 text-[12px] leading-relaxed text-danger">{error}</p>}
+      {offer ? (
+        <Offer offer={offer} onInstall={() => void install()} onCancel={() => setOffer(null)} />
+      ) : (
+        <div className="mt-3 flex items-center gap-3">
+          <Button onClick={() => void pick()}>从文件夹安装…</Button>
+          {error && <p className="min-w-0 flex-1 text-[12px] leading-relaxed text-danger">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** What a picked plugin is and says it does, before anything is copied in. */
+function Offer({ offer, onInstall, onCancel }: { offer: PluginOffer; onInstall: () => void; onCancel: () => void }) {
+  const { runs, network } = offer.permissions;
+  return (
+    <div role="group" aria-label="安装插件" className="mt-3 rounded-[10px] bg-fill px-4 py-3.5">
+      <h4 className="flex items-baseline gap-2 text-[13px] font-medium">
+        安装插件「{offer.name}」？
+        <span className="tabular font-mono text-[11px] font-normal text-faint">{offer.version}</span>
+      </h4>
+      <div className="mt-1.5 flex flex-col gap-1 text-[12px] leading-relaxed text-muted">
+        {offer.author && <p>作者：{offer.author}</p>}
+        {offer.description && <p>{offer.description}</p>}
+        {runs && <p>它会：{runs}</p>}
+        {network.length > 0 && <p>联网：{network.join("、")}</p>}
+        {offer.replacing && <p>会替换已安装的 {offer.replacing}。</p>}
+        <p className="text-fg">插件是运行在这台 Mac 上的程序，可以读写你的文件。只安装你信任的插件。</p>
+      </div>
+      <div className="mt-3 flex justify-end gap-2">
+        <Button onClick={onCancel}>取消</Button>
+        <Button primary onClick={onInstall}>
+          安装
+        </Button>
       </div>
     </div>
   );

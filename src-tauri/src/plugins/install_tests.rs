@@ -1,3 +1,4 @@
+use super::super::{manifest, scan};
 use super::*;
 
 fn plugin_folder(dir: &Path, version: &str) {
@@ -64,4 +65,16 @@ fn installing_the_installed_folder_itself_is_refused() {
     let m = Manifest::read(&root.join("fake")).unwrap();
     assert!(copy_in(&root.join("fake"), &root, &m).is_err());
     assert!(root.join("fake/manifest.json").is_file());
+}
+
+#[test]
+fn picking_the_folder_around_one_plugin_finds_it() {
+    let tmp = tempfile::tempdir().unwrap();
+    let dist = tmp.path().join("dist");
+    plugin_folder(&dist.join("fake"), "0.1.0");
+    assert_eq!(super::plugin_folder(dist.clone()), dist.join("fake"));
+    assert_eq!(super::plugin_folder(dist.join("fake")), dist.join("fake"));
+    // Two plugins inside: which one is meant isn't clear, so nothing is guessed.
+    plugin_folder(&dist.join("other"), "0.1.0");
+    assert_eq!(super::plugin_folder(dist.clone()), dist);
 }

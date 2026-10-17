@@ -285,6 +285,7 @@ pub fn run() {
             app.manage(proofread::Proofreading::default());
             app.manage(update::Pending::default());
             app.manage(plugins::import::Imports::default());
+            app.manage(plugins::install::Picked::default());
             let practice = std::sync::Arc::new(practice::Practice::open(
                 &app.state::<AppState>().data_dir(),
             ));
@@ -343,7 +344,8 @@ pub fn run() {
             update::update_check,
             update::update_install,
             plugins::plugins_list,
-            plugins::plugins_install,
+            plugins::install::plugins_pick,
+            plugins::install::plugins_install,
             plugins::plugins_remove,
             plugins::import::import_clipboard,
             plugins::import::import_resolve,

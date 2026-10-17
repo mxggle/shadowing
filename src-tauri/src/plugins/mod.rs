@@ -2,9 +2,11 @@
 //! `manifest.json` and a program the app runs as a child process (rpc.rs).
 //! The one extension point so far is 从链接导入 (import.rs, accept.rs).
 //! A plugin's own lasting files go in its `data/` folder, kept across updates.
+//! Installing: the native folder picker, then 安装 in settings (plugins_pick, plugins_install).
 
 pub mod accept;
 pub mod import;
+pub mod install;
 mod job;
 pub mod manifest;
 pub mod rpc;
@@ -13,10 +15,8 @@ use crate::AppState;
 use manifest::{Importer, Manifest, Permissions};
 use serde::Serialize;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, State};
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+use tauri::State;
 use walkdir::WalkDir;
 
 /// Where plugins are installed (app data, beside state.json).
@@ -41,7 +41,7 @@ impl Installed {
 }
 
 /// Every plugin folder, with its manifest or why it can't be used.
-fn scan(root: &Path) -> Vec<(String, PathBuf, Result<Manifest, String>)> {
+pub(super) fn scan(root: &Path) -> Vec<(String, PathBuf, Result<Manifest, String>)> {
     let Ok(entries) = fs::read_dir(root) else {
         return Vec::new();
     };
@@ -109,7 +109,7 @@ fn size(dir: &Path) -> u64 {
         .sum()
 }
 
-fn list(state: &AppState) -> Vec<PluginInfo> {
+pub(super) fn list(state: &AppState) -> Vec<PluginInfo> {
     scan(&root(state))
         .into_iter()
         .map(|(id, dir, manifest)| {
@@ -152,109 +152,6 @@ pub fn plugins_list(state: State<AppState>) -> Vec<PluginInfo> {
     list(&state)
 }
 
-/// Copies a plugin folder into app data, keeping the `data/` of the version it replaces.
-/// The source's own `data/` and hidden files (`.git`) are left behind.
-pub fn copy_in(source: &Path, root: &Path, manifest: &Manifest) -> Result<(), String> {
-    let target = root.join(&manifest.id);
-    if source.canonicalize().ok() == target.canonicalize().ok() {
-        return Err("这个文件夹就是已安装的插件".into());
-    }
-    let staging = root.join(format!(".install-{}", manifest.id));
-    let _ = fs::remove_dir_all(&staging);
-    fs::create_dir_all(&staging).map_err(|e| e.to_string())?;
-    let walk = WalkDir::new(source).min_depth(1).follow_links(false);
-    let skip = |e: &walkdir::DirEntry| {
-        let name = e.file_name().to_string_lossy();
-        name.starts_with('.') || (e.depth() == 1 && name == "data")
-    };
-    for entry in walk.into_iter().filter_entry(|e| !skip(e)) {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let rel = entry
-            .path()
-            .strip_prefix(source)
-            .map_err(|e| e.to_string())?;
-        let to = staging.join(rel);
-        let kind = entry.file_type();
-        if kind.is_dir() {
-            fs::create_dir_all(&to).map_err(|e| e.to_string())?;
-        } else if kind.is_file() {
-            fs::copy(entry.path(), &to).map_err(|e| format!("复制插件文件失败：{e}"))?;
-        }
-    }
-    let program = staging.join(manifest.program_path()?);
-    let mut mode = fs::metadata(&program)
-        .map_err(|_| "插件文件夹里没有它的程序".to_string())?
-        .permissions();
-    mode.set_mode(mode.mode() | 0o755);
-    fs::set_permissions(&program, mode).map_err(|e| e.to_string())?;
-
-    if target.exists() {
-        let data = target.join("data");
-        if data.is_dir() {
-            fs::rename(&data, staging.join("data")).map_err(|e| e.to_string())?;
-        }
-        fs::remove_dir_all(&target).map_err(|e| format!("无法替换旧版本：{e}"))?;
-    }
-    fs::rename(&staging, &target).map_err(|e| e.to_string())
-}
-
-/// 从文件夹安装…: picks a plugin folder, says what it does and asks before copying it in.
-#[tauri::command]
-pub async fn plugins_install(
-    app: AppHandle,
-    state: State<'_, AppState>,
-) -> Result<Option<Vec<PluginInfo>>, String> {
-    let Some(picked) = app
-        .dialog()
-        .file()
-        .set_title("选择插件文件夹（里面有 manifest.json）")
-        .blocking_pick_folder()
-    else {
-        return Ok(None);
-    };
-    let source = picked.into_path().map_err(|e| e.to_string())?;
-    let manifest = Manifest::read(&source)?;
-    if !source.join(manifest.program_path()?).is_file() {
-        return Err("插件文件夹里没有它的程序，可能还没有构建".into());
-    }
-    let root = root(&state);
-    let replacing = Manifest::read(&root.join(&manifest.id)).ok();
-
-    let mut message = format!("{} · {}", manifest.version, manifest.author);
-    if !manifest.description.is_empty() {
-        message.push_str(&format!("\n{}", manifest.description));
-    }
-    if !manifest.permissions.runs.is_empty() {
-        message.push_str(&format!("\n\n它会：{}", manifest.permissions.runs));
-    }
-    if !manifest.permissions.network.is_empty() {
-        message.push_str(&format!(
-            "\n联网：{}",
-            manifest.permissions.network.join("、")
-        ));
-    }
-    if let Some(old) = &replacing {
-        message.push_str(&format!("\n\n会替换已安装的 {}。", old.version));
-    }
-    message.push_str("\n\n插件是运行在这台 Mac 上的程序，只安装你信任的插件。");
-    let confirmed = app
-        .dialog()
-        .message(message)
-        .title(format!("安装插件「{}」？", manifest.name))
-        .kind(MessageDialogKind::Warning)
-        .buttons(MessageDialogButtons::OkCancelCustom(
-            "安装".into(),
-            "取消".into(),
-        ))
-        .blocking_show();
-    if !confirmed {
-        return Ok(None);
-    }
-    fs::create_dir_all(&root).map_err(|e| e.to_string())?;
-    copy_in(&source, &root, &manifest)?;
-    Ok(Some(list(&state)))
-}
-
 /// Deletes a plugin with everything it downloaded (asked in the settings row first).
 #[tauri::command(async)]
 pub fn plugins_remove(state: State<AppState>, id: String) -> Result<Vec<PluginInfo>, String> {
@@ -266,10 +163,6 @@ pub fn plugins_remove(state: State<AppState>, id: String) -> Result<Vec<PluginIn
     fs::remove_dir_all(dir).map_err(|e| format!("无法删除插件：{e}"))?;
     Ok(list(&state))
 }
-
-#[cfg(test)]
-#[path = "install_tests.rs"]
-mod tests;
 
 #[cfg(test)]
 mod real_tests;

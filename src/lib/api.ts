@@ -394,6 +394,17 @@ export interface PluginInfo {
   problem: string | null;
 }
 
+/** A plugin folder picked in 从文件夹安装…, shown before 安装. */
+export interface PluginOffer {
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  permissions: { network: string[]; runs: string };
+  /** The installed version it replaces. */
+  replacing: string | null;
+}
+
 /** What a link is, told by the plugin before downloading. */
 export interface Resolved {
   title: string;
@@ -538,8 +549,10 @@ export const api = {
   },
   plugins: {
     list: () => invoke<PluginInfo[]>("plugins_list"),
-    /** Folder picker, then a confirmation; null when either was cancelled. */
-    install: () => invoke<PluginInfo[] | null>("plugins_install"),
+    /** The native folder picker; what the plugin is, or null when cancelled. Nothing is installed yet. */
+    pick: () => invoke<PluginOffer | null>("plugins_pick"),
+    /** Installs the folder `pick` offered. */
+    install: () => invoke<PluginInfo[]>("plugins_install"),
     remove: (id: string) => invoke<PluginInfo[]>("plugins_remove", { id }),
   },
   imports: {
