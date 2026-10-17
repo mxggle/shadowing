@@ -656,9 +656,10 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
         <li><h3>下载安装包</h3><p>点这里<a href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">下载最新版</a>，大约 11 MB。</p></li>
         <li><h3>拖进“应用程序”</h3><p>双击下载的 .dmg，在打开的窗口里把 Shadowing 拖到“应用程序”文件夹。</p></li>
         <li>
-          <h3>第一次打开</h3>
-          <p>应用还没有 Apple 开发者签名，系统会拦一下。到“系统设置 → 隐私与安全性”点“仍要打开”，或者在终端运行：</p>
-          <div class="cmd"><code id="cmd">xattr -dr com.apple.quarantine /Applications/Shadowing.app</code><button id="copy" type="button">复制</button></div>
+          <h3>打不开或提示“已损坏”</h3>
+          <p>应用还没有 Apple 公证，浏览器下载的会被系统拦下，有时还说“已损坏”，其实文件没坏。按 ⌘ 空格打开“终端”，粘贴这一行按回车，它会重新下载、装进“应用程序”并打开，以后双击就能用：</p>
+          <div class="cmd"><code id="cmd">curl -fsSL https://shadowing.nihongo.day/install.sh | bash</code><button id="copy" type="button">复制</button></div>
+          <p>也可以跳过前两步，直接用这一行安装。</p>
         </li>
         <li><h3>以后自动更新</h3><p>有新版本时应用会提示，看过更新说明点一下就装好，安装包会先校验签名。</p></li>
       </ol>

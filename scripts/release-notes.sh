@@ -36,11 +36,13 @@ $section
 
 ## 安装
 1. 下载 \`Shadowing-$version-macos-arm64.dmg\`，双击打开，把 Shadowing 拖到旁边的“应用程序”文件夹。
-2. 这个版本**没有 Apple 开发者签名和公证**，第一次打开会被系统拦下。到“系统设置 → 隐私与安全性”点“仍要打开”，或者在终端运行：
+2. 这个版本**没有 Apple 公证**，浏览器下载的会被系统拦下，有时提示“已损坏”。在终端运行这一行，它会重新下载、装进“应用程序”并打开：
 
    \`\`\`
-   xattr -dr com.apple.quarantine /Applications/Shadowing.app
+   curl -fsSL https://shadowing.nihongo.day/install.sh | bash
    \`\`\`
+
+   已经拖进去的也可以只运行 \`xattr -dr com.apple.quarantine /Applications/Shadowing.app\`。
 
 装好以后有新版本时，应用打开时会提示，点“更新并重新打开”即可（也可以在菜单 Shadowing → 检查更新…），不用重新下载。
 已经装了 0.4.0 或更新版本的，直接在应用里更新。也有 zip 版：\`Shadowing-$version-macos-arm64.zip\`。
