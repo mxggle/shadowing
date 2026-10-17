@@ -5,6 +5,8 @@
 
 ## [未发布]
 
+## [0.8.1] - 2026-10-17
+
 ### 新增
 - **新功能**：在应用里就能看到每个版本改了什么。
   - 更新以后第一次打开，右上角会说“已更新到 …”，列出这次的新东西，点「看看新功能」看完整说明。
@@ -148,7 +150,8 @@
 - 修改字幕、查找和全部替换、AI 校对、解释这一句（译文、生词、语法点，答案会保存）。
 - 第一次打开有示例练习和 AI 设置向导。
 
-[未发布]: https://github.com/mxggle/shadowing/compare/v0.8.0...HEAD
+[未发布]: https://github.com/mxggle/shadowing/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/mxggle/shadowing/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/mxggle/shadowing/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/mxggle/shadowing/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/mxggle/shadowing/compare/v0.5.1...v0.6.0
