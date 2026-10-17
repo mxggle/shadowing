@@ -9,42 +9,54 @@ use super::vad;
 
 /// The original is silent below this (as `take::active`).
 const SILENT_DB: f32 = -60.0;
-/// How fast what the original leaves in the room dies away (a cut mid-word on
-/// laptop speakers rang on for about 0.3 s).
+/// What the original leaves goes on a little after it: its echo, the room, the
+/// laptop speakers' own processing (on a MacBook, up to 0.3 s past its end).
+const HOLD_FRAMES: usize = 35;
+/// …longer after a loud stop (a cut mid-word): it dies away at this rate.
 const RING_DB_PER_FRAME: f32 = 1.5;
-/// Voice the original can't account for that makes a take yours: 0.1 s, so
-/// that half a second behind is enough even in a sentence with no pause (closer
-/// than that and stopping with it, you're taken for its leftovers).
+/// Under the original, a voice this far above the room is you all the same:
+/// what echo removal left stayed within about 14 dB of it (MacBook, 56 %).
+const LOUD_ABOVE_DB: f32 = 18.0;
+/// Voice of yours that makes a take yours: 0.1 s, so that 0.6 s behind is
+/// enough even in a sentence with no pause (closer than that, quiet, and
+/// stopping with it, you're taken for its leftovers).
 const OWN_FRAMES: usize = 10;
-/// Recording after the original (and its ring) needed to tell at all: stopped
-/// by hand before that, any voice counts, as for 听完再说.
-const JUDGED_FRAMES: usize = 30;
+/// A take that stops by itself ends with the quiet that stopped it: whatever
+/// is in its last moments (a click, a creak) isn't you.
+const END_FRAMES: usize = 30;
+/// Recording past the original's leftovers needed to tell at all. Stopped by
+/// hand before that, any voice counts, as for 听完再说.
+const JUDGED_FRAMES: usize = 20;
 
-/// Your frames (10 ms levels `mine` of the cleaned take, voiced against `thr`),
-/// or None when the voice in them is all where the original's leftovers could
-/// be. `original`: the levels of what was played, on the same timeline.
-pub fn yours(mine: &[f32], original: &[f32], thr: f32) -> Option<Vec<bool>> {
-    let voiced = vad::voiced_over(mine, thr);
-    let mut ring = f32::MIN;
+/// Your frames (10 ms levels `mine` of the cleaned take, voiced against the
+/// room's `along_threshold`), or None when the voice in them is all where the
+/// original's leftovers could be. `original`: the levels of what was played,
+/// on the same timeline.
+pub fn yours(mine: &[f32], original: &[f32], room: f32) -> Option<Vec<bool>> {
+    let voiced = vad::voiced_over(mine, vad::along_threshold(room));
+    let loud = vad::voiced_over(mine, room + LOUD_ABOVE_DB);
+    let (mut ring, mut quiet) = (f32::MIN, usize::MAX);
     let sounding: Vec<bool> = (0..mine.len())
         .map(|i| {
-            ring = original
-                .get(i)
-                .copied()
-                .unwrap_or(-100.0)
-                .max(ring - RING_DB_PER_FRAME);
-            ring > SILENT_DB
+            let level = original.get(i).copied().unwrap_or(-100.0);
+            ring = level.max(ring - RING_DB_PER_FRAME);
+            quiet = if level > SILENT_DB {
+                0
+            } else {
+                quiet.saturating_add(1)
+            };
+            ring > SILENT_DB || quiet <= HOLD_FRAMES
         })
         .collect();
     let after = sounding.iter().rposition(|&s| s).map_or(0, |i| i + 1);
-    let judged = mine.len().saturating_sub(after) >= JUDGED_FRAMES;
-    let own = voiced
-        .iter()
-        .zip(&sounding)
-        .filter(|(v, s)| **v && !**s)
+    if mine.len() < after + JUDGED_FRAMES {
+        return voiced.iter().any(|&v| v).then_some(voiced);
+    }
+    let end = mine.len() - END_FRAMES.min(mine.len() - after);
+    let own = (0..end)
+        .filter(|&i| voiced[i] && (!sounding[i] || loud[i]))
         .count();
-    let any = voiced.iter().any(|&v| v);
-    (any && (own >= OWN_FRAMES || !judged)).then_some(voiced)
+    (own >= OWN_FRAMES).then_some(voiced)
 }
 
 #[cfg(test)]
@@ -52,8 +64,6 @@ mod tests {
     use super::*;
 
     const ROOM: f32 = -60.0;
-    /// 6 dB above the room, as `vad::along_threshold`.
-    const THR: f32 = -54.0;
 
     /// A sentence as played: phrases at −18 dB (syllables, with dips between
     /// them) and pauses of digital silence; `phrases` in frames.
@@ -79,15 +89,13 @@ mod tests {
             .collect()
     }
 
-    /// What echo removal leaves of the original: 8 dB above the room where it
-    /// sounds, 30 ms late, dying away 1 dB a frame after it stops (as on a
-    /// MacBook at a loud volume: the left-over stretches stood out like a voice).
+    /// What echo removal leaves of the original, as on a MacBook: 12 dB above
+    /// the room where it sounds, and on for 0.3 s after it stops.
     fn leftover(played: &[f32]) -> impl Fn(usize) -> Option<f32> + '_ {
         move |i| {
-            (3..=i.min(40))
-                .map(|k| (k, played[i - k]))
-                .find(|&(_, l)| l > SILENT_DB)
-                .map(|(k, _)| ROOM + 8.0 - (k - 3) as f32)
+            (0..=i.min(30))
+                .any(|k| played[i - k] > SILENT_DB)
+                .then_some(ROOM + 12.0)
         }
     }
 
@@ -120,20 +128,21 @@ mod tests {
     fn only_the_originals_leftovers_is_nothing() {
         let played = original(LEN, &PHRASES);
         let mine = take(LEN, leftover(&played));
+        let thr = vad::along_threshold(ROOM);
         assert!(
-            vad::voiced_over(&mine, THR).iter().any(|&v| v),
+            vad::voiced_over(&mine, thr).iter().any(|&v| v),
             "the leftovers stand out like a voice"
         );
-        assert_eq!(yours(&mine, &played, THR), None);
+        assert_eq!(yours(&mine, &played, ROOM), None);
     }
 
     #[test]
     fn a_cut_mid_word_rings_on_and_is_still_nothing() {
-        // Cut while loud: what's left goes on 0.3 s past the end.
+        // Cut while loud: louder than the rest of it, and on 0.35 s past the end.
         let played = original(LEN, &[(10, 360)]);
-        let cut = |i: usize| (360..390).contains(&i).then_some(ROOM + 12.0);
+        let cut = |i: usize| (360..395).contains(&i).then_some(ROOM + 16.0);
         let mine = take(LEN, both(leftover(&played), cut));
-        assert_eq!(yours(&mine, &played, THR), None);
+        assert_eq!(yours(&mine, &played, ROOM), None);
     }
 
     #[test]
@@ -141,18 +150,36 @@ mod tests {
         let played = original(LEN, &PHRASES);
         for lag in [70, 90] {
             let mine = take(LEN, both(leftover(&played), you(&PHRASES, lag)));
-            let v = yours(&mine, &played, THR).unwrap_or_else(|| panic!("{lag} frames behind"));
+            let v = yours(&mine, &played, ROOM).unwrap_or_else(|| panic!("{lag} frames behind"));
             let last = v.iter().rposition(|&x| x).unwrap();
             assert!(last + 10 >= 360 + lag, "{lag}: your last words, at {last}");
         }
     }
 
     #[test]
-    fn half_a_second_behind_with_no_pause_is_you() {
+    fn just_over_half_a_second_behind_with_no_pause_is_you() {
         let one = [(10, 360)];
         let played = original(LEN, &one);
-        let mine = take(LEN, both(leftover(&played), you(&one, 50)));
-        assert!(yours(&mine, &played, THR).is_some());
+        let mine = take(LEN, both(leftover(&played), you(&one, 60)));
+        assert!(yours(&mine, &played, ROOM).is_some());
+    }
+
+    #[test]
+    fn a_word_out_loud_under_the_original_is_you() {
+        // Only the first word, well above anything echo removal leaves.
+        let played = original(LEN, &PHRASES);
+        let word = |i: usize| (120..160).contains(&i).then_some(ROOM + 24.0);
+        let mine = take(LEN, both(leftover(&played), word));
+        assert!(yours(&mine, &played, ROOM).is_some());
+    }
+
+    #[test]
+    fn a_sound_as_it_stops_by_itself_is_not_you() {
+        // The quiet that stopped it, with a creak in it.
+        let played = original(LEN, &PHRASES);
+        let creak = |i: usize| (440..455).contains(&i).then_some(ROOM + 10.0);
+        let mine = take(LEN, both(leftover(&played), creak));
+        assert_eq!(yours(&mine, &played, ROOM), None);
     }
 
     #[test]
@@ -160,12 +187,12 @@ mod tests {
         // Nothing after the original to tell by: as before, your voice is yours.
         let played = original(300, &[(10, 300)]);
         let mine = take(300, |i| (100..250).contains(&i).then_some(ROOM + 10.0));
-        assert!(yours(&mine, &played, THR).is_some());
+        assert!(yours(&mine, &played, ROOM).is_some());
     }
 
     #[test]
     fn nothing_at_all_is_nothing() {
         let played = original(LEN, &PHRASES);
-        assert_eq!(yours(&take(LEN, |_| None), &played, THR), None);
+        assert_eq!(yours(&take(LEN, |_| None), &played, ROOM), None);
     }
 }

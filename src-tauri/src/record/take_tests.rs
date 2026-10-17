@@ -132,8 +132,9 @@ fn shadow_take_removes_the_original_and_measures_the_lag() {
 
 /// 边听边说 in a room with a fan (−52 dBFS, as in a real take): the mic opens
 /// 1.2 s before the original (3 s, its echo 25 ms later) and runs 1.2 s past
-/// it. `you`: your voice, from 0.4 s into the original to 0.4 s past its end,
-/// at this level against the fan (`None`: you say nothing).
+/// it. `you`: your voice, from 0.8 s into the original to 0.8 s past its end
+/// (as far behind as people shadow), at this level against the fan (`None`:
+/// you say nothing).
 fn along(you: Option<f32>) -> Raw {
     let original = speech("ja/ごんぎつね.mp3", 3.0, MIC);
     let lead = MIC as usize * 12 / 10;
@@ -151,7 +152,7 @@ fn along(you: Option<f32>) -> Raw {
     if let Some(above) = you {
         let voice = speech("en/The Tale of Peter Rabbit.mp3", 3.0, MIC);
         let g = 0.0025 * 10f32.powf(above / 20.0) / rms(&voice);
-        let at = lead + MIC as usize * 4 / 10;
+        let at = lead + MIC as usize * 8 / 10;
         for (i, v) in voice.iter().enumerate() {
             mic[at + i] += v * g;
         }
@@ -180,11 +181,11 @@ fn along_a_quiet_voice_is_found() {
     let b = build(&along(Some(12.0)), Mode::Shadow).expect("a take");
     let (o, m) = (b.original_span, b.mine_span);
     let you = m.0 + LEAD_SECS - o.0;
-    assert!((0.3..0.6).contains(&you), "you start 0.4 s in: {you:.2}");
+    assert!((0.6..1.0).contains(&you), "you start 0.8 s in: {you:.2}");
     let past = m.1 - TAIL_SECS - o.1;
     assert!(
-        (0.2..0.6).contains(&past),
-        "and finish 0.4 s past it: {past:.2}"
+        (0.6..1.0).contains(&past),
+        "and finish 0.8 s past it: {past:.2}"
     );
 }
 
