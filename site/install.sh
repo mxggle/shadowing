@@ -13,6 +13,9 @@
 set -eEuo pipefail
 
 URL="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg"
+# 只装用 Shadowing 自己的证书签名的应用（scripts/release-assets.sh 用的“Shadowing Code Signing”，有效期到 2036 年；
+# H"…" 是它的 SHA-1）。安装包万一被换掉，这里会拒绝，而不是绕过系统检查把它装上打开。换签名证书时这里要一起改。
+REQ='identifier "dev.shadowing.app" and certificate leaf = H"07bf6eb3d5708fe1a8501e95f0e576ff9c0eb848"'
 
 if [ -t 1 ]; then B=$'\033[1m' R=$'\033[31m' G=$'\033[32m' N=$'\033[0m'; else B="" R="" G="" N=""; fi
 step() { printf '%s==>%s %s\n' "$B" "$N" "$*"; }
@@ -36,10 +39,10 @@ use_system_proxy() {
   if [ -n "${https_proxy:-}${HTTPS_PROXY:-}${all_proxy:-}${ALL_PROXY:-}" ]; then return 0; fi
   local p
   p=$(scutil --proxy 2>/dev/null) || return 0
-  if [ "$(proxy_field "$p" HTTPSEnable)" = 1 ] && [ -n "$(proxy_field "$p" HTTPSProxy)" ]; then
+  if [ "$(proxy_field "$p" HTTPSEnable)" = 1 ] && [ -n "$(proxy_field "$p" HTTPSProxy)" ] && [ -n "$(proxy_field "$p" HTTPSPort)" ]; then
     system_proxy="http://$(proxy_field "$p" HTTPSProxy):$(proxy_field "$p" HTTPSPort)"
     export https_proxy="$system_proxy"
-  elif [ "$(proxy_field "$p" SOCKSEnable)" = 1 ] && [ -n "$(proxy_field "$p" SOCKSProxy)" ]; then
+  elif [ "$(proxy_field "$p" SOCKSEnable)" = 1 ] && [ -n "$(proxy_field "$p" SOCKSProxy)" ] && [ -n "$(proxy_field "$p" SOCKSPort)" ]; then
     system_proxy="socks5h://$(proxy_field "$p" SOCKSProxy):$(proxy_field "$p" SOCKSPort)"
     export all_proxy="$system_proxy"
   fi
@@ -101,20 +104,25 @@ main() {
   hdiutil attach -quiet -nobrowse -readonly -noautoopen -mountpoint "$mnt" "$tmp/Shadowing.dmg" </dev/null ||
     fail "安装包打不开，可能没下载完整。请再运行一次这行命令。"
   [ -d "$mnt/Shadowing.app" ] || fail "安装包里没有找到 Shadowing.app。"
-  codesign --verify --deep --strict "$mnt/Shadowing.app" 2>/dev/null ||
-    fail "安装包里的应用没有通过签名校验，可能没下载完整。请再运行一次这行命令。"
   local version
   version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$mnt/Shadowing.app/Contents/Info.plist" 2>/dev/null || true)
+  # 新版本先复制到临时文件夹并校验，通过了才去动旧版本：中途出错时旧版本还在。
+  ditto "$mnt/Shadowing.app" "$tmp/new/Shadowing.app" </dev/null || fail "复制安装包失败，可能是磁盘空间不够。"
+  codesign --verify --deep --strict -R "=$REQ" "$tmp/new/Shadowing.app" 2>/dev/null ||
+    fail "安装包里的应用没有通过签名校验（可能没下载完整），所以没有安装。请再运行一次这行命令。"
 
   if [ -z "${SHADOWING_NO_LAUNCH:-}" ]; then quit_running; fi
 
   step "正在安装 Shadowing ${version} 到 $dest …"
-  # 删不掉旧版本时先整个挪开（挪进临时文件夹，结束时一起删），还不行再要密码。
-  if [ -e "$app" ] && ! rm -rf "$app" 2>/dev/null && ! mv "$app" "$tmp/old.app" 2>/dev/null; then
+  # 旧版本先整个挪进临时文件夹（结束时一起删掉），挪不动就直接删，还不行才要密码。
+  if [ -e "$app" ] && ! mv "$app" "$tmp/old.app" 2>/dev/null && ! rm -rf "$app" 2>/dev/null; then
     step "替换旧版本需要这台 Mac 的登录密码（输入时屏幕上不显示，输完按回车）："
     sudo rm -rf "$app" || fail "没能删除旧版本：$app"
   fi
-  ditto "$mnt/Shadowing.app" "$app" || fail "复制到 $dest 失败。"
+  if ! mv "$tmp/new/Shadowing.app" "$app" 2>/dev/null; then
+    if [ -e "$tmp/old.app" ]; then mv "$tmp/old.app" "$app" 2>/dev/null || true; fi
+    fail "没能装进 $dest。"
+  fi
   # 保险：curl 下载的本来就没有隔离标记，这里再清一次。
   xattr -dr com.apple.quarantine "$app" 2>/dev/null || true
 
