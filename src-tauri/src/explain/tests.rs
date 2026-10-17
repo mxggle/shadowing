@@ -1,6 +1,6 @@
 //! Tests for explanations: what is sent, and which replies are shown.
 
-use super::reply::{parse, Point, Word};
+use super::reply::{parse, Part};
 use super::*;
 
 fn sentences(n: usize) -> Vec<Sentence> {
@@ -40,53 +40,79 @@ fn the_sentence_is_sent_with_a_few_lines_around_it() {
 fn reads_a_reply_wrapped_in_a_fence_and_tidies_it() {
     let reply = r#"好的:
 ```json
-{"translation": " 今天天气真好。 ", "words": [
-  {"word": "散歩", "reading": "さんぽ", "meaning": "散步"},
-  {"word": "", "meaning": "空"},
-  {"word": "天気", "reading": "てんき"},
-  {"word": "公園", "reading": "こうえん", "meaning": "公园"}
-], "points": [
-  {"point": "〜ましょう", "note": "提议一起做"},
-  {"point": "は", "note": ""}
-]}
+{"translation": " 今天去散步吧。 ", "parts": [
+  {"text": "今日は", "reading": "きょうは", "meaning": "今天", "note": ""},
+  {"text": "", "meaning": "空"},
+  {"text": "散歩に", "reading": "さんぽに"},
+  {"text": "公園", "reading": "こうえん", "meaning": "公园"},
+  {"text": "行きましょう ", "reading": "いきましょう", "meaning": "", "note": " 提议一起做 "}
+], "tone": " 轻松地提议 "}
 ```"#;
-    let e = parse(reply, "今日は散歩に行きましょう。天気がいい").unwrap();
-    assert_eq!(e.translation, "今天天气真好。");
+    let e = parse(reply, "今日は散歩に行きましょう。").unwrap();
+    assert_eq!(e.translation, "今天去散步吧。");
+    assert_eq!(e.tone, "轻松地提议");
     assert_eq!(
-        e.words,
-        [Word {
-            word: "散歩".into(),
-            reading: "さんぽ".into(),
-            meaning: "散步".into()
-        }]
-    );
-    assert_eq!(
-        e.points,
-        [Point {
-            point: "〜ましょう".into(),
-            note: "提议一起做".into()
-        }]
+        e.parts,
+        [
+            Part {
+                text: "今日は".into(),
+                reading: "きょうは".into(),
+                meaning: "今天".into(),
+                note: "".into(),
+            },
+            Part {
+                text: "行きましょう".into(),
+                reading: "いきましょう".into(),
+                meaning: "".into(),
+                note: "提议一起做".into(),
+            }
+        ]
     );
 }
 
 #[test]
-fn lists_are_optional_and_capped() {
+fn pieces_are_optional_and_capped() {
     let e = parse(r#"{"translation": "你好"}"#, "").unwrap();
-    assert!(e.words.is_empty() && e.points.is_empty());
-    let many: Vec<String> = (0..12)
-        .map(|i| format!(r#"{{"word": "w{i}", "meaning": "m"}}"#))
+    assert!(e.parts.is_empty() && e.tone.is_empty());
+    let many: Vec<String> = (0..20)
+        .map(|i| format!(r#"{{"text": "W{i}", "meaning": "m"}}"#))
         .collect();
-    let sentence = (0..12)
+    let sentence = (0..20)
         .map(|i| format!("w{i}"))
         .collect::<Vec<_>>()
         .join(" ");
     let e = parse(
-        &format!(r#"{{"translation": "x", "words": [{}]}}"#, many.join(",")),
+        &format!(r#"{{"translation": "x", "parts": [{}]}}"#, many.join(",")),
         &sentence,
     )
     .unwrap();
-    assert_eq!(e.words.len(), 8);
-    assert_eq!(e.words[7].word, "w7");
+    assert_eq!(e.parts.len(), 12);
+    assert_eq!(e.parts[11].text, "W11");
+}
+
+#[test]
+fn a_slip_in_one_piece_does_not_cost_the_answer() {
+    // A repeated key (the last one counts), a null, a number, and the comma a piece was cut with.
+    let reply = r#"{"translation": "据说在收集。", "tone": null, "parts": [
+  {"text": "収集していたと", "reading": null, "note": "正在收集", "note": "ていた 表示过去持续"},
+  {"text": "記者について、", "reading": "きしゃについて、", "meaning": "关于记者", "note": 3},
+  {"text": "帰ってくる", "reading": "かえってくる", "meaning": "回来", "note": "回来"}
+]}"#;
+    let e = parse(reply, "記者について、収集していたと。帰ってくる").unwrap();
+    assert_eq!(e.tone, "");
+    let parts: Vec<_> = e
+        .parts
+        .iter()
+        .map(|p| [&p.text[..], &p.reading, &p.meaning, &p.note])
+        .collect();
+    assert_eq!(
+        parts,
+        [
+            ["収集していたと", "", "", "ていた 表示过去持续"],
+            ["記者について", "きしゃについて", "关于记者", ""],
+            ["帰ってくる", "かえってくる", "回来", ""],
+        ]
+    );
 }
 
 #[test]
@@ -142,6 +168,24 @@ fn answers_are_kept_per_track_and_only_while_the_sentence_is_unchanged() {
     saved::remove(dir.path(), "/a.mp3").unwrap();
     assert!(saved::load(dir.path(), "/a.mp3", &all).is_empty());
     saved::remove(dir.path(), "/a.mp3").unwrap();
+}
+
+#[test]
+fn answers_in_the_old_format_are_asked_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let all = sentences(2);
+    saved::save(dir.path(), "/a.mp3", &all, answer(0, "line 0", "零")).unwrap();
+    let file = std::fs::read_dir(dir.path())
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let v1 = std::fs::read_to_string(&file)
+        .unwrap()
+        .replace(r#""version":2"#, r#""version":1"#);
+    std::fs::write(&file, v1).unwrap();
+    assert!(saved::load(dir.path(), "/a.mp3", &all).is_empty());
 }
 
 #[test]

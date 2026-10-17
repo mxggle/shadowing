@@ -1,6 +1,7 @@
 //! Answers kept between runs: one file per track in app data (`explanations/`),
 //! next to the transcripts. An answer belongs to the words it was asked about,
 //! so it is only given back (and kept) while its sentence still says the same.
+//! Answers in an older format are dropped, so the sentence is asked again.
 
 use super::Explanation;
 use crate::store;
@@ -8,6 +9,9 @@ use crate::transcript::{self, Sentence};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+
+/// 2: piece by piece (`parts`), where 1 had a word list and grammar points.
+const VERSION: u32 = 2;
 
 /// Answers for different sentences arrive at once; each saves by reading and rewriting the file.
 static WRITING: Mutex<()> = Mutex::new(());
@@ -42,14 +46,14 @@ fn read(dir: &Path, audio: &str) -> Vec<Saved> {
         return Vec::new();
     };
     match serde_json::from_str::<File>(&text) {
-        Ok(file) if file.audio == audio => file.answers,
+        Ok(file) if file.audio == audio && file.version == VERSION => file.answers,
         _ => Vec::new(),
     }
 }
 
 fn write(dir: &Path, audio: &str, answers: Vec<Saved>) -> std::io::Result<()> {
     let file = File {
-        version: 1,
+        version: VERSION,
         audio: audio.to_string(),
         answers,
     };

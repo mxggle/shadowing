@@ -68,11 +68,11 @@ async fn real_explain() {
             Err(e) => println!("  失败：{e}"),
             Ok(e) => {
                 println!("  译文：{}", e.translation);
-                for w in e.words {
-                    println!("  生词：{} ({}) {}", w.word, w.reading, w.meaning);
+                for p in e.parts {
+                    println!("  {} ({}) {} · {}", p.text, p.reading, p.meaning, p.note);
                 }
-                for p in e.points {
-                    println!("  语法：{} · {}", p.point, p.note);
+                if !e.tone.is_empty() {
+                    println!("  语气：{}", e.tone);
                 }
             }
         }

@@ -73,7 +73,7 @@ export async function aiScenario({ check, waitFor, tracks }: Kit) {
   const note = Object.values(app().explain)[0];
   check(
     "a sentence is explained",
-    note?.open && note.state === "done" && note.value.translation === "测试译文" && note.value.words[0]?.word === "two",
+    note?.open && note.state === "done" && note.value.translation === "测试译文" && note.value.parts[0]?.text === "two",
     JSON.stringify(app().explain),
   );
   app().toggleExplain(1);

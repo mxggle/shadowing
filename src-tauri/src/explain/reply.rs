@@ -2,25 +2,16 @@
 
 use crate::ai::chat;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
-const MAX_WORDS: usize = 8;
-const MAX_POINTS: usize = 4;
+const MAX_PARTS: usize = 12;
 
+/// One piece of the sentence: what it means here and what its grammar does.
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
-pub struct Word {
-    #[serde(default)]
-    pub word: String,
-    #[serde(default)]
+pub struct Part {
+    pub text: String,
     pub reading: String,
-    #[serde(default)]
     pub meaning: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
-pub struct Point {
-    #[serde(default)]
-    pub point: String,
-    #[serde(default)]
     pub note: String,
 }
 
@@ -29,43 +20,65 @@ pub struct Explanation {
     #[serde(default)]
     pub translation: String,
     #[serde(default)]
-    pub words: Vec<Word>,
+    pub parts: Vec<Part>,
+    /// How it is said ("带点埋怨"), to say it the same way; may be empty.
     #[serde(default)]
-    pub points: Vec<Point>,
+    pub tone: String,
     /// Who answered ("ChatGPT · gpt-6-luna"); filled in by the app, not the model.
     #[serde(default)]
     pub source: String,
 }
 
-/// `sentence` is what was asked about: a word the model lists must be in it.
+/// `sentence` is what was asked about: a piece the model lists must be in it.
+///
+/// Read leniently, field by field: with a dozen pieces, a small model now and
+/// then repeats a key (the last one counts) or writes null, and that shouldn't
+/// cost the whole answer.
 pub(super) fn parse(reply: &str, sentence: &str) -> Result<Explanation, String> {
     let unreadable = || "AI 的回复不是要求的格式，可以再试一次或换一个模型".to_string();
-    let mut e = chat::json_object(reply)
-        .and_then(|json| serde_json::from_str::<Explanation>(json).ok())
+    let json: Value = chat::json_object(reply)
+        .and_then(|json| serde_json::from_str(json).ok())
         .ok_or_else(unreadable)?;
-    e.source.clear();
-    e.translation = e.translation.trim().to_string();
-    if e.translation.is_empty() {
+    let text = |v: &Value, key: &str| v[key].as_str().unwrap_or_default().trim().to_string();
+    let translation = text(&json, "translation");
+    if translation.is_empty() {
         return Err(unreadable());
     }
-    for w in &mut e.words {
-        w.word = w.word.trim().to_string();
-        w.reading = w.reading.trim().to_string();
-        w.meaning = w.meaning.trim().to_string();
-    }
-    for p in &mut e.points {
-        p.point = p.point.trim().to_string();
-        p.note = p.note.trim().to_string();
-    }
-    // An entry needs something to read: a word its meaning, a point its note.
-    // A word that isn't in the sentence (from the lines around it, or made up) isn't about it.
+    // A piece needs something to read, a meaning or a note. One that isn't in
+    // the sentence (from the lines around it, or made up) isn't about it.
     let sentence = sentence.to_lowercase();
-    e.words.retain(|w| {
-        !w.meaning.is_empty() && !w.word.is_empty() && sentence.contains(&w.word.to_lowercase())
-    });
-    e.points
-        .retain(|p| !p.point.is_empty() && !p.note.is_empty());
-    e.words.truncate(MAX_WORDS);
-    e.points.truncate(MAX_POINTS);
-    Ok(e)
+    let parts = json["parts"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|p| {
+            let (meaning, note) = (text(p, "meaning"), text(p, "note"));
+            Part {
+                text: unpunctuated(&text(p, "text")),
+                reading: unpunctuated(&text(p, "reading")),
+                // "回来 · 回来": a note that only says the meaning again.
+                note: if note == meaning { String::new() } else { note },
+                meaning,
+            }
+        })
+        .filter(|p| {
+            (!p.meaning.is_empty() || !p.note.is_empty())
+                && !p.text.is_empty()
+                && sentence.contains(&p.text.to_lowercase())
+        })
+        .take(MAX_PARTS)
+        .collect();
+    Ok(Explanation {
+        translation,
+        parts,
+        tone: text(&json, "tone"),
+        source: String::new(),
+    })
+}
+
+/// "記者について、" → "記者について": the commas and stops a piece was cut with.
+fn unpunctuated(s: &str) -> String {
+    s.trim_matches(|c| "、。，．,.!?！？…:：;；".contains(c))
+        .trim()
+        .to_string()
 }

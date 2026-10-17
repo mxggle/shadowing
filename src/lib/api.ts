@@ -241,11 +241,13 @@ export interface Suggestion {
   reason: string;
 }
 
-/** What the explanation model says about one sentence (Simplified Chinese; `reading` only for Japanese). */
+/** What the explanation model says about one sentence, piece by piece (Simplified Chinese; `reading` only for Japanese). */
 export interface Explanation {
   translation: string;
-  words: { word: string; reading: string; meaning: string }[];
-  points: { point: string; note: string }[];
+  /** The sentence in order: what each piece means here, and what its grammar does (either may be empty). */
+  parts: { text: string; reading: string; meaning: string; note: string }[];
+  /** How it is said ("带点埋怨"); may be empty. */
+  tone: string;
   /** Who answered, e.g. "ChatGPT · gpt-6-luna" (本机 first when it ran on this Mac). */
   source: string;
 }
