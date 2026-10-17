@@ -276,18 +276,26 @@ mod tests {
         };
         let cancel = Arc::new(AtomicBool::new(false));
         let flag = cancel.clone();
+        // Cancelled once the first bytes are in and the connection has gone quiet
+        // (not after a fixed time: under load the request itself can take longer).
+        let got = Arc::new(Mutex::new(0u64));
+        let seen = got.clone();
+        let cancelled_at = Arc::new(Mutex::new(None));
+        let at = cancelled_at.clone();
         std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(500));
+            while *seen.lock().unwrap() < 10 {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            std::thread::sleep(Duration::from_millis(300));
+            *at.lock().unwrap() = Some(std::time::Instant::now());
             flag.store(true, Ordering::Relaxed);
         });
-        let started = std::time::Instant::now();
-        let err = download(&spec, &cancel, |_, _| {}).await.unwrap_err();
+        let err = download(&spec, &cancel, |done, _| *got.lock().unwrap() = done)
+            .await
+            .unwrap_err();
         assert_eq!(err, CANCELLED);
-        assert!(
-            started.elapsed() < Duration::from_secs(3),
-            "{:?}",
-            started.elapsed()
-        );
+        let since = cancelled_at.lock().unwrap().expect("cancelled").elapsed();
+        assert!(since < Duration::from_secs(2), "{since:?}");
         assert_eq!(fs::read(part_path(&dest)).unwrap(), &BODY[..10]);
     }
 }
