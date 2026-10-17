@@ -95,8 +95,7 @@ pub fn build(raw: &Raw, mode: Mode) -> Result<Built, &'static str> {
         // Nobody shadows what hasn't started: before it, it's the room.
         let from = at(original_span.0 - EARLY_SECS).min(mine.len());
         mine[..from].fill(0.0);
-        let thr = vad::along_threshold(room);
-        let yours = along::yours(&levels(&mine), &levels(&played), thr);
+        let yours = along::yours(&levels(&mine), &levels(&played), room);
         (yours.unwrap_or_default(), NOTHING_ALONG)
     } else {
         // Before your turn the mic only heard the original.
