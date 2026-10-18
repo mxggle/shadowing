@@ -245,13 +245,29 @@ fn log_line(line: String) {
     }
 }
 
+/// Writes what is only kept in memory (state.json soon-to-be-saved changes, the practice log):
+/// on quit, and before an update installer takes over on Windows.
+pub(crate) fn save_all(app: &tauri::AppHandle) {
+    if let Some(state) = app.try_state::<AppState>() {
+        state.flush();
+    }
+    if let Some(practice) = app.try_state::<std::sync::Arc<practice::Practice>>() {
+        practice.flush();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build());
+    // The app menu (检查更新… and 新功能… under the app name) is a Mac convention; on Windows
+    // it would be a menu bar inside the window, and Settings has both.
+    #[cfg(target_os = "macos")]
+    let builder = builder
         .menu(update::menu)
-        .on_menu_event(|app, event| update::on_menu(app, event.id().as_ref()))
+        .on_menu_event(|app, event| update::on_menu(app, event.id().as_ref()));
+    builder
         .setup(|app| {
             let smoke_run = smoke::folder().is_some();
             let (state_path, data) = match smoke::folder() {
@@ -292,7 +308,7 @@ pub fn run() {
                 data,
                 guide::samples_dir(app.handle()),
             ));
-            // Smoke runs never touch the real Keychain.
+            // Smoke runs never touch the real Keychain / Credential Manager.
             let store: Box<dyn ai::secrets::SecretStore> = match ai::secrets::Keychain::new() {
                 Ok(keychain) if !smoke_run => Box::new(keychain),
                 Ok(_) => Box::new(ai::secrets::Memory::default()),
@@ -410,12 +426,7 @@ pub fn run() {
         .expect("error while running tauri application")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
-                if let Some(state) = app.try_state::<AppState>() {
-                    state.flush();
-                }
-                if let Some(practice) = app.try_state::<std::sync::Arc<practice::Practice>>() {
-                    practice.flush();
-                }
+                save_all(app);
             }
         });
 }
