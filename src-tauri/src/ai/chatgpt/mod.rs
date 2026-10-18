@@ -72,13 +72,20 @@ async fn token_request(form: &[(&str, &str)], url: &str) -> Result<TokenResponse
         .form(form)
         .send()
         .await
-        .map_err(|e| format!("无法连接到 OpenAI：{e}"))?;
+        .map_err(|e| tr!("无法连接到 OpenAI：{e}", "Couldn't reach OpenAI: {e}"))?;
     let status = res.status().as_u16();
     let body = res.text().await.map_err(|e| e.to_string())?;
     if status != 200 {
-        return Err(super::http::describe_status(status, &body, "OpenAI 登录"));
+        let name = crate::i18n::pick("OpenAI 登录", "OpenAI sign-in");
+        return Err(super::http::describe_status(status, &body, name));
     }
-    serde_json::from_str(&body).map_err(|_| "OpenAI 登录返回的数据无法识别".to_string())
+    serde_json::from_str(&body).map_err(|_| {
+        crate::i18n::pick(
+            "OpenAI 登录返回的数据无法识别",
+            "The data from OpenAI sign-in couldn't be read.",
+        )
+        .to_string()
+    })
 }
 
 /// Checks the ID token's claims. It came straight from the token endpoint over
@@ -90,13 +97,19 @@ pub fn check_id_token(
     nonce: &str,
     now: u64,
 ) -> Result<String, String> {
-    let bad = |what: &str| format!("ChatGPT 登录信息校验失败（{what}），请重试");
-    let payload = token.split('.').nth(1).ok_or_else(|| bad("格式"))?;
+    let bad = |what: &str| {
+        tr!(
+            "ChatGPT 登录信息校验失败（{what}），请重试",
+            "Couldn't verify the ChatGPT sign-in ({what}). Try again."
+        )
+    };
+    let malformed = crate::i18n::pick("格式", "format");
+    let payload = token.split('.').nth(1).ok_or_else(|| bad(malformed))?;
     let claims: Value = oauth::base64url_decode(payload)
         .and_then(|b| serde_json::from_slice(&b).ok())
-        .ok_or_else(|| bad("格式"))?;
+        .ok_or_else(|| bad(malformed))?;
     if claims["iss"] != ISSUER {
-        return Err(bad("签发方"));
+        return Err(bad(crate::i18n::pick("签发方", "issuer")));
     }
     let aud_ok = match &claims["aud"] {
         Value::String(a) => a == client_id,
@@ -104,17 +117,17 @@ pub fn check_id_token(
         _ => false,
     };
     if !aud_ok {
-        return Err(bad("应用"));
+        return Err(bad(crate::i18n::pick("应用", "app")));
     }
     if claims["exp"].as_u64().is_none_or(|exp| exp < now) {
-        return Err(bad("已过期"));
+        return Err(bad(crate::i18n::pick("已过期", "expired")));
     }
     if claims["nonce"] != nonce {
         return Err(bad("nonce"));
     }
     Ok(claims["email"]
         .as_str()
-        .unwrap_or("ChatGPT 账号")
+        .unwrap_or(crate::i18n::pick("ChatGPT 账号", "ChatGPT account"))
         .to_string())
 }
 
@@ -124,7 +137,10 @@ static REFRESH: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 /// Puts a current access token on the target, refreshing it first if needed.
 pub async fn authorize(target: &mut Target, secrets: &Secrets) -> Result<(), String> {
     let _guard = REFRESH.lock().await;
-    let mut c = load(secrets)?.ok_or("还没有用 ChatGPT 登录")?;
+    let mut c = load(secrets)?.ok_or(crate::i18n::pick(
+        "还没有用 ChatGPT 登录",
+        "You're not signed in with ChatGPT yet.",
+    ))?;
     if c.expires_at <= now() + 60 {
         let t = token_request(
             &[
@@ -136,7 +152,12 @@ pub async fn authorize(target: &mut Target, secrets: &Secrets) -> Result<(), Str
             TOKEN,
         )
         .await
-        .map_err(|e| format!("ChatGPT 登录已失效，请重新登录（{e}）"))?;
+        .map_err(|e| {
+            tr!(
+                "ChatGPT 登录已失效，请重新登录（{e}）",
+                "Your ChatGPT sign-in has expired. Sign in again. ({e})"
+            )
+        })?;
         c.access_token = t.access_token;
         c.refresh_token = t.refresh_token.unwrap_or(c.refresh_token);
         c.expires_at = now() + t.expires_in;
@@ -158,7 +179,11 @@ pub async fn ai_sign_out_chatgpt(
     secrets.0.delete(PROVIDER)?;
     state.update(|d| drop(d.ai.key_hints.remove(PROVIDER)))?;
     if !revoked {
-        return Err("已在这台 Mac 上退出，但没能确认 OpenAI 那边已撤销登录".into());
+        return Err(crate::i18n::pick(
+            "已在这台 Mac 上退出，但没能确认 OpenAI 那边已撤销登录",
+            "Signed out on this Mac, but couldn't confirm that OpenAI revoked the sign-in.",
+        )
+        .into());
     }
     Ok(state.read(|d| d.ai.clone()))
 }
@@ -208,7 +233,13 @@ pub fn read_stream(body: &str) -> Result<String, String> {
                 text.push_str(event["delta"].as_str().unwrap_or_default())
             }
             "response.completed" => return Ok(text.trim().to_string()),
-            "response.incomplete" => return Err("ChatGPT 的回答不完整，请重试".into()),
+            "response.incomplete" => {
+                return Err(crate::i18n::pick(
+                    "ChatGPT 的回答不完整，请重试",
+                    "ChatGPT's answer was incomplete. Try again.",
+                )
+                .into())
+            }
             "response.failed" | "error" => {
                 let error = &event["response"]["error"];
                 let code = error["code"]
@@ -216,22 +247,33 @@ pub fn read_stream(body: &str) -> Result<String, String> {
                     .or(event["code"].as_str())
                     .unwrap_or_default();
                 return Err(match code {
-                    "subscription_sharing_usage_limit_exceeded" => {
-                        "ChatGPT 套餐额度暂时用完了，请稍后再试".into()
+                    "subscription_sharing_usage_limit_exceeded" => crate::i18n::pick(
+                        "ChatGPT 套餐额度暂时用完了，请稍后再试",
+                        "You've used up your ChatGPT plan's usage limit for now. Try again later.",
+                    )
+                    .into(),
+                    "subscription_sharing_usage_unavailable" => crate::i18n::pick(
+                        "这个 ChatGPT 账号现在不能共享额度给其他应用",
+                        "This ChatGPT account can't share its usage with other apps right now.",
+                    )
+                    .into(),
+                    _ => {
+                        let reason = error["message"].as_str().unwrap_or(code);
+                        tr!(
+                            "ChatGPT 回答失败：{reason}",
+                            "ChatGPT couldn't answer: {reason}"
+                        )
                     }
-                    "subscription_sharing_usage_unavailable" => {
-                        "这个 ChatGPT 账号现在不能共享额度给其他应用".into()
-                    }
-                    _ => format!(
-                        "ChatGPT 回答失败：{}",
-                        error["message"].as_str().unwrap_or(code)
-                    ),
                 });
             }
             _ => {}
         }
     }
-    Err("ChatGPT 的回答中断了，请重试".into())
+    Err(crate::i18n::pick(
+        "ChatGPT 的回答中断了，请重试",
+        "ChatGPT's answer was cut off. Try again.",
+    )
+    .into())
 }
 
 /// Model slugs offered to this account (`visibility == "list"`).

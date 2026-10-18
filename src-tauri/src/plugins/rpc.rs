@@ -13,6 +13,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 pub const CANCELLED: &str = "已取消";
+const CANCELLED_EN: &str = "Cancelled";
 /// How long a plugin gets to stop by itself after `$/cancel`.
 const CANCEL_GRACE: Duration = Duration::from_secs(2);
 const STDERR_LINES: usize = 20;
@@ -30,6 +31,17 @@ const PASS_ENV: &[&str] = &[
     "ALL_PROXY",
     "NO_PROXY",
 ];
+
+/// The error a cancelled call ends with, in the interface language.
+fn cancel_error() -> String {
+    crate::i18n::pick(CANCELLED, CANCELLED_EN).into()
+}
+
+/// Whether an error says the call was cancelled (in either language: the
+/// setting may change while a plugin runs).
+pub fn is_cancelled(e: &str) -> bool {
+    e == CANCELLED || e == CANCELLED_EN
+}
 
 pub struct Process {
     child: Child,
@@ -56,13 +68,22 @@ impl Process {
                 command.env(key, value);
             }
         }
-        let mut child = command
-            .spawn()
-            .map_err(|e| format!("插件程序启动不了：{e}"))?;
+        let mut child = command.spawn().map_err(|e| {
+            tr!(
+                "插件程序启动不了：{e}",
+                "Couldn't start the plugin's program: {e}"
+            )
+        })?;
         let (stdin, stdout, stderr) =
             match (child.stdin.take(), child.stdout.take(), child.stderr.take()) {
                 (Some(i), Some(o), Some(e)) => (i, o, e),
-                _ => return Err("插件程序启动不了".into()),
+                _ => {
+                    return Err(crate::i18n::pick(
+                        "插件程序启动不了",
+                        "Couldn't start the plugin's program",
+                    )
+                    .into())
+                }
             };
 
         let (tx, messages) = mpsc::channel();
@@ -115,7 +136,7 @@ impl Process {
 
     fn ended(&mut self, cancelled: bool) -> String {
         if cancelled {
-            CANCELLED.into()
+            cancel_error()
         } else {
             self.gone()
         }
@@ -128,8 +149,11 @@ impl Process {
         std::thread::sleep(Duration::from_millis(50));
         let last = self.stderr.lock().unwrap().back().cloned();
         match last {
-            Some(line) => format!("插件意外退出：{line}"),
-            None => "插件意外退出".into(),
+            Some(line) => tr!(
+                "插件意外退出：{line}",
+                "The plugin quit unexpectedly: {line}"
+            ),
+            None => crate::i18n::pick("插件意外退出", "The plugin quit unexpectedly").into(),
         }
     }
 
@@ -157,12 +181,12 @@ impl Process {
                         asked_to_stop = Some(Instant::now());
                         let note = json!({ "jsonrpc": "2.0", "method": "$/cancel", "params": { "id": id } });
                         if self.send(note).is_err() {
-                            return Err(CANCELLED.into());
+                            return Err(cancel_error());
                         }
                     }
                     Some(at) if at.elapsed() > CANCEL_GRACE => {
                         let _ = self.child.kill();
-                        return Err(CANCELLED.into());
+                        return Err(cancel_error());
                     }
                     Some(_) => {}
                 }
@@ -170,11 +194,13 @@ impl Process {
             match self.messages.recv_timeout(Duration::from_millis(100)) {
                 Ok(msg) if msg.get("id").and_then(Value::as_u64) == Some(id) => {
                     if asked_to_stop.is_some() {
-                        return Err(CANCELLED.into());
+                        return Err(cancel_error());
                     }
                     if let Some(error) = msg.get("error") {
                         let message = error.get("message").and_then(Value::as_str);
-                        return Err(message.unwrap_or("插件出错了").to_string());
+                        let fallback =
+                            crate::i18n::pick("插件出错了", "The plugin ran into a problem");
+                        return Err(message.unwrap_or(fallback).to_string());
                     }
                     return Ok(msg.get("result").cloned().unwrap_or(Value::Null));
                 }

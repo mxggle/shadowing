@@ -29,7 +29,7 @@ impl Keychain {
 }
 
 fn fail(e: keyring_core::Error) -> String {
-    format!("无法访问钥匙串：{e}")
+    tr!("无法访问钥匙串：{e}", "Couldn't access the Keychain: {e}")
 }
 
 fn entry(service: &str, id: &str) -> Result<keyring_core::Entry, String> {

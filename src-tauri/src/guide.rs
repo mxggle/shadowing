@@ -72,7 +72,13 @@ pub fn sample_track(state: State<AppState>, language: String) -> Result<Track, S
         .samples
         .as_deref()
         .and_then(|dir| sample_in(dir, &language))
-        .ok_or_else(|| "找不到示例音频，请重新安装应用".into())
+        .ok_or_else(|| {
+            crate::i18n::pick(
+                "找不到示例音频，请重新安装应用",
+                "Couldn't find the sample audio. Try reinstalling the app.",
+            )
+            .into()
+        })
 }
 
 #[cfg(test)]

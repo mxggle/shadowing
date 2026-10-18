@@ -68,7 +68,8 @@ pub fn clear_missing(root: &Path) -> Result<Space, String> {
     let _w = WRITING.lock().unwrap_or_else(|e| e.into_inner());
     for (dir, _, missing) in folders(root) {
         if missing {
-            fs::remove_dir_all(&dir).map_err(|e| format!("录音没有删掉：{e}"))?;
+            fs::remove_dir_all(&dir)
+                .map_err(|e| tr!("录音没有删掉：{e}", "Couldn't delete the recordings: {e}"))?;
         }
     }
     Ok(space(root))

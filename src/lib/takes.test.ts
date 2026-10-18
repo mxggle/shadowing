@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { Take } from "./api";
-import { lagNote, lanes, nextTake, paceNote, peekTake, playheadAt, sentenceOf, takeCounts, takesFor, whenRecorded } from "./takes";
+import { setLang } from "./i18n";
+import { formatSecs, lagNote, lanes, nextTake, paceNote, peekTake, playheadAt, sentenceOf, takeCounts, takesFor, whenRecorded } from "./takes";
+
+afterEach(() => setLang("zh"));
 
 const take = (over: Partial<Take> = {}): Take => ({
   id: "1",
@@ -151,5 +154,17 @@ describe("notes", () => {
     expect(whenRecorded(now - 5 * 60_000, now)).toBe("5 分钟前");
     expect(whenRecorded(new Date(2026, 9, 14, 9, 5).getTime(), now)).toBe("今天 09:05");
     expect(whenRecorded(new Date(2026, 9, 12, 21, 0).getTime(), now)).toBe("10月12日 21:00");
+  });
+
+  it("in English, with the number where English puts it", () => {
+    setLang("en");
+    expect(paceNote(take({ mine: [2.6, 4.05] }))).toBe("50% faster than the original");
+    expect(paceNote(take({ rate: 0.85 }))).toBe("About the same pace as the original (original played at 0.85×)");
+    expect(lagNote(420)).toBe("0.42 s behind the original");
+    expect(formatSecs(2.44)).toBe("2.4 s");
+    const now = new Date(2026, 9, 14, 15, 30).getTime();
+    expect(whenRecorded(now - 5 * 60_000, now)).toBe("5 min ago");
+    expect(whenRecorded(new Date(2026, 9, 14, 9, 5).getTime(), now)).toBe("Today, 09:05");
+    expect(whenRecorded(new Date(2026, 9, 12, 21, 0).getTime(), now)).toBe("Oct 12, 21:00");
   });
 });

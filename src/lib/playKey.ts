@@ -3,6 +3,7 @@
 // playing back. With none of those, it plays / pauses the track as always.
 // Space keeps its own meaning while recording (skip the original, keep this
 // time…) and stops a playback; only the key does this.
+import { t } from "./i18n";
 
 export type PlayKeyTarget = "take" | "reading" | "takePlayback" | "readingPlayback" | "track";
 
@@ -50,12 +51,12 @@ export function playKeyTitle(k: PlayKey): string {
   switch (k.target) {
     case "take":
     case "reading":
-      return k.running ? "暂停录音" : "继续录音";
+      return k.running ? t("暂停录音") : t("继续录音");
     case "takePlayback":
     case "readingPlayback":
-      return k.running ? "暂停回放" : "继续回放";
+      return k.running ? t("暂停回放") : t("继续回放");
     case "track":
-      return "播放 / 暂停 (空格)";
+      return t("播放 / 暂停 (空格)");
   }
 }
 

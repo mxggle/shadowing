@@ -57,7 +57,11 @@ pub(super) fn scan(root: &Path) -> Vec<(String, PathBuf, Result<Manifest, String
                 if m.id == name {
                     Ok(m)
                 } else {
-                    Err(format!("文件夹名和插件 id “{}” 不一样", m.id))
+                    let id = &m.id;
+                    Err(tr!(
+                        "文件夹名和插件 id “{id}” 不一样",
+                        "The folder name doesn't match the plugin ID “{id}”"
+                    ))
                 }
             });
             (name, dir, manifest)
@@ -159,8 +163,12 @@ pub fn plugins_remove(state: State<AppState>, id: String) -> Result<Vec<PluginIn
         .into_iter()
         .find(|(name, _, _)| *name == id)
         .map(|(_, dir, _)| dir)
-        .ok_or("这个插件已经不在了")?;
-    fs::remove_dir_all(dir).map_err(|e| format!("无法删除插件：{e}"))?;
+        .ok_or(crate::i18n::pick(
+            "这个插件已经不在了",
+            "This plugin is no longer installed",
+        ))?;
+    fs::remove_dir_all(dir)
+        .map_err(|e| tr!("无法删除插件：{e}", "Couldn't delete the plugin: {e}"))?;
     Ok(list(&state))
 }
 

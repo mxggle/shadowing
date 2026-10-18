@@ -3,6 +3,7 @@
 // these work on what it sends.
 import type { Loop } from "../audio/logic";
 import type { Section, Sentence, Transcript } from "./api";
+import { t } from "./i18n";
 import { sentenceLoop } from "./sentences";
 
 const WHOLE: Section[] = [{ start: 0 }];
@@ -24,7 +25,7 @@ export function sectionRange(sections: Section[], k: number, count: number): [nu
 }
 
 /** "对话 2", or the learner's title. */
-export const sectionName = (sections: Section[], k: number) => sections[k]?.title || `对话 ${k + 1}`;
+export const sectionName = (sections: Section[], k: number) => sections[k]?.title || t("对话 {n}", { n: k + 1 });
 
 /** Starts a new section at sentence `i` (no change at 0 or where one already starts). */
 export function splitAt(sections: Section[], i: number): Section[] {

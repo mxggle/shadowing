@@ -15,9 +15,17 @@ use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 use symphonia::core::units::TimeBase;
 
-pub const ERR_OPEN: &str = "无法打开此文件";
-pub const ERR_FORMAT: &str = "无法识别此音频文件";
-pub const ERR_CODEC: &str = "无法解码此文件";
+fn err_open() -> String {
+    crate::i18n::pick("无法打开此文件", "Can't open this file").into()
+}
+
+fn err_format() -> String {
+    crate::i18n::pick("无法识别此音频文件", "Can't recognize this audio file").into()
+}
+
+fn err_codec() -> String {
+    crate::i18n::pick("无法解码此文件", "Can't decode this file").into()
+}
 
 /// Decoded-but-discarded lead-in before a seek target, so MDCT codecs (AAC,
 /// MP3) have warmed up by the time the requested frame comes out.
@@ -45,7 +53,7 @@ pub struct Decoder {
 }
 
 fn guard<T>(f: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
-    catch_unwind(AssertUnwindSafe(f)).unwrap_or_else(|_| Err(ERR_CODEC.to_string()))
+    catch_unwind(AssertUnwindSafe(f)).unwrap_or_else(|_| Err(err_codec()))
 }
 
 impl Decoder {
@@ -54,7 +62,7 @@ impl Decoder {
     }
 
     fn open_inner(path: &Path) -> Result<Self, String> {
-        let file = File::open(path).map_err(|_| ERR_OPEN.to_string())?;
+        let file = File::open(path).map_err(|_| err_open())?;
         let mss = MediaSourceStream::new(Box::new(file), Default::default());
         let mut hint = Hint::new();
         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
@@ -66,7 +74,7 @@ impl Decoder {
         };
         let format = symphonia::default::get_probe()
             .format(&hint, mss, &opts, &MetadataOptions::default())
-            .map_err(|_| ERR_FORMAT.to_string())?
+            .map_err(|_| err_format())?
             .format;
         let track = format
             .tracks()
@@ -74,15 +82,15 @@ impl Decoder {
             .find(|t| {
                 t.codec_params.codec != CODEC_TYPE_NULL && t.codec_params.sample_rate.is_some()
             })
-            .ok_or_else(|| ERR_FORMAT.to_string())?;
+            .ok_or_else(err_format)?;
         let params = track.codec_params.clone();
         let track_id = track.id;
         let codec = symphonia::default::get_codecs()
             .make(&params, &DecoderOptions::default())
-            .map_err(|_| ERR_CODEC.to_string())?;
+            .map_err(|_| err_codec())?;
         let sample_rate = params.sample_rate.unwrap_or(0);
         if sample_rate == 0 {
-            return Err(ERR_FORMAT.to_string());
+            return Err(err_format());
         }
         let mut dec = Decoder {
             path: path.to_path_buf(),
@@ -104,7 +112,7 @@ impl Decoder {
         // Decode the first packet now: proves the codec works and pins the real
         // channel count before anyone sizes buffers from it.
         if !dec.decode_next()? {
-            return Err(ERR_CODEC.to_string());
+            return Err(err_codec());
         }
         Ok(dec)
     }
@@ -145,7 +153,7 @@ impl Decoder {
                 Err(_) => {
                     bad += 1;
                     if bad > MAX_BAD_PACKETS {
-                        return Err(ERR_CODEC.to_string());
+                        return Err(err_codec());
                     }
                     continue;
                 }
@@ -159,11 +167,11 @@ impl Decoder {
                 Err(Error::DecodeError(_)) | Err(Error::IoError(_)) => {
                     bad += 1;
                     if bad > MAX_BAD_PACKETS {
-                        return Err(ERR_CODEC.to_string());
+                        return Err(err_codec());
                     }
                     continue;
                 }
-                Err(_) => return Err(ERR_CODEC.to_string()),
+                Err(_) => return Err(err_codec()),
             };
             let spec = *decoded.spec();
             let n = decoded.frames();

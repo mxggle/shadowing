@@ -2,6 +2,8 @@
 //! next to the transcripts. An answer belongs to the words it was asked about,
 //! so it is only given back (and kept) while its sentence still says the same.
 //! Answers in an older format are dropped, so the sentence is asked again.
+//! Answers are in the interface language they were asked in; switching it asks again,
+//! and switching back finds the earlier answer.
 
 use super::Explanation;
 use crate::store;
@@ -21,7 +23,14 @@ pub struct Saved {
     pub index: usize,
     /// The sentence as it was asked.
     pub text: String,
+    /// The language of the answer ("zh" or "en"); answers kept before English existed are Chinese.
+    #[serde(default = "chinese")]
+    pub lang: String,
     pub explanation: Explanation,
+}
+
+fn chinese() -> String {
+    "zh".into()
 }
 
 #[derive(Serialize, Deserialize)]
@@ -38,6 +47,14 @@ fn path(dir: &Path, audio: &str) -> PathBuf {
 
 fn still_current(answer: &Saved, sentences: &[Sentence]) -> bool {
     sentences.get(answer.index).map(|s| &s.text) == Some(&answer.text)
+}
+
+/// The track's answers that still match its sentences, in any language.
+fn current(dir: &Path, audio: &str, sentences: &[Sentence]) -> Vec<Saved> {
+    read(dir, audio)
+        .into_iter()
+        .filter(|a| still_current(a, sentences))
+        .collect()
 }
 
 /// Everything kept for a track, whether or not its sentences still say the same.
@@ -60,20 +77,21 @@ fn write(dir: &Path, audio: &str, answers: Vec<Saved>) -> std::io::Result<()> {
     store::write_atomic(&path(dir, audio), &serde_json::to_vec(&file)?)
 }
 
-/// The track's answers that still match its sentences.
+/// The track's answers that still match its sentences, in the interface language.
 pub fn load(dir: &Path, audio: &str, sentences: &[Sentence]) -> Vec<Saved> {
-    read(dir, audio)
+    let lang = crate::i18n::current();
+    current(dir, audio, sentences)
         .into_iter()
-        .filter(|a| still_current(a, sentences))
+        .filter(|a| a.lang == lang)
         .collect()
 }
 
-/// Keeps `answer` (replacing an older one for the sentence) and drops answers
+/// Keeps `answer` (replacing an older one for the sentence in its language) and drops answers
 /// for sentences that have since changed.
 pub fn save(dir: &Path, audio: &str, sentences: &[Sentence], answer: Saved) -> std::io::Result<()> {
     let _writing = WRITING.lock().unwrap_or_else(|e| e.into_inner());
-    let mut answers = load(dir, audio, sentences);
-    answers.retain(|a| a.index != answer.index);
+    let mut answers = current(dir, audio, sentences);
+    answers.retain(|a| a.index != answer.index || a.lang != answer.lang);
     answers.push(answer);
     write(dir, audio, answers)
 }

@@ -1,63 +1,65 @@
 import { Keyboard } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { isTypingTarget } from "../lib/focus";
+import { t } from "../lib/i18n";
 import { useApp } from "../store";
 import { IconButton, Kbd } from "./ui";
 
 type Group = { title: string; keys: [string[], string][]; column: 0 | 1 };
 
+/** Built while rendering, in the interface language. */
 const groups = (seekStep: number): Group[] => [
   {
-    title: "播放",
+    title: t("播放"),
     column: 0,
     keys: [
-      [["空格"], "播放 / 暂停"],
-      [["←", "→"], `后退 / 前进 ${seekStep} 秒`],
-      [["↑", "↓"], "上一个 / 下一个音频"],
-      [["−", "="], "放慢 / 加快"],
-      [["R"], "切换播放顺序"],
+      [[t("空格")], t("播放 / 暂停")],
+      [["←", "→"], t("后退 / 前进 {n} 秒", { n: seekStep })],
+      [["↑", "↓"], t("上一个 / 下一个音频")],
+      [["−", "="], t("放慢 / 加快")],
+      [["R"], t("切换播放顺序")],
     ],
   },
   {
-    title: "循环",
+    title: t("循环"),
     column: 0,
     keys: [
-      [["L"], "设 A → 设 B → 取消"],
-      [["Esc"], "取消循环"],
+      [["L"], t("设 A → 设 B → 取消")],
+      [["Esc"], t("取消循环")],
     ],
   },
   {
-    title: "字幕",
+    title: t("字幕"),
     column: 1,
     keys: [
-      [["S"], "循环当前句 / 取消"],
-      [["[", "]"], "上一句 / 下一句"],
-      [["{", "}"], "上一段 / 下一段"],
-      [["I"], "解释当前句"],
-      [["M"], "跟读录音（循环时连续录；录音时：说完了）"],
-      [["⇧", "M"], "整段录音（这一段或全文）"],
-      [["P"], "回放录音和原句对比"],
+      [["S"], t("循环当前句 / 取消")],
+      [["[", "]"], t("上一句 / 下一句")],
+      [["{", "}"], t("上一段 / 下一段")],
+      [["I"], t("解释当前句")],
+      [["M"], t("跟读录音（循环时连续录；录音时：说完了）")],
+      [["⇧", "M"], t("整段录音（这一段或全文）")],
+      [["P"], t("回放录音和原句对比")],
     ],
   },
   {
-    title: "修改字幕",
+    title: t("修改字幕"),
     column: 1,
     keys: [
-      [["E"], "修改当前句"],
-      [["⇧", "↩"], "在光标处断开成两句"],
-      [["⌫"], "在句首：并入上一句"],
-      [["⌦"], "在句尾：并入下一句"],
-      [["⌘", "F"], "查找和替换"],
-      [["⌘", "Z"], "撤销修改、断开或合并"],
+      [["E"], t("修改当前句")],
+      [["⇧", "↩"], t("在光标处断开成两句")],
+      [["⌫"], t("在句首：并入上一句")],
+      [["⌦"], t("在句尾：并入下一句")],
+      [["⌘", "F"], t("查找和替换")],
+      [["⌘", "Z"], t("撤销修改、断开或合并")],
     ],
   },
   {
-    title: "其他",
+    title: t("其他"),
     column: 0,
     keys: [
-      [["?"], "显示 / 隐藏本表"],
-      [["⌘", "B"], "显示 / 隐藏左侧列表"],
-      [["⌘", ","], "设置"],
+      [["?"], t("显示 / 隐藏本表")],
+      [["⌘", "B"], t("显示 / 隐藏左侧列表")],
+      [["⌘", ","], t("设置")],
     ],
   },
 ];
@@ -92,12 +94,12 @@ export function ShortcutHelp() {
 
   return (
     <div ref={root} className="relative">
-      <IconButton title="键盘快捷键 (?)" active={open} aria-expanded={open} onClick={() => setOpen(!open)}>
+      <IconButton title={t("键盘快捷键 (?)")} active={open} aria-expanded={open} onClick={() => setOpen(!open)}>
         <Keyboard />
       </IconButton>
       {open && (
         <div className="scrollbar-none absolute top-full right-0 z-20 mt-2 max-h-[calc(100vh-64px)] w-[544px] origin-top-right animate-pop-in overflow-y-auto rounded-[12px] bg-raised px-3.5 pt-3 pb-3.5 shadow-lift">
-          <h2 className="text-[13px] font-semibold">键盘快捷键</h2>
+          <h2 className="text-[13px] font-semibold">{t("键盘快捷键")}</h2>
           <div className="grid grid-cols-2 gap-x-6">
             {([0, 1] as const).map((column) => (
               <div key={column}>

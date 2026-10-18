@@ -98,3 +98,12 @@ fn only_small_exact_fixes_in_the_chunk_survive() {
     let reply = format!(r#"{{"fixes": [{}]}}"#, fix(3, "来たい", "着たい"));
     assert!(check(&sentences, 0..3, parse(&reply).unwrap()).is_empty());
 }
+
+#[test]
+fn reasons_come_in_english_when_the_interface_is() {
+    let en = super::system(true);
+    assert!(en.contains(super::REASON_EN));
+    assert!(!en.contains("Simplified Chinese"));
+    assert!(!en.contains("应为"));
+    assert_eq!(super::system(false), super::SYSTEM);
+}

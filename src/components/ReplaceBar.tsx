@@ -1,6 +1,7 @@
 import { ArrowRight, X } from "lucide-react";
 import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 import { matchingSentences } from "../lib/edits";
+import { t } from "../lib/i18n";
 import { useApp } from "../store";
 import { Button, fieldClass, IconButton, TextLink } from "./ui";
 
@@ -42,12 +43,12 @@ export function ReplaceBar() {
 
   return (
     <div className="mx-auto flex w-full max-w-[760px] animate-fade items-center gap-2 pr-8 pb-2.5 pl-10">
-      {bar.suggested && <span className="shrink-0 text-[12px] text-muted">其他句子里也有：</span>}
+      {bar.suggested && <span className="shrink-0 text-[12px] text-muted">{t("其他句子里也有：")}</span>}
       <div className="grid max-w-[26rem] min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
         <input
           ref={findField}
-          aria-label="查找"
-          placeholder="查找"
+          aria-label={t("查找")}
+          placeholder={t("查找")}
           value={bar.find}
           onChange={(e) => setReplace({ find: e.target.value })}
           onKeyDown={keys}
@@ -55,8 +56,8 @@ export function ReplaceBar() {
         />
         <ArrowRight size={14} className="text-faint" aria-hidden />
         <input
-          aria-label="替换为"
-          placeholder="替换为"
+          aria-label={t("替换为")}
+          placeholder={t("替换为")}
           value={bar.with}
           onChange={(e) => setReplace({ with: e.target.value })}
           onKeyDown={keys}
@@ -65,9 +66,9 @@ export function ReplaceBar() {
       </div>
       {bar.replaced !== null ? (
         <span className="flex shrink-0 items-center gap-2 text-[12px] text-muted">
-          已替换 <span className="tabular -mx-1 font-mono">{bar.replaced}</span> 句
-          <TextLink className="text-[12px]" title="撤销 (⌘Z)" onClick={() => void undoEdit()}>
-            撤销
+          {t("已替换")} <span className="tabular -mx-1 font-mono">{bar.replaced}</span> {t("句", { n: bar.replaced })}
+          <TextLink className="text-[12px]" title={t("撤销 (⌘Z)")} onClick={() => void undoEdit()}>
+            {t("撤销")}
           </TextLink>
         </span>
       ) : (
@@ -76,10 +77,10 @@ export function ReplaceBar() {
             <span className="shrink-0 text-[12px] whitespace-nowrap text-muted">
               {matches.length ? (
                 <>
-                  <span className="tabular font-mono">{matches.length}</span> 句
+                  <span className="tabular font-mono">{matches.length}</span> {t("句", { n: matches.length })}
                 </>
               ) : (
-                "没有找到"
+                t("没有找到")
               )}
             </span>
           )}
@@ -88,11 +89,11 @@ export function ReplaceBar() {
             onClick={() => void replaceAll()}
             className="h-7 px-2.5 text-[12px] disabled:opacity-40"
           >
-            全部替换
+            {t("全部替换")}
           </Button>
         </>
       )}
-      <IconButton title="关闭 (Esc)" onClick={closeReplace} className="ml-auto">
+      <IconButton title={t("关闭 (Esc)")} onClick={closeReplace} className="ml-auto">
         <X />
       </IconButton>
     </div>

@@ -18,7 +18,11 @@ use walkdir::WalkDir;
 pub fn copy_in(source: &Path, root: &Path, manifest: &Manifest) -> Result<(), String> {
     let target = root.join(&manifest.id);
     if source.canonicalize().ok() == target.canonicalize().ok() {
-        return Err("这个文件夹就是已安装的插件".into());
+        return Err(crate::i18n::pick(
+            "这个文件夹就是已安装的插件",
+            "This folder is the installed plugin itself",
+        )
+        .into());
     }
     let staging = root.join(format!(".install-{}", manifest.id));
     let _ = fs::remove_dir_all(&staging);
@@ -39,13 +43,24 @@ pub fn copy_in(source: &Path, root: &Path, manifest: &Manifest) -> Result<(), St
         if kind.is_dir() {
             fs::create_dir_all(&to).map_err(|e| e.to_string())?;
         } else if kind.is_file() {
-            fs::copy(entry.path(), &to).map_err(|e| format!("复制插件文件失败：{e}"))?;
+            fs::copy(entry.path(), &to).map_err(|e| {
+                tr!(
+                    "复制插件文件失败：{e}",
+                    "Couldn't copy the plugin's files: {e}"
+                )
+            })?;
             clear_quarantine(&to);
         }
     }
     let program = staging.join(manifest.program_path()?);
     let mut mode = fs::metadata(&program)
-        .map_err(|_| "插件文件夹里没有它的程序".to_string())?
+        .map_err(|_| {
+            crate::i18n::pick(
+                "插件文件夹里没有它的程序",
+                "The plugin folder doesn't contain its program",
+            )
+            .to_string()
+        })?
         .permissions();
     mode.set_mode(mode.mode() | 0o755);
     fs::set_permissions(&program, mode).map_err(|e| e.to_string())?;
@@ -55,7 +70,12 @@ pub fn copy_in(source: &Path, root: &Path, manifest: &Manifest) -> Result<(), St
         if data.is_dir() {
             fs::rename(&data, staging.join("data")).map_err(|e| e.to_string())?;
         }
-        fs::remove_dir_all(&target).map_err(|e| format!("无法替换旧版本：{e}"))?;
+        fs::remove_dir_all(&target).map_err(|e| {
+            tr!(
+                "无法替换旧版本：{e}",
+                "Couldn't replace the old version: {e}"
+            )
+        })?;
     }
     fs::rename(&staging, &target).map_err(|e| e.to_string())
 }
@@ -121,7 +141,11 @@ pub struct Offer {
 fn installable(source: &Path) -> Result<Manifest, String> {
     let manifest = Manifest::read(source)?;
     if !source.join(manifest.program_path()?).is_file() {
-        return Err("插件文件夹里没有它的程序，可能还没有构建".into());
+        return Err(crate::i18n::pick(
+            "插件文件夹里没有它的程序，可能还没有构建",
+            "The plugin folder doesn't contain its program. It may not have been built yet.",
+        )
+        .into());
     }
     Ok(manifest)
 }
@@ -138,7 +162,10 @@ pub async fn plugins_pick(
     let Some(folder) = app
         .dialog()
         .file()
-        .set_title("选择插件文件夹（里面有 manifest.json）")
+        .set_title(crate::i18n::pick(
+            "选择插件文件夹（里面有 manifest.json）",
+            "Choose a plugin folder (one with manifest.json)",
+        ))
         .blocking_pick_folder()
     else {
         return Ok(None);
@@ -165,12 +192,10 @@ pub fn plugins_install(
     state: State<AppState>,
     picked: State<Picked>,
 ) -> Result<Vec<PluginInfo>, String> {
-    let source = picked
-        .0
-        .lock()
-        .unwrap()
-        .take()
-        .ok_or("请重新选择插件文件夹")?;
+    let source = picked.0.lock().unwrap().take().ok_or(crate::i18n::pick(
+        "请重新选择插件文件夹",
+        "Choose the plugin folder again",
+    ))?;
     let manifest = installable(&source)?;
     let root = root(&state);
     fs::create_dir_all(&root).map_err(|e| e.to_string())?;

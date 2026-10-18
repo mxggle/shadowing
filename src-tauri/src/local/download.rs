@@ -16,6 +16,8 @@ const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(6 * 3600);
 /// A connection that stops sending (sleep, Wi-Fi drop without a reset) is given up after this.
 const STALL: Duration = Duration::from_secs(60);
 const STALLED: &str = "下载停住了（1 分钟没有收到数据），请检查网络后重试，会从断点继续";
+const STALLED_EN: &str =
+    "The download stalled (no data for 1 minute). Check your network and try again; it will pick up where it left off.";
 
 pub fn part_path(dest: &Path) -> PathBuf {
     let mut name = dest.file_name().unwrap_or_default().to_os_string();
@@ -63,7 +65,7 @@ pub async fn download(
         }
         let mut res = tokio::select! {
             r = req.send() => r.map_err(|e| net_error(&e))?,
-            _ = cancelled(cancel) => return Err(CANCELLED.into()),
+            _ = cancelled(cancel) => return Err(cancelled_error()),
         };
         let status = res.status().as_u16();
         if status == 200 && have > 0 {
@@ -80,22 +82,21 @@ pub async fn download(
             .append(have > 0)
             .truncate(have == 0)
             .open(&part)
-            .map_err(|e| format!("无法写入模型文件：{e}"))?;
+            .map_err(|e| write_error(&e))?;
         progress(have, spec.size);
         // Cancel is checked while waiting for bytes too, not only when they arrive.
         loop {
             let next = tokio::select! {
                 r = tokio::time::timeout(STALL, res.chunk()) => r,
-                _ = cancelled(cancel) => return Err(CANCELLED.into()),
+                _ = cancelled(cancel) => return Err(cancelled_error()),
             };
             let Some(chunk) = next
-                .map_err(|_| STALLED.to_string())?
+                .map_err(|_| crate::i18n::pick(STALLED, STALLED_EN).to_string())?
                 .map_err(|e| net_error(&e))?
             else {
                 break;
             };
-            file.write_all(&chunk)
-                .map_err(|e| format!("无法写入模型文件：{e}"))?;
+            file.write_all(&chunk).map_err(|e| write_error(&e))?;
             hasher.update(&chunk);
             have += chunk.len() as u64;
             progress(have, spec.size);
@@ -106,7 +107,11 @@ pub async fn download(
     let digest = format!("{:x}", hasher.finalize());
     if have != spec.size || digest != spec.sha256 {
         let _ = fs::remove_file(&part);
-        return Err("下载的文件不完整或已损坏，请重新下载".into());
+        return Err(crate::i18n::pick(
+            "下载的文件不完整或已损坏，请重新下载",
+            "The downloaded file is incomplete or damaged. Download it again.",
+        )
+        .into());
     }
     fs::rename(&part, spec.dest).map_err(|e| e.to_string())
 }
@@ -123,11 +128,30 @@ fn hash_file(path: &Path, hasher: &mut Sha256) -> Result<(), String> {
     }
 }
 
+/// `CANCELLED` in the interface language (`transcribe::is_cancelled` knows both).
+fn cancelled_error() -> String {
+    crate::i18n::pick(CANCELLED, "Cancelled").into()
+}
+
+fn write_error(e: &std::io::Error) -> String {
+    tr!(
+        "无法写入模型文件：{e}",
+        "Couldn't write the model file: {e}"
+    )
+}
+
 fn net_error(e: &reqwest::Error) -> String {
     if e.is_connect() || e.is_timeout() {
-        "下载中断：无法连接到 Hugging Face，请检查网络后重试（已下载的部分会保留）".into()
+        crate::i18n::pick(
+            "下载中断：无法连接到 Hugging Face，请检查网络后重试（已下载的部分会保留）",
+            "The download stopped: couldn't reach Hugging Face. Check your network and try again (what's downloaded so far is kept).",
+        )
+        .into()
     } else {
-        format!("下载中断：{e}（已下载的部分会保留）")
+        tr!(
+            "下载中断：{e}（已下载的部分会保留）",
+            "The download stopped: {e} (what's downloaded so far is kept)."
+        )
     }
 }
 

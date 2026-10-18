@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { setLang } from "./i18n";
 import { advanceLabel, advanceOf, clampRounds, countOf, drillNote, goesAgain, hintOf, parseRounds, readyNote, recordsAgain, type Turns } from "./rounds";
+
+afterEach(() => setLang("zh"));
 
 const at = (t: Partial<Turns>): Turns => ({ again: false, n: 1, max: null, phase: "speaking", along: false, tail: false, ...t });
 /** 边听边说: the original playing, or (`tail`) finished. */
@@ -141,5 +144,16 @@ describe("每句几遍", () => {
     expect(drillNote("listen", 3)).toContain("说满 3 遍自动下一句");
     expect(drillNote("shadow", 2)).toContain("跟着原句说");
     expect(drillNote("listen", 1)).toBe("一句一句来：先放原句再轮到你，说完就到下一句。");
+  });
+});
+
+describe("in English", () => {
+  it("puts the numbers where English does", () => {
+    setLang("en");
+    expect(countOf(at({ again: true, n: 3 }))).toBe("Pass 3");
+    expect(countOf(at({ again: true, n: 2, max: 5 }))).toBe("Pass 2 of 5");
+    expect(drillNote("listen", 3)).toContain("After 3 passes it moves to the next sentence");
+    expect(drillNote("shadow", 1)).toBe("Sentence by sentence: speak along with the original; next sentence when you're done.");
+    expect(hintOf(along({ again: true, n: 2, max: 3 }))).toEqual({ text: "Next pass when the original ends; when you're happy, press", space: " for the next sentence" });
   });
 });

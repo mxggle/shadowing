@@ -9,7 +9,7 @@
 
 use super::saved::{Peaks, ReadPart, Reading, Sound, Source, Take, PEAKS_PER_SEC};
 use super::take::{
-    self, at, convert, Mode, Piece, Raw, LEAD_SECS, MARGIN_SECS, NOTHING, RATE, TAIL_SECS,
+    self, at, convert, heard_nothing, Mode, Piece, Raw, LEAD_SECS, MARGIN_SECS, RATE, TAIL_SECS,
 };
 use super::vad::{self, FRAME_SECS};
 use super::{echo, original, segment, Meta};
@@ -44,14 +44,14 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
         _ => sentences.len(),
     };
     if read == 0 {
-        return Err(NOTHING.into());
+        return Err(heard_nothing().into());
     }
     let (played, mine, spans, heard, lag_ms) = match meta.mode {
         Mode::Read => {
             let voiced = vad::voiced(&take::levels(&mic));
             let expected: Vec<f64> = sentences[..read].iter().map(|s| s.end - s.start).collect();
             let hints = raw.followed.as_ref().map_or(&[][..], |f| &f.hints[..]);
-            let mut spans = segment::reading(&voiced, &expected, hints).ok_or(NOTHING)?;
+            let mut spans = segment::reading(&voiced, &expected, hints).ok_or(heard_nothing())?;
             spans.resize(sentences.len(), (0, 0));
             (None, mic, spans, None, None)
         }
@@ -60,10 +60,14 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
             let mine = echo::cancel_long(&mic, &played, RATE);
             // Where the range began on the recording: its first sound, less the
             // original's own digital silence before it (which plays as nothing).
-            let first_sound = played
-                .iter()
-                .position(|v| v.abs() > 1e-6)
-                .ok_or("原文没有放出来")?;
+            let first_sound =
+                played
+                    .iter()
+                    .position(|v| v.abs() > 1e-6)
+                    .ok_or(crate::i18n::pick(
+                        "原文没有放出来",
+                        "The original didn't play",
+                    ))?;
             let quiet = original::silence_from(file, meta.start, 5.0).unwrap_or(0.0);
             let p0 = first_sound.saturating_sub(at(quiet / rate));
             let to_frame = |t: f64| (p0 + at((t - meta.start).max(0.0) / rate)) / frame();
@@ -79,7 +83,7 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
         }
     };
     if spans.iter().all(|s| s.1 <= s.0) {
-        return Err(NOTHING.into());
+        return Err(heard_nothing().into());
     }
     let originals = match &played {
         Some(_) => None,

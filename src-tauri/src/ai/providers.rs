@@ -35,11 +35,39 @@ pub enum KeyPolicy {
     Account,
 }
 
+/// A label in both interface languages, sent to the UI in the one in use.
+#[derive(Debug, Clone, Copy)]
+pub struct Text {
+    zh: &'static str,
+    en: &'static str,
+}
+
+impl Text {
+    pub const fn new(zh: &'static str, en: &'static str) -> Self {
+        Self { zh, en }
+    }
+
+    /// A name that reads the same in both languages ("Groq").
+    pub const fn same(text: &'static str) -> Self {
+        Self::new(text, text)
+    }
+
+    pub fn get(&self) -> &'static str {
+        crate::i18n::pick(self.zh, self.en)
+    }
+}
+
+impl Serialize for Text {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.get())
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Preset {
     pub id: &'static str,
-    pub name: &'static str,
+    pub name: Text,
     pub api: Api,
     /// Empty for custom servers: the user types it.
     pub base_url: &'static str,
@@ -54,7 +82,7 @@ pub struct Preset {
     pub transcribe_prices: &'static [(&'static str, f64)],
     pub chat_model: Option<&'static str>,
     /// One line under the choice, in the UI language.
-    pub note: &'static str,
+    pub note: Text,
 }
 
 impl Preset {
@@ -79,7 +107,7 @@ impl Preset {
 
 const CLOUD: Preset = Preset {
     id: "",
-    name: "",
+    name: Text::same(""),
     api: Api::OpenAi,
     base_url: "",
     local: false,
@@ -89,23 +117,26 @@ const CLOUD: Preset = Preset {
     transcribe_model: None,
     transcribe_prices: &[],
     chat_model: None,
-    note: "",
+    note: Text::same(""),
 };
 
 pub const PRESETS: &[Preset] = &[
     Preset {
         id: crate::local::PROVIDER,
-        name: "本机",
+        name: Text::new("本机", "On this Mac"),
         api: Api::Builtin,
         local: true,
         key: KeyPolicy::None,
         features: &[Feature::Transcribe],
-        note: "在这台 Mac 上用 Whisper 转写：免费、可离线，需要先下载一个模型",
+        note: Text::new(
+            "在这台 Mac 上用 Whisper 转写：免费、可离线，需要先下载一个模型",
+            "Transcribes with Whisper on this Mac: free, works offline, needs a model downloaded first",
+        ),
         ..CLOUD
     },
     Preset {
         id: "groq",
-        name: "Groq",
+        name: Text::same("Groq"),
         base_url: "https://api.groq.com/openai/v1",
         key_url: Some("https://console.groq.com/keys"),
         features: &[Feature::Transcribe],
@@ -114,95 +145,116 @@ pub const PRESETS: &[Preset] = &[
             ("whisper-large-v3", 0.111),
             ("whisper-large-v3-turbo", 0.04),
         ],
-        note: "Whisper large-v3，约 $0.11 / 小时音频，速度很快",
+        note: Text::new(
+            "Whisper large-v3，约 $0.11 / 小时音频，速度很快",
+            "Whisper large-v3, about $0.11 per hour of audio, very fast",
+        ),
         ..CLOUD
     },
     Preset {
         id: "openai",
-        name: "OpenAI",
+        name: Text::same("OpenAI"),
         base_url: "https://api.openai.com/v1",
         key_url: Some("https://platform.openai.com/api-keys"),
         features: &[Feature::Transcribe, Feature::Chat],
         transcribe_model: Some("whisper-1"),
         transcribe_prices: &[("whisper-1", 0.36)],
         chat_model: Some("gpt-5-mini"),
-        note: "转写用 whisper-1（约 $0.36 / 小时）；解释可选 GPT 系列",
+        note: Text::new(
+            "转写用 whisper-1（约 $0.36 / 小时）；解释可选 GPT 系列",
+            "Transcription with whisper-1 (about $0.36 per hour); GPT models for explanations",
+        ),
         ..CLOUD
     },
     Preset {
         id: super::chatgpt::PROVIDER,
-        name: "ChatGPT 账号",
+        name: Text::new("ChatGPT 账号", "ChatGPT account"),
         api: Api::Responses,
         base_url: "https://api.openai.com/v1",
         key: KeyPolicy::Account,
-        note: "用 ChatGPT Plus / Pro 套餐的额度，不需要 API Key（OpenAI 的预览功能，可能变化）",
+        note: Text::new(
+            "用 ChatGPT Plus / Pro 套餐的额度，不需要 API Key（OpenAI 的预览功能，可能变化）",
+            "Uses your ChatGPT Plus / Pro plan instead of an API key (an OpenAI preview feature that may change)",
+        ),
         ..CLOUD
     },
     Preset {
         id: "anthropic",
-        name: "Anthropic",
+        name: Text::same("Anthropic"),
         api: Api::Anthropic,
         base_url: "https://api.anthropic.com/v1",
         key_url: Some("https://console.anthropic.com/settings/keys"),
         chat_model: Some("claude-haiku-5-5"),
-        note: "Claude 系列",
+        note: Text::new("Claude 系列", "Claude models"),
         ..CLOUD
     },
     Preset {
         id: "gemini",
-        name: "Google Gemini",
+        name: Text::same("Google Gemini"),
         base_url: "https://generativelanguage.googleapis.com/v1beta/openai",
         key_url: Some("https://aistudio.google.com/apikey"),
-        note: "Gemini 系列；免费额度的数据可能被 Google 用于改进模型",
+        note: Text::new(
+            "Gemini 系列；免费额度的数据可能被 Google 用于改进模型",
+            "Gemini models; on the free tier, Google may use your data to improve its models",
+        ),
         ..CLOUD
     },
     Preset {
         id: "deepseek",
-        name: "DeepSeek",
+        name: Text::same("DeepSeek"),
         base_url: "https://api.deepseek.com",
         key_url: Some("https://platform.deepseek.com/api_keys"),
-        note: "价格低，中文好",
+        note: Text::new("价格低，中文好", "Low prices, good at Chinese"),
         ..CLOUD
     },
     Preset {
         id: "openrouter",
-        name: "OpenRouter",
+        name: Text::same("OpenRouter"),
         base_url: "https://openrouter.ai/api/v1",
         key_url: Some("https://openrouter.ai/keys"),
-        note: "一个 Key 使用多家的模型",
+        note: Text::new("一个 Key 使用多家的模型", "One key for models from many providers"),
         ..CLOUD
     },
     Preset {
         id: "ollama",
-        name: "Ollama",
+        name: Text::same("Ollama"),
         base_url: "http://localhost:11434/v1",
         local: true,
         key: KeyPolicy::None,
-        note: "本机运行，需要先安装并启动 Ollama",
+        note: Text::new(
+            "本机运行，需要先安装并启动 Ollama",
+            "Runs on this Mac; install and start Ollama first",
+        ),
         ..CLOUD
     },
     Preset {
         id: "lmstudio",
-        name: "LM Studio",
+        name: Text::same("LM Studio"),
         base_url: "http://localhost:1234/v1",
         local: true,
         key: KeyPolicy::None,
-        note: "本机运行，需要在 LM Studio 里启动本地服务",
+        note: Text::new(
+            "本机运行，需要在 LM Studio 里启动本地服务",
+            "Runs on this Mac; start the local server in LM Studio first",
+        ),
         ..CLOUD
     },
     Preset {
         id: "custom-transcribe",
-        name: "自定义",
+        name: Text::new("自定义", "Custom"),
         key: KeyPolicy::Optional,
         features: &[Feature::Transcribe],
-        note: "任何 OpenAI 兼容的转写服务（需要支持 verbose_json 时间戳）",
+        note: Text::new(
+            "任何 OpenAI 兼容的转写服务（需要支持 verbose_json 时间戳）",
+            "Any OpenAI-compatible transcription service (it must support verbose_json timestamps)",
+        ),
         ..CLOUD
     },
     Preset {
         id: "custom-chat",
-        name: "自定义",
+        name: Text::new("自定义", "Custom"),
         key: KeyPolicy::Optional,
-        note: "任何 OpenAI 兼容的服务",
+        note: Text::new("任何 OpenAI 兼容的服务", "Any OpenAI-compatible service"),
         ..CLOUD
     },
 ];

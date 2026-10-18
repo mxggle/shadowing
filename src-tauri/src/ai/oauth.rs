@@ -76,7 +76,7 @@ pub fn open_browser(url: &str) -> Result<(), String> {
         .arg(url)
         .spawn()
         .map(drop)
-        .map_err(|e| format!("无法打开浏览器：{e}"))
+        .map_err(|e| tr!("无法打开浏览器：{e}", "Couldn't open the browser: {e}"))
 }
 
 /// Listens on 127.0.0.1 (random port) for the provider's redirect.
@@ -106,10 +106,14 @@ impl Loopback {
         let deadline = Instant::now() + WAIT;
         loop {
             if CANCEL.load(Ordering::Relaxed) {
-                return Err(CANCELLED.into());
+                return Err(crate::i18n::pick(CANCELLED, "Cancelled").into());
             }
             if Instant::now() > deadline {
-                return Err("等待登录超时，请重试".into());
+                return Err(crate::i18n::pick(
+                    "等待登录超时，请重试",
+                    "Timed out waiting for the sign-in. Try again.",
+                )
+                .into());
             }
             let (mut stream, _) = match self.listener.accept() {
                 Ok(conn) => conn,
@@ -151,9 +155,16 @@ impl Loopback {
                  <body style=\"font:16px -apple-system,sans-serif;display:grid;place-items:center;height:90vh;color:#333\">\
                  <p>{}</p>",
                 if ok {
-                    format!("已连接 {service}，可以回到 Shadowing 了。")
+                    tr!(
+                        "已连接 {service}，可以回到 Shadowing 了。",
+                        "Connected to {service}. You can go back to Shadowing now."
+                    )
                 } else {
-                    "没有完成授权，可以回到 Shadowing 重试。".to_string()
+                    crate::i18n::pick(
+                        "没有完成授权，可以回到 Shadowing 重试。",
+                        "Authorization wasn't completed. Go back to Shadowing to try again.",
+                    )
+                    .to_string()
                 }
             );
             let _ = stream.write_all(

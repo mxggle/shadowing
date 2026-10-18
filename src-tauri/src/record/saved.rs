@@ -158,10 +158,18 @@ fn load(root: &Path, audio: &str) -> File {
     }
 }
 
+pub fn take_gone() -> &'static str {
+    crate::i18n::pick("这条录音不见了", "Couldn't find this recording")
+}
+
+pub fn reading_gone() -> &'static str {
+    crate::i18n::pick("这次朗读不见了", "Couldn't find this reading")
+}
+
 /// Ids come from the webview: only ones this app makes (digits, `-`) name a file.
 fn valid(id: &str) -> Result<(), String> {
     let ok = !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
-    ok.then_some(()).ok_or_else(|| "这条录音不见了".to_string())
+    ok.then_some(()).ok_or_else(|| take_gone().to_string())
 }
 
 pub fn list(root: &Path, audio: &str) -> Vec<Take> {
@@ -175,7 +183,7 @@ pub fn readings(root: &Path, audio: &str) -> Vec<Reading> {
 fn write(root: &Path, audio: &str, file: &File) -> Result<(), String> {
     let json = serde_json::to_vec_pretty(file).map_err(|e| e.to_string())?;
     write_atomic(&dir(root, audio).join("takes.json"), &json)
-        .map_err(|e| format!("录音没有保存：{e}"))
+        .map_err(|e| tr!("录音没有保存：{e}", "Couldn't save the recording: {e}"))
 }
 
 /// `apart`: the two lanes never overlap (one channel holds them).
@@ -187,7 +195,7 @@ fn write_wav(
     apart: bool,
 ) -> Result<(), String> {
     write_atomic(&wav_path(root, audio, id), &wav::encode(l, r, apart))
-        .map_err(|e| format!("录音没有保存：{e}"))
+        .map_err(|e| tr!("录音没有保存：{e}", "Couldn't save the recording: {e}"))
 }
 
 /// Stores the take's audio, then lists it.
@@ -236,7 +244,7 @@ pub fn delete(root: &Path, audio: &str, id: &str) -> Result<(), String> {
     let _w = WRITING.lock().unwrap_or_else(|e| e.into_inner());
     let mut file = load(root, audio);
     let Some(gone) = file.takes.iter().position(|t| t.id == id) else {
-        return Err("这条录音不见了".into());
+        return Err(take_gone().into());
     };
     let own_file = file.takes.remove(gone).source.is_none();
     for r in &mut file.readings {
@@ -259,7 +267,7 @@ pub fn delete_reading(root: &Path, audio: &str, id: &str) -> Result<(), String> 
     let _w = WRITING.lock().unwrap_or_else(|e| e.into_inner());
     let mut file = load(root, audio);
     if !file.readings.iter().any(|r| r.id == id) {
-        return Err("这次朗读不见了".into());
+        return Err(reading_gone().into());
     }
     let gone: Vec<String> = file
         .takes

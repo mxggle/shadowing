@@ -24,6 +24,17 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 pub const CANCELLED: &str = "已取消";
+const CANCELLED_EN: &str = "Cancelled";
+
+/// The error a stopped job returns, in the interface language (the UI knows both).
+pub fn cancelled_error() -> String {
+    crate::i18n::pick(CANCELLED, CANCELLED_EN).into()
+}
+
+/// Whether an error is `cancelled_error`, in either language.
+pub fn is_cancelled(error: &str) -> bool {
+    error == CANCELLED || error == CANCELLED_EN
+}
 
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -128,7 +139,7 @@ pub fn run(
         sent += samples.len();
         let end = sent as f64 / f64::from(RATE);
         if job.cancel.load(Ordering::Relaxed) {
-            return Err(CANCELLED.into());
+            return Err(cancelled_error());
         }
         let rms = (samples.iter().map(|s| s * s).sum::<f32>() / samples.len().max(1) as f32).sqrt();
         if rms > SILENT_RMS {
@@ -158,7 +169,7 @@ pub fn run(
 
     let mut sentences = sentences::build(pieces, &meter.db);
     if sentences.is_empty() {
-        return Err("没有识别出语音".into());
+        return Err(crate::i18n::pick("没有识别出语音", "No speech was recognized.").into());
     }
     snap::snap(&mut sentences, &meter.db);
     Ok(sentences)

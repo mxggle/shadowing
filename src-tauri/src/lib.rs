@@ -1,3 +1,5 @@
+#[macro_use]
+mod i18n;
 mod ai;
 mod audio;
 mod explain;
@@ -67,7 +69,7 @@ impl AppState {
     pub fn audio(&self, path: &str) -> Result<PathBuf, String> {
         self.allowed(Path::new(path))
             .filter(|p| library::is_audio(p))
-            .ok_or_else(|| "无法访问此文件".into())
+            .ok_or_else(|| i18n::pick("无法访问此文件", "Can't access this file").into())
     }
 
     /// Where state.json lives; transcripts and models sit beside it.
@@ -129,6 +131,8 @@ struct Snapshot {
     settings: Settings,
     progress: HashMap<String, Progress>,
     guide: guide::Guide,
+    /// The interface language in use ("zh" or "en"), resolved from `settings.ui_language`.
+    ui_lang: &'static str,
 }
 
 fn now_secs() -> u64 {
@@ -156,6 +160,7 @@ fn get_snapshot(state: State<AppState>) -> Snapshot {
         settings: data.settings,
         progress: data.progress,
         guide: data.guide,
+        ui_lang: i18n::current(),
     }
 }
 
@@ -219,6 +224,19 @@ fn save_settings(state: State<AppState>, settings: Settings) -> Result<(), Strin
     state.update(|d| d.settings = settings)
 }
 
+/// Saves the interface language ("", "zh" or "en") and returns the language now in use.
+#[tauri::command]
+fn set_ui_language(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    language: String,
+) -> Result<&'static str, String> {
+    let lang = i18n::apply(&language);
+    state.update(|d| d.settings.ui_language = language)?;
+    update::retitle_menu(&app);
+    Ok(lang)
+}
+
 /// Debug aid: lets the webview print to the terminal. Silent in release builds.
 #[tauri::command]
 fn log_line(line: String) {
@@ -246,10 +264,12 @@ pub fn run() {
                             eprintln!("smoke plugin not installed: {e}");
                         }
                     }
-                    let data = Persisted {
+                    let mut data = Persisted {
                         folder: Some(folder),
                         ..Default::default()
                     };
+                    // The smoke checks expect the Chinese interface, whatever the Mac's language.
+                    data.settings.ui_language = "zh".into();
                     (path, data)
                 }
                 None => {
@@ -265,6 +285,8 @@ pub fn run() {
                     (path, data)
                 }
             };
+            i18n::apply(&data.settings.ui_language);
+            update::retitle_menu(app.handle());
             app.manage(AppState::new(
                 state_path,
                 data,
@@ -305,6 +327,7 @@ pub fn run() {
             save_progress,
             set_last_track,
             save_settings,
+            set_ui_language,
             log_line,
             guide::guide_save,
             guide::sample_track,

@@ -1,24 +1,25 @@
 import { Captions, Check, Play, Repeat, Sparkles, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { featureReady } from "../../lib/aiReady";
+import { t, tk } from "../../lib/i18n";
 import { useApp } from "../../store";
 import { Button, TextLink } from "../ui";
 import { AccountStep, ModelStep } from "./OnboardingSteps";
 import { BigButton, Preview } from "./Welcome";
 
 const LANGUAGES: [string, string][] = [
-  ["ja", "日语"],
-  ["en", "英语"],
-  ["other", "其他语言"],
+  ["ja", tk("日语")],
+  ["en", tk("英语")],
+  ["other", tk("其他语言")],
 ];
 
 const FEATURES: [LucideIcon, string, string][] = [
-  [Repeat, "一句一句跟读", "点一句就循环，随时放慢，用你自己的音频。"],
-  [Captions, "没有字幕也能练", "Whisper 把音频转写成带时间的句子，可以在这台 Mac 上免费运行。"],
-  [Sparkles, "看懂每一句", "AI 翻译句子、讲解生词和语法，还能校对听错的字。"],
+  [Repeat, tk("一句一句跟读"), tk("点一句就循环，随时放慢，用你自己的音频。")],
+  [Captions, tk("没有字幕也能练"), tk("Whisper 把音频转写成带时间的句子，可以在这台 Mac 上免费运行。")],
+  [Sparkles, tk("看懂每一句"), tk("AI 翻译句子、讲解生词和语法，还能校对听错的字。")],
 ];
 
-const STEPS = ["介绍", "本机转写", "登录 AI", "开始"] as const;
+const STEPS = [tk("介绍"), tk("本机转写"), tk("登录 AI"), tk("开始")] as const;
 
 /**
  * First launch: what the app does and which language, then the two optional
@@ -38,12 +39,12 @@ export function Onboarding() {
         <div key={step} className="my-auto flex animate-fade-in flex-col pt-12">
           {step === 0 && <Intro onNext={next} />}
           {step === 1 && (
-            <Page title="在这台 Mac 上转写" onBack={() => setStep(0)} onNext={next} feature="transcribe">
+            <Page title={t("在这台 Mac 上转写")} onBack={() => setStep(0)} onNext={next} feature="transcribe">
               <ModelStep />
             </Page>
           )}
           {step === 2 && (
-            <Page title="登录 AI 服务" onBack={() => setStep(1)} onNext={next} feature="chat">
+            <Page title={t("登录 AI 服务")} onBack={() => setStep(1)} onNext={next} feature="chat">
               <AccountStep />
             </Page>
           )}
@@ -57,7 +58,7 @@ export function Onboarding() {
 function Steps({ step, onPick }: { step: number; onPick: (i: number) => void }) {
   const language = useApp((s) => s.guide.language);
   return (
-    <ol className="flex items-center gap-1 self-center text-[12px]" aria-label="引导步骤">
+    <ol className="flex items-center gap-1 self-center text-[12px]" aria-label={t("引导步骤")}>
       {STEPS.map((label, i) => (
         <li key={label} className="flex items-center gap-1">
           {i > 0 && <span className="h-px w-4 bg-line-strong" />}
@@ -76,7 +77,7 @@ function Steps({ step, onPick }: { step: number; onPick: (i: number) => void }) 
             >
               {i < step ? <Check size={10} strokeWidth={3} /> : i + 1}
             </span>
-            {label}
+            {t(label)}
           </button>
         </li>
       ))}
@@ -100,27 +101,27 @@ function Intro({ onNext }: { onNext: () => void }) {
       <div className="flex flex-col items-start">
         <p className="text-[13px] font-semibold tracking-[0.01em] text-muted">Shadowing</p>
         <h1 className="mt-3 font-heading text-[34px] leading-[1.25] font-semibold tracking-[-0.015em] text-balance">
-          反复听、放慢，
+          {t("反复听、放慢，")}
           <br />
-          一句一句跟读。
+          {t("一句一句跟读。")}
         </h1>
         {missing && (
-          <p className="mt-4 rounded-[8px] bg-danger-soft px-3 py-1.5 text-[12px] break-all text-danger">上次的文件夹无法打开：{missing}</p>
+          <p className="mt-4 rounded-[8px] bg-danger-soft px-3 py-1.5 text-[12px] break-all text-danger">{t("上次的文件夹无法打开：{folder}", { folder: missing })}</p>
         )}
         <ul className="mt-7 flex flex-col gap-3.5">
           {FEATURES.map(([Icon, title, text]) => (
             <li key={title} className="flex gap-3">
               <Icon size={17} strokeWidth={1.8} className="mt-0.5 shrink-0 text-muted" />
               <div>
-                <p className="text-[14px] font-medium">{title}</p>
-                <p className="mt-0.5 text-[13px] leading-relaxed text-muted">{text}</p>
+                <p className="text-[14px] font-medium">{t(title)}</p>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-muted">{t(text)}</p>
               </div>
             </li>
           ))}
         </ul>
 
-        <h2 className="mt-8 text-[13px] font-medium text-muted">你在学哪种语言？</h2>
-        <div role="radiogroup" aria-label="学习语言" className="tint mt-2.5 flex gap-1 rounded-[11px] p-1">
+        <h2 className="mt-8 text-[13px] font-medium text-muted">{t("你在学哪种语言？")}</h2>
+        <div role="radiogroup" aria-label={t("学习语言")} className="tint mt-2.5 flex gap-1 rounded-[11px] p-1">
           {LANGUAGES.map(([code, label]) => {
             const on = guide.language === code;
             return (
@@ -133,16 +134,16 @@ function Intro({ onNext }: { onNext: () => void }) {
                   on ? "bg-raised font-medium text-fg shadow-[0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
                 }`}
               >
-                {label}
+                {t(label)}
               </button>
             );
           })}
         </div>
         <BigButton disabled={!guide.language} onClick={onNext}>
-          下一步
+          {t("下一步")}
         </BigButton>
         <TextLink className="mt-6" onClick={() => void chooseFolder()}>
-          跳过引导，直接打开我的音频文件夹
+          {t("跳过引导，直接打开我的音频文件夹")}
         </TextLink>
       </div>
       <Preview language={guide.language === "en" ? "en" : "ja"} />
@@ -166,12 +167,12 @@ function Page({ title, feature, onBack, onNext, children }: {
       <h1 className="font-heading text-[26px] leading-[1.3] font-semibold tracking-[-0.01em]">{title}</h1>
       <div className="mt-5">{children}</div>
       <footer className="mt-8 flex items-center gap-2 border-t border-line pt-4">
-        <Button onClick={onBack}>上一步</Button>
+        <Button onClick={onBack}>{t("上一步")}</Button>
         <p className="min-w-0 flex-1 text-right text-[12px] text-faint">
-          {downloading ? "模型会在后台继续下载" : go ? "" : "可以先跳过，之后在设置（⌘,）里补上"}
+          {downloading ? t("模型会在后台继续下载") : go ? "" : t("可以先跳过，之后在设置（⌘,）里补上")}
         </p>
         <Button primary={go} onClick={onNext}>
-          {go ? "下一步" : "跳过"}
+          {go ? t("下一步") : t("跳过")}
         </Button>
       </footer>
     </section>
@@ -187,22 +188,22 @@ function Start({ onBack }: { onBack: () => void }) {
 
   return (
     <section className="mx-auto flex w-full max-w-[600px] flex-col items-start">
-      <h1 className="font-heading text-[26px] leading-[1.3] font-semibold tracking-[-0.01em]">准备好了</h1>
+      <h1 className="font-heading text-[26px] leading-[1.3] font-semibold tracking-[-0.01em]">{t("准备好了")}</h1>
       <ul className="mt-5 flex flex-col gap-2 text-[13px]">
-        <Status state={transcribe} label="转写" text={{ ok: "可以用了", pending: "模型正在后台下载，下载完就能用", off: "还没有设置" }} />
-        <Status state={chat} label="句子解释" text={{ ok: "可以用了", pending: "", off: "还没有设置" }} />
+        <Status state={transcribe} label={t("转写")} text={{ ok: t("可以用了"), pending: t("模型正在后台下载，下载完就能用"), off: t("还没有设置") }} />
+        <Status state={chat} label={t("句子解释")} text={{ ok: t("可以用了"), pending: "", off: t("还没有设置") }} />
       </ul>
       {(transcribe === "off" || chat === "off") && (
-        <p className="mt-3 text-[12px] text-faint">没设置也能练：播放、循环和导入字幕都不需要 AI。随时可以在设置（⌘,）里补上。</p>
+        <p className="mt-3 text-[12px] text-faint">{t("没设置也能练：播放、循环和导入字幕都不需要 AI。随时可以在设置（⌘,）里补上。")}</p>
       )}
       <BigButton onClick={() => void startPractice()}>
-        <Play size={15} fill="currentColor" strokeWidth={0} /> 用示例练一下
+        <Play size={15} fill="currentColor" strokeWidth={0} /> {t("用示例练一下")}
       </BigButton>
-      <p className="mt-2.5 text-[12px] text-faint">约 1 分钟：播放、放慢、循环一句、跟读。</p>
+      <p className="mt-2.5 text-[12px] text-faint">{t("约 1 分钟：播放、放慢、循环一句、跟读。")}</p>
       {error && <p className="mt-3 rounded-[8px] bg-danger-soft px-3 py-1.5 text-[12px] break-all text-danger">{error}</p>}
       <div className="mt-7 flex items-center gap-5">
-        <TextLink onClick={() => void chooseFolder()}>直接打开我的音频文件夹</TextLink>
-        <TextLink onClick={onBack}>上一步</TextLink>
+        <TextLink onClick={() => void chooseFolder()}>{t("直接打开我的音频文件夹")}</TextLink>
+        <TextLink onClick={onBack}>{t("上一步")}</TextLink>
       </div>
     </section>
   );
@@ -218,7 +219,7 @@ function Status({ state, label, text }: { state: "ok" | "pending" | "off"; label
           <span className={`size-2 rounded-full ${state === "pending" ? "bg-faint" : "bg-track"}`} />
         )}
       </span>
-      <span className="w-16 font-medium">{label}</span>
+      <span className="w-16 font-medium [&:lang(en)]:w-24">{label}</span>
       <span className="text-muted">{text[state]}</span>
     </li>
   );

@@ -68,7 +68,25 @@ pub struct Built {
 pub const NOTHING: &str = "没听到你的声音，再试一次？";
 /// 边听边说 with nothing of yours: most likely you waited for the original to finish.
 pub const NOTHING_ALONG: &str = "没听到你的声音：原句一放就跟着说，再试一次？";
-const NOT_PLAYED: &str = "原句没有放出来（刚开始就跳过了，或者声音被关掉了），这次没有保存";
+
+/// `NOTHING` in the interface language.
+pub fn heard_nothing() -> &'static str {
+    crate::i18n::pick(NOTHING, "Didn't hear you. Try again?")
+}
+
+fn heard_nothing_along() -> &'static str {
+    crate::i18n::pick(
+        NOTHING_ALONG,
+        "Didn't hear you. Speak along as soon as the original starts. Try again?",
+    )
+}
+
+fn not_played() -> &'static str {
+    crate::i18n::pick(
+        "原句没有放出来（刚开始就跳过了，或者声音被关掉了），这次没有保存",
+        "The original didn't play (it was skipped right away, or the sound was off), so this recording wasn't saved.",
+    )
+}
 /// Speaking along, you may come in a moment before the original (you've heard it before).
 const EARLY_SECS: f64 = 0.3;
 
@@ -81,7 +99,7 @@ pub fn build(raw: &Raw, mode: Mode) -> Result<Built, &'static str> {
         raw.mic_at,
         raw.mic.len() as f64 / raw.mic_rate as f64,
     );
-    let original_span = span(&played, &active(&played)).ok_or(NOT_PLAYED)?;
+    let original_span = span(&played, &active(&played)).ok_or(not_played())?;
     // The room as the mic heard it: removing the echo also turns the room
     // down wherever the original played, so the cleaned take's own quietest
     // moments are well below it.
@@ -96,13 +114,13 @@ pub fn build(raw: &Raw, mode: Mode) -> Result<Built, &'static str> {
         let from = at(original_span.0 - EARLY_SECS).min(mine.len());
         mine[..from].fill(0.0);
         let yours = along::yours(&levels(&mine), &levels(&played), room);
-        (yours.unwrap_or_default(), NOTHING_ALONG)
+        (yours.unwrap_or_default(), heard_nothing_along())
     } else {
         // Before your turn the mic only heard the original.
         let turn = (raw.turn as f64 * RATE as f64 / raw.mic_rate.max(1) as f64) as usize;
         let turn = turn.min(mine.len());
         mine[..turn].fill(0.0);
-        (vad::voiced(&levels(&mine)), NOTHING)
+        (vad::voiced(&levels(&mine)), heard_nothing())
     };
     let mine_span = span(&mine, &voiced)
         .map(|(a, b)| ((a - LEAD_SECS).max(0.0), b + TAIL_SECS))

@@ -2,7 +2,7 @@
 //! OpenAI whisper-1, self-hosted servers) with word and segment timestamps.
 
 use super::sentences::Verbose;
-use super::{pcm, Piece, PieceProgress, Transcriber, CANCELLED};
+use super::{cancelled_error, pcm, Piece, PieceProgress, Transcriber};
 use crate::ai::http::Endpoint;
 use crate::ai::Target;
 use reqwest::multipart::{Form, Part};
@@ -33,7 +33,7 @@ impl Transcriber for Cloud<'_> {
         tauri::async_runtime::block_on(async {
             tokio::select! {
                 r = request(&self.endpoint, self.model, piece, &wav) => r,
-                _ = cancelled(piece.cancel) => Err(CANCELLED.into()),
+                _ = cancelled(piece.cancel) => Err(cancelled_error()),
             }
         })
     }
@@ -75,10 +75,11 @@ async fn request(
             .timeout(REQUEST_TIMEOUT)
     };
     let body = endpoint.send_retrying(build, ATTEMPTS).await?;
+    let name = endpoint.name;
     serde_json::from_str(&body).map_err(|_| {
-        format!(
-            "{} 没有返回带时间的结果，请确认模型支持 verbose_json（比如 whisper 系列）",
-            endpoint.name
+        tr!(
+            "{name} 没有返回带时间的结果，请确认模型支持 verbose_json（比如 whisper 系列）",
+            "{name} didn't return timed results. Make sure the model supports verbose_json (the whisper models do)."
         )
     })
 }

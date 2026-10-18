@@ -2,6 +2,7 @@
 // sentence, how the two voices line up on screen, and the words under them.
 import { formatRate } from "../audio/logic";
 import type { ClipPart, Take } from "./api";
+import { t, tk } from "./i18n";
 
 /** Whether a take has you after the original (听完再说, or cut from a paragraph read on your own) rather than over it. */
 export const inTurns = (take: Pick<Take, "mode">) => take.mode !== "shadow";
@@ -99,7 +100,7 @@ export function playheadAt(parts: ClipPart[], secs: number): { original: number 
 export const mineSecs = (take: Take) => Math.max(0, take.mine[1] - take.mine[0] - 0.45);
 
 /** "2.4 秒" */
-export const formatSecs = (s: number) => `${s.toFixed(1)} 秒`;
+export const formatSecs = (s: number) => t("{s} 秒", { s: s.toFixed(1) });
 
 /**
  * How your length compares with the original's as you heard it (听完再说):
@@ -111,30 +112,30 @@ export function paceNote(take: Take): string {
   const m = mineSecs(take);
   if (o <= 0 || m <= 0) return "";
   const r = m / o;
-  const at = Math.abs(take.rate - 1) > 0.01 ? `（原句放的是 ${formatRate(take.rate)}）` : "";
-  if (r > 1.15) return `比原句慢 ${Math.round((r - 1) * 100)}%${at}`;
-  if (r < 0.87) return `比原句快 ${Math.round((1 - r) * 100)}%${at}`;
-  return `节奏和原句差不多${at}`;
+  const at = Math.abs(take.rate - 1) > 0.01 ? t("（原句放的是 {rate}）", { rate: formatRate(take.rate) }) : "";
+  if (r > 1.15) return t("比原句慢 {pct}%{at}", { pct: Math.round((r - 1) * 100), at });
+  if (r < 0.87) return t("比原句快 {pct}%{at}", { pct: Math.round((1 - r) * 100), at });
+  return t("节奏和原句差不多{at}", { at });
 }
 
 /** Bluetooth earphones add a delay of their own that isn't measured. */
-export const BLUETOOTH_LAG = "戴蓝牙耳机时测不准晚多少";
+export const BLUETOOTH_LAG = tk("戴蓝牙耳机时测不准晚多少");
 
 /** 边听边说: how far behind the original you were. */
 export function lagNote(ms: number | null, bluetooth = false): string {
   if (ms === null) return "";
-  if (bluetooth) return BLUETOOTH_LAG;
-  return ms < 80 ? "几乎和原声同步" : `比原声晚 ${(ms / 1000).toFixed(2)} 秒`;
+  if (bluetooth) return t(BLUETOOTH_LAG);
+  return ms < 80 ? t("几乎和原声同步") : t("比原声晚 {secs} 秒", { secs: (ms / 1000).toFixed(2) });
 }
 
 /** "刚刚", "3 分钟前", "今天 14:05", "10月12日" */
 export function whenRecorded(created: number, now = Date.now()): string {
   const mins = Math.floor((now - created) / 60_000);
-  if (mins < 1) return "刚刚";
-  if (mins < 60) return `${mins} 分钟前`;
+  if (mins < 1) return t("刚刚");
+  if (mins < 60) return t("{n} 分钟前", { n: mins });
   const d = new Date(created);
   const today = new Date(now);
   const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  if (d.toDateString() === today.toDateString()) return `今天 ${hm}`;
-  return `${d.getMonth() + 1}月${d.getDate()}日 ${hm}`;
+  if (d.toDateString() === today.toDateString()) return t("今天 {time}", { time: hm });
+  return t("{month}月{day}日 {time}", { month: d.getMonth() + 1, day: d.getDate(), time: hm });
 }

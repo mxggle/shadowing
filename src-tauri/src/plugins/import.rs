@@ -110,14 +110,15 @@ pub struct Resolved {
     pub via: String,
 }
 
-const READING: &str = "正在读取另一个链接，请稍等";
-const DOWNLOADING: &str = "正在下载另一个链接，请等它下载完";
-
 fn no_plugin(url: &str) -> String {
     if url.contains("youtube.com") || url.contains("youtu.be") {
-        "还没有能导入 YouTube 链接的插件。在 设置 → 插件 里安装 YouTube 导入插件。".into()
+        crate::i18n::pick(
+            "还没有能导入 YouTube 链接的插件。在 设置 → 插件 里安装 YouTube 导入插件。",
+            "No plugin can import YouTube links yet. Install the YouTube import plugin in Settings → Plugins.",
+        )
+        .into()
     } else {
-        "没有能导入这个链接的插件".into()
+        crate::i18n::pick("没有能导入这个链接的插件", "No plugin can import this link").into()
     }
 }
 
@@ -181,7 +182,10 @@ pub fn import_resolve(
 ) -> Result<Resolved, String> {
     let url = url.trim().to_string();
     let (plugin, importer) = importer_for(&state, &url).ok_or_else(|| no_plugin(&url))?;
-    let cancel = imports.claim(Slot::Resolving).ok_or(READING)?;
+    let cancel = imports.claim(Slot::Resolving).ok_or(crate::i18n::pick(
+        "正在读取另一个链接，请稍等",
+        "Already reading another link. Wait a moment.",
+    ))?;
     let result = (|| {
         let mut process = open(&app, &plugin, &cancel)?;
         let mut notify = |method: &str, params: &Value| {
@@ -202,8 +206,12 @@ pub fn import_resolve(
             &cancel,
             &mut notify,
         )?;
-        let mut resolved: Resolved =
-            serde_json::from_value(answer).map_err(|e| format!("插件的回答看不懂：{e}"))?;
+        let mut resolved: Resolved = serde_json::from_value(answer).map_err(|e| {
+            tr!(
+                "插件的回答看不懂：{e}",
+                "Couldn't understand the plugin's answer: {e}"
+            )
+        })?;
         resolved.plugin = plugin.manifest.name.clone();
         resolved.via = importer.title.clone();
         Ok(resolved)
@@ -225,12 +233,16 @@ pub fn import_start(
     subtitles: Option<String>,
     folder: String,
 ) -> Result<(), String> {
-    let root = state
-        .root()
-        .ok_or("请先打开一个文件夹，导入的音频会放在里面")?;
+    let root = state.root().ok_or(crate::i18n::pick(
+        "请先打开一个文件夹，导入的音频会放在里面",
+        "Open a folder first. Imported audio goes into it.",
+    ))?;
     let url = url.trim().to_string();
     let (plugin, importer) = importer_for(&state, &url).ok_or_else(|| no_plugin(&url))?;
-    let cancel = imports.claim(Slot::Downloading).ok_or(DOWNLOADING)?;
+    let cancel = imports.claim(Slot::Downloading).ok_or(crate::i18n::pick(
+        "正在下载另一个链接，请等它下载完",
+        "Already downloading another link. Wait for it to finish.",
+    ))?;
     let staging = super::root(&state).join(".jobs").join(format!(
         "{}-{}",
         plugin.manifest.id,

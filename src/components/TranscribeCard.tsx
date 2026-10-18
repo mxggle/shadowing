@@ -2,19 +2,20 @@ import { AlertCircle, Cloud, FileUp, Laptop, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { TranscribeStatus } from "../lib/api";
 import { featureReady } from "../lib/aiReady";
+import { t, tk } from "../lib/i18n";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { Button, fieldClass, TextLink } from "./ui";
 
 const LANGUAGES: [string, string][] = [
-  ["", "自动识别"],
-  ["ja", "日语"],
-  ["en", "英语"],
-  ["zh", "中文"],
-  ["ko", "韩语"],
-  ["fr", "法语"],
-  ["de", "德语"],
-  ["es", "西班牙语"],
+  ["", tk("自动识别")],
+  ["ja", tk("日语")],
+  ["en", tk("英语")],
+  ["zh", tk("中文")],
+  ["ko", tk("韩语")],
+  ["fr", tk("法语")],
+  ["de", tk("德语")],
+  ["es", tk("西班牙语")],
 ];
 
 /**
@@ -32,8 +33,8 @@ export function TranscribeCard() {
   const elsewhere = job?.state === "running";
 
   return (
-    <section aria-label="字幕" className="mt-12 animate-fade-in border-t border-line pt-6">
-      <h2 className="text-[13px] font-semibold">字幕</h2>
+    <section aria-label={t("字幕")} className="mt-12 animate-fade-in border-t border-line pt-6">
+      <h2 className="text-[13px] font-semibold">{t("字幕")}</h2>
       {mine?.state === "running" ? (
         <Progress job={mine} />
       ) : mine?.state === "failed" ? (
@@ -42,8 +43,8 @@ export function TranscribeCard() {
         <>
           <p className="mt-1.5 max-w-[34em] text-[13px] leading-relaxed text-muted">
             {elsewhere
-              ? "另一个音频正在转写，完成后才能开始新的。"
-              : "有了字幕，每一句都能点着听、单独循环。可以用 AI 转写，或导入现成的 SRT / VTT 文件。"}
+              ? t("另一个音频正在转写，完成后才能开始新的。")
+              : t("有了字幕，每一句都能点着听、单独循环。可以用 AI 转写，或导入现成的 SRT / VTT 文件。")}
           </p>
           {!open && (
             <div className="mt-4 flex items-center gap-2">
@@ -54,11 +55,11 @@ export function TranscribeCard() {
                 onClick={() => (ready ? setOpen(true) : useApp.getState().setWizardOpen(true))}
               >
                 <Sparkles size={14} strokeWidth={1.9} />
-                AI 转写
+                {t("AI 转写")}
               </Button>
               <Button onClick={() => void useApp.getState().importTranscript()}>
                 <FileUp size={14} strokeWidth={1.9} />
-                导入字幕文件
+                {t("导入字幕文件")}
               </Button>
             </div>
           )}
@@ -89,45 +90,48 @@ function TranscribeForm({ onClose }: { onClose: () => void }) {
 
   const price = preset.transcribePrices.find(([m]) => m === choice!.model)?.[1];
   const cost = price && duration > 0 ? price * (duration / 3600) : null;
-  const destination = preset.local ? null : preset.baseUrl ? preset.name : "你填写的地址";
+  const destination = preset.local ? null : preset.baseUrl ? preset.name : t("你填写的地址");
 
   return (
     <div ref={box} className="mt-4 flex max-w-[560px] scroll-mb-6 animate-fade-in flex-col gap-3.5 rounded-[14px] p-4 shadow-[inset_0_0_0_1px_var(--line-strong)]">
       <div className="grid grid-cols-[48px_1fr] items-center gap-x-3 gap-y-3">
-        <span className="text-[12px] font-medium text-muted">语言</span>
+        <span className="text-[12px] font-medium text-muted">{t("语言")}</span>
         <div className="flex items-center gap-2">
           <span className="w-32 shrink-0">
             <select className={fieldClass} value={language} onChange={(e) => setLanguage(e.target.value)}>
               {LANGUAGES.map(([code, label]) => (
                 <option key={code} value={code}>
-                  {label}
+                  {t(label)}
                 </option>
               ))}
             </select>
           </span>
-          {!language && <span className="text-[12px] text-faint">指定语言通常更准确</span>}
+          {!language && <span className="text-[12px] text-faint">{t("指定语言通常更准确")}</span>}
         </div>
-        <span className="text-[12px] font-medium text-muted">服务</span>
+        <span className="text-[12px] font-medium text-muted">{t("服务")}</span>
         <p className="flex min-w-0 items-center gap-2 text-[13px]">
           <span className="truncate">
-            {builtin ? `本机 · ${local?.models.find((m) => m.id === choice!.model)?.name}` : `${preset.name} · ${choice!.model}`}
+            {builtin
+              ? t("本机 · {model}", { model: local?.models.find((m) => m.id === choice!.model)?.name ?? "" })
+              : `${preset.name} · ${choice!.model}`}
           </span>
-          {builtin && <span className="shrink-0 text-faint">免费</span>}
+          {builtin && <span className="shrink-0 text-faint">{t("免费")}</span>}
           {cost !== null && (
-            <span className="shrink-0 text-faint">{cost < 0.01 ? "不到 $0.01" : `约 $${cost.toFixed(2)}`}</span>
+            <span className="shrink-0 text-faint">{cost < 0.01 ? t("不到 $0.01") : t("约 ${cost}", { cost: cost.toFixed(2) })}</span>
           )}
           <TextLink onClick={() => setSettingsOpen(true)} className="shrink-0 text-[12px]">
-            更改
+            {t("更改")}
           </TextLink>
         </p>
       </div>
       <p className="flex items-start gap-1.5 text-[12px] text-faint">
         {destination ? <Cloud size={13} className="mt-0.5 shrink-0" /> : <Laptop size={13} className="mt-0.5 shrink-0" />}
-        {destination ? `音频会上传到 ${destination}。` : "在这台 Mac 上处理。"}
-        转写时可以继续听，完成后字幕会自动出现。
+        {destination
+          ? t("音频会上传到 {destination}。转写时可以继续听，完成后字幕会自动出现。", { destination })
+          : t("在这台 Mac 上处理。转写时可以继续听，完成后字幕会自动出现。")}
       </p>
       <div className="flex justify-end gap-2 border-t border-line pt-3.5">
-        <Button onClick={onClose}>取消</Button>
+        <Button onClick={onClose}>{t("取消")}</Button>
         <Button
           primary
           onClick={() => {
@@ -135,7 +139,7 @@ function TranscribeForm({ onClose }: { onClose: () => void }) {
             onClose();
           }}
         >
-          开始转写
+          {t("开始转写")}
         </Button>
       </div>
     </div>
@@ -152,14 +156,14 @@ function Progress({ job }: { job: Extract<TranscribeStatus, { state: "running" }
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <p className="flex items-baseline gap-2 text-[13px]">
-            <span className="font-medium">{speakers ? "正在区分说话人…" : "正在转写…"}</span>
+            <span className="font-medium">{speakers ? t("正在区分说话人…") : t("正在转写…")}</span>
             {job.done > 0 && (
               <span className="tabular font-mono text-[11px] text-faint">
                 {formatTime(job.done)} / {formatTime(job.total)}
               </span>
             )}
           </p>
-          <p className="mt-0.5 truncate text-[12px] text-faint">可以继续听，完成后字幕会自动出现。</p>
+          <p className="mt-0.5 truncate text-[12px] text-faint">{t("可以继续听，完成后字幕会自动出现。")}</p>
         </div>
         <Button
           disabled={stopping}
@@ -169,7 +173,7 @@ function Progress({ job }: { job: Extract<TranscribeStatus, { state: "running" }
           }}
         >
           {/* The transcript is done by then: stopping keeps it, without speakers. */}
-          {speakers ? (stopping ? "正在跳过…" : "跳过") : stopping ? "正在取消…" : "取消"}
+          {speakers ? (stopping ? t("正在跳过…") : t("跳过")) : stopping ? t("正在取消…") : t("取消")}
         </Button>
       </div>
       <div className="mt-3 h-1 overflow-hidden rounded-full bg-track">
@@ -189,15 +193,15 @@ function Failed({ message }: { message: string }) {
     <div className="mt-3 max-w-[560px] animate-fade-in">
       <p className="flex items-center gap-1.5 text-[13px] font-medium text-danger">
         <AlertCircle size={15} />
-        转写没有完成
+        {t("转写没有完成")}
       </p>
       <p className="mt-1 text-[12px] leading-relaxed break-words text-danger">{message}</p>
       <div className="mt-3 flex gap-2">
         <Button primary onClick={() => void startTranscribe(language)}>
-          重试
+          {t("重试")}
         </Button>
-        <Button onClick={() => setSettingsOpen(true)}>检查设置</Button>
-        <Button onClick={dismissJob}>关闭</Button>
+        <Button onClick={() => setSettingsOpen(true)}>{t("检查设置")}</Button>
+        <Button onClick={dismissJob}>{t("关闭")}</Button>
       </div>
     </div>
   );

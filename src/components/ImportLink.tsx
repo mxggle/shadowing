@@ -1,10 +1,11 @@
 import { AlertCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Resolved } from "../lib/api";
+import { t } from "../lib/i18n";
 import { downloadLine, languageName, percent, pickSubtitle, progressText, type Download } from "../lib/imports";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
-import { Button, fieldClass, IconButton, Kbd, TextLink } from "./ui";
+import { Button, fieldClass, fillNodes, IconButton, Kbd, TextLink } from "./ui";
 
 function Bar({ done, total }: { done: number; total: number }) {
   const p = percent(done, total);
@@ -35,17 +36,17 @@ export function DownloadRow({ download: d }: { download: Download }) {
         {failed && (
           <span className="mt-0.5 flex gap-3">
             <TextLink className="text-[11px]" onClick={() => retry(d.id)}>
-              再试一次
+              {t("再试一次")}
             </TextLink>
             <TextLink className="text-[11px]" onClick={() => drop(d.id)}>
-              不要了
+              {t("不要了")}
             </TextLink>
           </span>
         )}
       </div>
       {!failed && d.state !== "finishing" && (
         <button
-          title={d.state === "downloading" ? "取消下载" : "不下载了"}
+          title={d.state === "downloading" ? t("取消下载") : t("不下载了")}
           onClick={() => drop(d.id)}
           className="-mr-1 grid size-[18px] shrink-0 place-items-center rounded-[5px] text-faint opacity-0 transition-opacity duration-150 group-hover/dl:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100"
         >
@@ -116,9 +117,9 @@ export function ImportDialog() {
       >
         <header className="flex h-12 shrink-0 items-center justify-between border-b border-line pr-2.5 pl-6">
           <h2 id="import-title" className="text-[14px] font-semibold">
-            从链接导入
+            {t("从链接导入")}
           </h2>
-          <IconButton title="关闭 (Esc)" onClick={close}>
+          <IconButton title={t("关闭 (Esc)")} onClick={close}>
             <X />
           </IconButton>
         </header>
@@ -128,7 +129,7 @@ export function ImportDialog() {
             <div className="mt-4 flex flex-col gap-1.5">
               <Bar done={link.progress?.done ?? 0} total={link.progress?.total ?? 0} />
               <p className="tabular font-mono text-[11px] text-muted">
-                {link.progress ? progressText(link.progress.message, link.progress.done, link.progress.total) : "读取中…"}
+                {link.progress ? progressText(link.progress.message, link.progress.done, link.progress.total) : t("读取中…")}
               </p>
             </div>
           )}
@@ -136,7 +137,7 @@ export function ImportDialog() {
           {link.resolved && <Confirm resolved={link.resolved} />}
           {!link.url && !link.resolving && (
             <p className="mt-3 text-[12px] leading-relaxed text-muted">
-              在别处复制了链接后，也可以在应用里直接按 <Kbd>⌘V</Kbd>。
+              {fillNodes(t("在别处复制了链接后，也可以在应用里直接按 {key}。"), { key: <Kbd>⌘V</Kbd> })}
             </p>
           )}
         </div>
@@ -161,12 +162,12 @@ function UrlField({ url, busy }: { url: string; busy: boolean }) {
         className={fieldClass}
         value={text}
         autoFocus={!url}
-        placeholder="粘贴 YouTube 链接"
+        placeholder={t("粘贴 YouTube 链接")}
         spellCheck={false}
         onChange={(e) => setText(e.target.value)}
       />
       <Button type="submit" disabled={busy || !text.trim() || text.trim() === url}>
-        读取
+        {t("读取")}
       </Button>
     </form>
   );
@@ -174,12 +175,14 @@ function UrlField({ url, busy }: { url: string; busy: boolean }) {
 
 function Problem({ message }: { message: string }) {
   const openSettings = () => useApp.getState().showPlugins();
+  // Rust's message when no plugin takes the link says where to install one.
+  const toPlugins = /设置 → 插件|Settings → Plugins/.test(message); // i18n: keep (Rust's text in either language)
   return (
     <div className="mt-4 flex flex-col items-start gap-1.5">
       <p className="text-[13px] leading-relaxed text-danger">{message}</p>
-      {message.includes("设置 → 插件") && (
+      {toPlugins && (
         <TextLink className="text-[12px]" onClick={openSettings}>
-          打开设置
+          {t("打开设置")}
         </TextLink>
       )}
     </div>
@@ -210,43 +213,43 @@ function Confirm({ resolved }: { resolved: Resolved }) {
 
       <div className="mt-5 flex flex-col gap-3 text-[13px]">
         <label className="flex items-center gap-3">
-          <span className="w-12 shrink-0 text-muted">字幕</span>
+          <span className="w-12 shrink-0 text-muted">{t("字幕")}</span>
           {resolved.subtitles.length > 0 ? (
             <select className={fieldClass} value={subtitles} onChange={(e) => setSubtitles(e.target.value)}>
-              <option value="">不要字幕</option>
+              <option value="">{t("不要字幕")}</option>
               {resolved.subtitles.map((s) => (
                 <option key={s.lang} value={s.lang}>
-                  {languageName(s.lang, s.name)}（人工字幕）
+                  {t("{language}（人工字幕）", { language: languageName(s.lang, s.name) })}
                 </option>
               ))}
             </select>
           ) : (
-            <span className="text-[12px] leading-relaxed text-muted">没有人工字幕，导入后可以用转写生成。</span>
+            <span className="text-[12px] leading-relaxed text-muted">{t("没有人工字幕，导入后可以用转写生成。")}</span>
           )}
         </label>
         {folder && (
           <label className="flex items-center gap-3">
-            <span className="w-12 shrink-0 text-muted">存到</span>
+            <span className="w-12 shrink-0 text-muted">{t("存到")}</span>
             <span className="max-w-[40%] shrink-0 truncate text-[12px] text-faint" title={folder.root}>
               {folder.name} /
             </span>
-            <input className={fieldClass} value={sub} placeholder="直接放在文件夹里" spellCheck={false} onChange={(e) => setSub(e.target.value)} />
+            <input className={fieldClass} value={sub} placeholder={t("直接放在文件夹里")} spellCheck={false} onChange={(e) => setSub(e.target.value)} />
           </label>
         )}
       </div>
 
       <p className="mt-4 text-[11px] leading-relaxed text-faint">
-        下载原始的 m4a 音轨，不转码。字幕断句不好时，可以移除后改用转写。只下载你有权使用的内容。
+        {t("下载原始的 m4a 音轨，不转码。字幕断句不好时，可以移除后改用转写。只下载你有权使用的内容。")}
       </p>
       <div className="mt-4 flex justify-end gap-2">
-        <Button onClick={() => useApp.getState().closeImport()}>取消</Button>
+        <Button onClick={() => useApp.getState().closeImport()}>{t("取消")}</Button>
         {folder ? (
           <Button primary onClick={() => start(subtitles || null, sub)}>
-            下载
+            {t("下载")}
           </Button>
         ) : (
           <Button primary onClick={() => void chooseFolder()}>
-            先打开一个文件夹
+            {t("先打开一个文件夹")}
           </Button>
         )}
       </div>

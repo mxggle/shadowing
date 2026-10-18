@@ -1,6 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type AiConfig, type Preset } from "../../lib/api";
+import { t } from "../../lib/i18n";
 import { Button, fieldClass, TextLink } from "../ui";
 
 /**
@@ -40,14 +41,14 @@ export function KeyField({ preset, hint, onSaved }: { preset: Preset; hint?: str
       {hint && !editing ? (
         <div className="flex min-w-0 items-center gap-2">
           <span className="tabular truncate font-mono text-[12px]">{hint}</span>
-          <span className="truncate text-[12px] text-faint">已保存在钥匙串</span>
+          <span className="truncate text-[12px] text-faint">{t("已保存在钥匙串")}</span>
           <span className="ml-auto flex gap-1.5">
-            <Button onClick={() => setEditing(true)}>更换</Button>
+            <Button onClick={() => setEditing(true)}>{t("更换")}</Button>
             <Button
               onClick={() => (confirmDelete ? void store("") : setConfirmDelete(true))}
               className={confirmDelete ? "text-danger" : ""}
             >
-              {confirmDelete ? "确认删除" : "删除"}
+              {confirmDelete ? t("确认删除") : t("删除")}
             </Button>
           </span>
         </div>
@@ -60,14 +61,14 @@ export function KeyField({ preset, hint, onSaved }: { preset: Preset; hint?: str
             autoFocus={!!hint}
             autoComplete="off"
             spellCheck={false}
-            placeholder={preset.key === "optional" ? "没有可以不填" : `粘贴 ${preset.name} 的 API Key`}
+            placeholder={preset.key === "optional" ? t("没有可以不填") : t("粘贴 {name} 的 API Key", { name: preset.name })}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && draft.trim()) void store(draft);
             }}
           />
           <Button primary disabled={!draft.trim()} onClick={() => void store(draft)}>
-            保存
+            {t("保存")}
           </Button>
           {hint && (
             <Button
@@ -76,7 +77,7 @@ export function KeyField({ preset, hint, onSaved }: { preset: Preset; hint?: str
                 setDraft("");
               }}
             >
-              取消
+              {t("取消")}
             </Button>
           )}
         </div>
@@ -84,7 +85,7 @@ export function KeyField({ preset, hint, onSaved }: { preset: Preset; hint?: str
       {error && <p className="text-[12px] text-danger">{error}</p>}
       {preset.keyUrl && (!hint || editing) && (
         <TextLink onClick={() => void api.ai.openKeyPage(preset.id)} className="flex items-center gap-1 text-[12px]">
-          去 {preset.name} 创建 API Key
+          {t("去 {name} 创建 API Key", { name: preset.name })}
           <ExternalLink size={12} />
         </TextLink>
       )}

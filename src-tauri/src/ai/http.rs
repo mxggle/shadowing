@@ -99,14 +99,24 @@ impl Endpoint<'_> {
     }
 
     fn transport_error(&self, e: &reqwest::Error) -> String {
+        let name = self.name;
         if e.is_timeout() {
-            format!("{} 响应超时，请稍后再试", self.name)
+            tr!(
+                "{name} 响应超时，请稍后再试",
+                "{name} took too long to respond. Try again later."
+            )
         } else if e.is_connect() && self.local {
-            format!("没有连接到 {}，请确认它已经启动", self.name)
+            tr!(
+                "没有连接到 {name}，请确认它已经启动",
+                "Couldn't connect to {name}. Make sure it's running."
+            )
         } else if e.is_connect() {
-            format!("无法连接到 {}，请检查网络或地址", self.name)
+            tr!(
+                "无法连接到 {name}，请检查网络或地址",
+                "Couldn't reach {name}. Check your network or the address."
+            )
         } else {
-            format!("请求 {} 失败：{e}", self.name)
+            tr!("请求 {name} 失败：{e}", "The request to {name} failed: {e}")
         }
     }
 
@@ -125,12 +135,21 @@ impl Endpoint<'_> {
             Api::OpenAi | Api::Builtin | Api::Responses => "/models",
         };
         let body = self.send(self.get(path)).await?;
+        let name = self.name;
         if self.api == Api::Responses {
-            return super::chatgpt::read_models(&body)
-                .ok_or_else(|| format!("{} 返回的模型列表无法识别", self.name));
+            return super::chatgpt::read_models(&body).ok_or_else(|| {
+                tr!(
+                    "{name} 返回的模型列表无法识别",
+                    "The model list from {name} couldn't be read."
+                )
+            });
         }
-        let list: List = serde_json::from_str(&body)
-            .map_err(|_| format!("{} 返回的模型列表无法识别，请检查地址", self.name))?;
+        let list: List = serde_json::from_str(&body).map_err(|_| {
+            tr!(
+                "{name} 返回的模型列表无法识别，请检查地址",
+                "The model list from {name} couldn't be read. Check the address."
+            )
+        })?;
         Ok(list.data.into_iter().map(|m| m.id).collect())
     }
 }
@@ -138,14 +157,26 @@ impl Endpoint<'_> {
 /// HTTP status → what to do about it, with the provider's own words when short enough.
 pub fn describe_status(status: u16, body: &str, name: &str) -> String {
     let base = match status {
-        401 | 403 => format!("{name} 拒绝了这个 API Key（{status}），请检查是否填错或已失效"),
-        404 => format!("{name} 上找不到这个地址或模型（404），请检查地址和模型名"),
-        402 | 429 => format!("{name} 额度不足或请求太频繁（{status}）"),
-        500..=599 => format!("{name} 暂时不可用（{status}），请稍后再试"),
-        _ => format!("{name} 返回错误（{status}）"),
+        401 | 403 => tr!(
+            "{name} 拒绝了这个 API Key（{status}），请检查是否填错或已失效",
+            "{name} rejected this API key ({status}). Check that it's correct and still valid."
+        ),
+        404 => tr!(
+            "{name} 上找不到这个地址或模型（404），请检查地址和模型名",
+            "{name} couldn't find this address or model (404). Check the address and the model name."
+        ),
+        402 | 429 => tr!(
+            "{name} 额度不足或请求太频繁（{status}）",
+            "{name}: usage limit reached or too many requests ({status})."
+        ),
+        500..=599 => tr!(
+            "{name} 暂时不可用（{status}），请稍后再试",
+            "{name} is temporarily unavailable ({status}). Try again later."
+        ),
+        _ => tr!("{name} 返回错误（{status}）", "{name} returned an error ({status})."),
     };
     match provider_message(body) {
-        Some(msg) => format!("{base}：{msg}"),
+        Some(msg) => tr!("{base}：{msg}", "{base} ({msg})"),
         None => base,
     }
 }

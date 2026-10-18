@@ -1,6 +1,7 @@
 import { Pause, Play, RotateCcw, RotateCw, SkipBack, SkipForward } from "lucide-react";
 import { useState } from "react";
 import { useFlash } from "../hooks/useFlash";
+import { t } from "../lib/i18n";
 import { formatTime } from "../lib/time";
 import { playKeyTitle } from "../lib/playKey";
 import { sectionName, sectionsOf } from "../lib/sections";
@@ -45,7 +46,7 @@ function Timeline() {
         <Scrubber />
       </div>
       <button
-        title={remaining ? "显示总时长" : "显示剩余时间"}
+        title={remaining ? t("显示总时长") : t("显示剩余时间")}
         onClick={() => setRemaining(!remaining)}
         className="tabular w-[52px] rounded text-right font-mono text-[11px] text-faint transition-colors hover:text-muted"
       >
@@ -66,13 +67,13 @@ function LoopKey() {
   const hasTrack = useApp((s) => !!s.current);
   const flashing = useFlash("loop");
   const look = {
-    idle: { label: "A–B 循环", short: "A–B", title: "听到句首按一下设起点 A (L)" },
-    armed: { label: "设终点 B", short: "设 B", title: "听到句尾按一下设终点 B (L)" },
+    idle: { label: t("A–B 循环"), short: "A–B", title: t("听到句首按一下设起点 A (L)") },
+    armed: { label: t("设终点 B"), short: t("设 B"), title: t("听到句尾按一下设终点 B (L)") },
     active: loopSection !== null
-      ? { label: `循环${loopSection}`, short: loopSection, title: "取消循环 (L)" }
+      ? { label: t("循环{name}", { name: loopSection }), short: loopSection, title: t("取消循环 (L)") }
       : loopSentence === null
-        ? { label: "循环中", short: "循环中", title: "取消循环 (L)" }
-        : { label: `循环第 ${loopSentence + 1} 句`, short: `第 ${loopSentence + 1} 句`, title: "取消循环 (L)" },
+        ? { label: t("循环中"), short: t("循环中"), title: t("取消循环 (L)") }
+        : { label: t("循环第 {n} 句", { n: loopSentence + 1 }), short: t("第 {n} 句", { n: loopSentence + 1 }), title: t("取消循环 (L)") },
   }[phase];
   return (
     <button
@@ -123,11 +124,11 @@ function Transport() {
     <div className="flex items-center gap-1">
       {/* Track skipping gives way first on a narrow window; ↑ ↓ and the list still do it. */}
       <span className="hidden @[560px]:contents">
-        <DeckButton title="上一首 (↑)" flash="prev" disabled={disabled} onClick={() => step(-1)} className="size-9 rounded-full">
+        <DeckButton title={t("上一首 (↑)")} flash="prev" disabled={disabled} onClick={() => step(-1)} className="size-9 rounded-full">
           <SkipBack size={15} fill="currentColor" strokeWidth={1.5} />
         </DeckButton>
       </span>
-      <DeckButton title={`后退 ${seekStep} 秒 (←)`} flash="back" disabled={disabled} onClick={() => jump(-1)} className="size-10 rounded-full">
+      <DeckButton title={t("后退 {n} 秒 (←)", { n: seekStep })} flash="back" disabled={disabled} onClick={() => jump(-1)} className="size-10 rounded-full">
         <StepIcon icon={RotateCcw} seconds={seekStep} />
       </DeckButton>
       <DeckButton ink title={title} flash="toggle" disabled={!enabled} onClick={toggle} className="mx-1.5 size-11 rounded-full">
@@ -135,11 +136,11 @@ function Transport() {
           {running ? <Pause size={19} fill="currentColor" strokeWidth={0} /> : <Play size={19} fill="currentColor" strokeWidth={0} className="ml-0.5" />}
         </span>
       </DeckButton>
-      <DeckButton title={`前进 ${seekStep} 秒 (→)`} flash="forward" disabled={disabled} onClick={() => jump(1)} className="size-10 rounded-full">
+      <DeckButton title={t("前进 {n} 秒 (→)", { n: seekStep })} flash="forward" disabled={disabled} onClick={() => jump(1)} className="size-10 rounded-full">
         <StepIcon icon={RotateCw} seconds={seekStep} />
       </DeckButton>
       <span className="hidden @[560px]:contents">
-        <DeckButton title="下一首 (↓)" flash="next" disabled={disabled} onClick={() => step(1)} className="size-9 rounded-full">
+        <DeckButton title={t("下一首 (↓)")} flash="next" disabled={disabled} onClick={() => step(1)} className="size-9 rounded-full">
           <SkipForward size={15} fill="currentColor" strokeWidth={1.5} />
         </DeckButton>
       </span>

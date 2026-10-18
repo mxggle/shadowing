@@ -1,6 +1,7 @@
 //! The Whisper models the app offers, pinned to one Hugging Face commit with
 //! their SHA-256, and how well each suits this Mac.
 
+use crate::ai::providers::Text;
 use serde::Serialize;
 
 /// ggerganov/whisper.cpp at a fixed commit, so files never change under us.
@@ -11,7 +12,7 @@ const REPO: &str =
 #[serde(rename_all = "camelCase")]
 pub struct Model {
     pub id: &'static str,
-    pub name: &'static str,
+    pub name: Text,
     #[serde(skip)]
     pub file: &'static str,
     /// Bytes on disk.
@@ -20,7 +21,7 @@ pub struct Model {
     pub sha256: &'static str,
     /// Rough memory while transcribing, in GB.
     pub memory_gb: f64,
-    pub note: &'static str,
+    pub note: Text,
 }
 
 impl Model {
@@ -32,39 +33,51 @@ impl Model {
 pub const MODELS: &[Model] = &[
     Model {
         id: "large-v3-turbo-q5_0",
-        name: "Large v3 Turbo（压缩）",
+        name: Text::new("Large v3 Turbo（压缩）", "Large v3 Turbo (compressed)"),
         file: "ggml-large-v3-turbo-q5_0.bin",
         size: 574_041_195,
         sha256: "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
         memory_gb: 1.0,
-        note: "速度和准确度平衡，日语、英语都不错",
+        note: Text::new(
+            "速度和准确度平衡，日语、英语都不错",
+            "Balances speed and accuracy, good for both Japanese and English",
+        ),
     },
     Model {
         id: "large-v3-turbo-q8_0",
-        name: "Large v3 Turbo",
+        name: Text::same("Large v3 Turbo"),
         file: "ggml-large-v3-turbo-q8_0.bin",
         size: 874_188_075,
         sha256: "317eb69c11673c9de1e1f0d459b253999804ec71ac4c23c17ecf5fbe24e259a1",
         memory_gb: 1.3,
-        note: "比压缩版略准一点，速度差不多",
+        note: Text::new(
+            "比压缩版略准一点，速度差不多",
+            "A little more accurate than the compressed one, about as fast",
+        ),
     },
     Model {
         id: "large-v3",
-        name: "Large v3",
+        name: Text::same("Large v3"),
         file: "ggml-large-v3.bin",
         size: 3_095_033_483,
         sha256: "64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2",
         memory_gb: 3.9,
-        note: "最准（尤其日语），但慢很多",
+        note: Text::new(
+            "最准（尤其日语），但慢很多",
+            "The most accurate (especially for Japanese), but much slower",
+        ),
     },
     Model {
         id: "small-q5_1",
-        name: "Small",
+        name: Text::same("Small"),
         file: "ggml-small-q5_1.bin",
         size: 190_085_487,
         sha256: "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb",
         memory_gb: 0.6,
-        note: "很快、很小，但日语错误较多，适合先试试",
+        note: Text::new(
+            "很快、很小，但日语错误较多，适合先试试",
+            "Very fast and small, but makes more mistakes in Japanese; good for a first try",
+        ),
     },
 ];
 
@@ -111,17 +124,26 @@ pub fn recommend(ram_gb: f64, chip: &str, free: Option<u64>) -> (&'static str, S
     let (wanted, why) = if big_chip && ram_gb >= 32.0 {
         (
             "large-v3",
-            format!("{chip} + {ram} GB 内存，跑得动最准的模型"),
+            tr!(
+                "{chip} + {ram} GB 内存，跑得动最准的模型",
+                "{chip} with {ram} GB of memory runs the most accurate model well"
+            ),
         )
     } else if ram_gb >= 12.0 {
         (
             "large-v3-turbo-q8_0",
-            format!("{ram} GB 内存，选比压缩版略准的 Turbo"),
+            tr!(
+                "{ram} GB 内存，选比压缩版略准的 Turbo",
+                "{ram} GB of memory: Turbo, a little more accurate than the compressed one"
+            ),
         )
     } else {
         (
             "large-v3-turbo-q5_0",
-            format!("{ram} GB 内存，选又快又省内存的压缩版"),
+            tr!(
+                "{ram} GB 内存，选又快又省内存的压缩版",
+                "{ram} GB of memory: the compressed Turbo, fast and light on memory"
+            ),
         )
     };
     let Some(free) = free else {
@@ -129,12 +151,22 @@ pub fn recommend(ram_gb: f64, chip: &str, free: Option<u64>) -> (&'static str, S
     };
     let fits = |id: &&&str| find(id).is_some_and(|m| m.size + DISK_MARGIN <= free);
     let start = BY_STRENGTH.iter().position(|id| *id == wanted).unwrap_or(0);
+    let space = gb(free);
     match BY_STRENGTH[start..].iter().find(fits) {
         Some(&id) if id == wanted => (id, why),
-        Some(&id) => (id, format!("可用空间只有 {}，选了小一点的模型", gb(free))),
+        Some(&id) => (
+            id,
+            tr!(
+                "可用空间只有 {space}，选了小一点的模型",
+                "Only {space} of free space, so a smaller model"
+            ),
+        ),
         None => (
             wanted,
-            format!("可用空间只有 {}，需要先清理出一些空间", gb(free)),
+            tr!(
+                "可用空间只有 {space}，需要先清理出一些空间",
+                "Only {space} of free space; free up some space first"
+            ),
         ),
     }
 }
@@ -166,7 +198,7 @@ pub fn chip() -> String {
         String::new()
     };
     if name.is_empty() {
-        "这台 Mac".into()
+        crate::i18n::pick("这台 Mac", "This Mac").into()
     } else {
         name
     }

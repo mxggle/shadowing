@@ -103,8 +103,25 @@ struct StoredFile {
 
 const SUBTITLE_EXTENSIONS: &[&str] = &["srt", "vtt"];
 
+/// The page asked about sentences the saved transcript no longer has.
+pub(crate) fn stale() -> &'static str {
+    crate::i18n::pick(
+        "字幕已经变了，请重新打开这个音频",
+        "The subtitles have changed. Open this audio again.",
+    )
+}
+
+pub(crate) fn no_transcript() -> &'static str {
+    crate::i18n::pick("这个音频没有字幕", "This audio has no subtitles")
+}
+
 pub fn read_subtitle(path: &Path, source: Source) -> Result<Transcript, String> {
-    let bytes = fs::read(path).map_err(|e| format!("无法读取字幕文件：{e}"))?;
+    let bytes = fs::read(path).map_err(|e| {
+        tr!(
+            "无法读取字幕文件：{e}",
+            "Couldn't read the subtitle file: {e}"
+        )
+    })?;
     let sentences = subtitles::parse(&subtitles::decode(&bytes)?)?;
     let origin = path
         .file_name()
@@ -208,7 +225,7 @@ fn apply_edits(transcript: &mut Transcript, edits: &[Edit]) -> Result<(), String
     let mut texts = Vec::with_capacity(edits.len());
     for edit in edits {
         if edit.index >= transcript.sentences.len() {
-            return Err("字幕已经变了，请重新打开这个音频".into());
+            return Err(stale().into());
         }
         let lines: Vec<&str> = edit
             .text
@@ -217,7 +234,7 @@ fn apply_edits(transcript: &mut Transcript, edits: &[Edit]) -> Result<(), String
             .filter(|l| !l.is_empty())
             .collect();
         if lines.is_empty() {
-            return Err("句子不能为空".into());
+            return Err(crate::i18n::pick("句子不能为空", "A sentence can't be empty").into());
         }
         texts.push(lines.join(" "));
     }
@@ -247,9 +264,10 @@ pub fn transcript_edit(
     edits: Vec<Edit>,
 ) -> Result<Transcript, String> {
     let (audio, key, dir) = authorize(&state, &path)?;
-    let mut transcript = current(&state, &audio, &dir, &key).ok_or("这个音频没有字幕")?;
+    let mut transcript = current(&state, &audio, &dir, &key).ok_or(no_transcript())?;
     apply_edits(&mut transcript, &edits)?;
-    save(&dir, &key, &transcript).map_err(|e| format!("无法保存修改：{e}"))?;
+    save(&dir, &key, &transcript)
+        .map_err(|e| tr!("无法保存修改：{e}", "Couldn't save the changes: {e}"))?;
     Ok(transcript)
 }
 
@@ -261,10 +279,11 @@ pub fn transcript_sections(
     sections: Vec<Section>,
 ) -> Result<Transcript, String> {
     let (audio, key, dir) = authorize(&state, &path)?;
-    let mut transcript = current(&state, &audio, &dir, &key).ok_or("这个音频没有字幕")?;
+    let mut transcript = current(&state, &audio, &dir, &key).ok_or(no_transcript())?;
     transcript.sections = sections::normalize(sections, transcript.sentences.len());
     transcript.own();
-    save(&dir, &key, &transcript).map_err(|e| format!("无法保存分段：{e}"))?;
+    save(&dir, &key, &transcript)
+        .map_err(|e| tr!("无法保存分段：{e}", "Couldn't save the sections: {e}"))?;
     Ok(transcript)
 }
 
@@ -279,8 +298,11 @@ pub async fn transcript_import(
     let mut picker = app
         .dialog()
         .file()
-        .set_title("选择字幕文件")
-        .add_filter("字幕 (SRT / VTT)", SUBTITLE_EXTENSIONS);
+        .set_title(crate::i18n::pick("选择字幕文件", "Choose a subtitle file"))
+        .add_filter(
+            crate::i18n::pick("字幕 (SRT / VTT)", "Subtitles (SRT / VTT)"),
+            SUBTITLE_EXTENSIONS,
+        );
     if let Some(parent) = audio.parent() {
         picker = picker.set_directory(parent);
     }
@@ -302,21 +324,33 @@ pub async fn transcript_remove(
 ) -> Result<Option<Transcript>, String> {
     let (audio, key, dir) = authorize(&state, &path)?;
     let mut message = match find_sidecar(&audio).and_then(|p| state.allowed(&p)) {
-        Some(_) => "会换回音频旁的字幕文件。",
-        None => "之后可以重新导入。",
+        Some(_) => crate::i18n::pick(
+            "会换回音频旁的字幕文件。",
+            "The subtitle file next to the audio will be used again.",
+        ),
+        None => crate::i18n::pick(
+            "之后可以重新导入。",
+            "You can import subtitles again later.",
+        ),
     }
     .to_string();
     if load(&dir, &key).is_some_and(|t| t.edited) {
-        message.push_str("你做的修改不会保留。");
+        message.push_str(crate::i18n::pick(
+            "你做的修改不会保留。",
+            " Your changes won't be kept.",
+        ));
     }
     let confirmed = app
         .dialog()
         .message(message)
-        .title("移除这个音频的字幕？")
+        .title(crate::i18n::pick(
+            "移除这个音频的字幕？",
+            "Remove this audio's subtitles?",
+        ))
         .kind(MessageDialogKind::Warning)
         .buttons(MessageDialogButtons::OkCancelCustom(
-            "移除".into(),
-            "取消".into(),
+            crate::i18n::pick("移除", "Remove").into(),
+            crate::i18n::pick("取消", "Cancel").into(),
         ))
         .blocking_show();
     if confirmed {

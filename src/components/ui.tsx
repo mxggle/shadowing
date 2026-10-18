@@ -2,7 +2,7 @@
 // "ghost" buttons (no fill until hovered) for chrome and transport, and filled
 // buttons (`btn`, `btn-ink`) for actions. Both shrink a little when pressed,
 // including when their keyboard shortcut fires (`flash`).
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { Fragment, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { useFlash, type FlashId } from "../hooks/useFlash";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { flash?: FlashId };
@@ -108,3 +108,11 @@ export function TextLink({ className = "", ...rest }: ButtonHTMLAttributes<HTMLB
 /** Shared look for text inputs and selects: a tinted field that gains an outline and focus ring. */
 export const fieldClass =
   "h-8 w-full min-w-0 rounded-[8px] bg-fill px-2.5 text-[13px] select-text outline-none transition-[background-color,box-shadow] duration-150 placeholder:text-faint focus:bg-raised focus:shadow-[inset_0_0_0_1px_var(--line-strong),0_0_0_3px_var(--hover)]";
+
+/**
+ * Text from t() with nodes in its {name} slots, so a styled bit can sit where the language puts it:
+ * fillNodes(t("已更新到 {version}"), { version: <span className="font-mono">{v}</span> }).
+ */
+export function fillNodes(text: string, nodes: Record<string, ReactNode>): ReactNode {
+  return text.split(/\{(\w+)\}/).map((part, i) => (i % 2 ? <Fragment key={i}>{part in nodes ? nodes[part] : `{${part}}`}</Fragment> : part));
+}

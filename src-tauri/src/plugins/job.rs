@@ -4,7 +4,7 @@
 use super::accept::{self, Made};
 use super::import::{open, progress_of, Status};
 use super::manifest::Importer;
-use super::rpc::CANCELLED;
+use super::rpc::is_cancelled;
 use super::Installed;
 use crate::transcript::{self, Source};
 use crate::AppState;
@@ -47,7 +47,7 @@ impl Job {
         let title = self.title.clone();
         match result {
             Ok(done) => done,
-            Err(e) if e == CANCELLED => Status::Cancelled { title },
+            Err(e) if is_cancelled(&e) => Status::Cancelled { title },
             Err(message) => Status::Failed { title, message },
         }
     }
@@ -74,8 +74,12 @@ impl Job {
             "subtitles": self.subtitles,
         });
         let answer = process.call("import/run", params, &self.cancel, &mut notify)?;
-        let result: RunResult =
-            serde_json::from_value(answer).map_err(|e| format!("插件的回答看不懂：{e}"))?;
+        let result: RunResult = serde_json::from_value(answer).map_err(|e| {
+            tr!(
+                "插件的回答看不懂：{e}",
+                "Couldn't understand the plugin's answer: {e}"
+            )
+        })?;
         let title = Some(result.title)
             .filter(|t| !t.trim().is_empty())
             .unwrap_or_else(|| self.title.clone());
@@ -95,8 +99,8 @@ impl Job {
             if let Ok(mut t) = transcript::read_subtitle(&file, Source::Imported) {
                 let via = &self.importer.title;
                 t.origin = match lang.as_str() {
-                    "" => format!("{via} 字幕"),
-                    lang => format!("{via} 字幕 · {lang}"),
+                    "" => tr!("{via} 字幕", "{via} subtitles"),
+                    lang => tr!("{via} 字幕 · {lang}", "{via} subtitles · {lang}"),
                 };
                 let dir = state.data_dir().join("transcripts");
                 subtitles = !t.sentences.is_empty() && transcript::save(&dir, &key, &t).is_ok();

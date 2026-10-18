@@ -59,17 +59,16 @@ pub async fn update_check(
 pub async fn update_install(app: AppHandle, pending: State<'_, Pending>) -> Result<(), String> {
     let exe = std::env::current_exe().map_err(message)?;
     if translocated(&exe.to_string_lossy()) {
-        return Err(
-            "应用是从“下载”文件夹直接打开的，系统不允许它替换自己。请先把 Shadowing 拖进“应用程序”文件夹，从那里打开后再更新。"
-                .into(),
-        );
+        return Err(crate::i18n::pick(
+            "应用是从“下载”文件夹直接打开的，系统不允许它替换自己。请先把 Shadowing 拖进“应用程序”文件夹，从那里打开后再更新。",
+            "Shadowing was opened straight from the Downloads folder, where macOS doesn't let it replace itself. Drag Shadowing to the Applications folder, open it from there, and then update.",
+        )
+        .into());
     }
-    let update = pending
-        .0
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("没有可安装的更新，请重新检查")?;
+    let update = pending.0.lock().unwrap().clone().ok_or(crate::i18n::pick(
+        "没有可安装的更新，请重新检查",
+        "There's no update to install. Check for updates again.",
+    ))?;
     let mut done = 0u64;
     update
         .download_and_install(
@@ -92,13 +91,37 @@ pub fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let menu = Menu::default(app)?;
     if let Some(app_menu) = menu.items()?.first().and_then(|i| i.as_submenu().cloned()) {
         // About, —, 检查更新…, 新功能…, —, Services…: in their own group under “About”, as in most Mac apps.
-        let check = MenuItem::with_id(app, MENU_CHECK, "检查更新…", true, None::<&str>)?;
-        let news = MenuItem::with_id(app, MENU_NEWS, "新功能…", true, None::<&str>)?;
+        let check = MenuItem::with_id(app, MENU_CHECK, check_text(), true, None::<&str>)?;
+        let news = MenuItem::with_id(app, MENU_NEWS, news_text(), true, None::<&str>)?;
         app_menu.insert(&check, 2)?;
         app_menu.insert(&news, 3)?;
         app_menu.insert(&PredefinedMenuItem::separator(app)?, 4)?;
     }
     Ok(menu)
+}
+
+fn check_text() -> &'static str {
+    crate::i18n::pick("检查更新…", "Check for Updates…")
+}
+
+fn news_text() -> &'static str {
+    crate::i18n::pick("新功能…", "What's New…")
+}
+
+/// Puts our menu items in the interface language (the menu is built before settings are read).
+pub fn retitle_menu(app: &AppHandle) {
+    let Some(app_menu) = app
+        .menu()
+        .and_then(|m| m.items().ok())
+        .and_then(|items| items.first().and_then(|i| i.as_submenu().cloned()))
+    else {
+        return;
+    };
+    for (id, text) in [(MENU_CHECK, check_text()), (MENU_NEWS, news_text())] {
+        if let Some(item) = app_menu.get(id).and_then(|i| i.as_menuitem().cloned()) {
+            let _ = item.set_text(text);
+        }
+    }
 }
 
 pub fn on_menu(app: &AppHandle, id: &str) {
@@ -123,16 +146,23 @@ fn message(e: impl std::fmt::Display) -> String {
     let e = e.to_string();
     let lower = e.to_lowercase();
     if lower.contains("signature") {
-        format!("下载的更新没有通过签名校验，已放弃安装（{e}）")
+        tr!(
+            "下载的更新没有通过签名校验，已放弃安装（{e}）",
+            "The downloaded update failed its signature check, so it wasn't installed ({e})"
+        )
     } else if lower.contains("network")
         || lower.contains("connect")
         || lower.contains("dns")
         || lower.contains("timed out")
         || lower.contains("error sending request")
     {
-        "连不上更新服务器，请检查网络后再试".into()
+        crate::i18n::pick(
+            "连不上更新服务器，请检查网络后再试",
+            "Couldn't reach the update server. Check your network and try again.",
+        )
+        .into()
     } else {
-        format!("更新失败：{e}")
+        tr!("更新失败：{e}", "Update failed: {e}")
     }
 }
 

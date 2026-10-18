@@ -41,6 +41,9 @@ tract-onnx = "0.23"
 realfft = "3.5"
 # In-app updates (src/update.rs): signed .app.tar.gz + latest.json from GitHub Releases. native-tls like reqwest above.
 tauri-plugin-updater = { version = "2", default-features = false, features = ["native-tls", "system-proxy", "zip"] }
+# Interface language (src/i18n.rs): the Mac's preferred languages, read before the window opens
+# (the native menu is built in Rust). Small, no dependencies on macOS.
+sys-locale = "0.3"
 
 # Which microphone records (src/record/devices.rs): opening AirPods' mic switches them to call
 # quality, so with a Bluetooth headset the Mac's own mic is used. Both already in the tree via cpal.

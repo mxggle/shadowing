@@ -2,6 +2,7 @@
 // sentences a reading covers, which readings belong to a paragraph, and the
 // words that sum one up.
 import type { ParagraphMode, Reading, ReadingPlaying, Section, Settings, Take } from "./api";
+import { t } from "./i18n";
 import { sectionIndexOf, sectionRange } from "./sections";
 import { BLUETOOTH_LAG } from "./takes";
 
@@ -41,14 +42,14 @@ export function readingsFor(readings: Reading[], start: number, end: number): Re
 export function readingNote(r: Reading): string {
   if (r.mode === "shadow") {
     if (r.lagMs === null) return "";
-    if (r.bluetooth) return BLUETOOTH_LAG;
-    return r.lagMs < 80 ? "几乎和原声同步" : `平均比原声晚 ${(r.lagMs / 1000).toFixed(2)} 秒`;
+    if (r.bluetooth) return t(BLUETOOTH_LAG);
+    return r.lagMs < 80 ? t("几乎和原声同步") : t("平均比原声晚 {secs} 秒", { secs: (r.lagMs / 1000).toFixed(2) });
   }
   const ratio = r.mineSecs / Math.max(0.1, r.originalSecs);
-  const times = `你 ${r.mineSecs.toFixed(1)} 秒 · 原文 ${r.originalSecs.toFixed(1)} 秒`;
-  if (ratio > 1.1) return `${times}，慢 ${Math.round((ratio - 1) * 100)}%`;
-  if (ratio < 0.9) return `${times}，快 ${Math.round((1 - ratio) * 100)}%`;
-  return `${times}，节奏差不多`;
+  const times = t("你 {mine} 秒 · 原文 {original} 秒", { mine: r.mineSecs.toFixed(1), original: r.originalSecs.toFixed(1) });
+  if (ratio > 1.1) return t("{times}，慢 {pct}%", { times, pct: Math.round((ratio - 1) * 100) });
+  if (ratio < 0.9) return t("{times}，快 {pct}%", { times, pct: Math.round((1 - ratio) * 100) });
+  return t("{times}，节奏差不多", { times });
 }
 
 /** Sentences read (with a take) out of all of them. */
