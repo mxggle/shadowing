@@ -24,7 +24,8 @@ mod mic;
 mod original;
 mod playback;
 mod reading;
-#[cfg(test)]
+// Manual, macOS only (`say` plays the learner).
+#[cfg(all(test, target_os = "macos"))]
 mod real_tests;
 mod replay;
 mod rounds;

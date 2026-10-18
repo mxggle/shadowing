@@ -1,16 +1,21 @@
 //! Transcription on this Mac: the Whisper models on offer, downloading them
-//! (`download.rs`), and running them (`whisper.rs`). Apple Silicon only.
+//! (`download.rs`), and running them (`whisper.rs`). Apple Silicon only; elsewhere
+//! (Windows) the module is here for the speaker model's download and says "not supported".
 
 pub mod download;
 pub mod models;
-#[cfg(test)]
+#[cfg(all(test, target_os = "macos"))]
 mod real_tests;
+pub mod system;
+#[cfg(target_os = "macos")]
 pub mod whisper;
 
+use crate::transcribe::Job;
+use crate::transcript::Sentence;
 use crate::AppState;
 use models::{Fit, Model, DISK_MARGIN, MODELS};
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -33,6 +38,39 @@ pub fn models_dir(state: &AppState) -> PathBuf {
 pub fn model_file(state: &AppState, id: &str) -> Option<PathBuf> {
     let path = models_dir(state).join(models::find(id)?.file);
     path.is_file().then_some(path)
+}
+
+pub fn unsupported() -> String {
+    crate::i18n::pick(
+        crate::i18n::os("这台 Mac 不支持本机转写", "这台电脑不支持本机转写"),
+        crate::i18n::os(
+            "This Mac doesn't support local transcription.",
+            "This PC doesn't support local transcription.",
+        ),
+    )
+    .into()
+}
+
+/// Transcribes with a downloaded model (`model`: its id in `models.rs`).
+#[cfg(target_os = "macos")]
+pub fn transcribe(
+    file: &Path,
+    model: &str,
+    job: &Job,
+    progress: Arc<dyn Fn(f64, f64) + Send + Sync>,
+) -> Result<Vec<Sentence>, String> {
+    let mut whisper = whisper::Whisper::load(file, model)?;
+    crate::transcribe::run(job, &mut whisper, progress)
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn transcribe(
+    _file: &Path,
+    _model: &str,
+    _job: &Job,
+    _progress: Arc<dyn Fn(f64, f64) + Send + Sync>,
+) -> Result<Vec<Sentence>, String> {
+    Err(unsupported())
 }
 
 pub fn downloaded(state: &AppState) -> Vec<&'static str> {
@@ -87,9 +125,9 @@ pub enum DownloadStatus {
 
 fn overview(state: &AppState, downloads: &Downloads) -> Overview {
     let dir = models_dir(state);
-    let ram = models::ram_gb();
-    let chip = models::chip();
-    let free = models::free_bytes(&dir);
+    let ram = system::ram_gb();
+    let chip = system::chip();
+    let free = system::free_bytes(&dir);
     let (recommended, reason) = models::recommend(ram, &chip, free);
     Overview {
         supported: models::supported(),
@@ -128,11 +166,7 @@ pub fn local_download(
     id: String,
 ) -> Result<(), String> {
     if !models::supported() {
-        return Err(crate::i18n::pick(
-            "这台 Mac 不支持本机转写",
-            "This Mac doesn't support local transcription.",
-        )
-        .into());
+        return Err(unsupported());
     }
     let model = models::find(&id).ok_or(crate::i18n::pick("未知的模型", "Unknown model."))?;
     let dest = models_dir(&state).join(model.file);
@@ -142,7 +176,7 @@ pub fn local_download(
     // `saturating_sub`: a `.part` larger than the model (a bad server reply) is removed by
     // `download` itself; here it must not wrap around into an absurd "need".
     let need = model.size.saturating_sub(download::partial_len(&dest));
-    if let Some(free) = models::free_bytes(&dest) {
+    if let Some(free) = system::free_bytes(&dest) {
         if free < need + DISK_MARGIN {
             let gb = |b: u64| b as f64 / 1e9;
             let (need, free) = (gb(need + DISK_MARGIN), gb(free));

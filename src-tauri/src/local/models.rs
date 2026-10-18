@@ -1,5 +1,5 @@
 //! The Whisper models the app offers, pinned to one Hugging Face commit with
-//! their SHA-256, and how well each suits this Mac.
+//! their SHA-256, and how well each suits this Mac (memory, chip and disk: `system.rs`).
 
 use crate::ai::providers::Text;
 use serde::Serialize;
@@ -104,7 +104,7 @@ pub fn fit(model: &Model, ram_gb: f64) -> Fit {
     }
 }
 
-/// Room left on the disk after a download, so the Mac isn't filled to the brim.
+/// Room left on the disk after a download, so it isn't filled to the brim.
 pub const DISK_MARGIN: u64 = 500 * 1024 * 1024;
 
 /// Strongest first: where the recommendation steps down to when disk space is short.
@@ -175,69 +175,10 @@ fn gb(bytes: u64) -> String {
     format!("{:.1} GB", bytes as f64 / 1e9)
 }
 
-/// The chip's name, like "Apple M2 Pro".
-pub fn chip() -> String {
-    let mut buf = [0u8; 128];
-    let mut len = buf.len();
-    // SAFETY: the buffer and its length match; sysctl writes at most `len` bytes.
-    let rc = unsafe {
-        libc::sysctlbyname(
-            c"machdep.cpu.brand_string".as_ptr(),
-            buf.as_mut_ptr().cast(),
-            &mut len,
-            std::ptr::null_mut(),
-            0,
-        )
-    };
-    let name = if rc == 0 {
-        String::from_utf8_lossy(&buf[..len])
-            .trim_end_matches('\0')
-            .trim()
-            .to_string()
-    } else {
-        String::new()
-    };
-    if name.is_empty() {
-        crate::i18n::pick("这台 Mac", "This Mac").into()
-    } else {
-        name
-    }
-}
-
-/// Local transcription is offered on Apple Silicon only; on Intel it is far too slow.
+/// Local transcription is offered on Apple Silicon only; on Intel it is far too slow, and
+/// on Windows only cloud services are offered for now (whisper.cpp is built with Metal).
 pub fn supported() -> bool {
     cfg!(all(target_os = "macos", target_arch = "aarch64"))
-}
-
-/// Physical memory in GB.
-pub fn ram_gb() -> f64 {
-    let mut bytes: u64 = 0;
-    let mut len = std::mem::size_of::<u64>();
-    // SAFETY: hw.memsize is a u64; the buffer and its length match.
-    let rc = unsafe {
-        libc::sysctlbyname(
-            c"hw.memsize".as_ptr(),
-            (&mut bytes as *mut u64).cast(),
-            &mut len,
-            std::ptr::null_mut(),
-            0,
-        )
-    };
-    if rc == 0 {
-        bytes as f64 / 1_073_741_824.0
-    } else {
-        8.0
-    }
-}
-
-/// Free bytes on the volume holding `path` (or its nearest existing parent).
-pub fn free_bytes(path: &std::path::Path) -> Option<u64> {
-    use std::os::unix::ffi::OsStrExt;
-    let existing = path.ancestors().find(|p| p.exists())?;
-    let c = std::ffi::CString::new(existing.as_os_str().as_bytes()).ok()?;
-    let mut st: libc::statfs = unsafe { std::mem::zeroed() };
-    // SAFETY: valid C string and an out-pointer to a zeroed statfs.
-    (unsafe { libc::statfs(c.as_ptr(), &mut st) } == 0).then(|| st.f_bavail * u64::from(st.f_bsize))
 }
 
 #[cfg(test)]
@@ -293,12 +234,5 @@ mod tests {
         let (id, why) = recommend(16.0, "Apple M2", Some(100_000_000));
         assert_eq!(id, "large-v3-turbo-q8_0");
         assert!(why.contains("清理"), "{why}");
-    }
-
-    #[test]
-    fn reads_this_machine() {
-        assert!(ram_gb() >= 1.0);
-        assert!(!chip().is_empty());
-        assert!(free_bytes(std::path::Path::new("/tmp/does/not/exist")).unwrap() > 0);
     }
 }
