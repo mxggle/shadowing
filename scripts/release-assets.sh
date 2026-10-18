@@ -65,7 +65,13 @@ else
 fi
 
 base="Shadowing-$version-macos-arm64"
-ditto -c -k --keepParent "$app" "$out/$base.zip"
+# Without extended attributes: ditto would keep each one (the build Mac's com.apple.provenance on every file) as a
+# ._ file beside it. Archive Utility folds those back in, but unzip and other unzipping apps leave them inside the
+# app, which breaks its code signature, and macOS then calls the app damaged, even with "Anywhere" allowed.
+ditto -c -k --norsrc --noextattr --noacl --keepParent "$app" "$out/$base.zip"
+mkdir "$work/unzipped"
+unzip -q "$out/$base.zip" -d "$work/unzipped"
+codesign --verify --deep --strict "$work/unzipped/Shadowing.app"
 cp "$out/$base.zip" "$out/Shadowing-macos-arm64.zip"
 
 # The DMG: Shadowing.app beside a link to Applications, to drag it straight in.
