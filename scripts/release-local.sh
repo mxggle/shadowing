@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# Builds and uploads a release from this Mac instead of GitHub Actions (faster: local caches, faster CPU).
+# Builds, checks and publishes a release from this Mac instead of GitHub Actions (faster: local caches, faster CPU).
 # Run on the tagged commit after pushing the tag. It stops the tag's Actions build (so it can't replace these
-# files later), builds with the updater key, and creates the release as a draft — or publishes it with --publish,
-# which is what offers the update to installed apps.
+# files later), builds with the updater key, checks the files (scripts/verify-release.sh) and publishes the
+# release, which is what offers the update to installed apps. --draft creates a draft instead.
 # The keys come from ~/.tauri unless set in the environment: the updater key (shadowing-updater.key + .password)
 # and the code-signing certificate (shadowing-codesign.p12 + .password). See scripts/release-assets.sh.
-# Usage: scripts/release-local.sh vX.Y.Z [--publish]
+# Usage: scripts/release-local.sh vX.Y.Z [--draft]
 set -euo pipefail
 cd "$(dirname "$0")/.."
-tag="${1:?usage: scripts/release-local.sh vX.Y.Z [--publish]}"
-publish="${2:-}"
+tag="${1:?usage: scripts/release-local.sh vX.Y.Z [--draft]}"
+mode="${2:-}"
+# --publish (from before publishing was the default) is the same as no flag.
+case "$mode" in "" | --publish | --draft) ;; *) echo "usage: scripts/release-local.sh vX.Y.Z [--draft]" >&2; exit 1 ;; esac
 repo="${GITHUB_REPOSITORY:-mxggle/shadowing}"
 
 version=$(scripts/check-version.sh "$tag")
@@ -45,11 +47,12 @@ target=$(cargo metadata --manifest-path src-tauri/Cargo.toml --format-version 1 
 out=$(mktemp -d)
 scripts/release-assets.sh "$version" "$target/release/bundle" "$out"
 test -f "$out/latest.json" || { echo "no signed update was built" >&2; exit 1; }
+scripts/verify-release.sh "$version" "$out"
 
 files=("$out"/*.dmg "$out"/*.zip "$out"/*.app.tar.gz "$out"/*.sig "$out/latest.json")
-if [ "$publish" = --publish ]; then
-  gh release create "$tag" "${files[@]}" -R "$repo" --verify-tag --latest --title "Shadowing $version" --notes-file "$out/notes.md"
-else
+if [ "$mode" = --draft ]; then
   gh release create "$tag" "${files[@]}" -R "$repo" --verify-tag --draft --title "Shadowing $version" --notes-file "$out/notes.md"
-  echo "Draft created; publish it on GitHub (or rerun with --publish next time)."
+  echo "Draft created; publish it on GitHub."
+else
+  gh release create "$tag" "${files[@]}" -R "$repo" --verify-tag --latest --title "Shadowing $version" --notes-file "$out/notes.md"
 fi
