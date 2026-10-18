@@ -213,24 +213,28 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     renamed
 }
 
-/// `rename`, which replaces `to`. On Windows that fails with "access denied" while
-/// someone else has `to` open without sharing it (a virus scanner, the search indexer,
-/// another write landing at the same moment): try again for a little while.
+/// `rename`, which replaces `to`. On Windows that fails with "access denied" or a sharing
+/// violation while someone else has `to` open without sharing it (a virus scanner, the
+/// search indexer, another write landing at the same moment): try again for a little while.
 pub fn replace(from: &Path, to: &Path) -> std::io::Result<()> {
     let mut wait = std::time::Duration::from_millis(5);
     loop {
         match fs::rename(from, to) {
-            Err(e)
-                if cfg!(windows)
-                    && e.kind() == std::io::ErrorKind::PermissionDenied
-                    && wait.as_millis() <= 640 =>
-            {
+            Err(e) if busy(&e) && wait.as_millis() <= 640 => {
                 std::thread::sleep(wait);
                 wait *= 2;
             }
             done => return done,
         }
     }
+}
+
+fn busy(e: &std::io::Error) -> bool {
+    /// ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION
+    const IN_USE: [i32; 2] = [32, 33];
+    cfg!(windows)
+        && (e.kind() == std::io::ErrorKind::PermissionDenied
+            || e.raw_os_error().is_some_and(|code| IN_USE.contains(&code)))
 }
 
 #[cfg(test)]
