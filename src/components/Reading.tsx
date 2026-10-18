@@ -14,7 +14,7 @@ import { Button, IconButton, Kbd } from "./ui";
 const modes = (): { mode: ReadingHow; label: string; note: string }[] => [
   {
     mode: "read",
-    label: t("自己读", "Read on Your Own"),
+    label: t("自己读", "On Your Own"),
     note: t(
       "不放原文，你按自己的速度读；停顿一下，高亮就跳到下一句。",
       "The original isn’t played. Read at your own pace; pause, and the highlight moves to the next sentence.",
@@ -29,7 +29,7 @@ const modes = (): { mode: ReadingHow; label: string; note: string }[] => [
     ),
   },
   // The line depends on 每句几遍: drillNote.
-  { mode: "drill", label: t("逐句跟读", "Sentence by Sentence"), note: "" },
+  { mode: "drill", label: t("逐句跟读", "One by One"), note: "" },
 ];
 
 /**

@@ -17,7 +17,7 @@ export function LanguageRow() {
         </p>
       </div>
       <select
-        className={`${fieldClass} w-auto`}
+        className={`${fieldClass} !w-auto shrink-0`}
         value={choice}
         onChange={(e) => void useApp.getState().setLanguage(e.target.value as LanguageChoice)}
       >
