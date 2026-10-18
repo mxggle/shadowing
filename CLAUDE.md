@@ -87,7 +87,8 @@ src-tauri/src/
   audio/                  原生播放引擎（见下）
   plugins/                插件（方案见 docs/plugin-plan.md）：app data 的 plugins/<id>/ 里一个 manifest.json + 一个程序。
                           manifest.rs 读和检查 manifest、链接规则（像浏览器扩展的 match pattern）；mod.rs 列出、删除；install.rs 从文件夹安装（原生选择框选好后，在设置里确认它会做什么，
-                          不用原生确认框：选择框刚关上时弹的原生确认框会自己“通过”），选的是插件外面一层也行，更新时保留插件自己的 data/；rpc.rs 把程序当子进程运行（环境变量清空，只留系统 PATH、HOME、代理），
+                          不用原生确认框：选择框刚关上时弹的原生确认框会自己“通过”），选的是插件外面一层也行，更新时保留插件自己的 data/；
+                          复制进来时去掉浏览器下载留下的隔离标记（带着它 macOS 会直接杀掉插件程序，复制也会保留它）；rpc.rs 把程序当子进程运行（环境变量清空，只留系统 PATH、HOME、代理），
                           stdin/stdout 上每行一条 JSON-RPC 2.0，取消时先发 $/cancel、2 秒后结束进程；
                           import.rs 从链接导入（import/resolve → import/run，一次一个，进度发 import:status）；
                           accept.rs 插件只写暂存文件夹，应用检查文件（不收链接出去的、不是音频的）后自己移进打开的文件夹，
@@ -193,6 +194,8 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。打标签发布时没有这两个 secret 会直接失败。
 - 私钥或密码丢了，已装的应用就再也收不到更新（只能换公钥、让大家手动装一次新版本）。务必在密码管理器里备份。
 - `tauri build` 只打 .app；签名、DMG、zip、更新包和 latest.json 都由 `scripts/release-assets.sh` 生成（说明在脚本开头）。
+  它也打包 YouTube 导入插件（`Shadowing-YouTube-plugin-<插件版本>-macos-arm64.zip`，插件自己的版本号在 `plugins/youtube/manifest.json`），
+  发布说明里有安装步骤。
 
 ### 代码签名证书
 

@@ -2,7 +2,8 @@
 # Signs a release build and turns it into the files a GitHub Release carries, in <out dir>:
 #   Shadowing-X.Y.Z-macos-arm64.dmg / .zip, the same under fixed names (Shadowing-macos-arm64.dmg / .zip, for
 #   releases/latest/download/... links), the in-app update Shadowing-X.Y.Z-macos-arm64.app.tar.gz + .sig and
-#   latest.json, and notes.md (release notes with the DMG's SHA-256; not uploaded as a file).
+#   latest.json, the YouTube plugin's folder zipped (Shadowing-YouTube-plugin-X.Y.Z-macos-arm64.zip, its own version;
+#   installed from 设置 → 插件 → 从文件夹安装…), and notes.md (release notes with the DMG's SHA-256; not uploaded as a file).
 #
 # Code signing: the app is signed with our own certificate ("Shadowing Code Signing", self-signed, no Apple account).
 # It doesn't stop Gatekeeper's first-launch warning, but every version then has the same signature identity, so
@@ -87,6 +88,13 @@ with tarfile.open(sys.argv[1], "w:gz") as t: t.add(sys.argv[2], arcname="Shadowi
   scripts/update-manifest.sh "$version" "$out/$base.app.tar.gz.sig" \
     "https://github.com/$repo/releases/download/v$version/$base.app.tar.gz" > "$out/latest.json"
 fi
+
+# The YouTube plugin: its folder (manifest.json + bin/), zipped. The app clears the quarantine mark a browser
+# download leaves when it installs a plugin, so the plugin's ad-hoc signature is enough.
+plugin=$(scripts/build-plugin.sh youtube | tail -1)
+plugin_version=$(node -p 'require("./plugins/youtube/manifest.json").version')
+lipo -archs "$plugin/bin/shadowing-youtube"
+ditto -c -k --norsrc --noextattr --keepParent "$plugin" "$out/Shadowing-YouTube-plugin-$plugin_version-macos-arm64.zip"
 
 scripts/release-notes.sh "$version" "$(shasum -a 256 "$out/$base.dmg" | cut -d' ' -f1)" > "$out/notes.md"
 ls -l "$out"

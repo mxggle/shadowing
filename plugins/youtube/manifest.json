@@ -7,8 +7,7 @@
   "author": "Shadowing",
   "description": "粘贴 YouTube 链接，把视频的音频（m4a，不转码）和人工字幕导入到打开的文件夹。只下载你有权使用的内容。",
   "main": {
-    "darwin-arm64": "bin/shadowing-youtube",
-    "darwin-x86_64": "bin/shadowing-youtube"
+    "darwin-arm64": "bin/shadowing-youtube"
   },
   "contributes": {
     "importers": [

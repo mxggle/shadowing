@@ -12,6 +12,7 @@ fi
 version="${1:?usage: scripts/release-notes.sh [--changes] <X.Y.Z> [sha256]}"
 sha="${2:-}"
 repo="${GITHUB_REPOSITORY:-mxggle/shadowing}"
+plugin_version=$(node -p 'require("./plugins/youtube/manifest.json").version')
 
 # Everything under "## [X.Y.Z] - date" up to the next version heading or the link list at the end.
 section=$(awk -v v="$version" '
@@ -48,6 +49,14 @@ $section
 已经装了 0.4.0 或更新版本的，直接在应用里更新。也有 zip 版：\`Shadowing-$version-macos-arm64.zip\`。
 
 只有 Apple Silicon 版；Intel Mac 和 Windows 没有构建。
+
+## YouTube 导入插件
+粘贴 YouTube 链接，把音频（m4a，不转码）和人工字幕导入到打开的文件夹。
+1. 下载 \`Shadowing-YouTube-plugin-$plugin_version-macos-arm64.zip\`，双击解压出 \`youtube\` 文件夹。
+2. 在 Shadowing 里打开 设置 → 插件 → 从文件夹安装…，选这个文件夹，看过它会做什么后点「安装」。
+3. 复制一个 YouTube 链接，回到 Shadowing 按 ⌘V（或者点左侧列表顶上的 ＋ →「从链接导入…」）。
+
+第一次导入时，插件会从 GitHub 下载 yt-dlp（约 51 MB）。插件是运行在你 Mac 上的程序，只安装你信任的插件；只下载你有权使用的内容。
 EOF
 if [ -n "$sha" ]; then
   printf '\nSHA-256：`%s`\n' "$sha"
