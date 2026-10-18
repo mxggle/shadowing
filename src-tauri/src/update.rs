@@ -12,7 +12,7 @@ use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::{AppHandle, Emitter, State};
 #[cfg(target_os = "macos")]
 use tauri::{Manager, Wry};
-use tauri_plugin_updater::{Update, UpdaterExt};
+use tauri_plugin_updater::{Error, Update, UpdaterExt};
 
 /// The update found by the last check, kept for `update_install`.
 #[derive(Default)]
@@ -39,7 +39,8 @@ const MENU_CHECK: &str = "update-check";
 #[cfg(target_os = "macos")]
 const MENU_NEWS: &str = "whats-new";
 
-/// None when this is the newest version.
+/// None when this is the newest version, or the newest release has no build for this
+/// platform (yet: Windows builds come later than the Mac ones).
 #[tauri::command]
 pub async fn update_check(
     app: AppHandle,
@@ -49,17 +50,18 @@ pub async fn update_check(
     // the exit event: save state.json and the practice log first (the hook replaces the
     // plugin's own, so its cleanup runs here too).
     let handle = app.clone();
-    let update = app
+    let updater = app
         .updater_builder()
         .on_before_exit(move || {
             crate::save_all(&handle);
             handle.cleanup_before_exit();
         })
         .build()
-        .map_err(message)?
-        .check()
-        .await
         .map_err(message)?;
+    let update = match updater.check().await {
+        Err(Error::TargetNotFound(_) | Error::TargetsNotFound(_)) => None,
+        checked => checked.map_err(message)?,
+    };
     let available = update.as_ref().map(|u| Available {
         version: u.version.clone(),
         current: u.current_version.clone(),
