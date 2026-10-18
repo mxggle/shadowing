@@ -1,8 +1,8 @@
 //! Running curl and yt-dlp: stdout line by line, stderr kept for error
 //! messages, and ended at once when the app cancels.
 
-use crate::{Ctx, CANCELLED};
-use std::io::{BufRead, BufReader};
+use crate::{platform, Ctx, CANCELLED};
+use std::io::{BufRead, BufReader, Read};
 use std::process::{Command, Stdio};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
@@ -21,7 +21,7 @@ pub fn run(
     tick: &mut dyn FnMut(),
 ) -> Result<Output, String> {
     let program = command.get_program().to_string_lossy().into_owned();
-    let mut child = command
+    let mut child = platform::hide(&mut command)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -31,7 +31,7 @@ pub fn run(
     let (tx, lines) = mpsc::channel::<String>();
     if let Some(stdout) = stdout {
         std::thread::spawn(move || {
-            for l in BufReader::new(stdout).lines().map_while(Result::ok) {
+            for l in read_lines(stdout) {
                 if tx.send(l).is_err() {
                     break;
                 }
@@ -42,7 +42,7 @@ pub fn run(
     if let Some(stderr) = stderr {
         let errors = errors.clone();
         std::thread::spawn(move || {
-            for l in BufReader::new(stderr).lines().map_while(Result::ok) {
+            for l in read_lines(stderr) {
                 eprintln!("{l}");
                 errors.lock().unwrap().push(l);
             }
@@ -78,4 +78,35 @@ pub fn run(
         ok: status.success(),
         stderr,
     })
+}
+
+/// Lines without their `\n` or `\r\n`. Not UTF-8 everywhere (a program on Windows may
+/// write in the system's code page): such a line is kept with the odd bytes replaced.
+fn read_lines(from: impl Read) -> impl Iterator<Item = String> {
+    let mut reader = BufReader::new(from);
+    std::iter::from_fn(move || {
+        let mut buf = Vec::new();
+        match reader.read_until(b'\n', &mut buf) {
+            Ok(0) | Err(_) => None,
+            Ok(_) => {
+                while buf.last().is_some_and(|b| *b == b'\n' || *b == b'\r') {
+                    buf.pop();
+                }
+                Some(String::from_utf8_lossy(&buf).into_owned())
+            }
+        }
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn reads_lines_of_any_encoding() {
+        let text: &[u8] = b"SHPROG 1 2 NA\r\nERROR: \xd6\xd0\xce\xc4\nlast";
+        let lines: Vec<String> = super::read_lines(text).collect();
+        assert_eq!(lines[0], "SHPROG 1 2 NA");
+        assert!(lines[1].starts_with("ERROR: ") && lines[1].contains('\u{fffd}'));
+        assert_eq!(lines[2], "last");
+        assert_eq!(lines.len(), 3);
+    }
 }

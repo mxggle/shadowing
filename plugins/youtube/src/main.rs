@@ -2,6 +2,7 @@
 //! 2.0, one message per line on stdin / stdout; see docs/plugin-plan.md) and
 //! does the work with yt-dlp, which it downloads and keeps up to date itself.
 
+mod platform;
 mod run;
 mod tools;
 mod ytdlp;
