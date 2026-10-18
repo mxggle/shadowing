@@ -2,6 +2,7 @@ import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { featureReady, firstOpenStep } from "../../lib/aiReady";
 import { t, tk } from "../../lib/i18n";
+import { shortcut } from "../../lib/platform";
 import { useApp } from "../../store";
 import { Button, IconButton } from "../ui";
 import { TrialStep } from "./TrialStep";
@@ -90,7 +91,7 @@ function WizardDialog() {
         <footer className="flex shrink-0 items-center gap-2 border-t border-line bg-deck px-6 py-3">
           {step > 0 && <Button onClick={() => setStep((step - 1) as 0 | 1)}>{t("上一步")}</Button>}
           <p className="min-w-0 flex-1 text-right text-[12px] text-faint">
-            {downloading ? t("模型会在后台继续下载") : step < 2 && !ready ? t("可以先跳过，之后在设置（⌘,）里补上") : ""}
+            {downloading ? t("模型会在后台继续下载") : step < 2 && !ready ? t("可以先跳过，之后在设置（{key}）里补上", { key: shortcut("⌘,") }) : ""}
           </p>
           {step < 2 ? (
             <Button primary={ready || downloading} onClick={() => setStep((step + 1) as 1 | 2)}>

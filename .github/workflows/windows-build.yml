@@ -1,0 +1,60 @@
+# Builds the Windows installer (Shadowing_X.Y.Z_x64-setup.exe, NSIS, per user) so it can be tried on a real PC:
+# open Actions -> Windows build -> the run -> Artifacts, download, unzip, run the setup. It's a test build,
+# not a release: unsigned (SmartScreen will warn: "More info" -> "Run anyway") and without the in-app update.
+# Runs by hand (Actions -> Windows build -> Run workflow) and on every push to a feat/windows* branch.
+# The config for it is src-tauri/tauri.windows.conf.json.
+name: Windows build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["feat/windows*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      # bindgen (signalsmith-stretch) finds libclang here; the runner image has LLVM installed.
+      LIBCLANG_PATH: 'C:\Program Files\LLVM\bin'
+    steps:
+      # Files must come out with LF line endings: the shell scripts can't take CRLF.
+      - run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Rust (the version in rust-toolchain.toml)
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: installer
+
+      - run: npm ci
+
+      # beforeBuildCommand (npm run build) builds the frontend; Tauri downloads NSIS itself.
+      - name: Build the installer
+        run: npx tauri build --bundles nsis
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Shadowing-windows-x64-setup
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          retention-days: 14

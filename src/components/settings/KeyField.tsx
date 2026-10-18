@@ -2,11 +2,12 @@ import { ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type AiConfig, type Preset } from "../../lib/api";
 import { t } from "../../lib/i18n";
+import { savedInVault } from "../../lib/wording";
 import { Button, fieldClass, TextLink } from "../ui";
 
 /**
  * A saved key shows only as "sk-…abcd"; the key itself goes to Rust once and
- * into the Keychain, and never comes back to this page.
+ * into the Keychain (Windows Credential Manager), and never comes back to this page.
  */
 export function KeyField({ preset, hint, onSaved }: { preset: Preset; hint?: string; onSaved: (c: AiConfig) => void }) {
   const [editing, setEditing] = useState(!hint);
@@ -41,7 +42,7 @@ export function KeyField({ preset, hint, onSaved }: { preset: Preset; hint?: str
       {hint && !editing ? (
         <div className="flex min-w-0 items-center gap-2">
           <span className="tabular truncate font-mono text-[12px]">{hint}</span>
-          <span className="truncate text-[12px] text-faint">{t("已保存在钥匙串")}</span>
+          <span className="truncate text-[12px] text-faint">{savedInVault()}</span>
           <span className="ml-auto flex gap-1.5">
             <Button onClick={() => setEditing(true)}>{t("更换")}</Button>
             <Button

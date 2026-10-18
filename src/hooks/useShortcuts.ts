@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { nextPlayMode, RATE_STEP } from "../audio/logic";
 import { isTypingTarget } from "../lib/focus";
+import { isBrowserKey, isMod } from "../lib/platform";
 import { useApp } from "../store";
 import { flash, type FlashId } from "./useFlash";
 
@@ -37,7 +38,7 @@ export function useShortcuts() {
       const s = useApp.getState();
       if (s.settingsOpen || s.wizardOpen || s.statsOpen || s.newsOpen || s.linkImport) return;
       if ((s.live || s.rec) && !(e.metaKey || e.ctrlKey || e.altKey)) return recordingKey(e, s);
-      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
+      if (isMod(e) && !e.altKey && !e.shiftKey) {
         const command: Record<string, (() => void) | false> = {
           b: s.toggleShelf,
           // A link copied elsewhere: import it (when a plugin takes it).
@@ -101,7 +102,16 @@ export function useShortcuts() {
       entry[0]();
       if (entry[1]) flash(entry[1]);
     };
+    // Windows' WebView has shortcuts of its own (reload, print, find); none of them belongs in the app
+    // (`tauri dev` keeps them: reloading is handy there).
+    const onBrowserKey = (e: KeyboardEvent) => {
+      if (import.meta.env.PROD && isBrowserKey(e)) e.preventDefault();
+    };
+    window.addEventListener("keydown", onBrowserKey, true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onBrowserKey, true);
+      window.removeEventListener("keydown", onKey);
+    };
   }, []);
 }

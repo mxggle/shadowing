@@ -2,6 +2,7 @@ import { ArrowRight, X } from "lucide-react";
 import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 import { matchingSentences } from "../lib/edits";
 import { t } from "../lib/i18n";
+import { shortcut } from "../lib/platform";
 import { useApp } from "../store";
 import { Button, fieldClass, IconButton, TextLink } from "./ui";
 
@@ -67,7 +68,7 @@ export function ReplaceBar() {
       {bar.replaced !== null ? (
         <span className="flex shrink-0 items-center gap-2 text-[12px] text-muted">
           {t("已替换")} <span className="tabular -mx-1 font-mono">{bar.replaced}</span> {t("句", { n: bar.replaced })}
-          <TextLink className="text-[12px]" title={t("撤销 (⌘Z)")} onClick={() => void undoEdit()}>
+          <TextLink className="text-[12px]" title={t("撤销 ({key})", { key: shortcut("⌘Z") })} onClick={() => void undoEdit()}>
             {t("撤销")}
           </TextLink>
         </span>

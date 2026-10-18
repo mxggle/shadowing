@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight, Play, Square, Trash2, X } from "lucide-react
 import { useEffect, useMemo, useRef } from "react";
 import type { Reading, ReadingWhat } from "../lib/api";
 import { t } from "../lib/i18n";
+import { shortcut } from "../lib/platform";
 import { readingNote, readingsFor, saidCount, scopeOf } from "../lib/readings";
 import { sentenceIndexAt } from "../lib/sentences";
 import { whenRecorded } from "../lib/takes";
@@ -76,7 +77,7 @@ export function ReadingBar({ reading }: { reading: Reading }) {
           <IconButton title={t("删除这次整段录音（连同分出来的每句）")} onClick={() => void deleteReading(reading.id)}>
             <Trash2 />
           </IconButton>
-          <Button className="h-7 px-2.5" title={t("再读一遍 (⇧M)")} onClick={() => void startReading({ mode: reading.mode, at: first, scope })}>
+          <Button className="h-7 px-2.5" title={t("再读一遍 ({key})", { key: shortcut("⇧M") })} onClick={() => void startReading({ mode: reading.mode, at: first, scope })}>
             <span className="size-2 rounded-full bg-danger" />
             {t("再读一遍")}
           </Button>

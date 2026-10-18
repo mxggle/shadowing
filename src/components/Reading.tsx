@@ -2,6 +2,7 @@ import { AlertCircle, BookOpenText, LoaderCircle, Pause, Square, X } from "lucid
 import { useEffect, useRef, useState } from "react";
 import { useDismiss } from "../hooks/useDismiss";
 import { t, tk } from "../lib/i18n";
+import { shortcut } from "../lib/platform";
 import { readingHow, readingRange, readingsFor, type ReadingHow, type ReadingScope } from "../lib/readings";
 import { drillNote } from "../lib/rounds";
 import { sectionIndexOf, sectionName, sectionsOf } from "../lib/sections";
@@ -44,7 +45,7 @@ export function ReadingButton() {
   const busy = useApp((s) => !!s.live || !!s.rec || !!s.drill);
   return (
     <div ref={root} className="relative">
-      <IconButton title={t("整段录音 (⇧M)")} active={open} disabled={busy} onClick={() => setOpen(!open)}>
+      <IconButton title={t("整段录音 ({key})", { key: shortcut("⇧M") })} active={open} disabled={busy} onClick={() => setOpen(!open)}>
         <BookOpenText />
       </IconButton>
       {open && <ReadingMenu onClose={() => setOpen(false)} />}

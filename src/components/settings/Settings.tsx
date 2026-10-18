@@ -3,19 +3,20 @@ import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState } from "react";
 import type { Feature } from "../../lib/api";
 import { t, tk, type LangSetting } from "../../lib/i18n";
+import { isCmd, isWindows, shortcut } from "../../lib/platform";
 import { useApp } from "../../store";
 import { Button, IconButton, TextLink } from "../ui";
 import { PluginsSection } from "./Plugins";
 import { ProviderSetup } from "./ProviderSetup";
 import { RecordingsRow } from "./Recordings";
 
-/** Gear in the top bar; ⌘, also opens settings, as in every Mac app. */
+/** Gear in the top bar; ⌘, (Ctrl+, on Windows) also opens settings, as in every Mac app. */
 export function SettingsButton() {
   const open = useApp((s) => s.settingsOpen);
   const setOpen = useApp((s) => s.setSettingsOpen);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key === ",") {
+      if (isCmd(e) && e.key === ",") {
         e.preventDefault();
         setOpen(true);
       }
@@ -24,7 +25,7 @@ export function SettingsButton() {
     return () => window.removeEventListener("keydown", onKey);
   }, [setOpen]);
   return (
-    <IconButton title={t("设置 (⌘,)")} active={open} onClick={() => setOpen(true)}>
+    <IconButton title={t("设置 ({key})", { key: shortcut("⌘,") })} active={open} onClick={() => setOpen(true)}>
       <Gear />
     </IconButton>
   );
@@ -93,7 +94,9 @@ export function SettingsDialog() {
           <div className="mt-5 border-t border-line pt-6">
             <h3 className="text-[12px] font-medium text-faint">{t("AI 功能（可选）")}</h3>
             <p className="mt-1 text-[12px] leading-relaxed text-muted">
-              {t("不设置也能正常播放、循环和使用字幕。API Key 保存在 macOS 钥匙串里，只在这台 Mac 上使用。")}
+              {isWindows
+                ? t("不设置也能正常播放、循环和使用字幕。API Key 保存在 Windows 凭据管理器里，只在这台电脑上使用。")
+                : t("不设置也能正常播放、循环和使用字幕。API Key 保存在 macOS 钥匙串里，只在这台 Mac 上使用。")}
             </p>
           </div>
           <div className="mt-2 flex flex-col">

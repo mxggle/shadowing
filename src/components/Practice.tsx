@@ -5,6 +5,8 @@ import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api, type PracticeSession } from "../lib/api";
 import { t } from "../lib/i18n";
+import { fileStem } from "../lib/paths";
+import { isWindows } from "../lib/platform";
 import { durationParts, formatDuration, shiftDay, summarize, topAudios } from "../lib/practice";
 import { useApp } from "../store";
 import { IconButton } from "./ui";
@@ -110,7 +112,9 @@ function Records({ sessions, now }: { sessions: PracticeSession[]; now: number }
 
       <p className="mt-6 border-t border-line pt-4 text-[12px] leading-relaxed text-muted">
         {t("怎么算：音频播放、回听自己录音的时间都算；跟读录音、整段录音时录音的时间也算（算在“暂停”里）；暂停后 90 秒内又有操作（继续播放、点句子、看解释），中间跟读、思考的时间也算；")}{" "}
-        {t("更久没有动静就当作离开，那段时间不算。每天从凌晨 4 点算起；连续天数只算达到当天目标的日子，改目标只影响今天和以后。记录只存在这台 Mac 上。")}
+        {isWindows
+          ? t("更久没有动静就当作离开，那段时间不算。每天从凌晨 4 点算起；连续天数只算达到当天目标的日子，改目标只影响今天和以后。记录只存在这台电脑上。")
+          : t("更久没有动静就当作离开，那段时间不算。每天从凌晨 4 点算起；连续天数只算达到当天目标的日子，改目标只影响今天和以后。记录只存在这台 Mac 上。")}
       </p>
     </>
   );
@@ -169,7 +173,7 @@ function TopAudios({ sessions, now }: { sessions: PracticeSession[]; now: number
   if (top.length === 0) return null;
   // Audio outside the open folder (an older folder) is named after its file.
   const name = (path: string) =>
-    [...(tracks ?? []), ...(sample ? [sample] : [])].find((track) => track.path === path)?.name ?? path.split("/").pop()!.replace(/\.[^.]+$/, "");
+    [...(tracks ?? []), ...(sample ? [sample] : [])].find((track) => track.path === path)?.name ?? fileStem(path);
   const most = top[0].active;
   return (
     <Section title={t("最近 30 天练得最多")}>

@@ -1,5 +1,8 @@
-# Runs `npm run check` (tsc + vite build + vitest + cargo fmt/clippy/test) on every PR and every push to main.
-# macOS on Apple Silicon, the only platform the app ships for; whisper.cpp needs Metal and cmake.
+# Runs `npm run check` (tsc + vite build + vitest + cargo fmt/clippy/test) on every PR and every push to main, on two systems:
+# - macOS on Apple Silicon, the platform the app ships for (whisper.cpp needs Metal and cmake);
+# - Windows x86_64, for the Windows port: it builds, lints and tests the same code. The runner has no sound card,
+#   so the tests that need real audio hardware stay ignored there. An installer to try on a real PC comes from
+#   windows-build.yml.
 name: Check
 
 on:
@@ -44,5 +47,44 @@ jobs:
 
       - name: Versions agree
         run: scripts/check-version.sh
+
+      - run: npm run check
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      # bindgen (signalsmith-stretch) finds libclang here; the runner image has LLVM installed.
+      LIBCLANG_PATH: 'C:\Program Files\LLVM\bin'
+    steps:
+      # Files must come out with LF line endings: the shell scripts can't take CRLF.
+      - run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Rust (the version in rust-toolchain.toml)
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri
+            plugins/youtube
+
+      - name: Tools
+        run: |
+          node --version
+          rustc --version
+          clang --version | head -1 || true
+
+      - run: npm ci
 
       - run: npm run check
