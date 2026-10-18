@@ -7,35 +7,15 @@
 #   key. Repository secrets: SHADOWING_CODESIGN_P12 (base64 .p12), SHADOWING_CODESIGN_PASSWORD,
 #   TAURI_SIGNING_PRIVATE_KEY (contents of the .key file), TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
 #   A tag build fails without them; other builds then make an ad-hoc signed DMG and zip only.
-# - Running it by hand (Actions → Release → Run workflow), or a PR that touches the version or the release
-#   tooling (release/vX.Y.Z PRs, changes to this file): only builds, and keeps the files as a workflow artifact.
-# - Pushes to main that change Rust dependencies, and a weekly run: only build, to keep the compiled dependencies
-#   in the cache. A tag build can only restore a cache saved on main, and without one it compiles every
-#   dependency from scratch (about 7 of its ~18 minutes).
-# - Faster still: scripts/release-local.sh builds and uploads the release from your Mac.
+# - Running it by hand (Actions → Release → Run workflow): only builds, and keeps the files as a workflow artifact.
+# - Releases are packaged on the Mac (scripts/release-local.sh, which stops this tag build): much faster than here.
+#   So nothing else triggers this workflow: no build on PRs or main pushes, no weekly cache run. A tag build that
+#   does finish here has no warm cache and compiles every dependency from scratch.
 name: Release
 
 on:
   push:
     tags: ["v*.*.*"]
-    branches: [main]
-    paths:
-      - src-tauri/Cargo.lock
-      - src-tauri/Cargo.toml
-      - rust-toolchain.toml
-      - .github/workflows/release.yml
-  schedule:
-    - cron: "0 3 * * 1" # Mondays: GitHub drops caches unused for 7 days
-  pull_request:
-    paths:
-      - .github/workflows/release.yml
-      - scripts/check-version.sh
-      - scripts/release-notes.sh
-      - scripts/update-manifest.sh
-      - scripts/release-assets.sh
-      - rust-toolchain.toml
-      - src-tauri/tauri.conf.json
-      - CHANGELOG.md
   workflow_dispatch:
 
 permissions:
