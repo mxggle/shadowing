@@ -2,11 +2,11 @@
 //! the `data/` of the version it replaces.
 
 use super::manifest::{Manifest, Permissions};
+use super::os;
 use super::{list, root, PluginInfo};
 use crate::AppState;
 use serde::Serialize;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, State};
@@ -49,21 +49,17 @@ pub fn copy_in(source: &Path, root: &Path, manifest: &Manifest) -> Result<(), St
                     "Couldn't copy the plugin's files: {e}"
                 )
             })?;
-            clear_quarantine(&to);
+            os::clear_download_mark(&to);
         }
     }
     let program = staging.join(manifest.program_path()?);
-    let mut mode = fs::metadata(&program)
-        .map_err(|_| {
-            crate::i18n::pick(
-                "插件文件夹里没有它的程序",
-                "The plugin folder doesn't contain its program",
-            )
-            .to_string()
-        })?
-        .permissions();
-    mode.set_mode(mode.mode() | 0o755);
-    fs::set_permissions(&program, mode).map_err(|e| e.to_string())?;
+    os::make_executable(&program).map_err(|_| {
+        crate::i18n::pick(
+            "插件文件夹里没有它的程序",
+            "The plugin folder doesn't contain its program",
+        )
+        .to_string()
+    })?;
 
     if target.exists() {
         let data = target.join("data");
@@ -78,24 +74,6 @@ pub fn copy_in(source: &Path, root: &Path, manifest: &Manifest) -> Result<(), St
         })?;
     }
     fs::rename(&staging, &target).map_err(|e| e.to_string())
-}
-
-/// Installing is the learner's go-ahead. A plugin downloaded as a zip in a browser
-/// carries macOS's quarantine mark onto every file it unpacks (and a copy keeps
-/// it), and macOS kills a quarantined program the moment the app starts it.
-fn clear_quarantine(path: &Path) {
-    use std::os::unix::ffi::OsStrExt;
-    let Ok(path) = std::ffi::CString::new(path.as_os_str().as_bytes()) else {
-        return;
-    };
-    // SAFETY: both are NUL-terminated C strings that live through the call.
-    unsafe {
-        libc::removexattr(
-            path.as_ptr(),
-            c"com.apple.quarantine".as_ptr(),
-            libc::XATTR_NOFOLLOW,
-        );
-    }
 }
 
 /// The folder picked, or the one plugin folder inside it: picking the folder a plugin

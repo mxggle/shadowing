@@ -94,3 +94,47 @@ fn compares_versions() {
     assert!(!older("1.0", "1.0.0"));
     assert!(!older("0.9.0-beta", "0.9.0"));
 }
+
+#[test]
+fn platform_keys_and_the_x64_fallback_on_windows_arm() {
+    assert_eq!(platforms_for("macos", "aarch64"), ["darwin-arm64"]);
+    assert_eq!(platforms_for("macos", "x86_64"), ["darwin-x86_64"]);
+    assert_eq!(platforms_for("windows", "x86_64"), ["windows-x86_64"]);
+    assert_eq!(
+        platforms_for("windows", "aarch64"),
+        ["windows-arm64", "windows-x86_64"]
+    );
+    assert!(platforms_for("linux", "x86_64").is_empty());
+
+    let main = |keys: &[(&str, &str)]| -> HashMap<String, String> {
+        keys.iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+    };
+    let arm = platforms_for("windows", "aarch64");
+    let x64_only = main(&[("windows-x86_64", "bin/p.exe"), ("darwin-arm64", "bin/p")]);
+    assert_eq!(program_for(&x64_only, arm).unwrap(), "bin/p.exe");
+    let both = main(&[
+        ("windows-x86_64", "bin/x64.exe"),
+        ("windows-arm64", "bin/arm.exe"),
+    ]);
+    assert_eq!(program_for(&both, arm).unwrap(), "bin/arm.exe");
+    // A Mac doesn't fall back to the Intel program (nor a PC to a Mac one).
+    let intel = main(&[("darwin-x86_64", "bin/p")]);
+    assert!(program_for(&intel, platforms_for("macos", "aarch64")).is_none());
+    assert!(program_for(&intel, platforms_for("windows", "x86_64")).is_none());
+}
+
+#[test]
+fn a_windows_program_is_an_exe_inside_the_folder() {
+    let mut m = youtube();
+    m.main
+        .insert(platform().into(), "bin/shadowing-youtube.exe".into());
+    assert_eq!(
+        m.program_path().unwrap(),
+        PathBuf::from("bin/shadowing-youtube.exe")
+    );
+    m.main
+        .insert(platform().into(), "C:/Windows/notepad.exe".into());
+    assert!(m.program_path().is_err());
+}

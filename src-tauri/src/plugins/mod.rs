@@ -5,11 +5,13 @@
 //! Installing: the native folder picker, then 安装 in settings (plugins_pick, plugins_install).
 
 pub mod accept;
+mod clipboard;
 pub mod import;
 pub mod install;
 mod job;
 pub mod manifest;
 mod names;
+mod os;
 pub mod rpc;
 
 use crate::AppState;
