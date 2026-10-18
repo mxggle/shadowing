@@ -2,6 +2,7 @@
 //! in app data; the app checks each file there and moves the audio into the
 //! learner's folder itself, so a plugin never touches that folder.
 
+use super::names::safe_name;
 use crate::library;
 use serde::Deserialize;
 use std::fs;
@@ -10,8 +11,6 @@ use std::path::{Path, PathBuf};
 
 const MAX_AUDIO: u64 = 4 << 30;
 const MAX_SUBTITLE: u64 = 20 << 20;
-/// Bytes of a file name before the extension, leaving room for “ (12)” and “.m4a”.
-const MAX_NAME_BYTES: usize = 180;
 
 /// One file in the plugin's answer to `import/run`.
 #[derive(Debug, Deserialize)]
@@ -69,36 +68,6 @@ pub fn pick(staging: &Path, made: &[Made]) -> Result<Picked, String> {
         has_extension(&path, &["srt", "vtt"]).then(|| (path, m.lang.clone().unwrap_or_default()))
     });
     Ok(Picked { audio, subtitle })
-}
-
-/// A file or folder name from a title: no `/` `:` or other characters that some
-/// disks refuse, not hidden (the folder list skips hidden files), not too long.
-pub fn safe_name(title: &str) -> String {
-    let replaced: String = title
-        .chars()
-        .map(|c| {
-            if c.is_control() || "/\\:*?\"<>|".contains(c) {
-                ' '
-            } else {
-                c
-            }
-        })
-        .collect();
-    let mut name = replaced.split_whitespace().collect::<Vec<_>>().join(" ");
-    name = name.trim_start_matches(['.', ' ']).to_string();
-    if name.len() > MAX_NAME_BYTES {
-        let mut cut = MAX_NAME_BYTES;
-        while !name.is_char_boundary(cut) {
-            cut -= 1;
-        }
-        name.truncate(cut);
-    }
-    let name = name.trim_end_matches(['.', ' ']).to_string();
-    if name.is_empty() {
-        crate::i18n::pick("未命名", "Untitled").into()
-    } else {
-        name
-    }
 }
 
 /// `dir/stem.ext`, or `dir/stem (2).ext` and so on when that is taken.
@@ -164,20 +133,6 @@ mod tests {
     }
 
     #[test]
-    fn names_from_titles() {
-        assert_eq!(
-            safe_name("日本語練習／中級【～によって】会話"),
-            "日本語練習／中級【～によって】会話"
-        );
-        assert_eq!(safe_name("AC/DC: Live?  \"Best\"\n"), "AC DC Live Best");
-        assert_eq!(safe_name("...hidden"), "hidden");
-        assert_eq!(safe_name("  ..  "), "未命名");
-        assert_eq!(safe_name("ends with dots..."), "ends with dots");
-        let long = safe_name(&"あ".repeat(100));
-        assert!(long.len() <= MAX_NAME_BYTES && long.chars().all(|c| c == 'あ'));
-    }
-
-    #[test]
     fn free_path_counts_up() {
         let tmp = tempfile::tempdir().unwrap();
         assert_eq!(free_path(tmp.path(), "a", "m4a"), tmp.path().join("a.m4a"));
@@ -195,6 +150,9 @@ mod tests {
         let staging = tmp.path().join("job");
         fs::create_dir_all(&staging).unwrap();
         fs::write(tmp.path().join("secret.m4a"), "outside").unwrap();
+        // A link out of staging (Windows: making one needs extra rights; a junction
+        // in the middle of a path ends up outside staging once resolved, like `..`).
+        #[cfg(unix)]
         std::os::unix::fs::symlink(tmp.path().join("secret.m4a"), staging.join("link.m4a"))
             .unwrap();
         fs::write(staging.join("notes.txt"), "x").unwrap();

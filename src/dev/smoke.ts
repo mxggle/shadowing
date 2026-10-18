@@ -296,7 +296,7 @@ async function scenario() {
   const kept = await api.getTranscript(sample.path);
   check("trial result is not saved", kept?.source === "sidecar" && app().transcript?.source === "sidecar", kept?.source);
 
-  // 11. 从链接导入 through a fake plugin (a shell script, see smoke.rs): the link resolves,
+  // 11. 从链接导入 through a fake plugin (a shell or PowerShell script, see smoke.rs): the link resolves,
   // the plugin "downloads" into staging, the app moves the audio into the folder and
   // keeps the subtitles as a transcript that can be removed. A second link queued
   // meanwhile waits its turn; both show as rows in their folder's group until done.
@@ -315,7 +315,8 @@ async function scenario() {
   // Rust takes one download at a time: had the queue not waited, the second would fail.
   await waitFor(() => app().downloads.length === 0, 15000);
   const done = outcomes.filter((o) => o.state === "done");
-  const paths = done.map((o) => (o.state === "done" ? o.path.split("/").slice(-2).join("/") : ""));
+  // Windows paths use backslashes.
+  const paths = done.map((o) => (o.state === "done" ? o.path.split(/[\\/]/).slice(-2).join("/") : ""));
   check(
     "both imports land in the folder, the second not overwriting the first",
     done.length === 2 && paths[0] === "smoke-import/Smoke import.mp3" && paths[1] === "smoke-import/Smoke import (2).mp3" && done[0].state === "done" && done[0].subtitles,

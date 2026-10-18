@@ -14,6 +14,10 @@ const NO_M4A: &str = "这个视频没有 m4a 音轨（应用放不了 Opus / Web
 
 fn command(ctx: &Ctx, tools: &Tools) -> Command {
     let mut c = Command::new(&tools.ytdlp);
+    if cfg!(windows) {
+        // Python on Windows would write in the system's code page.
+        c.env("PYTHONUTF8", "1");
+    }
     c.args(["--ignore-config", "--no-playlist", "--no-mtime"]);
     c.arg("--cache-dir").arg(ctx.data.join("cache"));
     if let Some(js) = &tools.js {

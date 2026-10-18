@@ -66,20 +66,44 @@ export function linkSites(plugins: PluginInfo[]): string[] {
   return [...new Set(plugins.filter((p) => !p.problem).flatMap((p) => p.importers))];
 }
 
+// Unicode White_Space (what Rust's `split_whitespace` and `trim` use), not JS's `\s`.
+const SPACE = "\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000";
+const SPACES = new RegExp(`[${SPACE}]+`);
+const EDGE_SPACES = new RegExp(`^[${SPACE}]+|[${SPACE}]+$`, "g");
+/** Names Windows keeps for devices, whatever follows the first dot (ASCII case only). */
+const DEVICE = /^(CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[0-9¹²³]|LPT[0-9¹²³])$/i;
+/** Bytes (UTF-8) of a name before the extension. */
+const MAX_NAME_BYTES = 180;
+
+const utf8Length = (c: string) => {
+  const code = c.codePointAt(0) ?? 0;
+  return code < 0x80 ? 1 : code < 0x800 ? 2 : code < 0x10000 ? 3 : 4;
+};
+
 /**
  * The folder a download lands in, as the folder list will show it: the same
- * clean-up the Rust side does (plugins/accept.rs, `safe_name`).
+ * clean-up the Rust side does (plugins/names.rs, `safe_name`; change both
+ * together). Valid on Windows too: no device names like CON, no trailing dots.
  */
 export function folderName(folder: string): string {
-  const trimmed = folder.trim();
+  const trimmed = folder.replace(EDGE_SPACES, "");
   if (!trimmed) return "";
-  const name = trimmed
-    .replace(/[\u0000-\u001f\u007f/\\:*?"<>|]/g, " ")
-    .split(/\s+/)
+  let name = trimmed
+    .replace(/[\u0000-\u001f\u007f-\u009f/\\:*?"<>|]/g, " ")
+    .split(SPACES)
     .filter(Boolean)
     .join(" ")
-    .replace(/^[. ]+/, "")
-    .replace(/[. ]+$/, "");
+    .replace(/^[. ]+/, "");
+  const base = name.split(".")[0].replace(/ +$/, "");
+  if (DEVICE.test(base)) name = `${base}_${name.slice(base.length)}`;
+  let bytes = 0;
+  let cut = "";
+  for (const c of name) {
+    bytes += utf8Length(c);
+    if (bytes > MAX_NAME_BYTES) break;
+    cut += c;
+  }
+  name = cut.replace(/[. ]+$/, "");
   return name || t("未命名");
 }
 

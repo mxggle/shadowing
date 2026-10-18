@@ -75,9 +75,36 @@ describe("downloads", () => {
   it("names folders the way Rust will", () => {
     expect(folderName(" YouTube ")).toBe("YouTube");
     expect(folderName("")).toBe("");
-    expect(folderName("a/b: c")).toBe("a b c");
-    expect(folderName("../..")).toBe("未命名");
+    expect(folderName(" \u3000\t")).toBe("");
     expect(folderName(".hidden")).toBe("hidden");
+    // The same cases as `safe_name` in src-tauri/src/plugins/names.rs.
+    const cases: [string, string][] = [
+      ["日本語練習／中級【～によって】会話", "日本語練習／中級【～によって】会話"],
+      ['AC/DC: Live?  "Best"\n', "AC DC Live Best"],
+      ["a/b: c", "a b c"],
+      ["...hidden", "hidden"],
+      ["  ..  ", "未命名"],
+      ["../..", "未命名"],
+      ["ends with dots...", "ends with dots"],
+      ["tab\there\u3000wide\u00a0space", "tab here wide space"],
+      ["c1\u0085control\u009fchars\u007f", "c1 control chars"],
+      ["CON", "CON_"],
+      ["con.txt", "con_.txt"],
+      ["Nul .tar.gz", "Nul_ .tar.gz"],
+      ["aux...", "aux_"],
+      ["COM1", "COM1_"],
+      ["lpt9.mp3", "lpt9_.mp3"],
+      ["COM¹", "COM¹_"],
+      ["CONOUT$", "CONOUT$_"],
+      ["COM10", "COM10"],
+      ["CONSOLE", "CONSOLE"],
+      ["con-game", "con-game"],
+      ["Prn: Live", "Prn Live"],
+    ];
+    for (const [title, name] of cases) expect(folderName(title), title).toBe(name);
+    expect(folderName("あ".repeat(100))).toBe("あ".repeat(60));
+    const device = folderName(`con.${"x".repeat(300)}`);
+    expect(device.startsWith("con_.") && new TextEncoder().encode(device).length).toBe(180);
   });
 
   it("puts each download in the group it lands in, making new groups in name order", () => {

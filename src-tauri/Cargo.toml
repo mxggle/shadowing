@@ -62,6 +62,11 @@ whisper-rs = { version = "0.16.0", features = ["metal"] }
 windows-native-keyring-store = { version = "1.1.0", default-features = false }
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation", "Win32_Storage_FileSystem"] }
 
+# Windows: API keys in Credential Manager; clipboard, opening links, RAM and free disk (windows-sys is already in the tree via cpal and tauri).
+[target.'cfg(windows)'.dependencies]
+windows-native-keyring-store = { version = "1.1.0", default-features = false }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation", "Win32_Storage_FileSystem"] }
+
 [dev-dependencies]
 tempfile = "3"
 hound = "3.5"

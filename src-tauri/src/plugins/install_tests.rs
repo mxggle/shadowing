@@ -28,11 +28,15 @@ fn installing_copies_the_plugin_and_an_update_keeps_its_data() {
     copy_in(&source, &root, &m).unwrap();
     let installed = root.join("fake");
     assert!(installed.join("manifest.json").is_file());
-    let mode = fs::metadata(installed.join("bin/run"))
-        .unwrap()
-        .permissions()
-        .mode();
-    assert_eq!(mode & 0o755, 0o755);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = fs::metadata(installed.join("bin/run"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o755, 0o755);
+    }
     // The source's own data and hidden folders stay behind.
     assert!(!installed.join("data").exists());
     assert!(!installed.join(".git").exists());
@@ -79,6 +83,7 @@ fn picking_the_folder_around_one_plugin_finds_it() {
     assert_eq!(super::plugin_folder(dist.clone()), dist);
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn installing_clears_the_download_quarantine() {
     use std::ffi::CString;
@@ -116,4 +121,28 @@ fn installing_clears_the_download_quarantine() {
     copy_in(&source, &root, &Manifest::read(&source).unwrap()).unwrap();
     assert!(!has_mark(&root.join("fake/bin/run")));
     assert!(!has_mark(&root.join("fake/manifest.json")));
+}
+
+#[cfg(windows)]
+#[test]
+fn installing_clears_the_mark_of_the_web() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (source, root) = (tmp.path().join("src"), tmp.path().join("plugins"));
+    plugin_folder(&source, "0.1.0");
+    fs::create_dir_all(&root).unwrap();
+    let has_mark = |p: &Path| fs::metadata(os::zone_identifier(p)).is_ok();
+    let program = source.join("bin/run");
+    fs::write(
+        os::zone_identifier(&program),
+        "[ZoneTransfer]\r\nZoneId=3\r\n",
+    )
+    .unwrap();
+    assert!(has_mark(&program));
+    // A plain copy keeps the mark: clearing it is what makes the difference.
+    fs::copy(&program, tmp.path().join("plain")).unwrap();
+    assert!(has_mark(&tmp.path().join("plain")));
+
+    copy_in(&source, &root, &Manifest::read(&source).unwrap()).unwrap();
+    assert!(!has_mark(&root.join("fake/bin/run")));
+    assert!(fs::metadata(root.join("fake/bin/run")).is_ok());
 }

@@ -2,6 +2,7 @@
 //! JSON-RPC 2.0 message per line on stdin / stdout. Cancelling asks first
 //! (`$/cancel`), then ends the process.
 
+use super::os;
 use serde_json::{json, Value};
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, Write};
@@ -17,20 +18,6 @@ const CANCELLED_EN: &str = "Cancelled";
 /// How long a plugin gets to stop by itself after `$/cancel`.
 const CANCEL_GRACE: Duration = Duration::from_secs(2);
 const STDERR_LINES: usize = 20;
-
-/// Passed through so a plugin can reach the network the way the app does.
-const PASS_ENV: &[&str] = &[
-    "HOME",
-    "TMPDIR",
-    "http_proxy",
-    "https_proxy",
-    "all_proxy",
-    "no_proxy",
-    "HTTP_PROXY",
-    "HTTPS_PROXY",
-    "ALL_PROXY",
-    "NO_PROXY",
-];
 
 /// The error a cancelled call ends with, in the interface language.
 fn cancel_error() -> String {
@@ -52,23 +39,17 @@ pub struct Process {
 }
 
 impl Process {
-    /// Runs `program` in `cwd` with a clean environment (system PATH, HOME, proxies).
+    /// Runs `program` in `cwd` with a clean environment (system PATH, home, proxies; see os.rs).
     pub fn spawn(program: &Path, cwd: &Path) -> Result<Self, String> {
         let mut command = Command::new(program);
         command
             .current_dir(cwd)
             .env_clear()
-            .env("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
-            .env("LANG", "en_US.UTF-8")
+            .envs(os::environment(cfg!(windows), |key| std::env::var_os(key)))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        for key in PASS_ENV {
-            if let Some(value) = std::env::var_os(key) {
-                command.env(key, value);
-            }
-        }
-        let mut child = command.spawn().map_err(|e| {
+        let mut child = os::hide(&mut command).spawn().map_err(|e| {
             tr!(
                 "插件程序启动不了：{e}",
                 "Couldn't start the plugin's program: {e}"
@@ -185,7 +166,7 @@ impl Process {
                         }
                     }
                     Some(at) if at.elapsed() > CANCEL_GRACE => {
-                        let _ = self.child.kill();
+                        os::end(&mut self.child);
                         return Err(cancel_error());
                     }
                     Some(_) => {}

@@ -21,7 +21,7 @@ pub struct Manifest {
     pub author: String,
     #[serde(default)]
     pub description: String,
-    /// Platform ("darwin-arm64") → program inside the plugin folder.
+    /// Platform ("darwin-arm64", "windows-x86_64") → program inside the plugin folder.
     pub main: HashMap<String, String>,
     #[serde(default)]
     pub contributes: Contributes,
@@ -45,7 +45,7 @@ pub struct Importer {
 }
 
 /// What the plugin says it does, shown before installing. Not enforced: a
-/// plugin is a program running on this Mac.
+/// plugin is a program running on this computer.
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Permissions {
     #[serde(default)]
@@ -54,11 +54,44 @@ pub struct Permissions {
     pub runs: String,
 }
 
+/// The `main` keys this computer runs, best first: `{os}-{arch}`. Windows on Arm
+/// also takes an x86_64 program (Windows 11 runs x64 programs emulated); a Mac
+/// takes only its own chip's (Rosetta isn't always installed).
+pub fn platforms() -> &'static [&'static str] {
+    platforms_for(std::env::consts::OS, std::env::consts::ARCH)
+}
+
+fn platforms_for(os: &str, arch: &str) -> &'static [&'static str] {
+    match (os, arch) {
+        ("macos", "aarch64") => &["darwin-arm64"],
+        ("macos", "x86_64") => &["darwin-x86_64"],
+        ("windows", "aarch64") => &["windows-arm64", "windows-x86_64"],
+        ("windows", "x86_64") => &["windows-x86_64"],
+        _ => &[],
+    }
+}
+
+/// This computer's own key, e.g. for a plugin built here.
 pub fn platform() -> &'static str {
-    if cfg!(target_arch = "aarch64") {
-        "darwin-arm64"
+    platforms().first().copied().unwrap_or("unsupported")
+}
+
+/// The program listed for the first of `platforms` the plugin has.
+fn program_for<'a>(main: &'a HashMap<String, String>, platforms: &[&str]) -> Option<&'a String> {
+    platforms.iter().find_map(|p| main.get(*p))
+}
+
+fn unsupported() -> &'static str {
+    if cfg!(windows) {
+        crate::i18n::pick(
+            "这个插件不支持这台电脑（没有对应处理器的 Windows 程序）",
+            "This plugin doesn't support this PC (it has no Windows program for this processor)",
+        )
     } else {
-        "darwin-x86_64"
+        crate::i18n::pick(
+            "这个插件不支持这台 Mac（没有对应芯片的程序）",
+            "This plugin doesn't support this Mac (it has no program for this chip)",
+        )
     }
 }
 
@@ -134,14 +167,13 @@ impl Manifest {
         Ok(())
     }
 
-    /// The program for this Mac, relative to the plugin folder (never outside it).
+    /// The program for this computer, relative to the plugin folder (never outside it).
     pub fn program_path(&self) -> Result<PathBuf, String> {
-        let rel = self.main.get(platform()).ok_or(crate::i18n::pick(
-            "这个插件不支持这台 Mac（没有对应芯片的程序）",
-            "This plugin doesn't support this Mac (it has no program for this chip)",
-        ))?;
+        let rel = program_for(&self.main, platforms()).ok_or_else(unsupported)?;
         let path = PathBuf::from(rel);
+        // No `:` either: a drive (`C:`) or a Windows file's hidden stream (`run:x`).
         let inside = !rel.is_empty()
+            && !rel.contains(':')
             && path
                 .components()
                 .all(|c| matches!(c, Component::Normal(_) | Component::CurDir));
