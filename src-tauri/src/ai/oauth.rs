@@ -74,9 +74,17 @@ pub fn pkce() -> Result<(String, String), String> {
     Ok((verifier, challenge))
 }
 
-/// Opens an http(s) URL in the default browser.
+/// Opens an http(s) URL in the default browser. Nothing else: the system's "open" would
+/// also start programs and open files.
 pub fn open_browser(url: &str) -> Result<(), String> {
+    if !web_link(url) {
+        return Err(crate::i18n::pick("只能打开网页链接", "Only web links can be opened.").into());
+    }
     open_url(url).map_err(|e| tr!("无法打开浏览器：{e}", "Couldn't open the browser: {e}"))
+}
+
+fn web_link(url: &str) -> bool {
+    tauri::Url::parse(url).is_ok_and(|u| matches!(u.scheme(), "https" | "http"))
 }
 
 #[cfg(not(windows))]
@@ -246,6 +254,21 @@ mod tests {
         let (v, c) = pkce().unwrap();
         assert_eq!(v.len(), 43);
         assert_eq!(c, base64url(&Sha256::digest(v.as_bytes())));
+    }
+
+    #[test]
+    fn only_web_links_are_opened() {
+        assert!(web_link("https://console.groq.com/keys"));
+        assert!(web_link("http://127.0.0.1:1234/auth?a=1&b=2"));
+        for bad in [
+            "file:///C:/Windows/System32/calc.exe",
+            r"C:\Windows\System32\calc.exe",
+            "/Applications/Calculator.app",
+            "javascript:alert(1)",
+            "",
+        ] {
+            assert!(!web_link(bad), "{bad}");
+        }
     }
 
     #[test]
