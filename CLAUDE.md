@@ -33,6 +33,7 @@ src/                      前端
   lib/rounds.ts           连续录（一遍遍接着录）和逐句跟读（每句最多几遍）：空格留下哪一遍、遍数输入、卡片上的说法，有单元测试
   lib/imports.ts          从链接导入：默认带哪种字幕（说的语言，不带译文）、进度的说法、下载排队（一次一个）、
                           下载中的行放在哪个分组（和 Rust 一样整理文件夹名），有单元测试
+  lib/i18n.ts             界面语言（简体中文 / English）：t()、count()、locale()；语言来自设置，空 = 跟随系统（Rust 读 macOS 的首选语言）
   lib/playKey.ts          播放条的播放 / 暂停键现在管谁（录音、整段录音、回放录音、整段回放，都没有时是主播放器）、暂停后继续时还要做什么，有单元测试
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置；ui.tsx 共用的按键与表单件；
@@ -49,6 +50,7 @@ src/                      前端
 src-tauri/src/
   lib.rs                  AppState + 命令注册
   library.rs              扫描文件夹、路径校验（resolve_inside）
+  i18n.rs                 界面语言：设置里选的或 Mac 的首选语言；pick / tr! 选说法，菜单跟着重建（update::refresh_menu），句子解释和 AI 校对也用这个语言回答
   guide.rs                引导状态（state.json 的 guide）、打包的示例音频（samples/，见 samples/README.md 的出处）
   store.rs                state.json 读写、原子写入
   transcript.rs           每个音频的字幕：app data 里的 transcripts/，或音频旁的同名 .srt/.vtt
@@ -126,7 +128,10 @@ site/                     落地页 index.html 和插件目录 plugins.html（�
 - 所有对外网络请求都从 Rust 发出（不经 WebView）；前端只传服务 id，不传 URL 或 Key 去请求。
   插件程序自己联网（它是独立进程，同样不经 WebView），但碰不到用户的文件夹和钥匙串：只写自己的 data/ 和应用给的暂存文件夹。
 - 新规则优先写成纯函数并加测试（TS 放 `*.test.ts`，Rust 放模块内 `#[cfg(test)]`）。
-- 用户可见文案用简体中文，直接写在组件里（暂不做 i18n）。
+- 用户可见文案有简体中文和英文两种，直接写在组件里，两种说法并排：前端 `t("设置", "Settings")`（`src/lib/i18n.ts`，还有 `count` 数量、`locale` 日期），
+  Rust 用 `pick("…", "…")` / `crate::tr!("…{e}", "…{e}")`（`src-tauri/src/i18n.rs`）。语言能在运行中切换：`t` 只在渲染时调用，
+  不放进模块顶层的常量（改成函数）；`useMemo` 里用到时把 `lang` 放进依赖；memo 过的组件自己订阅 `s.lang`。测试默认中文，smoke 也固定中文。
+  存进文件的、和别处比较的字符串不翻译。
 - 界面风格“稿纸 + 播放台”（变量都在 `src/index.css`）：
   - 主区是纸（`paper`），放要听要说的原文：原文和音频标题用衬线 `font-script`（日文明朝体），应用自己的中文标题用
     `font-heading`（宋体），其余界面用系统无衬线。
