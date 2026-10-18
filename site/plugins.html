@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>插件 · Shadowing 跟读</title>
+<meta name="description" content="Shadowing 的插件目录：下载审过源代码的插件，比如粘贴链接导入 YouTube 音频；也可以提交你自己写的插件。">
+<link rel="canonical" href="https://shadowing.nihongo.day/plugins">
+<meta name="theme-color" content="#f5f4f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b1b1a" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Shadowing · nihongo.day">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:url" content="https://shadowing.nihongo.day/plugins">
+<meta property="og:title" content="Shadowing 插件">
+<meta property="og:description" content="下载审过源代码的插件，比如粘贴链接导入 YouTube 音频；也可以提交你自己写的插件。">
+<meta property="og:image" content="https://shadowing.nihongo.day/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://shadowing.nihongo.day/og.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@500;600&family=Noto+Serif+SC:wght@500;600;700&display=swap">
+<link rel="preload" as="fetch" href="plugins.json" crossorigin>
+<style>
+[hidden] { display: none !important; }
+/*
+ * The plugin directory. Tokens, base, buttons, nav, headings, steps and footer
+ * are copied from index.html (keep them in sync); the rest is this page's.
+ * The list itself is plugins.json, rendered below.
+ */
+:root {
+  --shelf: oklch(96.7% 0.003 95);
+  --paper: oklch(98.9% 0.002 95);
+  --deck: oklch(97.4% 0.002 95);
+  --fg: oklch(21% 0.004 95);
+  --muted: oklch(45% 0.004 95);
+  --faint: oklch(53% 0.004 95);
+  --line: oklch(21% 0.004 95 / 0.09);
+  --line-strong: oklch(21% 0.004 95 / 0.16);
+  --fill: oklch(21% 0.004 95 / 0.055);
+  --hover: oklch(21% 0.004 95 / 0.05);
+  --press: oklch(21% 0.004 95 / 0.09);
+  --track: oklch(21% 0.004 95 / 0.11);
+  --ink: oklch(21% 0.004 95);
+  --on-ink: oklch(99% 0.001 95);
+  --focus: oklch(21% 0.004 95 / 0.5);
+  --selection: oklch(63.5% 0.19 38 / 0.18);
+  --loop: oklch(63.5% 0.19 38);
+  --loop-text: oklch(52% 0.165 38);
+  --loop-soft: oklch(63.5% 0.19 38 / 0.09);
+  --loop-line: oklch(63.5% 0.19 38 / 0.38);
+  --ok: oklch(53% 0.13 150);
+  --danger: oklch(54% 0.2 27);
+  --danger-soft: oklch(54% 0.2 27 / 0.12);
+  --window: 0 0 0 0.5px oklch(21% 0.004 95 / 0.14), 0 2px 6px -1px oklch(21% 0.004 95 / 0.08), 0 28px 56px -18px oklch(21% 0.004 95 / 0.28), 0 70px 120px -50px oklch(21% 0.004 95 / 0.3);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-head: "Songti SC", "STSong", "Noto Serif SC", ui-serif, Georgia, serif;
+  --font-script: "Hiragino Mincho ProN", "Noto Serif JP", "Songti SC", "Noto Serif SC", ui-serif, serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --measure: 34em;
+  --wrap: 1160px;
+  --gutter: clamp(16px, 4vw, 32px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --shelf: oklch(16.8% 0.004 95);
+    --paper: oklch(19.5% 0.004 95);
+    --deck: oklch(21% 0.004 95);
+    --fg: oklch(93.5% 0.003 95);
+    --muted: oklch(73% 0.003 95);
+    --faint: oklch(63% 0.003 95);
+    --line: oklch(100% 0 0 / 0.075);
+    --line-strong: oklch(100% 0 0 / 0.14);
+    --fill: oklch(100% 0 0 / 0.065);
+    --hover: oklch(100% 0 0 / 0.055);
+    --press: oklch(100% 0 0 / 0.1);
+    --track: oklch(100% 0 0 / 0.11);
+    --ink: oklch(93.5% 0.003 95);
+    --on-ink: oklch(19.5% 0.004 95);
+    --focus: oklch(100% 0 0 / 0.5);
+    --selection: oklch(70% 0.17 42 / 0.28);
+    --loop: oklch(70% 0.17 42);
+    --loop-text: oklch(78% 0.125 45);
+    --loop-soft: oklch(70% 0.17 42 / 0.13);
+    --loop-line: oklch(70% 0.17 42 / 0.42);
+    --ok: oklch(74% 0.15 150);
+    --danger: oklch(70% 0.17 25);
+    --danger-soft: oklch(70% 0.17 25 / 0.16);
+    --window: 0 0 0 0.5px oklch(100% 0 0 / 0.16), 0 2px 6px -1px oklch(0% 0 0 / 0.4), 0 28px 56px -18px oklch(0% 0 0 / 0.6), 0 70px 120px -50px oklch(0% 0 0 / 0.7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --shelf: oklch(16.8% 0.004 95);
+  --paper: oklch(19.5% 0.004 95);
+  --deck: oklch(21% 0.004 95);
+  --fg: oklch(93.5% 0.003 95);
+  --muted: oklch(73% 0.003 95);
+  --faint: oklch(63% 0.003 95);
+  --line: oklch(100% 0 0 / 0.075);
+  --line-strong: oklch(100% 0 0 / 0.14);
+  --fill: oklch(100% 0 0 / 0.065);
+  --hover: oklch(100% 0 0 / 0.055);
+  --press: oklch(100% 0 0 / 0.1);
+  --track: oklch(100% 0 0 / 0.11);
+  --ink: oklch(93.5% 0.003 95);
+  --on-ink: oklch(19.5% 0.004 95);
+  --focus: oklch(100% 0 0 / 0.5);
+  --selection: oklch(70% 0.17 42 / 0.28);
+  --loop: oklch(70% 0.17 42);
+  --loop-text: oklch(78% 0.125 45);
+  --loop-soft: oklch(70% 0.17 42 / 0.13);
+  --loop-line: oklch(70% 0.17 42 / 0.42);
+  --ok: oklch(74% 0.15 150);
+  --danger: oklch(70% 0.17 25);
+  --danger-soft: oklch(70% 0.17 25 / 0.16);
+  --window: 0 0 0 0.5px oklch(100% 0 0 / 0.16), 0 2px 6px -1px oklch(0% 0 0 / 0.4), 0 28px 56px -18px oklch(0% 0 0 / 0.6), 0 70px 120px -50px oklch(0% 0 0 / 0.7);
+  color-scheme: dark;
+}
+
+/* Base */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 16px; scrollbar-color: var(--line-strong) transparent; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--shelf);
+  color: var(--fg);
+  font: 400 16px/1.75 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--loop);
+  padding-inline: var(--gutter);
+  margin: 0;
+  overflow-x: clip;
+}
+::selection { background: var(--selection); color: var(--fg); }
+a { color: inherit; text-underline-offset: 0.22em; text-decoration-thickness: 1px; text-decoration-color: var(--line-strong); transition: text-decoration-color 150ms; }
+a:hover { text-decoration-color: currentColor; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+h1, h2, h3 { font-family: var(--font-head); font-weight: 600; text-wrap: balance; word-break: auto-phrase; margin: 0; letter-spacing: 0; }
+p { margin: 0; text-wrap: pretty; }
+.ph { display: inline-block; }
+kbd {
+  display: inline-grid; place-items: center; min-width: 1.6em; height: 1.6em; padding: 0 0.4em;
+  font: 500 0.78em/1 var(--font-mono); color: var(--muted);
+  background: var(--paper); border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 5px;
+  vertical-align: 0.08em;
+}
+.wrap { max-width: var(--wrap); margin-inline: auto; }
+svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 0 22px;
+  border-radius: 12px; border: 0; font: 600 16px/1.2 var(--font-sans); text-decoration: none; cursor: pointer;
+  transition: background-color 150ms, transform 150ms var(--ease), box-shadow 150ms;
+}
+.btn:active { transform: scale(0.97); }
+.btn-ink { background: var(--ink); color: var(--on-ink); box-shadow: 0 1px 2px oklch(0% 0 0 / 0.12), 0 6px 16px -6px oklch(0% 0 0 / 0.3); }
+.btn-ink:hover { box-shadow: 0 1px 2px oklch(0% 0 0 / 0.12), 0 10px 24px -8px oklch(0% 0 0 / 0.38); transform: translateY(-1px); }
+.btn-ink small { font-weight: 400; opacity: 0.72; font-size: 14px; }
+.btn-quiet { background: var(--fill); color: var(--fg); }
+.btn-quiet:hover { background: var(--press); }
+
+/* Nav */
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 20px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 600 17px/1 var(--font-sans); letter-spacing: -0.01em; }
+.brand svg { width: 30px; height: 30px; }
+.nav-links { display: flex; align-items: center; gap: 2px; }
+.nav-links a { text-decoration: none; color: var(--muted); font-size: 15px; padding: 8px 12px; border-radius: 8px; transition: background-color 150ms, color 150ms; }
+.nav-links a:hover { background: var(--hover); color: var(--fg); }
+.nav-links .nav-dl { color: var(--fg); background: var(--fill); font-weight: 600; margin-left: 6px; }
+@media (max-width: 860px) { .nav-links a:not(.nav-dl) { display: none; } }
+
+/* Chapters */
+.chapter { padding-block: clamp(96px, 13vw, 168px) 0; }
+.head { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 18px clamp(32px, 6vw, 96px); align-items: end; margin-bottom: clamp(32px, 4.5vw, 56px); }
+.head h2 { font-size: clamp(30px, 3.9vw, 46px); line-height: 1.2; max-width: 13em; }
+.head p { color: var(--muted); max-width: 27em; }
+.head .new { margin-bottom: 10px; font: 500 14px/1.4 var(--font-sans); }
+@media (max-width: 860px) { .head { grid-template-columns: minmax(0, 1fr); } }
+
+.points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 clamp(24px, 3.4vw, 48px); margin: clamp(36px, 4.5vw, 56px) 0 0; }
+.points > div { padding-block: 20px 6px; border-top: 1px solid var(--line); min-width: 0; }
+.points dt { font: 600 17px/1.5 var(--font-sans); }
+.points dd { margin: 6px 0 0; color: var(--muted); font-size: 15px; line-height: 1.75; }
+.points dd strong { color: var(--fg); font-weight: 600; }
+.points.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 860px) { .points, .points.two { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .points, .points.two { grid-template-columns: minmax(0, 1fr); } }
+
+/* Install: a real sequence, so it is numbered */
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; display: grid; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 2.4em minmax(0, 1fr); gap: 4px 12px; padding-block: 20px; border-top: 1px solid var(--line); }
+.steps li:last-child { border-bottom: 1px solid var(--line); }
+.steps li::before { content: counter(s); font: 600 22px/1.4 var(--font-head); color: var(--faint); }
+.steps h3 { font: 600 17px/1.6 var(--font-sans); }
+.steps p { color: var(--muted); grid-column: 2; }
+
+/* Footer */
+footer { padding-block: 40px 56px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px 32px; color: var(--faint); font-size: 14px; }
+footer p { max-width: 40em; }
+footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+
+:not(pre) > code { font: 400 0.88em/1 var(--font-mono); background: var(--fill); border-radius: 5px; padding: 0.15em 0.4em; }
+.points.one { grid-template-columns: minmax(0, 1fr); margin-top: 0; }
+.points.one > div:first-child { border-top: 0; padding-top: 0; }
+.steps code { font-size: 0.86em; }
+
+/* Intro */
+.intro { padding-block: clamp(36px, 6vw, 80px) 0; display: grid; gap: 22px; }
+.intro h1 { font-size: clamp(34px, 5vw, 58px); line-height: 1.16; max-width: 13em; }
+.lede { font-size: clamp(17px, 1.55vw, 19px); line-height: 1.8; color: var(--muted); max-width: 36em; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--faint); font-size: 14px; }
+.new { font: 500 14px/1.4 var(--font-sans); color: var(--muted); }
+
+/* The list: one card per plugin, and an open place for the next one */
+.list { padding-top: clamp(40px, 5vw, 64px); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 20px; }
+.card {
+  display: grid; gap: 14px; align-content: start; min-width: 0;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: clamp(20px, 2.4vw, 28px);
+  box-shadow: 0 1px 2px oklch(0% 0 0 / 0.04), 0 24px 60px -40px oklch(0% 0 0 / 0.2);
+}
+.card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.card h3 { font-size: 22px; line-height: 1.3; }
+.ver { font: 400 13px/1 var(--font-mono); color: var(--faint); font-variant-numeric: tabular-nums; }
+.tag { font: 500 12px/1 var(--font-sans); color: var(--muted); background: var(--fill); border-radius: 6px; padding: 5px 8px; align-self: center; }
+.by { font-size: 14px; color: var(--faint); margin-top: -8px; }
+.desc { color: var(--fg); }
+.kv { margin: 0; display: grid; grid-template-columns: 3.4em minmax(0, 1fr); gap: 8px 14px; font-size: 14.5px; line-height: 1.65; padding-top: 14px; border-top: 1px solid var(--line); }
+.kv dt { color: var(--faint); }
+.kv dd { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+.get { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 4px; }
+.get .btn { min-height: 44px; padding: 0 18px; font-size: 15px; }
+.get a:not(.btn) { font-size: 14.5px; color: var(--muted); }
+.sha { font-size: 13px; color: var(--faint); }
+.sha summary { cursor: pointer; width: max-content; }
+.sha summary:hover { color: var(--fg); }
+.sha code { display: block; margin-top: 6px; font: 400 12px/1.6 var(--font-mono); color: var(--muted); word-break: break-all; user-select: all; }
+.card.open { background: transparent; border: 1.5px dashed var(--line-strong); box-shadow: none; align-content: center; justify-items: start; }
+.card.open h3 { color: var(--muted); }
+.card.open p { color: var(--muted); font-size: 15px; max-width: 26em; }
+.status { color: var(--muted); padding-block: 12px; }
+
+/* Install, with what the app shows before it copies anything */
+.split { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 40px clamp(32px, 6vw, 88px); align-items: start; }
+@media (max-width: 860px) { .split { grid-template-columns: minmax(0, 1fr); } }
+.mock { margin: 0; }
+.mock-win { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px 20px; box-shadow: var(--window); }
+.mock-win > b { display: block; font: 500 12.5px/1 var(--font-sans); color: var(--faint); margin-bottom: 12px; }
+.offer { background: var(--fill); border-radius: 11px; padding: 14px 16px; font-size: 13.5px; line-height: 1.65; color: var(--muted); display: grid; gap: 4px; }
+.offer h4 { margin: 0 0 2px; font: 600 14.5px/1.5 var(--font-sans); color: var(--fg); display: flex; align-items: baseline; gap: 8px; }
+.offer h4 span { font: 400 12px var(--font-mono); color: var(--faint); }
+.offer .warn { color: var(--fg); }
+.offer-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.offer-btns span { height: 30px; padding: 0 13px; border-radius: 8px; display: inline-grid; place-items: center; font: 500 13px/1 var(--font-sans); background: var(--paper); color: var(--fg); box-shadow: 0 0 0 1px var(--line); }
+.offer-btns span:last-child { background: var(--ink); color: var(--on-ink); box-shadow: none; }
+.mock figcaption { margin-top: 14px; font-size: 13.5px; color: var(--faint); }
+.safety { margin-top: 22px; padding: 16px 18px; border-radius: 12px; background: var(--fill); color: var(--muted); font-size: 14.5px; }
+.safety b { color: var(--fg); font-weight: 600; }
+
+/* Writing one */
+.code { margin: 0; min-width: 0; background: var(--deck); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; overflow-x: auto; scrollbar-width: thin; }
+.code code { font: 400 13px/1.7 var(--font-mono); color: var(--fg); white-space: pre; }
+.code .c { color: var(--faint); }
+@media (max-width: 560px) { .code { padding: 12px 14px; } .code code { font-size: 12px; } }
+.code-label { font-size: 13.5px; color: var(--faint); margin: 22px 0 8px; }
+.code-label:first-child { margin-top: 0; }
+.links { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 22px; font-size: 15px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+@media (max-width: 480px) { .cta .btn { width: 100%; } }
+</style>
+<script>
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+
+<div class="wrap">
+  <nav class="nav" aria-label="主导航">
+    <a class="brand" href="/" aria-label="Shadowing 首页">
+      <svg viewBox="64 64 896 896" aria-hidden="true"><rect x="64" y="64" width="896" height="896" rx="208" fill="#252927"/><path d="M 648 326 A 238 238 0 1 0 748 513" fill="none" stroke="#F7F5EE" stroke-width="55" stroke-linecap="round"/><path d="M 748 447 L 803 541 L 693 541 Z" fill="#F7F5EE"/><g fill="#EFA477"><rect x="389" y="455" width="53" height="114" rx="26.5"/><rect x="486" y="393" width="53" height="238" rx="26.5"/><rect x="583" y="432" width="53" height="160" rx="26.5"/></g></svg>
+      Shadowing
+    </a>
+    <div class="nav-links">
+      <a href="/">首页</a>
+      <a href="#list">插件</a>
+      <a href="#install">安装</a>
+      <a href="#write">写插件</a>
+      <a href="#submit">提交</a>
+      <a href="https://github.com/mxggle/shadowing" target="_blank" rel="noopener">GitHub</a>
+      <a class="nav-dl" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">下载应用</a>
+    </div>
+  </nav>
+
+  <main id="top">
+    <section class="intro">
+      <p class="new">Shadowing 0.9 起</p>
+      <h1><span class="ph">插件，</span><span class="ph">让 Shadowing 做更多事。</span></h1>
+      <p class="lede">插件给应用加上它本身不带的功能，比如复制一个 YouTube 链接、回到应用按 <kbd>⌘V</kbd>，音频和人工字幕就进了你的文件夹。这里的插件都审过源代码，免费下载；你写的插件，也可以提交到这里。</p>
+      <div class="meta">
+        <span id="count">插件列表</span>
+        <span>都审过源代码</span>
+        <span>免费</span>
+        <span>需要 Shadowing 0.9 或更新</span>
+      </div>
+    </section>
+
+    <section class="list" id="list" aria-label="插件列表">
+      <div class="cards" id="cards">
+        <p class="status" id="status">正在读取插件列表…</p>
+        <noscript><p class="status">插件列表要用 JavaScript 显示，也可以直接看 <a href="plugins.json">plugins.json</a>。</p></noscript>
+        <article class="card open">
+          <h3>你的插件</h3>
+          <p>导入播客、导出到 Anki、接上你常用的词典……应用做不到的，插件可以做。写好以后提交，审过就出现在这里。</p>
+          <a class="btn btn-quiet" href="#write">写一个插件</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="chapter" id="install" aria-labelledby="install-title">
+      <div class="head">
+        <h2 id="install-title">安装插件</h2>
+        <p>现在先在这里下载、从文件夹安装。在应用里直接浏览、一键安装和更新还在做。</p>
+      </div>
+      <div class="split">
+        <div>
+          <ol class="steps">
+            <li><h3>下载</h3><p>点插件上的「下载」，得到一个 .zip。</p></li>
+            <li><h3>解压</h3><p>在“下载”文件夹里双击这个 zip，得到插件的文件夹，比如 <code>youtube</code>。</p></li>
+            <li><h3>从文件夹安装</h3><p>在 Shadowing 里打开 设置 → 插件，点「从文件夹安装…」，选刚才解压出的文件夹。</p></li>
+            <li><h3>看清楚再装</h3><p>设置里会列出插件是谁写的、会联网到哪里、会下载或运行什么，确认后点「安装」。不想用了，在同一个地方删除。</p></li>
+          </ol>
+          <p class="safety"><b>插件是运行在你 Mac 上的程序。</b>应用不会把你的文件夹和钥匙串里的 Key 交给插件，但系统层面拦不住一个原生程序，所以这里只放审过源代码的插件。从别处拿到的插件，只装你信任的。</p>
+        </div>
+        <figure class="mock">
+          <div class="mock-win" aria-hidden="true">
+            <b>设置 · 插件</b>
+            <div class="offer">
+              <h4>安装插件「YouTube 导入」？<span>0.1.0</span></h4>
+              <p>作者：Shadowing</p>
+              <p>粘贴 YouTube 链接，把视频的音频（m4a，不转码）和人工字幕导入到打开的文件夹。只下载你有权使用的内容。</p>
+              <p>它会：第一次使用时从 GitHub 下载 yt-dlp（约 51 MB，解压后 124 MB）和 QuickJS（约 1 MB），用它们下载音频</p>
+              <p>联网：youtube.com、googlevideo.com、github.com</p>
+              <p class="warn">插件是运行在这台 Mac 上的程序，可以读写你的文件。只安装你信任的插件。</p>
+              <div class="offer-btns"><span>取消</span><span>安装</span></div>
+            </div>
+          </div>
+          <figcaption>选好文件夹以后，设置里先列出插件会做什么，点「安装」才复制进来。</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="chapter" id="write" aria-labelledby="write-title">
+      <div class="head">
+        <h2 id="write-title"><span class="ph">写一个插件，</span><span class="ph">用什么语言都行。</span></h2>
+        <p>插件是一个程序加一个 <code>manifest.json</code>。应用要用它时启动这个程序，在标准输入输出上一行一条 JSON-RPC 消息（和 LSP、MCP 同一种做法），用完就结束。崩了、卡了都不影响播放。</p>
+      </div>
+      <div class="split">
+        <div>
+          <p class="code-label">manifest.json：它是谁、程序在哪、接哪些链接、会联网到哪里</p>
+          <pre class="code"><code>{
+  "id": "podcast",
+  "name": "播客导入",
+  "version": "0.1.0",
+  "protocol": 1,
+  "minAppVersion": "0.9.0",
+  "author": "你的名字",
+  "description": "粘贴播客单集的链接，导入音频。",
+  "main": { "darwin-arm64": "bin/podcast" },
+  "contributes": {
+    "importers": [{
+      "id": "episode",
+      "title": "播客",
+      "match": ["https://*.example.fm/episodes/*"]
+    }]
+  },
+  "permissions": {
+    "network": ["example.fm"],
+    "runs": "只下载这一集的音频"
+  }
+}</code></pre>
+          <p class="code-label">一次导入：先读出是什么，确认后再下载（→ 应用发出，← 插件回答）</p>
+          <pre class="code"><code><span class="c">→ initialize     { protocol, appVersion, dataDir }</span>
+← { "name": "播客导入", "version": "0.1.0" }
+<span class="c">→ import/resolve { url, importer }</span>
+← { "title": "第 42 集", "duration": 1834.5, "subtitles": [] }
+<span class="c">→ import/run     { url, importer, outDir, subtitles }</span>
+← progress       { "message": "下载音频", "done": 4200000, "total": 10800000 }
+← { "files": [{ "path": "42.mp3", "kind": "audio" }] }</code></pre>
+        </div>
+        <div>
+          <dl class="points one">
+            <div><dt>一个文件夹</dt><dd><code>manifest.json</code> 加上程序（放在 <code>bin/</code>）。程序要能直接在 Mac 上运行：Rust、Go、Swift 编译出来的都行，Mac 自带的 shell 脚本也行。</dd></div>
+            <div><dt>几条消息</dt><dd><code>import/resolve</code> 读出标题、时长、有哪些字幕，给用户确认；<code>import/run</code> 把音频和字幕下载到应用给的暂存文件夹，中间发 <code>progress</code> 报进度。出错时回一句中文，应用直接显示给用户。</dd></div>
+            <div><dt>应用替你收尾</dt><dd>插件只往暂存文件夹和自己的 <code>data/</code> 写。应用检查下载的文件、用标题起好名字，再放进用户的文件夹；字幕存成可以移除的导入字幕。</dd></div>
+            <div><dt>现在能接的地方</dt><dd>从链接导入。导出（比如导出到 Anki）、查词典这些位置在计划中，接口按“以后还会有别的”设计。</dd></div>
+          </dl>
+          <div class="links">
+            <a href="https://github.com/mxggle/shadowing/blob/main/docs/plugin-dev.md" target="_blank" rel="noopener">完整的开发文档</a>
+            <a href="https://github.com/mxggle/shadowing/tree/main/plugins/youtube" target="_blank" rel="noopener">参考：YouTube 导入的源代码</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="submit" aria-labelledby="submit-title">
+      <div class="head">
+        <h2 id="submit-title"><span class="ph">写好了，</span><span class="ph">提交到这里。</span></h2>
+        <p>每个插件都先读过源代码、核对过安装包才放上来，下载的人可以放心一点。提交需要一个 GitHub 账号。</p>
+      </div>
+      <ol class="steps">
+        <li><h3>公开源代码</h3><p>放在 GitHub 或别的公开的地方。审核要读源代码，看它会联网到哪里、会下载和运行什么。</p></li>
+        <li><h3>打包成 zip</h3><p>把插件文件夹（<code>manifest.json</code> 和 <code>bin/</code>）压成一个 zip，最好作为源代码仓库 Release 的附件发布。</p></li>
+        <li><h3>填提交表单</h3><p>在 GitHub 上填「提交插件」：源代码地址、zip 的链接，也可以把 zip 直接拖进表单上传。</p></li>
+        <li><h3>审核后上架</h3><p>我们读源代码、核对 zip 是用这份代码构建的，把它的 SHA-256 记进插件列表，之后就出现在这一页。发新版本时再提交一次。</p></li>
+      </ol>
+      <div class="cta">
+        <a class="btn btn-ink" href="https://github.com/mxggle/shadowing/issues/new?template=plugin.yml" target="_blank" rel="noopener">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V8m0 0-4.5 4.5M12 8l4.5 4.5M5 4.5h14"/></svg>
+          提交插件
+        </a>
+        <a class="btn btn-quiet" href="https://github.com/mxggle/shadowing/blob/main/docs/plugin-dev.md" target="_blank" rel="noopener">开发文档</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>插件列表是 GitHub 上的 <a href="https://github.com/mxggle/shadowing/blob/main/site/plugins.json" target="_blank" rel="noopener">plugins.json</a>，每次改动都公开可查。</p>
+    <nav aria-label="页脚">
+      <a href="/">Shadowing 首页</a>
+      <a href="https://github.com/mxggle/shadowing" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/mxggle/shadowing/blob/main/docs/plugin-dev.md" target="_blank" rel="noopener">插件开发文档</a>
+      <a href="https://nihongo.day/">更多日语工具</a>
+    </nav>
+  </footer>
+</div>
+
+<script>
+// Renders plugins.json. Entries come from other people (reviewed, still), so
+// everything goes in as text and only https links are followed.
+const PLATFORM = { "darwin-arm64": "Apple Silicon", "darwin-x86_64": "Intel" };
+const DOWNLOAD_ICON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>';
+
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) el.setAttribute(k, v);
+  for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false && kid !== "") el.append(kid);
+  return el;
+}
+function https(url) {
+  try { const u = new URL(url); return u.protocol === "https:" ? u.href : null; } catch { return null; }
+}
+const size = (b) => (b < 1e6 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1e6).toFixed(1)} MB`);
+const day = (iso) => { const [y, m, d] = String(iso || "").split("-").map(Number); return y ? `${y} 年 ${m} 月 ${d} 日` : ""; };
+const row = (label, text) => [h("dt", {}, label), h("dd", {}, text)];
+
+function card(p) {
+  const packages = p.packages || {};
+  const pkg = packages["darwin-arm64"];
+  const zip = https(pkg && pkg.url);
+  const source = https(p.source);
+  const network = (p.permissions && p.permissions.network) || [];
+  const runs = p.permissions && p.permissions.runs;
+  const macs = Object.keys(packages).map((k) => PLATFORM[k]).filter(Boolean).join("、");
+  const get = zip ? h("a", { class: "btn btn-ink", href: zip }) : h("span", { class: "status" }, "还没有 Apple Silicon 版");
+  if (zip) { get.innerHTML = DOWNLOAD_ICON; get.append("下载 ", h("small", {}, size(pkg.size))); }
+  return h("article", { class: "card", id: p.id },
+    h("div", { class: "card-head" }, h("h3", {}, p.name), h("span", { class: "ver" }, p.version), p.official && h("span", { class: "tag" }, "官方")),
+    h("p", { class: "by" }, [p.author, day(p.released)].filter(Boolean).join(" · ")),
+    h("p", { class: "desc" }, p.description),
+    h("dl", { class: "kv" },
+      p.imports && p.imports.length ? row("能导入", `${p.imports.join("、")} 的链接`) : null,
+      runs ? row("它会", runs) : null,
+      row("联网", network.length ? network.join("、") : "不联网"),
+      row("需要", `Shadowing ${p.minAppVersion} 或更新${macs ? ` · ${macs}` : ""}`)),
+    h("div", { class: "get" }, get, source && h("a", { href: source, target: "_blank", rel: "noopener" }, "源代码")),
+    pkg && pkg.sha256 && h("details", { class: "sha" }, h("summary", {}, "SHA-256（下载后可以对照）"), h("code", {}, pkg.sha256)));
+}
+
+(async () => {
+  const status = document.getElementById("status");
+  try {
+    const res = await fetch("plugins.json", { credentials: "same-origin" });
+    if (!res.ok) throw new Error(res.status);
+    const list = await res.json();
+    const plugins = list.plugins || [];
+    const open = document.querySelector(".card.open");
+    for (const p of plugins) open.before(card(p));
+    status.remove();
+    document.getElementById("count").textContent = `${plugins.length} 个插件`;
+    if (location.hash && document.getElementById(location.hash.slice(1))) document.getElementById(location.hash.slice(1)).scrollIntoView();
+  } catch {
+    status.innerHTML = '插件列表没读出来。可以刷新再试，或者直接看 <a href="plugins.json">plugins.json</a>。';
+  }
+})();
+</script>
+</body>
+</html>

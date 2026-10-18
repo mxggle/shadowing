@@ -18,7 +18,8 @@ src/                      前端
   audio/logic.ts          纯函数规则（循环、恢复位置、速度），有单元测试
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，改字幕在 correctSlice.ts，拆句 / 合并句在 reshapeSlice.ts，
                           AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts，
-                          学习记录与每日目标在 practiceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts，逐句跟读在 drillSlice.ts）
+                          学习记录与每日目标在 practiceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts，逐句跟读在 drillSlice.ts，
+                          插件和从链接导入在 importSlice.ts）
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句），有单元测试
   lib/sections.ts         对话段落规则（分段、合并、改名、整段循环、{ } 换段），有单元测试
   lib/edits.ts            改字幕的规则（改动取整词、查找匹配、全部替换），有单元测试
@@ -30,6 +31,8 @@ src/                      前端
   lib/takes.ts            跟读录音：哪些录音属于哪一句、两条波形怎么对齐、节奏 / 延迟的说法，有单元测试
   lib/readings.ts         整段录音：读哪些句子、哪些整段录音属于这一段、快慢的说法，有单元测试
   lib/rounds.ts           连续录（一遍遍接着录）和逐句跟读（每句最多几遍）：空格留下哪一遍、遍数输入、卡片上的说法，有单元测试
+  lib/imports.ts          从链接导入：默认带哪种字幕（说的语言，不带译文）、进度的说法、下载排队（一次一个）、
+                          下载中的行放在哪个分组（和 Rust 一样整理文件夹名），有单元测试
   lib/playKey.ts          播放条的播放 / 暂停键现在管谁（录音、整段录音、回放录音、整段回放，都没有时是主播放器）、暂停后继续时还要做什么，有单元测试
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置；ui.tsx 共用的按键与表单件；
@@ -37,8 +40,10 @@ src/                      前端
                           Explain.tsx 句子下的解释块、SentenceEditor.tsx 改一句（⇧↩ 断开、⌫ / ⌦ 合并）、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
                           UpdateNotice.tsx 右上角的更新提示（更新后一次的“已更新到 …”也在这里），WhatsNew.tsx 新功能（菜单、设置里打开）；Recorder.tsx 句子下的跟读录音卡片（和行上的麦克风），TakeWaves.tsx 原句 / 我的两条波形，TakePeek.tsx 播放到录过的句子时展开的精简对比；
                           Reading.tsx 整段录音（开始菜单、录音时的标题条），Drill.tsx 逐句跟读（每句几遍、进行中的标题条），ReadingResult.tsx 读完的结果（段落上方一行）；
+                          AddMenu.tsx 侧栏顶的 ＋（所有添加音频的方式，插件的导入也在这里；见 docs/plugin-ui.md 的插槽），
+                          ImportLink.tsx 从链接导入的确认框（⌘V 或 ＋ 打开）、列表里下载中 / 排队 / 失败的一行；
                           Practice.tsx 学习记录面板（PracticeCharts.tsx 柱状图和日历，PracticeGoal.tsx 顶栏目标圆环和目标一行）；
-                          settings/ 是设置面板；
+                          settings/ 是设置面板（Plugins.tsx 插件：已装的、删除、从文件夹安装）；
                           guide/ 是引导：Welcome.tsx 欢迎页（第一次打开是 Onboarding.tsx 四步新手引导，步骤内容在 OnboardingSteps.tsx）、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示
   dev/smoke.ts            应用内自测脚本（只在 smoke 模式加载）
 src-tauri/src/
@@ -65,7 +70,7 @@ src-tauri/src/
                           reading.rs 拼成整段 + 每句一条录音、replay.rs 整段回放（我的整段 / 一起听 / 逐句对比）
   reshape/                拆句 / 合并句 / 撤销：cut.rs 在光标处断开（按字数估时间、再挪到附近的停顿上），mod.rs 合并、
                           段落和已存的解释跟着挪
-  explain/                解释这一句：把一句（带前后几句）发给「句子解释」的模型，reply.rs 只留下译文、生词、语法点并封顶，saved.rs 把答案存在 app data 的 explanations/（句子被改过就作废）
+  explain/                解释这一句：把一句（带前后几句）发给「句子解释」的模型，reply.rs 只留下译文、逐块的意思和语法、语气并封顶（宽松地读，一块写错不丢整个回答），saved.rs 把答案存在 app data 的 explanations/（句子被改过就作废）
   proofread/              AI 校对：把字幕（没把握的字用〔〕标出）发给「句子解释」的模型，reply.rs 只留下能精确套用的小改动
   transcribe/             转写：pcm.rs 解码成 16 kHz 单声道、chunk.rs 在停顿处切块、cloud.rs 上传、
                           sentences.rs 把 Whisper 结果变成带时间的句子（没有标点时按 Whisper 分段断句）、
@@ -80,9 +85,23 @@ src-tauri/src/
                           chat.rs 对话接口（OpenAI 兼容 / Anthropic / Responses）、check.rs 测试连接与本机服务检测、
                           oauth.rs + openrouter.rs + chatgpt/ 浏览器登录（ChatGPT 的 token 也只存钥匙串）
   audio/                  原生播放引擎（见下）
+  plugins/                插件（方案见 docs/plugin-plan.md）：app data 的 plugins/<id>/ 里一个 manifest.json + 一个程序。
+                          manifest.rs 读和检查 manifest、链接规则（像浏览器扩展的 match pattern）；mod.rs 列出、删除；install.rs 从文件夹安装（原生选择框选好后，在设置里确认它会做什么，
+                          不用原生确认框：选择框刚关上时弹的原生确认框会自己“通过”），选的是插件外面一层也行，更新时保留插件自己的 data/；
+                          复制进来时去掉浏览器下载留下的隔离标记（带着它 macOS 会直接杀掉插件程序，复制也会保留它）；rpc.rs 把程序当子进程运行（环境变量清空，只留系统 PATH、HOME、代理），
+                          stdin/stdout 上每行一条 JSON-RPC 2.0，取消时先发 $/cancel、2 秒后结束进程；
+                          import.rs 从链接导入（import/resolve → import/run，一次一个，进度发 import:status）；
+                          accept.rs 插件只写暂存文件夹，应用检查文件（不收链接出去的、不是音频的）后自己移进打开的文件夹，
+                          字幕存成可移除的导入字幕（不放在音频旁边）
   update.rs               应用内更新（tauri-plugin-updater）：读最新 Release 的 latest.json、下载签名过的 .app.tar.gz、
                           原地替换后重启；菜单里的「检查更新…」和「新功能…」
-  smoke.rs                调试构建专用自测入口
+  smoke.rs                调试构建专用自测入口（也装一个假的导入插件：shell 脚本）
+plugins/youtube/          「YouTube 导入」插件：单独的小 Rust 程序（不进应用的构建），说插件协议；
+                          第一次用时下载 yt-dlp 文件夹版和 QuickJS-ng（校验 SHA-256），每天最多查一次 yt-dlp 新版本；
+                          只取 m4a 音轨（不用 ffmpeg）和人工字幕。scripts/build-plugin.sh youtube 生成可安装的文件夹
+docs/plugin-dev.md        写插件的人看的文档（manifest、协议、运行环境、打包、提交和审核）
+site/                     落地页 index.html 和插件目录 plugins.html（列表是 plugins.json，scripts/check-plugin-list.mjs 检查格式；
+                          提交插件用 .github/ISSUE_TEMPLATE/plugin.yml），见 site/README.md
 ```
 
 ## 播放引擎（src-tauri/src/audio）
@@ -105,6 +124,7 @@ src-tauri/src/
 - 只有用户在原生对话框里选择的文件夹（加上应用自带的只读 `samples/`）才被授权；Rust 命令访问文件前都要经过
   `AppState::audio` / `allowed`（内部用 `resolve_inside`）。
 - 所有对外网络请求都从 Rust 发出（不经 WebView）；前端只传服务 id，不传 URL 或 Key 去请求。
+  插件程序自己联网（它是独立进程，同样不经 WebView），但碰不到用户的文件夹和钥匙串：只写自己的 data/ 和应用给的暂存文件夹。
 - 新规则优先写成纯函数并加测试（TS 放 `*.test.ts`，Rust 放模块内 `#[cfg(test)]`）。
 - 用户可见文案用简体中文，直接写在组件里（暂不做 i18n）。
 - 界面风格“稿纸 + 播放台”（变量都在 `src/index.css`）：
@@ -123,10 +143,11 @@ src-tauri/src/
 ## 验证
 
 ```bash
-npm run check                         # tsc + vite build + vitest + cargo fmt/clippy/test
+npm run check                         # tsc + vite build + vitest + cargo fmt/clippy/test（应用和 plugins/youtube）
 scripts/make-fixtures.sh <文件夹>       # 生成自测用的测试音频（需要 say + ffmpeg）
 npm run smoke -- <文件夹>              # 构建调试版 .app，在真实应用里跑自测并打印 PASS/FAIL
                                       # （会在 18765 端口启动 scripts/fake-whisper.py 测转写全流程）
+scripts/build-plugin.sh youtube       # 构建插件，生成 plugins/youtube/dist/youtube/（设置 → 插件 → 从文件夹安装）
 npm run dev                           # 浏览器 + mock 后端，只用来调 UI（没有真实声音）；地址加 ?fresh 模拟第一次打开
 npm run app                           # 开发模式启动应用
 SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的数据文件夹（看第一次打开的新手引导，不动真实数据；
@@ -143,6 +164,8 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
 - 跟读录音真机测试（会用 Mac 的喇叭放声音、用 `say` 当跟读的人、录麦克风）：
   `SHADOWING_OUTPUT_DEVICE="MacBook Pro Speakers" cargo test --manifest-path src-tauri/Cargo.toml --release real_record -- --ignored --nocapture`
   （`SHADOWING_OUT=<文件夹>` 留下录音；`SHADOWING_INPUT_DEVICE` 指定麦克风）。
+- 插件手动测试（真实网络，先 `scripts/build-plugin.sh youtube`；`SHADOWING_PLUGIN_DATA=<文件夹>` 保留插件下载的 yt-dlp）：
+  `SHADOWING_URL=<YouTube 链接> cargo test --manifest-path src-tauri/Cargo.toml real_plugin -- --ignored --nocapture`。
 - 钥匙串手动测试：`cargo test --manifest-path src-tauri/Cargo.toml keychain_round_trip -- --ignored`。
 - Rust 引擎另有手动测试：`cargo test --manifest-path src-tauri/Cargo.toml plays_tone -- --ignored`（真实声卡播放测试音）。
 - 音质、循环边界听感、跟读节奏无法自动验证，需要用户试听反馈。汇报时区分“已实现 / 已验证 / 待验证”。
@@ -174,13 +197,15 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。打标签发布时没有这两个 secret 会直接失败。
 - 私钥或密码丢了，已装的应用就再也收不到更新（只能换公钥、让大家手动装一次新版本）。务必在密码管理器里备份。
 - `tauri build` 只打 .app；签名、DMG、zip、更新包和 latest.json 都由 `scripts/release-assets.sh` 生成（说明在脚本开头）。
+  它也打包 YouTube 导入插件（`Shadowing-YouTube-plugin-<插件版本>-macos-arm64.zip`，插件自己的版本号在 `plugins/youtube/manifest.json`），
+  发布说明里有安装步骤。
 
 ### 代码签名证书
 
 - 应用用一张自己生成的证书签名（“Shadowing Code Signing”，自签名，不需要 Apple 账号）。它去不掉第一次打开时
   Gatekeeper 的拦截，但每个版本的签名身份都一样，macOS 就知道更新后还是同一个应用，**不会再弹窗要钥匙串密码**
   （ad-hoc 签名每次构建都不同，每次更新都会弹）。证书（.p12 和密码）在 `~/.tauri/shadowing-codesign.p12(.password)`，
-  也在 Actions secrets：`SHADOWING_CODESIGN_P12`（base64）和 `SHADOWING_CODESIGN_PASSWORD`。务必备份；换证书会让所有用户再弹一次。
+  也在 Actions secrets：`SHADOWING_CODESIGN_P12`（base64）和 `SHADOWING_CODESIGN_PASSWORD`。务必备份；换证书会让所有用户再弹一次，`site/install.sh` 里固定的证书 SHA-1（`REQ`）也要一起改。
 - 钥匙串项目名是 “Shadowing”（`ai/secrets.rs`）；0.5.1 之前叫 “dev.shadowing.app”，读到旧的会自动复制过来。
 - 打包时注意：`samples/ja/` 的文件名有日文浊音，macOS 的 `tar` 和 HFS+ 会把它们改写成分解形式，签名就对不上了。
   所以更新包用 Python 的 tarfile 打，DMG 用 APFS。

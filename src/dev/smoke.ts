@@ -1,7 +1,8 @@
 // Debug-only scripted check that runs inside the real app.
 // Started by `npm run smoke -- <folder>` (see src-tauri/src/smoke.rs).
 // Prints PASS/FAIL lines; precise numbers come from Rust's player_status.
-import { api, devLog } from "../lib/api";
+import { listen } from "@tauri-apps/api/event";
+import { api, devLog, type ImportStatus } from "../lib/api";
 import { debugEngine, useApp } from "../store";
 import { aiScenario } from "./smokeAi";
 
@@ -295,7 +296,50 @@ async function scenario() {
   const kept = await api.getTranscript(sample.path);
   check("trial result is not saved", kept?.source === "sidecar" && app().transcript?.source === "sidecar", kept?.source);
 
-  // 11. Local whisper.cpp on a real model, if one has been downloaded (see smoke.sh).
+  // 11. 从链接导入 through a fake plugin (a shell script, see smoke.rs): the link resolves,
+  // the plugin "downloads" into staging, the app moves the audio into the folder and
+  // keeps the subtitles as a transcript that can be removed. A second link queued
+  // meanwhile waits its turn; both show as rows in their folder's group until done.
+  const outcomes: ImportStatus[] = [];
+  const unlisten = await listen<ImportStatus>("import:status", ({ payload }) => {
+    if (payload.state !== "resolving" && payload.state !== "downloading") outcomes.push(payload);
+  });
+  await app().loadPlugins();
+  check("fake plugin is listed", app().plugins.some((p) => p.id === "smoke-import" && !p.problem), JSON.stringify(app().plugins));
+  await app().openImport("https://smoke.example/watch?v=1");
+  const resolved = app().linkImport?.resolved;
+  check("link resolves through the plugin", resolved?.title === "Smoke import" && resolved.via === "Smoke", app().linkImport?.error ?? "");
+  app().startImport("en", "smoke-import");
+  await app().openImport("https://smoke.example/watch?v=2");
+  app().startImport(null, "smoke-import");
+  // Rust takes one download at a time: had the queue not waited, the second would fail.
+  await waitFor(() => app().downloads.length === 0, 15000);
+  const done = outcomes.filter((o) => o.state === "done");
+  const paths = done.map((o) => (o.state === "done" ? o.path.split("/").slice(-2).join("/") : ""));
+  check(
+    "both imports land in the folder, the second not overwriting the first",
+    done.length === 2 && paths[0] === "smoke-import/Smoke import.mp3" && paths[1] === "smoke-import/Smoke import (2).mp3" && done[0].state === "done" && done[0].subtitles,
+    JSON.stringify(outcomes),
+  );
+  unlisten();
+  const imported = app().folder?.tracks.find((t) => t.relDir === "smoke-import" && t.name === "Smoke import");
+  check("the rows gave way to the tracks", !!imported && app().folder?.tracks.filter((t) => t.relDir === "smoke-import").length === 2, app().folder?.tracks.map((t) => t.name).join(" | "));
+  if (imported) {
+    const t = await api.getTranscript(imported.path);
+    check(
+      "its subtitles are a removable imported transcript",
+      t?.source === "imported" && t.origin === "Smoke 字幕 · en" && t.sentences.length === 2,
+      JSON.stringify(t && { source: t.source, origin: t.origin, sentences: t.sentences.length }),
+    );
+    app().open(imported, true);
+    const plays = await waitFor(async () => (await rust()) > 0.4 || !!app().error, 5000);
+    check("imported track plays", plays && !app().error, app().error ?? "");
+  }
+  await app().resolveImport("https://elsewhere.example/x");
+  check("a link no plugin takes says so", app().linkImport?.error === "没有能导入这个链接的插件", app().linkImport?.error ?? "");
+  app().closeImport();
+
+  // 12. Local whisper.cpp on a real model, if one has been downloaded (see smoke.sh).
   const local = await api.local.models();
   const small = local.models.find((m) => m.id === "small-q5_1");
   if (!local.supported || !small?.downloaded) {
@@ -317,7 +361,7 @@ async function scenario() {
     ja ? ja.sentences.map((x) => `${x.text}@${x.start.toFixed(2)}–${x.end.toFixed(2)}`).join(" ") : "none",
   );
 
-  // 12. Two voices taking turns: each turn is labelled with its speaker.
+  // 13. Two voices taking turns: each turn is labelled with its speaker.
   const dialogue = tracks.find((t) => t.name === "05 会話 二人")!;
   app().open(dialogue, false);
   await waitFor(() => engine.duration > 0, 3000);

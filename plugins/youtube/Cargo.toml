@@ -1,0 +1,23 @@
+[package]
+name = "shadowing-youtube"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = "Shadowing plugin: import the audio (and subtitles people wrote) of a YouTube video"
+
+# Downloads and unzips with the curl and ditto that come with macOS; only JSON
+# and SHA-256 (to check what it downloaded) need crates.
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

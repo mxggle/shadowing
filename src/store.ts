@@ -8,6 +8,7 @@ import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createDrillSlice, type DrillState } from "./drillSlice";
 import { createExplainSlice, type ExplainState } from "./explainSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
+import { createImportSlice, type ImportState } from "./importSlice";
 import { createPracticeSlice, type PracticeState } from "./practiceSlice";
 import { createProofreadSlice, type ProofreadState } from "./proofreadSlice";
 import { createReadingSlice, type ReadingState } from "./readingSlice";
@@ -16,7 +17,7 @@ import { createReshapeSlice, type ReshapeState } from "./reshapeSlice";
 import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./transcriptSlice";
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState {
+export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -201,6 +202,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createRecordSlice(set, get, engine, persistSettings),
     ...createReadingSlice(set, get, engine, persistSettings),
     ...createDrillSlice(set, get, engine, persistSettings),
+    ...createImportSlice(set, get),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
@@ -217,6 +219,7 @@ export const useApp = create<AppState>((set, get) => {
       });
       engine.setRate(snap.settings.rate);
       void get().restoreJob();
+      get().watchImports();
       void get().refreshToday();
       const last = snap.folder?.tracks.find((t) => t.path === snap.lastTrack);
       if (last) get().open(last, false);

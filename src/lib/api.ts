@@ -241,11 +241,13 @@ export interface Suggestion {
   reason: string;
 }
 
-/** What the explanation model says about one sentence (Simplified Chinese; `reading` only for Japanese). */
+/** What the explanation model says about one sentence, piece by piece (Simplified Chinese; `reading` only for Japanese). */
 export interface Explanation {
   translation: string;
-  words: { word: string; reading: string; meaning: string }[];
-  points: { point: string; note: string }[];
+  /** The sentence in order: what each piece means here, and what its grammar does (either may be empty). */
+  parts: { text: string; reading: string; meaning: string; note: string }[];
+  /** How it is said ("带点埋怨"); may be empty. */
+  tone: string;
   /** Who answered, e.g. "ChatGPT · gpt-6-luna" (本机 first when it ran on this Mac). */
   source: string;
 }
@@ -376,6 +378,55 @@ export interface UpdateProgress {
   total: number | null;
 }
 
+/** An installed plugin (src-tauri/src/plugins). */
+export interface PluginInfo {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  /** What it imports links from (“YouTube”). */
+  importers: string[];
+  permissions: { network: string[]; runs: string };
+  /** Disk used, with the tools it downloaded. */
+  bytes: number;
+  /** Why it can't be used, when it can't. */
+  problem: string | null;
+}
+
+/** A plugin folder picked in 从文件夹安装…, shown before 安装. */
+export interface PluginOffer {
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  permissions: { network: string[]; runs: string };
+  /** The installed version it replaces. */
+  replacing: string | null;
+}
+
+/** What a link is, told by the plugin before downloading. */
+export interface Resolved {
+  title: string;
+  duration: number | null;
+  uploader: string | null;
+  /** Language spoken, when the site says. */
+  language: string | null;
+  /** Subtitles people wrote (not automatic captions). */
+  subtitles: { lang: string; name: string }[];
+  /** The plugin's name, and what it imports from (“YouTube”). */
+  plugin: string;
+  via: string;
+}
+
+/** `import:status` events while resolving or downloading a link, and how it ended. */
+export type ImportStatus =
+  | { state: "resolving"; message: string; done: number; total: number }
+  | { state: "downloading"; title: string; message: string; done: number; total: number }
+  | { state: "done"; title: string; path: string; subtitles: boolean }
+  | { state: "failed"; title: string; message: string }
+  | { state: "cancelled"; title: string };
+
 export const isTauri = () => "__TAURI_INTERNALS__" in window;
 
 export const api = {
@@ -495,6 +546,24 @@ export const api = {
     check: () => invoke<AvailableUpdate | null>("update_check"),
     /** Installs what the last check found, then the app relaunches; progress arrives as `update:progress`. */
     install: () => invoke<void>("update_install"),
+  },
+  plugins: {
+    list: () => invoke<PluginInfo[]>("plugins_list"),
+    /** The native folder picker; what the plugin is, or null when cancelled. Nothing is installed yet. */
+    pick: () => invoke<PluginOffer | null>("plugins_pick"),
+    /** Installs the folder `pick` offered. */
+    install: () => invoke<PluginInfo[]>("plugins_install"),
+    remove: (id: string) => invoke<PluginInfo[]>("plugins_remove", { id }),
+  },
+  imports: {
+    /** The clipboard, when it holds one web link. */
+    clipboard: () => invoke<string | null>("import_clipboard"),
+    resolve: (url: string) => invoke<Resolved>("import_resolve", { url }),
+    /** `folder`: subfolder of the open folder ("" = the folder itself). Ends with an `import:status`. */
+    start: (url: string, title: string, subtitles: string | null, folder: string) =>
+      invoke<void>("import_start", { url, title, subtitles, folder }),
+    /** Stops reading the link in the sheet, or the running download. */
+    cancel: (what: "resolve" | "download") => invoke<void>("import_cancel", { what }),
   },
   smokeMode: () => invoke<boolean>("smoke_mode"),
   smokeWindow: (minimized: boolean) => invoke<void>("smoke_window", { minimized }),

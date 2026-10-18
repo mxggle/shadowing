@@ -5,6 +5,7 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import type { AiConfig, Explanation, Feature, PracticeSession, Preset, SavedExplanation, Section, SentenceEdit, Snapshot, Suggestion, Track, Transcript } from "../lib/api";
 import { fresh, samples, sampleTranscripts } from "./mockSamples";
 import { mockRecord, seedTakes, stopClip } from "./mockRecorder";
+import { mockPlugins } from "./mockPlugins";
 import { mockReshape } from "./mockReshape";
 
 const root = "/Mock/日本語ポッドキャスト";
@@ -187,11 +188,14 @@ async function mockExplain(path: string, index: number, text: string): Promise<E
   const value: Explanation = {
     source: "本机 Ollama · gemma4:12b",
     translation: `（演示）${text.length} 个字的句子，翻译会写在这里。`,
-    words: [
-      { word: "散歩", reading: "さんぽ", meaning: "散步" },
-      { word: "天気", reading: "てんき", meaning: "天气" },
+    tone: "随意地提议",
+    parts: [
+      { text: "今日は", reading: "きょうは", meaning: "今天", note: "" },
+      { text: "ちょっと", reading: "", meaning: "稍微", note: "让提议显得随意" },
+      { text: "散歩に", reading: "さんぽに", meaning: "去散步", note: "に 表示去的目的" },
+      { text: "行こっか", reading: "いこっか", meaning: "去吧？", note: "= 行こうか，口语缩约，轻松地提议" },
+      { text: "んだから", reading: "", meaning: "", note: "说明理由，带点埋怨：「都怪你…嘛」" },
     ],
-    points: [{ point: "〜ましょう", note: "提议一起做某事，「我们…吧」" }],
   };
   keptExplanations.set(path, [...(keptExplanations.get(path) ?? []).filter((k) => k.index !== index), { index, text, explanation: value }]);
   return value;
@@ -275,6 +279,7 @@ export function installMockBackend() {
       // A paused recording ending: the original held for it won't go on (as if paused there).
       if (/^record_(begin|cancel|finish)$/.test(cmd) && recordingPaused) [held, recordingPaused, player.stop] = [false, false, null];
       if (cmd.startsWith("record_")) return mockRecord(cmd, a);
+      if (/^(plugins_|import_|rescan_folder$)/.test(cmd)) return mockPlugins(cmd, a, snapshot.folder);
       switch (cmd) {
         case "get_snapshot":
           return snapshot;

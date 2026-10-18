@@ -20,13 +20,13 @@
 
 目前只有 **Apple Silicon** 的 macOS 版。到 [Releases](../../releases) 下载 `.dmg`，双击打开后把 Shadowing 拖进“应用程序”。装好以后有新版本时应用里会提示，点一下就能更新。
 
-这个版本没有 Apple 开发者签名和公证，第一次打开会被系统拦下，运行：
+这个版本没有 Apple 公证，浏览器下载的会被系统拦下，有时提示“已损坏”。在终端运行下面这一行，它会重新下载最新版、装进“应用程序”并打开（不改系统设置，脚本在 [site/install.sh](site/install.sh)）：
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/Shadowing.app
+curl -fsSL https://shadowing.nihongo.day/install.sh | bash
 ```
 
-或者到“系统设置 → 隐私与安全性”点“仍要打开”。
+已经拖进“应用程序”的，也可以只去掉隔离标记：`xattr -dr com.apple.quarantine /Applications/Shadowing.app`。
 
 ## 从源码构建
 

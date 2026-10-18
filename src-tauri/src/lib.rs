@@ -4,6 +4,7 @@ mod explain;
 mod guide;
 mod library;
 mod local;
+mod plugins;
 mod practice;
 mod proofread;
 mod record;
@@ -241,6 +242,9 @@ pub fn run() {
                     // Fresh every run: state.json and the transcripts saved beside it.
                     if let Some(dir) = path.parent() {
                         let _ = std::fs::remove_dir_all(dir);
+                        if let Err(e) = smoke::install_plugin(dir, &folder) {
+                            eprintln!("smoke plugin not installed: {e}");
+                        }
                     }
                     let data = Persisted {
                         folder: Some(folder),
@@ -280,6 +284,8 @@ pub fn run() {
             app.manage(local::Downloads::default());
             app.manage(proofread::Proofreading::default());
             app.manage(update::Pending::default());
+            app.manage(plugins::import::Imports::default());
+            app.manage(plugins::install::Picked::default());
             let practice = std::sync::Arc::new(practice::Practice::open(
                 &app.state::<AppState>().data_dir(),
             ));
@@ -337,6 +343,14 @@ pub fn run() {
             practice::practice_log,
             update::update_check,
             update::update_install,
+            plugins::plugins_list,
+            plugins::install::plugins_pick,
+            plugins::install::plugins_install,
+            plugins::plugins_remove,
+            plugins::import::import_clipboard,
+            plugins::import::import_resolve,
+            plugins::import::import_start,
+            plugins::import::import_cancel,
             smoke::smoke_mode,
             smoke::smoke_window,
             smoke::smoke_finish,

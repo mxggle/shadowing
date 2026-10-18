@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronRight, ChevronsDownUp, ChevronsUpDown, FolderOpen, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
 import { isFinished } from "../audio/logic";
 import type { FolderListing, Progress, Track } from "../lib/api";
+import { placeDownloads } from "../lib/imports";
 import { useApp } from "../store";
+import { AddMenu } from "./AddMenu";
+import { DownloadRow } from "./ImportLink";
 import { Button, IconButton } from "./ui";
 
 /** Shows or hides the sidebar; lives in the sidebar header while open and in the top bar once it is closed. */
@@ -44,8 +47,8 @@ function NoFolder() {
 }
 
 function FolderView({ folder }: { folder: FolderListing }) {
-  const chooseFolder = useApp((s) => s.chooseFolder);
   const rescan = useApp((s) => s.rescan);
+  const downloads = useApp((s) => s.downloads);
   const [scanning, setScanning] = useState(false);
 
   const groups = useMemo(() => {
@@ -55,12 +58,13 @@ function FolderView({ folder }: { folder: FolderListing }) {
       list.push(t);
       map.set(t.relDir, list);
     }
-    return [...map.entries()];
-  }, [folder]);
+    // Links being downloaded show in the group they land in (a new one for a new folder).
+    return placeDownloads([...map.entries()], downloads);
+  }, [folder, downloads]);
 
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const named = groups.filter(([dir]) => dir);
-  const allCollapsed = named.length > 0 && named.every(([dir]) => collapsed.has(dir));
+  const named = groups.filter((g) => g.dir);
+  const allCollapsed = named.length > 0 && named.every((g) => collapsed.has(g.dir));
   const toggle = (dir: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -81,7 +85,7 @@ function FolderView({ folder }: { folder: FolderListing }) {
         {named.length > 0 && (
           <IconButton
             title={allCollapsed ? "展开全部" : "折叠全部"}
-            onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(named.map(([d]) => d)))}
+            onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(named.map((g) => g.dir)))}
           >
             {allCollapsed ? <ChevronsUpDown /> : <ChevronsDownUp />}
           </IconButton>
@@ -89,9 +93,7 @@ function FolderView({ folder }: { folder: FolderListing }) {
         <IconButton title="重新扫描" disabled={scanning} onClick={() => void onRescan()}>
           <RefreshCw className={scanning ? "animate-spin" : ""} />
         </IconButton>
-        <IconButton title="打开其他文件夹" onClick={() => void chooseFolder()}>
-          <FolderOpen />
-        </IconButton>
+        <AddMenu />
       </div>
 
       <div className="flex items-baseline gap-2 px-5 pb-2" title={folder.root}>
@@ -100,13 +102,13 @@ function FolderView({ folder }: { folder: FolderListing }) {
       </div>
 
       <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto pb-6 [mask-image:linear-gradient(to_bottom,black_calc(100%-24px),transparent)]">
-        {folder.tracks.length === 0 && (
+        {folder.tracks.length === 0 && downloads.length === 0 && (
           <div className="px-5 pt-2 text-[13px] leading-relaxed text-muted">
             这个文件夹里没有可播放的音频。
             <div className="mt-1 text-[12px] text-faint">支持 mp3、m4a、wav、flac 等格式，子文件夹也会扫描。</div>
           </div>
         )}
-        {groups.map(([dir, tracks]) => {
+        {groups.map(({ dir, tracks, downloads }) => {
           const open = !collapsed.has(dir);
           return (
             <section key={dir}>
@@ -119,7 +121,7 @@ function FolderView({ folder }: { folder: FolderListing }) {
                 >
                   <ChevronRight size={12} strokeWidth={2.2} className={`shrink-0 transition-transform duration-200 ease-snappy ${open ? "rotate-90" : ""}`} />
                   <span className="min-w-0 flex-1 truncate">{dir}</span>
-                  <span className="tabular shrink-0 font-mono text-[11px] font-normal">{tracks.length}</span>
+                  {tracks.length > 0 && <span className="tabular shrink-0 font-mono text-[11px] font-normal">{tracks.length}</span>}
                 </button>
               )}
               {/* 0fr ↔ 1fr animates the group open/closed without measuring heights. */}
@@ -132,6 +134,9 @@ function FolderView({ folder }: { folder: FolderListing }) {
                 <div className="min-h-0 overflow-hidden">
                   {tracks.map((t) => (
                     <TrackRow key={t.path} track={t} />
+                  ))}
+                  {downloads.map((d) => (
+                    <DownloadRow key={d.id} download={d} />
                   ))}
                 </div>
               </div>

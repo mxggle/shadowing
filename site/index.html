@@ -236,12 +236,52 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 .shelfrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .shelfrow span { font: 500 14.5px/1 var(--font-script); padding: 10px 13px; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--fg); background: var(--paper); }
 
-/* 说: the newest part gets its own sheet of paper across the page */
+/* 说 and 插件: the two big parts each get their own sheet of paper across the page */
 .band { margin-inline: calc(50% - 50vw); margin-top: clamp(96px, 13vw, 168px); padding: clamp(72px, 10vw, 128px) var(--gutter); background: var(--paper); border-block: 1px solid var(--line); }
 .band .chapter { padding-top: 0; }
 .band .split + .split { margin-top: clamp(56px, 8vw, 104px); }
 .split > .points { margin-top: 0; }
 .split.start { align-items: start; }
+
+/* Plugins: the import sheet and the list's download rows, drawn like the app (ImportLink.tsx) */
+.news { justify-self: start; display: inline-flex; align-items: center; gap: 10px; max-width: 100%; padding: 5px 12px 5px 5px; border-radius: 999px; background: var(--fill); color: var(--muted); font-size: 14px; line-height: 1.4; text-decoration: none; transition: background-color 150ms, color 150ms; }
+.news:hover { background: var(--press); color: var(--fg); }
+.news b { flex: none; font: 600 12.5px/1 var(--font-sans); color: var(--fg); background: var(--paper); border-radius: 999px; padding: 5px 9px; box-shadow: 0 0 0 1px var(--line); }
+.news svg.i { width: 15px; height: 15px; }
+.imp { display: grid; }
+.imp-win { width: 100%; max-width: 520px; justify-self: center; background: var(--paper); border-radius: 16px; box-shadow: var(--window); overflow: hidden; font-size: 13.5px; line-height: 1.5; }
+.imp-bar { display: flex; align-items: center; justify-content: space-between; height: 46px; padding: 0 16px 0 22px; border-bottom: 1px solid var(--line); }
+.imp-bar b { font-weight: 600; font-size: 14px; }
+.imp-bar svg.i { width: 15px; height: 15px; color: var(--faint); }
+.imp-body { padding: 18px 22px 22px; }
+.imp .field { flex: 1; min-width: 0; height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 11px; border-radius: 8px; background: var(--fill); color: var(--fg); white-space: nowrap; overflow: hidden; font-size: 13px; }
+.imp .field svg.i { width: 14px; height: 14px; color: var(--faint); }
+.imp .mini { flex: none; height: 32px; padding: 0 13px; border-radius: 8px; display: inline-grid; place-items: center; background: var(--fill); font: 500 13px/1 var(--font-sans); color: var(--fg); }
+.imp .mini.ink { background: var(--ink); color: var(--on-ink); }
+.imp-url { display: flex; gap: 8px; }
+.imp-url .field { color: var(--muted); font: 400 12.5px/1 var(--font-mono); }
+.imp-title { margin-top: 18px; font: 500 17px/1.45 var(--font-script); letter-spacing: 0.02em; }
+.imp-meta { margin-top: 3px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.imp-rows { display: grid; gap: 10px; margin-top: 16px; }
+.imp-row { display: flex; align-items: center; gap: 12px; }
+.imp-row > span:first-child { flex: none; width: 2.6em; color: var(--muted); }
+.imp-row .folder { flex: none; color: var(--faint); font-size: 12.5px; }
+.imp-note { margin-top: 14px; font-size: 12px; line-height: 1.6; color: var(--faint); }
+.imp-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.dl-list { position: relative; width: min(330px, 86%); margin: -34px auto 0 3%; padding: 10px 8px; border-radius: 14px; background: var(--deck); box-shadow: 0 0 0 1px var(--line), 0 18px 40px -24px oklch(0% 0 0 / 0.35); }
+.dl-list > b { display: block; padding: 4px 10px 6px; font: 500 12px/1.4 var(--font-sans); color: var(--faint); }
+.dl { display: flex; align-items: flex-start; gap: 9px; padding: 6px 10px; font-size: 13px; }
+.dl svg { flex: none; width: 16px; height: 16px; margin-top: 1px; fill: none; stroke-width: 2; }
+.dl div { min-width: 0; }
+.dl p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 18px; }
+.dl small { display: block; font: 400 11.5px/16px var(--font-mono); color: var(--faint); font-variant-numeric: tabular-nums; }
+.dl.q p { color: color-mix(in oklch, var(--fg) 80%, transparent); }
+.dl.q small { font-family: var(--font-sans); }
+.imp figcaption { margin-top: 20px; }
+.plug-more { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: clamp(40px, 5vw, 60px); }
+.plug-more p { margin-left: auto; color: var(--faint); font-size: 14.5px; max-width: 26em; }
+@media (max-width: 720px) { .plug-more p { margin-left: 0; } }
+@media (max-width: 560px) { .dl-list { width: 100%; margin: 12px 0 0; } .imp-body { padding: 16px 16px 18px; } .plug-more .btn { width: 100%; } }
 
 /* Practice record */
 .ring { width: 18px; height: 18px; transform: rotate(-90deg); }
@@ -443,6 +483,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
       <a href="#listen">功能</a>
       <a href="#speak">跟读录音</a>
       <a href="#practice">学习记录</a>
+      <a href="#plugins">插件</a>
       <a href="#updates">更新</a>
       <a href="#install">安装</a>
       <a href="https://github.com/mxggle/shadowing" target="_blank" rel="noopener">GitHub</a>
@@ -452,6 +493,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
 
   <main id="top">
     <section class="hero">
+      <a class="news" href="#plugins"><b>0.9 新增</b>插件，和 YouTube 导入<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
       <h1><span class="ph">把你的声音，</span><span class="ph">放在母语者旁边听。</span></h1>
       <p class="lede">Shadowing 是给 Mac 的跟读应用。拖进你手里的日语音频，它在本机转写成一句一句：循环这一句、放慢也不变调、听不懂就展开解释。然后跟着说，你的录音和原声上下对齐，慢了多少、晚了几秒，一眼就看出来。</p>
       <div class="actions">
@@ -463,7 +505,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
       </div>
       <div class="meta">
         <span>免费，MIT 开源</span>
-        <span data-app-version>v0.8.1 · 约 11 MB</span>
+        <span data-app-version>v0.9.0 · 约 11 MB</span>
         <span>macOS 11 及以上</span>
         <span>没有遥测</span>
         <span><i class="dot" aria-hidden="true"></i>Windows 和 Linux 版开发中</span>
@@ -615,10 +657,55 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
       </figure>
     </section>
 
+    <div class="band" id="plugins">
+      <div class="wrap">
+        <section class="chapter" aria-labelledby="plugins-title">
+          <div class="head">
+            <div><p class="new">0.9 版新增</p><h2 id="plugins-title"><span class="ph">应用做不到的，</span><span class="ph">交给插件。</span></h2></div>
+            <p>插件给 Shadowing 加上它本身不带的功能，谁都可以写。第一个插件「YouTube 导入」：在别处复制一个视频链接，回到应用按 <kbd>⌘V</kbd>，音频和人工字幕就进了你的文件夹。</p>
+          </div>
+          <div class="split flip">
+            <figure class="shot imp">
+              <div class="imp-win" aria-hidden="true">
+                <div class="imp-bar"><b>从链接导入</b><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></div>
+                <div class="imp-body">
+                  <div class="imp-url"><span class="field">https://www.youtube.com/watch?v=…</span><span class="mini">读取</span></div>
+                  <p class="imp-title">カフェで注文してみよう｜日本語の会話</p>
+                  <p class="imp-meta">11:38 · YouTube</p>
+                  <div class="imp-rows">
+                    <div class="imp-row"><span>字幕</span><span class="field">日语（人工字幕）<svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span></div>
+                    <div class="imp-row"><span>存到</span><span class="folder">日语听力 /</span><span class="field">YouTube</span></div>
+                  </div>
+                  <p class="imp-note">下载原始的 m4a 音轨，不转码。字幕断句不好时，可以移除后改用转写。只下载你有权使用的内容。</p>
+                  <div class="imp-btns"><span class="mini">取消</span><span class="mini ink">下载</span></div>
+                </div>
+              </div>
+              <div class="dl-list" aria-hidden="true">
+                <b>YouTube</b>
+                <div class="dl"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="var(--track)"/><circle cx="8" cy="8" r="6.5" stroke="var(--fg)" stroke-linecap="round" stroke-dasharray="15.9 40.8" transform="rotate(-90 8 8)"/></svg><div><p>カフェで注文してみよう｜日本語の会話</p><small>下载音频 4.2 / 10.8 MB</small></div></div>
+                <div class="dl q"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="var(--track)" stroke-dasharray="2.5 2.5"/></svg><div><p>駅で道を聞く｜日本語の会話</p><small>等前一个下载完</small></div></div>
+              </div>
+              <figcaption>按 <kbd>⌘V</kbd> 先看到是什么、有没有人工字幕，再下载。要下载的音频马上出现在列表里它要去的文件夹下，一个接一个下载。</figcaption>
+            </figure>
+            <dl class="points">
+              <div><dt>粘贴链接就导入</dt><dd>先看标题、时长和有没有人工字幕，选好放在哪个子文件夹再下载。下载时照常练别的，下好就是列表里普通的一行。音频是原始的 m4a 音轨，不转码。</dd></div>
+              <div><dt>谁都能写</dt><dd>插件是一个程序加一个 manifest.json，在标准输入输出上说 JSON-RPC，和 LSP、MCP 一样，用什么语言写都行。崩了、卡了也不影响播放。</dd></div>
+              <div><dt>装之前看清楚</dt><dd>应用不把你的文件夹交给插件：它只往暂存文件夹写，应用检查过再放进你的文件夹。安装前列出它会联网到哪里、会下载运行什么；插件目录里的都先审过源代码。</dd></div>
+            </dl>
+          </div>
+          <div class="plug-more">
+            <a class="btn btn-ink" href="/plugins">浏览插件目录</a>
+            <a class="btn btn-quiet" href="/plugins#write">写一个插件，提交上来</a>
+            <p>导出到 Anki、查词典这些插件位置在计划中。</p>
+          </div>
+        </section>
+      </div>
+    </div>
+
     <section class="chapter" id="privacy" aria-labelledby="privacy-title">
       <div class="head">
         <h2 id="privacy-title"><span class="ph">你的音频和录音，</span><span class="ph">留在你的 Mac 上。</span></h2>
-        <p>转写、区分说话人、去掉录进来的原声，都可以完全在本机完成。除了检查新版本，只有用到 AI 功能时才联网。</p>
+        <p>转写、区分说话人、去掉录进来的原声，都可以完全在本机完成。除了检查新版本，只有用到 AI 功能或插件时才联网。</p>
       </div>
       <ul class="facts">
         <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span><b>只访问你选择的文件夹。</b>加上应用自带的示例，其他文件一概不碰。</span></li>
@@ -630,10 +717,13 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
 
     <section class="chapter" id="updates" aria-labelledby="updates-title">
       <div class="head">
-        <h2 id="updates-title"><span class="ph">第一周发了八个版本，</span><span class="ph">还在快速长大。</span></h2>
+        <h2 id="updates-title"><span class="ph">十天发了十一个版本，</span><span class="ph">还在快速长大。</span></h2>
         <p>新版本发布后，应用打开时会提示，点“更新并重新打开”就装好，设置、字幕和录音都保留。</p>
       </div>
       <ol class="log">
+        <li><span class="v">0.9</span><time datetime="2026-10-18">10 月 18 日</time><p><b>插件，和 YouTube 导入。</b>粘贴链接，把视频的音频和人工字幕导入文件夹；解释这一句按顺序拆开讲，还写出语气。</p></li>
+        <li><span class="v">0.8.1</span><time datetime="2026-10-17">10 月 17 日</time><p>在应用里就能看每个版本的新功能。</p></li>
+        <li><span class="v">0.8</span><time datetime="2026-10-17">10 月 17 日</time><p><b>自己断句、合并句子，一句连着录好几遍。</b>逐句跟读；播放键能暂停录音和回放。</p></li>
         <li><span class="v">0.7</span><time datetime="2026-10-15">10 月 15 日</time><p><b>跟读录音、整段录音。</b>录下自己和原句对比，不戴耳机也行；一整段一口气读完，自动拆成一句一句。</p></li>
         <li><span class="v">0.6</span><time datetime="2026-10-13">10 月 13 日</time><p><b>对话段落。</b>一个音频里的几段对话自动分开，能改名、合并，整段循环。</p></li>
         <li><span class="v">0.5.1</span><time datetime="2026-10-12">10 月 12 日</time><p>更新以后不会再反复弹窗要钥匙串密码。</p></li>
@@ -656,9 +746,10 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
         <li><h3>下载安装包</h3><p>点这里<a href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">下载最新版</a>，大约 11 MB。</p></li>
         <li><h3>拖进“应用程序”</h3><p>双击下载的 .dmg，在打开的窗口里把 Shadowing 拖到“应用程序”文件夹。</p></li>
         <li>
-          <h3>第一次打开</h3>
-          <p>应用还没有 Apple 开发者签名，系统会拦一下。到“系统设置 → 隐私与安全性”点“仍要打开”，或者在终端运行：</p>
-          <div class="cmd"><code id="cmd">xattr -dr com.apple.quarantine /Applications/Shadowing.app</code><button id="copy" type="button">复制</button></div>
+          <h3>打不开或提示“已损坏”</h3>
+          <p>应用还没有 Apple 公证，浏览器下载的会被系统拦下，有时还说“已损坏”，其实文件没坏。按 ⌘ 空格打开“终端”，粘贴这一行按回车，它会重新下载、装进“应用程序”并打开，以后双击就能用：</p>
+          <div class="cmd"><code id="cmd">curl -fsSL https://shadowing.nihongo.day/install.sh | bash</code><button id="copy" type="button">复制</button></div>
+          <p>也可以跳过前两步，直接用这一行安装。</p>
         </li>
         <li><h3>以后自动更新</h3><p>有新版本时应用会提示，看过更新说明点一下就装好，安装包会先校验签名。</p></li>
       </ol>
@@ -687,6 +778,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
     <nav aria-label="页脚">
       <a href="https://github.com/mxggle/shadowing" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/mxggle/shadowing/blob/main/CHANGELOG.md" target="_blank" rel="noopener">更新日志</a>
+      <a href="/plugins">插件</a>
       <a href="https://github.com/mxggle/shadowing/blob/main/LICENSE" target="_blank" rel="noopener">MIT 许可</a>
       <a href="https://nihongo.day/">更多日语工具</a>
     </nav>

@@ -35,11 +35,13 @@ export function useShortcuts() {
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return;
       const s = useApp.getState();
-      if (s.settingsOpen || s.wizardOpen || s.statsOpen || s.newsOpen) return;
+      if (s.settingsOpen || s.wizardOpen || s.statsOpen || s.newsOpen || s.linkImport) return;
       if ((s.live || s.rec) && !(e.metaKey || e.ctrlKey || e.altKey)) return recordingKey(e, s);
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
         const command: Record<string, (() => void) | false> = {
           b: s.toggleShelf,
+          // A link copied elsewhere: import it (when a plugin takes it).
+          v: () => void s.pasteLink(),
           // Find in the sentences, starting from any text selected in them.
           f: !!s.transcript && (() => s.openReplace(window.getSelection()?.toString().trim() || undefined)),
           z: s.undo.length > 0 && (() => void s.undoEdit()),

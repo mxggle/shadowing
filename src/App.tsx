@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { ChevronRight } from "lucide-react";
 import { AiWizard } from "./components/guide/AiWizard";
 import { Hint } from "./components/guide/Hint";
+import { ImportDialog } from "./components/ImportLink";
 import { Welcome } from "./components/guide/Welcome";
 import { Library, ShelfToggle } from "./components/Library";
 import { PlayerBar } from "./components/PlayerBar";
@@ -49,6 +50,7 @@ export default function App() {
       <>
         <Welcome />
         <AiWizard />
+        <ImportDialog />
         <WhatsNewDialog />
         <UpdateNotice />
       </>
@@ -95,6 +97,7 @@ export default function App() {
       <SettingsDialog />
       <PracticeDialog />
       <AiWizard />
+      <ImportDialog />
       <WhatsNewDialog />
       <UpdateNotice />
     </div>

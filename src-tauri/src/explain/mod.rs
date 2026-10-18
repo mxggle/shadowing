@@ -1,6 +1,6 @@
-//! "解释这一句": asks the explanation model (see `ai::chat`) for a translation,
-//! the words worth knowing and the grammar or speech points of one sentence, for
-//! a learner who reads Chinese. It only explains; nothing in the transcript changes.
+//! "解释这一句": asks the explanation model (see `ai::chat`) for a translation of
+//! one sentence and what each piece of it means and does, for a learner who
+//! reads Chinese. It only explains; nothing in the transcript changes.
 
 #[cfg(test)]
 mod real_tests;
@@ -18,14 +18,18 @@ pub use reply::Explanation;
 use saved::Saved;
 use tauri::State;
 
-const SYSTEM: &str = r#"You help a Chinese-speaking language learner who is shadowing a recording (listening, then repeating it aloud). Explain ONE sentence from its transcript.
+const SYSTEM: &str = r#"You help a Chinese-speaking language learner who is shadowing a recording (listening, then repeating it aloud). Explain ONE sentence from its transcript piece by piece, so the learner understands every part of what they say, but keep it brief.
 
-Reply with JSON only, no other text:
-{"translation": "...", "words": [{"word": "散歩", "reading": "さんぽ", "meaning": "散步"}], "points": [{"point": "〜ましょう", "note": "提议一起做某事，「我们…吧」"}]}
+Reply with JSON only, no other text. For example, for 今日はちょっと散歩に行こっか。
+{"translation": "今天要不要去散个步？", "parts": [{"text": "今日は", "reading": "きょうは", "meaning": "今天", "note": ""}, {"text": "ちょっと", "reading": "", "meaning": "稍微", "note": "让提议显得随意"}, {"text": "散歩に", "reading": "さんぽに", "meaning": "去散步", "note": "に 表示去的目的"}, {"text": "行こっか", "reading": "いこっか", "meaning": "去吧？", "note": "= 行こうか，口语缩约，轻松地提议"}], "tone": "随意地提议"}
 - translation: a natural Simplified Chinese translation of the whole sentence. Use the lines around it to resolve who or what is meant. Keep the speaker's tone (casual stays casual).
-- words: at most 8 words or fixed phrases an intermediate learner may not know, in the order they appear. Skip basic words and fillers that a beginner already knows; a short reply like "うん。" needs no word list. Only words that are in the sentence itself, not in the lines around it. word: exactly as written in the sentence. reading: only for Japanese (kana for words that contain kanji), otherwise "". meaning: the Simplified Chinese meaning in this sentence, under 15 characters.
-- points: at most 3 things worth noticing: a grammar pattern, a spoken-language feature (contraction, dropped sounds, filler, slang, dialect), or a nuance. point: the pattern or phrase. note: Simplified Chinese, under 40 characters.
-Leave a list empty when there is nothing to say; a very short sentence may need only the translation. Do not repeat the translation in the notes. The transcript was made by speech recognition, so if a word looks misheard, explain what it most likely is."#;
+- parts: the sentence split into pieces, in order, together covering all of it except punctuation. A piece is a word or short phrase with the particle or ending attached to it (散歩に, 行きました, 兵士や志願兵の情報を), or a grammar pattern that means something on its own (の, んだから, ようにする). Usually 2 to 6 pieces, at most 10: in a long sentence, keep easy words inside a longer piece rather than giving each its own. A one-word reply is one piece.
+  - text: exactly as written in the sentence.
+  - reading: only for Japanese, in kana, for a piece that contains kanji; otherwise "".
+  - meaning: what the piece means here, Simplified Chinese, under 12 characters; "" for a piece that is only grammar.
+  - note: what its grammar or form does, Simplified Chinese, under 30 characters: the dictionary form of a conjugated word, the full form of a contraction or slang (なんない = ならない), a dropped particle, the nuance of an ending. "" when the meaning says it all; never explain what a beginner knows (a plain は, が, を, に, で, or の between nouns).
+- tone: how the speaker says it, for the learner to carry over when repeating it aloud (带点埋怨, 撒娇, 吃惊, 新闻播报的平稳语调), Simplified Chinese, under 15 characters; "" if nothing stands out.
+The transcript was made by speech recognition, so if a word looks misheard, say in its note what it most likely is."#;
 
 /// Lines of the transcript sent either side of the sentence, for context only.
 const BEFORE: usize = 3;
@@ -122,7 +126,7 @@ pub async fn ask(
     let prompt = Prompt {
         system: SYSTEM,
         user: &user_message(sentences, index),
-        max_tokens: 2048,
+        max_tokens: 3072,
     };
     let text = chat::complete(target, model, &prompt).await?;
     let mut explanation = reply::parse(&text, &sentences[index].text)?;

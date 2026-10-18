@@ -54,30 +54,27 @@ export function ExplainNote({ index, entry }: { index: number; entry: Explain })
 function Answer({ value }: { value: Explanation }) {
   return (
     <div className="flex flex-col gap-2 pr-7">
-      <p className="text-[14px] leading-[22px] text-fg">{value.translation}</p>
-      {value.words.length > 0 && (
-        <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-0.5">
-          {value.words.map((w) => (
-            <div key={w.word} className="contents">
-              <dt className="font-script text-[15px] text-fg">
-                {w.word}
-                {w.reading && w.reading !== w.word && <span className="ml-1.5 text-[12px] text-faint">{w.reading}</span>}
+      <div>
+        <p className="text-[14px] leading-[22px] text-fg">{value.translation}</p>
+        {value.tone && <p className="text-[12px] text-faint">语气：{value.tone}</p>}
+      </div>
+      {value.parts.length > 0 && (
+        <dl className="grid grid-cols-[fit-content(45%)_1fr] items-baseline gap-x-3 gap-y-1">
+          {value.parts.map((p, i) => (
+            <div key={i} className="contents">
+              {/* A long reading goes under the piece whole, not broken mid-word. */}
+              <dt className="flex flex-wrap items-baseline gap-x-1.5">
+                <span className="font-script text-[15px] text-fg">{p.text}</span>
+                {p.reading && p.reading !== p.text && <span className="text-[12px] whitespace-nowrap text-faint">{p.reading}</span>}
               </dt>
-              <dd>{w.meaning}</dd>
+              <dd>
+                {p.meaning}
+                {p.meaning && p.note && <span className="mx-1.5 text-faint">·</span>}
+                {p.note}
+              </dd>
             </div>
           ))}
         </dl>
-      )}
-      {value.points.length > 0 && (
-        <ul className="flex flex-col gap-0.5">
-          {value.points.map((p) => (
-            <li key={p.point}>
-              <span className="font-script text-[15px] text-fg">{p.point}</span>
-              <span className="mx-1.5 text-faint">·</span>
-              {p.note}
-            </li>
-          ))}
-        </ul>
       )}
       {value.source && (
         <p className="flex items-center gap-1 text-[11px] text-faint">
