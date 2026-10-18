@@ -187,14 +187,16 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
 1. 从 `main` 开 `release/vX.Y.Z` 分支：把 CHANGELOG 的「未发布」改成版本号和日期，用 `scripts/bump-version.sh X.Y.Z` 改版本号
    （`package.json`、`package-lock.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`src-tauri/tauri.conf.json`，
    还有落地页 `site/index.html` 上显示的版本；`scripts/check-version.sh` 检查它们一致，CI 也会查），提交 `chore(release): vX.Y.Z`，开 PR，CI 绿了再合并（rebase，保留每个小提交）。
-2. 在合并后的 `main` 上打附注标签 `vX.Y.Z` 并推送。`.github/workflows/release.yml` 会构建 `Shadowing-X.Y.Z-macos-arm64.dmg`（给人下载的安装包）和 `.zip`，
-   建一个**草稿** Release，说明由 `scripts/release-notes.sh` 从 CHANGELOG 生成（含安装步骤和 SHA-256）。
-   同时上传固定名字的 `Shadowing-macos-arm64.dmg` / `.zip`（网站的下载按钮链接 `releases/latest/download/Shadowing-macos-arm64.dmg`）和应用内更新用的 `Shadowing-X.Y.Z-macos-arm64.app.tar.gz`、`.sig` 和 `latest.json`。
-   GitHub 上要 15 分钟以上；**更快的做法**是推送标签后在本机运行 `scripts/release-local.sh vX.Y.Z`（5 分钟左右）：
-   它会停掉这个标签在 Actions 上的构建，在本机用 `~/.tauri` 里的证书和更新私钥打包、签名，再建草稿 Release
-   （加 `--publish` 直接发布）。两边产出的文件都由 `scripts/release-assets.sh` 生成，名字和内容一样。
-3. 在 GitHub 上看草稿：补上“已知限制 / 还没验证”，下载 dmg 装一次打开看看，再点发布。**点发布的那一刻**，已装的应用
-   下次打开就会提示更新（它们只读最新的已发布 Release 的 `latest.json`，草稿不影响）。
+2. 在合并后的 `main` 上打附注标签 `vX.Y.Z` 并推送，然后在本机运行 `scripts/release-local.sh vX.Y.Z`（几分钟）。打包、检查、发布都在本机，
+   GitHub 上不再自动打包（Actions 要 15 分钟以上）。它用 `~/.tauri` 里的证书和更新私钥打包、签名（`scripts/release-assets.sh`），生成
+   `Shadowing-X.Y.Z-macos-arm64.dmg`（给人下载的安装包）和 `.zip`、固定名字的 `Shadowing-macos-arm64.dmg` / `.zip`
+   （网站的下载按钮链接 `releases/latest/download/Shadowing-macos-arm64.dmg`）、应用内更新用的 `Shadowing-X.Y.Z-macos-arm64.app.tar.gz`、
+   `.sig` 和 `latest.json`，说明由 `scripts/release-notes.sh` 从 CHANGELOG 生成（含安装步骤和 SHA-256）。
+   上传前 `scripts/verify-release.sh` 检查这些文件（说明在脚本开头：签名过得了 `site/install.sh` 的检查、zip 用哪种工具解压签名都对、
+   `latest.json` 和 `.sig` 一致等），过了就直接发布。**发布的那一刻**，已装的应用下次打开就会提示更新（它们只读最新的已发布 Release 的
+   `latest.json`）。想先看一眼再发布就加 `--draft`，在 GitHub 上看完再点发布。
+3. 本机用不了时的备用办法：在 GitHub 上手动运行 Release（Actions → Release → Run workflow，选这个标签），出一个草稿 Release，
+   看完再点发布。
 
 ### 更新签名密钥
 
@@ -221,4 +223,4 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
 ## CI
 
 - `.github/workflows/check.yml`：每个 PR 和推到 `main` 时在 macOS（Apple Silicon）上跑 `scripts/check-version.sh` 和 `npm run check`。
-- `.github/workflows/release.yml`：推送 `v*.*.*` 标签时出草稿 Release（含签名的更新包和 latest.json）；改了 Rust 依赖的 main 推送和每周一次只构建，用来保住依赖的编译缓存（标签构建只能用 main 上存的缓存）；手动运行只构建，zip 留在 Actions 的产物里 14 天。
+- `.github/workflows/release.yml`：只在手动运行时打包（发布在本机做，见「发布」）。选标签运行出草稿 Release（含签名的更新包和 latest.json）；选分支运行只构建，zip 留在 Actions 的产物里 14 天。
