@@ -3,8 +3,26 @@
 _最后更新：2026-10-18_
 
 ## Windows 版（进行中，在 feat/windows 分支，2026-10-18）
-- 来由：想让 Windows 上的人也能用。前端、Tauri 配置、CI 和文档在 `feat/windows-ui`，Rust 的部分（钥匙串、转写、更新、插件）另有人做，做完由主线补到这里。
+- 来由：想让 Windows 上的人也能用。分三块并行做（三个 worktree：Rust 核心、插件和 YouTube 插件、前端 / 配置 / CI / 文档），合到 `feat/windows`。
   总的规则：**Mac 上的文案、快捷键、布局和以前一模一样，只有 Windows 变**。
+- 已实现（Rust 核心）：
+  - 依赖按平台分：whisper-rs（Metal）和钥匙串存储只在 macOS；Windows 用 `windows-native-keyring-store` 和 windows-sys（都在依赖树里）。新加 dunce、getrandom（也都已在树里）。
+  - Key 和登录存在凭据管理器；一条最多约 1280 个字符，更长的拆成几条（`ai/pieces.rs`，写新值时换一组名字、最后写头一条，中途断了旧值还在）。ChatGPT 的 id_token 登录后从来不读，不再保存。
+  - 本机转写只在 macOS 编译，其他系统返回“不支持”；`local/system.rs` 在 Windows 上用系统接口读内存和可用空间。
+  - 路径：用 dunce 规范化（没有 `\\?\`）；“在不在打开的文件夹里”按路径的每一段比较，盘符和共享名不分大小写；列表的子文件夹名一律用 `/`；音频在没接上的盘上时，它的录音不算“找不到原音频”。
+    存 state.json 和下载完的模型时，Windows 报“被占用 / 拒绝访问”会重试约 1.3 秒（杀毒软件常短暂占着文件）。应用数据放在 `%LOCALAPPDATA%`（模型最大 3 GB，不放 Roaming）。
+  - `/dev/urandom` 换成 getrandom；打开网页在 Windows 上用 `ShellExecuteW`，而且只开 http / https。
+  - Windows 没有应用菜单（检查更新、新功能在设置里）；更新安装程序会直接结束进程，所以先保存 state.json 和学习记录；`latest.json` 里没有这个平台时当作没有更新。
+  - 麦克风被系统设置拦住（0x80070005）时提示去“设置 → 隐私和安全性 → 麦克风”；读设备名时设备被拔掉，cpal 在 Windows 上会 panic，现在接住了。
+  - Rust 里给人看的文字在 Windows 上说“这台电脑 / this PC”“Windows 凭据管理器”（`i18n::os`）。
+- 已实现（插件和 YouTube 插件）：
+  - 平台键 `windows-x86_64` / `windows-arm64`（ARM 上没有 arm64 程序时用 x86_64 的，Windows 11 能模拟）；程序可以是 `.exe`。
+  - `plugins/os.rs`：Windows 上给插件的环境（SystemRoot、System32 的 PATH、TEMP、USERPROFILE、APPDATA、PATHEXT、ComSpec、代理等，可在 Mac 上单元测试），每个子进程都不弹控制台窗口；
+    取消时 2 秒后用 taskkill /T 连插件自己的子进程（yt-dlp）一起结束。
+  - 剪贴板在 Windows 上直接读（`plugins/clipboard.rs`，不起进程）；安装时去掉 Zone.Identifier（“从网上下载”的标记）；用标题起的文件名避开 Windows 不允许的字符和 CON、NUL、COM1 这类名字，Rust 和 `src/lib/imports.ts` 用同一张测试表。
+  - smoke 的假插件在 Windows 上是 `.cmd` 交给 PowerShell 脚本。
+  - YouTube 插件：`platform.rs` 选 `yt-dlp_win.zip`（ARM 用 `yt-dlp_win_arm64.zip`）和 `qjs-windows-x86_64.exe`（没有 ARM 版，用模拟），都校验 SHA-256；
+    下载和解压用 System32 的 curl.exe / tar.exe（写全路径），证书吊销查不到时重试一次；yt-dlp 用 UTF-8 输出。`scripts/build-plugin.sh youtube <target>` 能出 Windows 版。
 - 已实现（前端 / 配置 / CI / 文档）：
   - `src/lib/platform.ts`：看 WebView 的 user agent（WebView2 是 “Windows NT”，WKWebView 是 “Macintosh”）判断系统；浏览器 mock 里地址加 `?platform=windows` 预览 Windows
     （mock 里也不再有本机转写，`mockBackend.ts`）。`isMod(e)` / `isCmd(e)` 判断命令键（Mac 保持原来的 ⌘ 或 Ctrl，Windows 只认 Ctrl），`shortcut()` 把 Mac 的写法（`⌘F`、`⇧↩`）换成 Windows 的（Ctrl+F、Shift+Enter）。

@@ -34,12 +34,12 @@
 | 安装包 | 已配置，待真机试装 | `src-tauri/tauri.windows.conf.json`：NSIS，装在当前用户下（不要管理员），简体中文和英文，WebView2 用下载式引导（Windows 11 和较新的 Windows 10 已自带）。Actions 里的 “Windows build” 出安装包。`samples/ja/` 的日文文件名装进去是否正常待试 |
 | CI | 已加 | `check.yml` 的 `windows` 任务（windows-latest）跑 `npm run check`；runner 没有声卡，真实音频的测试不跑 |
 | 区分说话人 | 已可移植：tract + realfft 都是纯 Rust，CPU 运行，模型是普通 ONNX 文件 | 在真机上验证 |
-| 播放引擎 | symphonia / cpal（WASAPI）都跨平台 | 在真机上验证音频输出、切换设备（插拔耳机、默认设备改变）、跟读录音的麦克风权限和延迟估计 |
-| API Key 存储 | 进行中：Windows 凭据管理器（keyring 库的 Windows 存储 `windows-native-keyring-store`） | 单条上限 2560 字节，ChatGPT 的登录信息要拆开存或少存；界面上已说“Windows 凭据管理器” |
-| 本机转写 | 进行中：Windows 上不提供，只有云端转写（whisper.cpp 改成只在 macOS 编译；界面已按此处理，不显示“本机”） | 以后再考虑 CPU / CUDA / Vulkan 版 whisper.cpp |
-| 内存检测（推荐模型） | 随本机转写：Windows 上不需要 | — |
+| 播放引擎 | symphonia / cpal（WASAPI）都跨平台；设备拔掉时读设备名不会崩，麦克风被系统设置拦住时说清楚去哪里打开 | 在真机上验证音频输出、切换设备（插拔耳机、默认设备改变）、跟读录音的麦克风权限和延迟估计 |
+| API Key 存储 | 已做，真机待验证：Windows 凭据管理器（`windows-native-keyring-store`） | 单条最多约 1280 个字符，更长的拆成几条存；ChatGPT 的 id_token 不再保存。真机上跑 `keychain_round_trip -- --ignored`（含一条 4400 字的值） |
+| 本机转写 | 已做：Windows 上不提供，只有云端转写（whisper.cpp 只在 macOS 编译，服务列表里没有“本机”，Windows 上也不需要 cmake） | 以后再考虑 CPU / CUDA / Vulkan 版 whisper.cpp |
+| 内存检测（推荐模型） | 已做：Windows 上用系统接口读内存和可用空间（`local/system.rs`），本机转写不显示时用不到 | — |
 | 云端转写的词时间 | 未用真实 Key 测过（DTW 修正只用于本机） | 在 Groq / OpenAI 上核对句子开头和说话人 |
-| 插件（YouTube 导入） | 进行中，在另一部分做 | 插件程序、解压和下载工具、从剪贴板读链接要换成 Windows 的做法 |
+| 插件（YouTube 导入） | 已做，真机待验证 | 平台键 `windows-x86_64` / `windows-arm64`；插件拿到 Windows 需要的环境变量、不弹控制台窗口，取消时连 yt-dlp 一起结束；直接读剪贴板；安装时去掉 Zone.Identifier；文件名避开 CON、NUL 等。YouTube 插件用 `yt-dlp_win.zip` 和 `qjs-windows-x86_64.exe`，用系统自带的 curl / tar。Windows 版插件 zip 还没进发布流程 |
 | 应用内更新、发布 | 只有 macOS | `latest.json` 里只有 darwin-aarch64；Windows 版先手动下载安装包，以后要做 |
 | 代码签名 | 没有 | 安装包没有签名，SmartScreen 会警告“未知发布者”；以后可以看 Azure Trusted Signing、SignPath 或买证书 |
 

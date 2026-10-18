@@ -6,8 +6,8 @@ Shadowing：macOS 优先的 Tauri 2 桌面应用，用于本地音频的反复�
 ## 技术栈
 
 - 前端：React 19 + TypeScript + Vite 8 + Tailwind 4 + Zustand 5，图标用 lucide-react。
-- 后端：Rust（Tauri 2），版本固定在 `rust-toolchain.toml`（本地和 CI 一致，升级时一并修新的 clippy 提示）。构建需要 cmake（whisper.cpp），`brew install cmake`。**音频播放完全在 Rust**（`src-tauri/src/audio/`）：解码、变速、A–B 循环、输出都不经过 WebView。
-- 持久化：Rust 侧一个 JSON 文件（app data 目录下的 `state.json`，原子写入）。**API Key / token 只存 macOS 钥匙串**（`ai/secrets.rs`），state.json 里只有 `sk-…abcd` 这样的提示。
+- 后端：Rust（Tauri 2），版本固定在 `rust-toolchain.toml`（本地和 CI 一致，升级时一并修新的 clippy 提示）。在 macOS 上构建需要 cmake（whisper.cpp），`brew install cmake`；Windows 上不编 whisper.cpp，不用 cmake。**音频播放完全在 Rust**（`src-tauri/src/audio/`）：解码、变速、A–B 循环、输出都不经过 WebView。
+- 持久化：Rust 侧一个 JSON 文件（app data 目录下的 `state.json`，原子写入）。**API Key / token 只存系统的密码库**（`ai/secrets.rs`：macOS 钥匙串，Windows 凭据管理器），state.json 里只有 `sk-…abcd` 这样的提示。
 
 ## 结构
 
@@ -54,7 +54,7 @@ src/                      前端
 src-tauri/src/
   lib.rs                  AppState + 命令注册
   i18n.rs                 界面语言：设置里选的，或跟随 Mac（系统首选语言是中文才用中文）；tr! / pick 给 Rust 里的提示选中文或英文
-  library.rs              扫描文件夹、路径校验（resolve_inside）
+  library.rs              扫描文件夹、路径校验（resolve_inside；路径用 dunce 规范化，Windows 上没有 `\\?\` 前缀，盘符和共享名不分大小写）
   guide.rs                引导状态（state.json 的 guide）、打包的示例音频（samples/，见 samples/README.md 的出处）
   store.rs                state.json 读写、原子写入
   transcript.rs           每个音频的字幕：app data 里的 transcripts/，或音频旁的同名 .srt/.vtt
@@ -84,27 +84,30 @@ src-tauri/src/
                           doubt.rs 把 Whisper 没把握的字标成句子里要画虚线的范围；
                           commands.rs 一次一个任务（转写 → 区分说话人），进度发 transcribe:status
   local/                  本机转写（仅 Apple Silicon）：models.rs 模型清单（固定 commit + sha256）、按芯片 / 内存 / 可用空间推荐模型、
-                          download.rs 可续传并校验的下载、whisper.rs whisper.cpp（Metal，DTW 词时间，自动识别时先判断语言）
+                          system.rs 芯片、内存、可用空间（macOS sysctl / statfs，Windows 的系统接口）、
+                          download.rs 可续传并校验的下载、whisper.rs whisper.cpp（只在 macOS 编译；Metal，DTW 词时间，自动识别时先判断语言）
   speakers/               区分说话人：fbank.rs 声学特征、mod.rs 用 tract 跑 3D-Speaker CAM++ 声纹模型
                           （Apache-2.0，固定 commit + sha256，第一次转写时下载到 models 文件夹）、cluster.rs 按声音分组
-  ai/                     可选的 AI 服务：providers.rs 预设与模型筛选、secrets.rs 钥匙串、http.rs 请求与中文错误、
+  ai/                     可选的 AI 服务：providers.rs 预设与模型筛选、secrets.rs 钥匙串 / 凭据管理器（pieces.rs：Windows 上太长的值拆成几条存）、http.rs 请求与中文错误、
                           chat.rs 对话接口（OpenAI 兼容 / Anthropic / Responses）、check.rs 测试连接与本机服务检测、
                           oauth.rs + openrouter.rs + chatgpt/ 浏览器登录（ChatGPT 的 token 也只存钥匙串）
   audio/                  原生播放引擎（见下）
   plugins/                插件（方案见 docs/plugin-plan.md）：app data 的 plugins/<id>/ 里一个 manifest.json + 一个程序。
                           manifest.rs 读和检查 manifest、链接规则（像浏览器扩展的 match pattern）；mod.rs 列出、删除；install.rs 从文件夹安装（原生选择框选好后，在设置里确认它会做什么，
                           不用原生确认框：选择框刚关上时弹的原生确认框会自己“通过”），选的是插件外面一层也行，更新时保留插件自己的 data/；
-                          复制进来时去掉浏览器下载留下的隔离标记（带着它 macOS 会直接杀掉插件程序，复制也会保留它）；rpc.rs 把程序当子进程运行（环境变量清空，只留系统 PATH、HOME、代理），
+                          复制进来时去掉浏览器下载留下的隔离标记（带着它 macOS 会直接杀掉插件程序，复制也会保留它；Windows 上去掉 Zone.Identifier）；rpc.rs 把程序当子进程运行（环境变量清空，只留系统 PATH、HOME、代理，
+                          Windows 上要的那几个见 os.rs：环境、不弹控制台窗口、取消时连子进程一起结束），
                           stdin/stdout 上每行一条 JSON-RPC 2.0，取消时先发 $/cancel、2 秒后结束进程；
-                          import.rs 从链接导入（import/resolve → import/run，一次一个，进度发 import:status）；
+                          import.rs 从链接导入（import/resolve → import/run，一次一个，进度发 import:status；clipboard.rs 读剪贴板）；
                           accept.rs 插件只写暂存文件夹，应用检查文件（不收链接出去的、不是音频的）后自己移进打开的文件夹，
-                          字幕存成可移除的导入字幕（不放在音频旁边）
+                          字幕存成可移除的导入字幕（不放在音频旁边）；names.rs 用标题起文件名（Windows 不允许的字符和 CON、NUL 这类名字也处理，和 src/lib/imports.ts 一样）
   update.rs               应用内更新（tauri-plugin-updater）：读最新 Release 的 latest.json、下载签名过的 .app.tar.gz、
-                          原地替换后重启；菜单里的「检查更新…」和「新功能…」
-  smoke.rs                调试构建专用自测入口（也装一个假的导入插件：shell 脚本）
+                          原地替换后重启；菜单里的「检查更新…」和「新功能…」（Windows 没有应用菜单，用设置里的）
+  smoke.rs                调试构建专用自测入口（也装一个假的导入插件：shell 脚本，Windows 上是 .cmd + PowerShell）
 plugins/youtube/          「YouTube 导入」插件：单独的小 Rust 程序（不进应用的构建），说插件协议；
-                          第一次用时下载 yt-dlp 文件夹版和 QuickJS-ng（校验 SHA-256），每天最多查一次 yt-dlp 新版本；
-                          只取 m4a 音轨（不用 ffmpeg）和人工字幕。scripts/build-plugin.sh youtube 生成可安装的文件夹
+                          第一次用时下载 yt-dlp 文件夹版和 QuickJS-ng（校验 SHA-256；platform.rs 选 macOS / Windows 的文件，fetch.rs 用系统的 curl 下载），
+                          每天最多查一次 yt-dlp 新版本；只取 m4a 音轨（不用 ffmpeg）和人工字幕。
+                          scripts/build-plugin.sh youtube [Rust target] 生成可安装的文件夹（带 target 时在 dist/<平台>/ 下）
 src-tauri/tauri.windows.conf.json   只在 Windows 上叠加到 tauri.conf.json 的配置（JSON Merge Patch，数组整个替换）：
                           没有 Mac 的标题栏设置的窗口、NSIS 安装包（当前用户、简体中文和英文）、WebView2 下载式引导、含 icon.ico 的图标列表
 docs/plugin-dev.md        写插件的人看的文档（manifest、协议、运行环境、打包、提交和审核）
@@ -123,7 +126,17 @@ x86_64 先做；**还没有在真实的 Windows 电脑上试过，试过之前�
   `latest.json` 里只有 darwin-aarch64，Windows 版暂时手动下载安装包）；代码签名（自签证书，Windows 安装包没有签名，SmartScreen 会警告）。
 - 拿到 Windows 安装包：GitHub 的 Actions → “Windows build”（手动运行；推到 `feat/windows*` 分支也会自动跑）→ 运行结果里的 Artifacts → `Shadowing-windows-x64-setup`（保留 14 天，
   解压后运行里面的 `…_x64-setup.exe`，装在当前用户下，不要管理员权限）。在 Windows 上本机构建：`npx tauri build --bundles nsis`，安装包在 `src-tauri/target/release/bundle/nsis/`。
-- 在 Windows 上克隆仓库时执行 `git config --global core.autocrlf false`：shell 脚本带上 CRLF 就跑不了（CI 的 Windows 任务也先关掉了）。
+- Rust 那边 Windows 和 macOS 不同的地方：
+  - 应用数据在 `%LOCALAPPDATA%\dev.shadowing.app`（不放 Roaming：模型最大 3 GB）；macOS 照旧。
+  - Key 和登录存在凭据管理器的“普通凭据”里，名字是 `<服务 id>.Shadowing`；一条最多约 1280 个字符，更长的拆成 `#a1`、`#a2`…（`ai/pieces.rs`）。ChatGPT 的 id_token 不再保存。
+  - 没有应用菜单（Windows 上会变成窗口里的一行菜单栏）；检查更新和新功能在设置里。更新安装程序接手前先保存 state.json 和学习记录。
+    `latest.json` 里没有这个平台时当作“没有更新”。
+  - 打开网页用 `ShellExecuteW`（只开 http / https）；麦克风被系统设置拦住时提示去“隐私和安全性 → 麦克风”。
+  - 插件：平台键 `windows-x86_64` / `windows-arm64`（ARM 上没有 arm64 程序时用 x86_64 的），程序可以是 `.exe`；详见 [docs/plugin-dev.md](docs/plugin-dev.md)。
+- 在 Mac 上检查 Windows 能不能编译（不能运行）：`rustup target add x86_64-pc-windows-gnu`、`brew install mingw-w64`，然后
+  `cargo clippy --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-gnu --all-targets -- -D warnings`（插件同理）。
+  链接整个应用会因 GNU ld 的导出表上限失败，和代码无关；真正的构建和测试看 CI 的 Windows 任务（MSVC）。
+- 仓库的 `.gitattributes` 让所有文本文件在 Windows 上也是 LF（shell 脚本和 `rustfmt --check` 都要）。
 
 ## 播放引擎（src-tauri/src/audio）
 
