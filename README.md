@@ -1,68 +1,127 @@
 # Shadowing
 
-用本地音频反复听、跟读（shadowing）的 macOS 桌面应用。日语、英语或其他语言都适用。
+**Hear your voice right next to a native speaker's.**
 
-没有字幕、没有模型、没有 API Key 时，播放器也完整可用；字幕、转写和 AI 都是可选的。
+Shadowing is a macOS app for practicing shadowing with your own audio: loop a sentence, say it with the speaker,
+and see how your take lines up with the original. It works for Japanese, English or any other language.
 
-## 功能
+[简体中文](README.zh-CN.md)
 
-- **播放**：打开文件夹浏览音频，变速不变调（0.5–2.0×），A–B 循环，记住每个音频听到哪里。解码、变速、循环、输出都在 Rust 里完成，循环接回时不依赖定时器。
-- **字幕**：导入 SRT / VTT（音频旁的同名字幕自动读取），或者自己转写：
-  - 本机转写（Apple Silicon，whisper.cpp + Metal）或云端服务（Groq / OpenAI / 自建兼容服务）；
-  - 句子边界对齐到真实停顿，对话里区分说话人（声纹在本机运行）；
-  - 转写时没把握的字画虚线。
-- **练习**：点一句从这一句播放，循环一句，`[` `]` 换句，句子下面可以展开解释。
-- **修改字幕**：改一句、查找和全部替换、AI 校对（只给建议，由你确认）；改动只存在应用自己的数据里，不改写音频旁的字幕文件。
-- **解释这一句**：译文、生词、语法和口语点，答案会保存。用你自己设置的大模型（OpenAI、Anthropic、Gemini、DeepSeek、OpenRouter、Ollama、LM Studio、自定义，或 ChatGPT 账号登录）。
-- 第一次打开有示例练习和 AI 设置向导。
+The player works fully without subtitles, models or API keys. Subtitles, transcription and AI are all optional.
 
-## 安装
+## Shadow recording
 
-目前只有 **Apple Silicon** 的 macOS 版。到 [Releases](../../releases) 下载 `.dmg`，双击打开后把 Shadowing 拖进“应用程序”。装好以后有新版本时应用里会提示，点一下就能更新。
+- **Record any sentence**: click the mic next to a sentence (or press `M`), say it, and compare with the original.
+  No headphones needed: the original that leaks from the speakers into the mic is removed afterwards, leaving only your voice.
+- **Two ways to shadow**: *listen, then speak* (the sentence plays, then it's your turn), or *speak along* (talk over
+  the original as it plays). Recording stops by itself when you finish.
+- **See where you differ**: your waveform sits under the original's, lined up, with how much faster or slower you were,
+  or how many seconds you lagged behind. Play the two together to hear whether you're in sync.
+- **Keep going**: *continuous* recording starts the next take as soon as one ends; press Space to keep the take you like.
+- **Read a whole section** (`⇧M`): read a full dialog or the whole text in one go, on your own or along with the
+  original. It's split back into sentences afterwards, each one comparable with the original. Or drill sentence by
+  sentence, with as many takes per sentence as you choose.
+- Every take is saved. While the audio plays, your recordings unfold under each sentence like lyrics.
+- With AirPods or other Bluetooth headphones, it records with the Mac's built-in mic so your headphones keep full audio quality.
 
-这个版本没有 Apple 公证，浏览器下载的会被系统拦下，有时提示“已损坏”。在终端运行下面这一行，它会重新下载最新版、装进“应用程序”并打开（不改系统设置，脚本在 [site/install.sh](site/install.sh)）：
+## Import from a link (plugins)
+
+- Plugins add new ways to bring audio in. The first one is **YouTube import**: copy a YouTube link, press `⌘V` in the app,
+  pick the subtitles and a folder, and download. You get the original m4a audio track (not re-encoded) and the
+  human-made subtitles when there are any.
+- Install a plugin from Settings → Plugins → Install from folder. The YouTube plugin is attached to each
+  [release](../../releases) as `Shadowing-YouTube-plugin-…-macos-arm64.zip`. To write your own, see [docs/plugin-dev.md](docs/plugin-dev.md).
+- Plugins are programs that run on your Mac: only install plugins you trust, and only download content you have the right to use.
+
+## Player
+
+- Open a folder and browse its audio. Change speed without changing pitch (0.5–2.0×), loop A–B or a single sentence,
+  and pick up where you left off. Decoding, time-stretching, looping and output all run natively in Rust, so loops are seamless.
+- Play order: in order, repeat all, repeat one, or stop when a track ends.
+
+## Subtitles
+
+- Import SRT / VTT (a subtitle file with the same name next to the audio is picked up automatically), or transcribe
+  on your Mac (Whisper, Apple Silicon) or with a cloud service (Groq, OpenAI, or any compatible server).
+  Sentence boundaries snap to real pauses, speakers in a dialog are told apart, and words the transcriber wasn't sure of are underlined.
+- Click a sentence to play from there; `[` `]` move between sentences, `{` `}` between dialog sections.
+- Fix the subtitles: edit a sentence, split or merge sentences, find and replace, or get AI proofreading suggestions
+  that you confirm one by one. Edits are stored in the app and never written back to your subtitle files.
+
+## Understand a sentence
+
+- **Explain this sentence**: a translation, the sentence broken into chunks with the meaning (and grammar, when it matters)
+  of each, and the tone to aim for when you shadow it. Answers are saved.
+- Uses the AI you set up: OpenAI, Anthropic, Gemini, DeepSeek, OpenRouter, Ollama, LM Studio, any compatible server,
+  or sign in with your ChatGPT plan.
+
+## Practice log
+
+- Today, the last 7 days and all-time practice time, with a daily goal and a streak. Only real practice counts:
+  playing, recording, and the moments you pause to shadow or read an explanation.
+
+## Install
+
+macOS on **Apple Silicon** only for now. Download the `.dmg` from [Releases](../../releases), open it and drag
+Shadowing into Applications. After that, the app offers new versions itself and updates in one click.
+
+The app isn't notarized by Apple, so macOS blocks it when it's downloaded from a browser, sometimes saying it's "damaged".
+This line downloads the latest version again, installs it into Applications and opens it (it changes no system settings;
+the script is [site/install.sh](site/install.sh)):
 
 ```bash
 curl -fsSL https://shadowing.nihongo.day/install.sh | bash
 ```
 
-已经拖进“应用程序”的，也可以只去掉隔离标记：`xattr -dr com.apple.quarantine /Applications/Shadowing.app`。
+If you already dragged it into Applications, removing the quarantine flag is enough:
+`xattr -dr com.apple.quarantine /Applications/Shadowing.app`.
 
-## 从源码构建
+## Build from source
 
-需要 Rust、Node.js 和 cmake（whisper.cpp 要用）：
+You need Rust, Node.js and cmake (for whisper.cpp):
 
 ```bash
 brew install cmake
 npm install
-npm run app          # 开发模式启动
-npx tauri build --bundles app   # 打包 .app
+npm run app          # run in development mode
+npx tauri build --bundles app   # build the .app
 ```
 
-其他命令：
+Other commands:
 
 ```bash
 npm run check        # tsc + vite build + vitest + cargo fmt / clippy / test
-npm run dev          # 浏览器 + mock 后端，只用来调 UI
-npm run smoke -- <文件夹>   # 构建调试版，在真实应用里跑自测（先用 scripts/make-fixtures.sh 生成测试音频）
+npm run dev          # browser + mock backend, for UI work only
+npm run smoke -- <folder>   # build a debug app and run the in-app self-test (make test audio with scripts/make-fixtures.sh)
 ```
 
-代码结构、约定和手动测试方法见 [CLAUDE.md](CLAUDE.md)，产品目标见 [PRODUCT.md](PRODUCT.md)，当前进度和哪些还没验证见 [PROGRESS.md](PROGRESS.md)。
+Code structure, conventions and manual tests are in [CLAUDE.md](CLAUDE.md), the product goals in [PRODUCT.md](PRODUCT.md),
+and what's done and what's still unverified in [PROGRESS.md](PROGRESS.md). These are written in Chinese.
 
-## 隐私
+## Privacy
 
-- 应用只访问你在对话框里选择的文件夹，加上自带的示例。
-- 没有遥测。只有你用到 AI 功能时才联网，请求都从 Rust 发出：转写会上传音频给你选的服务，解释和校对会把句子发给你选的模型；选本机模型（Whisper、Ollama、LM Studio）则不出这台电脑。设置里每个功能都会写明内容发到哪里。
-- API Key 和登录 token 只存 macOS 钥匙串，应用自己的数据文件里只有 `sk-…abcd` 这样的提示。
-- 本机转写和区分说话人的模型在第一次用到时从 Hugging Face 下载，固定版本并校验 SHA-256。
+- The app can only open folders you choose in the open dialog, plus its built-in samples.
+- No telemetry and no account. The app itself goes online only for:
+  - **updates**: at launch it reads the latest release's `latest.json` on GitHub;
+  - **AI you set up**: transcription uploads the audio to the service you chose, and explanations and proofreading send
+    the sentences to the model you chose. With on-device options (Whisper, Ollama, LM Studio) nothing leaves your Mac.
+    Settings says where each feature sends its content. All requests are made from Rust, not from the web view;
+  - **models**: the on-device transcription and speaker models download from Hugging Face the first time you need them,
+    at pinned versions with SHA-256 checks.
+- **Plugins** you install are separate programs that do their own networking. The YouTube plugin talks to YouTube and,
+  on first use, downloads yt-dlp and QuickJS from GitHub (checksums verified), then checks for a newer yt-dlp at most once a day.
+  Plugins can't see your folders or the Keychain: they write only to their own data folder and to a staging folder,
+  and the app checks the files there before moving them into your folder.
+- API keys and sign-in tokens are stored only in the macOS Keychain. The app's own data file holds just a hint like `sk-…abcd`.
 
-## 第三方
+## Third-party
 
-- [whisper.cpp](https://github.com/ggml-org/whisper.cpp)（MIT）和 OpenAI Whisper 模型（MIT）；
-- [3D-Speaker](https://github.com/modelscope/3D-Speaker) CAM++ 声纹模型（Apache-2.0），用 [tract](https://github.com/sonos/tract) 运行；
-- symphonia、cpal、rubato、signalsmith-stretch 等音频库，见 `src-tauri/Cargo.toml`；
-- 自带的示例录音和文字属于公有领域，出处见 [src-tauri/samples/README.md](src-tauri/samples/README.md)。
+- [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT) and the OpenAI Whisper models (MIT);
+- the [3D-Speaker](https://github.com/modelscope/3D-Speaker) CAM++ speaker model (Apache-2.0), run with [tract](https://github.com/sonos/tract);
+- symphonia, cpal, rubato, signalsmith-stretch and other audio libraries, see `src-tauri/Cargo.toml`;
+- the YouTube plugin uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense) and [QuickJS-ng](https://github.com/quickjs-ng/quickjs) (MIT), downloaded on first use;
+- the bundled sample recordings and texts are in the public domain; sources are in [src-tauri/samples/README.md](src-tauri/samples/README.md).
 
-## 许可
+## License
 
 [MIT](LICENSE)
