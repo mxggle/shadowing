@@ -21,7 +21,8 @@ The player works fully without subtitles, models or API keys. Subtitles, transcr
 - **Read a whole section** (`⇧M`): read a full dialog or the whole text in one go, on your own or along with the
   original. It's split back into sentences afterwards, each one comparable with the original. Or drill sentence by
   sentence, with as many takes per sentence as you choose.
-- Every take is saved. While the audio plays, your recordings unfold under each sentence like lyrics.
+- Every take you keep is saved (in continuous recording and drills, that's the take you pick or the last one).
+  While the audio plays, your recordings unfold under each sentence like lyrics.
 - With AirPods or other Bluetooth headphones, it records with the Mac's built-in mic so your headphones keep full audio quality.
 
 ## Import from a link (plugins)
@@ -110,8 +111,9 @@ and what's done and what's still unverified in [PROGRESS.md](PROGRESS.md). These
     at pinned versions with SHA-256 checks.
 - **Plugins** you install are separate programs that do their own networking. The YouTube plugin talks to YouTube and,
   on first use, downloads yt-dlp and QuickJS from GitHub (checksums verified), then checks for a newer yt-dlp at most once a day.
-  Plugins can't see your folders or the Keychain: they write only to their own data folder and to a staging folder,
-  and the app checks the files there before moving them into your folder.
+  Plugins run with your user account's permissions and could read and write your files, so only install plugins you trust.
+  The YouTube plugin writes only to its own data folder and to a staging folder, and the app checks the files there
+  before moving them into your folder.
 - API keys and sign-in tokens are stored only in the macOS Keychain. The app's own data file holds just a hint like `sk-…abcd`.
 
 ## Third-party
