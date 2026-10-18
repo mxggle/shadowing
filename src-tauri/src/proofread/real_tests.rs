@@ -81,7 +81,15 @@ async fn real_proofread() {
         }
         for own in chunks(&sentences) {
             let started = Instant::now();
-            let (reply, found) = ask(&target, &choice.model, &sentences, own).await.unwrap();
+            let (reply, found) = ask(
+                &target,
+                &choice.model,
+                &sentences,
+                own,
+                crate::i18n::is_en(),
+            )
+            .await
+            .unwrap();
             println!(
                 "-- reply in {:.1} s:\n{reply}",
                 started.elapsed().as_secs_f64()

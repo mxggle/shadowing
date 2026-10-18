@@ -133,14 +133,15 @@ fn user_message(sentences: &[Sentence], own: &Range<usize>) -> String {
 }
 
 /// Asks about one chunk (`own`) of the sentences: the model's reply as it came,
-/// and the suggestions that survive `reply::check`.
+/// and the suggestions that survive `reply::check`. `en`: reasons in English.
 pub async fn ask(
     target: &Target,
     model: &str,
     sentences: &[Sentence],
     own: Range<usize>,
+    en: bool,
 ) -> Result<(String, Vec<Suggestion>), String> {
-    let system = system(crate::i18n::is_en());
+    let system = system(en);
     let prompt = Prompt {
         system: &system,
         user: &user_message(sentences, &own),
@@ -177,6 +178,8 @@ pub async fn transcript_proofread(
     if let Some(earlier) = running.0.lock().unwrap().replace(cancel.clone()) {
         earlier.store(true, Ordering::Relaxed);
     }
+    // One language for the whole job, even if the interface switches halfway.
+    let en = crate::i18n::is_en();
     let sentences = &transcript.sentences;
     let parts = chunks(sentences);
     let mut found = Vec::new();
@@ -188,7 +191,7 @@ pub async fn transcript_proofread(
         };
         let _ = app.emit("proofread:progress", progress);
         let (_, part) = tokio::select! {
-            r = ask(&target, &model, sentences, own.clone()) => r?,
+            r = ask(&target, &model, sentences, own.clone(), en) => r?,
             _ = cancelled(&cancel) => return Err(crate::transcribe::cancelled_error()),
         };
         found.extend(part);
