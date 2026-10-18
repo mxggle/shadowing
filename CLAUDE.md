@@ -188,13 +188,15 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
    （`package.json`、`package-lock.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`src-tauri/tauri.conf.json`，
    还有落地页 `site/index.html` 上显示的版本；`scripts/check-version.sh` 检查它们一致，CI 也会查），提交 `chore(release): vX.Y.Z`，开 PR，本地检查过就合并，不等 GitHub 的检查（rebase，保留每个小提交）。
 2. **打包在 Mac 上做**：在合并后的 `main` 上打附注标签 `vX.Y.Z` 并推送，然后在本机运行 `scripts/release-local.sh vX.Y.Z`（5 分钟左右）。
-   它会停掉这个标签在 Actions 上的构建，在本机用 `~/.tauri` 里的证书和更新私钥打包、签名，再建草稿 Release（加 `--publish` 直接发布）：
+   它会停掉这个标签在 Actions 上的构建，在本机用 `~/.tauri` 里的证书和更新私钥打包、签名，检查过就直接发布（加 `--draft` 只建草稿）：
    `Shadowing-X.Y.Z-macos-arm64.dmg`（给人下载的安装包）和 `.zip`，固定名字的 `Shadowing-macos-arm64.dmg` / `.zip`
    （网站的下载按钮链接 `releases/latest/download/Shadowing-macos-arm64.dmg`），应用内更新用的 `Shadowing-X.Y.Z-macos-arm64.app.tar.gz`、`.sig` 和 `latest.json`，
    说明由 `scripts/release-notes.sh` 从 CHANGELOG 生成（含安装步骤和 SHA-256）。
    Mac 不在手边时，标签在 Actions 上的构建（`.github/workflows/release.yml`）会做同样的事并建草稿，但要 20 分钟左右；两边的文件都由 `scripts/release-assets.sh` 生成，名字和内容一样。
-3. 在本机自检草稿里的包（签名、证书、zip 解压、打开一次），没问题就 `gh release edit vX.Y.Z --draft=false --latest` 发布。**发布的那一刻**，已装的应用
-   下次打开就会提示更新（它们只读最新的已发布 Release 的 `latest.json`，草稿不影响）。
+3. 上传前 `scripts/verify-release.sh` 自动检查这些文件（说明在脚本开头：文件齐全、`latest.json` 和 `.sig` 一致、DMG / 两种工具解压的 zip /
+   更新包里的应用都过得了 `site/install.sh` 的签名检查、版本号对），不用再手动下载检查；没过就停下，不上传。**发布的那一刻**，已装的应用
+   下次打开就会提示更新（它们只读最新的已发布 Release 的 `latest.json`，草稿不影响）。Actions 建的草稿：
+   `gh release download vX.Y.Z -D <空文件夹>` 后同样用 `scripts/verify-release.sh X.Y.Z <文件夹>` 检查，再 `gh release edit vX.Y.Z --draft=false --latest` 发布。
 
 ### 更新签名密钥
 
