@@ -7,8 +7,8 @@ export const library: Record<string, Entry> = {
   示例: "Sample",
 
   // Sidebar list
-  "收起左侧列表 (⌘B)": "Hide sidebar (⌘B)",
-  "展开左侧列表 (⌘B)": "Show sidebar (⌘B)",
+  "收起左侧列表 ({key})": "Hide sidebar ({key})",
+  "展开左侧列表 ({key})": "Show sidebar ({key})",
   "你的音频会列在这里。": "Your audio will be listed here.",
   "选一个放着 mp3、m4a 的文件夹。": "Choose a folder with mp3 or m4a files.",
   打开文件夹: "Open folder…",
@@ -26,7 +26,7 @@ export const library: Record<string, Entry> = {
   添加音频: "Add audio",
   "从链接导入…": "Import from link…",
   "、": ", ",
-  "复制链接后，在应用里按 ⌘V 也可以": "Or copy a link and press ⌘V in the app",
+  "复制链接后，在应用里按 {key} 也可以": "Or copy a link and press {key} in the app",
   "打开其他文件夹…": "Open another folder…",
   "更多导入方式…": "More ways to import…",
   "在 设置 → 插件 里安装插件": "Install plugins in Settings → Plugins",
@@ -80,6 +80,8 @@ export const library: Record<string, Entry> = {
     "How it's counted: time playing audio and listening back to your recordings counts; so does the time spent recording while you shadow or read a section (counted under “Paused”); if you do something within 90 seconds of pausing (resume, click a sentence, look at an explanation), the time in between, spent shadowing or thinking, counts too;",
   "更久没有动静就当作离开，那段时间不算。每天从凌晨 4 点算起；连续天数只算达到当天目标的日子，改目标只影响今天和以后。记录只存在这台 Mac 上。":
     "longer stretches with nothing going on count as time away and are left out. Each day starts at 4 a.m.; streaks only count days that met that day's goal, and changing the goal only affects today and later. The log stays on this Mac.",
+  "更久没有动静就当作离开，那段时间不算。每天从凌晨 4 点算起；连续天数只算达到当天目标的日子，改目标只影响今天和以后。记录只存在这台电脑上。":
+    "longer stretches with nothing going on count as time away and are left out. Each day starts at 4 a.m.; streaks only count days that met that day's goal, and changing the goal only affects today and later. The log stays on this PC.",
   播放: "Playback",
   "暂停（跟读、录音、看解释）": "Paused (shadowing, recording, explanations)",
   没有练习: "No practice",

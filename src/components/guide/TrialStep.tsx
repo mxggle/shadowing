@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { featureReady } from "../../lib/aiReady";
 import { api, type TestReport, type Track } from "../../lib/api";
 import { t } from "../../lib/i18n";
+import { shortcut } from "../../lib/platform";
 import { formatTime } from "../../lib/time";
 import { useApp } from "../../store";
 import { Button } from "../ui";
@@ -67,7 +68,7 @@ export function TrialStep() {
       </p>
 
       <Row title={t("转写")} status={!canTranscribe ? "off" : !job ? "idle" : job.state === "running" ? "running" : job.state === "done" ? "ok" : "error"}>
-        {!canTranscribe && t("还没有设置。随时可以在设置（⌘,）里补上。")}
+        {!canTranscribe && t("还没有设置。随时可以在设置（{key}）里补上。", { key: shortcut("⌘,") })}
         {canTranscribe && !job && t("转写示例音频，看看句子分得怎么样。")}
         {job?.state === "running" &&
           (job.done > 0 ? t("正在转写… {done} / {total}", { done: formatTime(job.done), total: formatTime(job.total) }) : t("正在准备音频…"))}
@@ -89,7 +90,7 @@ export function TrialStep() {
       </Row>
 
       <Row title={t("句子解释")} status={!canExplain ? "off" : explain.kind === "idle" ? "idle" : explain.kind === "running" ? "running" : explain.kind === "done" ? "ok" : "error"}>
-        {!canExplain && t("还没有设置。随时可以在设置（⌘,）里补上。")}
+        {!canExplain && t("还没有设置。随时可以在设置（{key}）里补上。", { key: shortcut("⌘,") })}
         {canExplain && explain.kind === "idle" && t("请模型翻译并讲解一个例句。")}
         {explain.kind === "running" && t("正在等模型回答…")}
         {explain.kind === "failed" && <span className="break-words text-danger">{explain.message}</span>}

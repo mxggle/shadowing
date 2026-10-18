@@ -4,17 +4,22 @@ import { isFinished } from "../audio/logic";
 import type { FolderListing, Progress, Track } from "../lib/api";
 import { t } from "../lib/i18n";
 import { placeDownloads } from "../lib/imports";
+import { isWindows, shortcut } from "../lib/platform";
 import { useApp } from "../store";
 import { AddMenu } from "./AddMenu";
 import { DownloadRow } from "./ImportLink";
 import { Button, IconButton } from "./ui";
 
+/** Left edge of the sidebar's top bar: room for the Mac's window buttons, which sit over it; Windows has its own title bar above. */
+const BAR_START = isWindows ? "pl-3" : "pl-20";
+
 /** Shows or hides the sidebar; lives in the sidebar header while open and in the top bar once it is closed. */
 export function ShelfToggle() {
   const open = useApp((s) => s.shelfOpen);
   const toggle = useApp((s) => s.toggleShelf);
+  const key = shortcut("⌘B");
   return (
-    <IconButton title={open ? t("收起左侧列表 (⌘B)") : t("展开左侧列表 (⌘B)")} aria-expanded={open} onClick={toggle}>
+    <IconButton title={open ? t("收起左侧列表 ({key})", { key }) : t("展开左侧列表 ({key})", { key })} aria-expanded={open} onClick={toggle}>
       {open ? <PanelLeftClose /> : <PanelLeftOpen />}
     </IconButton>
   );
@@ -30,7 +35,7 @@ function NoFolder() {
   const chooseFolder = useApp((s) => s.chooseFolder);
   return (
     <aside className="flex h-full min-h-0 flex-col border-r border-line bg-shelf">
-      <div data-tauri-drag-region className="flex h-[52px] shrink-0 items-center justify-end pr-2.5 pl-20">
+      <div data-tauri-drag-region className={`flex h-[52px] shrink-0 items-center justify-end pr-2.5 ${BAR_START}`}>
         <ShelfToggle />
       </div>
       <div className="flex flex-col items-start gap-3 px-5 pt-3">
@@ -81,7 +86,7 @@ function FolderView({ folder }: { folder: FolderListing }) {
 
   return (
     <aside className="group/shelf flex h-full min-h-0 flex-col border-r border-line bg-shelf">
-      <div data-tauri-drag-region className="flex h-[52px] shrink-0 items-center justify-end gap-0.5 pr-2.5 pl-20">
+      <div data-tauri-drag-region className={`flex h-[52px] shrink-0 items-center justify-end gap-0.5 pr-2.5 ${BAR_START}`}>
         <ShelfToggle />
         {named.length > 0 && (
           <IconButton

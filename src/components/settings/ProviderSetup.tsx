@@ -2,6 +2,7 @@ import { Cloud, Laptop, LoaderCircle, RotateCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, type AiConfig, type Feature, type Preset } from "../../lib/api";
 import { t } from "../../lib/i18n";
+import { isWindows } from "../../lib/platform";
 import { useApp } from "../../store";
 import { serviceReady } from "../../lib/aiReady";
 import { Button } from "../ui";
@@ -164,7 +165,7 @@ function Details({ feature, preset, config }: { feature: Feature; preset: Preset
         <span>{preset.note}</span>
         <span className="flex items-center gap-1.5 text-faint">
           {preset.local ? <Laptop size={13} /> : <Cloud size={13} />}
-          {preset.local ? t("在这台 Mac 上运行，内容不会离开本机") : sends}
+          {preset.local ? (isWindows ? t("在这台电脑上运行，内容不会离开本机") : t("在这台 Mac 上运行，内容不会离开本机")) : sends}
         </span>
       </p>
 

@@ -2,6 +2,7 @@ import { Captions, Check, Play, Repeat, Sparkles, type LucideIcon } from "lucide
 import { useState } from "react";
 import { featureReady } from "../../lib/aiReady";
 import { t, tk } from "../../lib/i18n";
+import { isWindows, shortcut } from "../../lib/platform";
 import { useApp } from "../../store";
 import { Button, TextLink } from "../ui";
 import { AccountStep, ModelStep } from "./OnboardingSteps";
@@ -15,11 +16,16 @@ const LANGUAGES: [string, string][] = [
 
 const FEATURES: [LucideIcon, string, string][] = [
   [Repeat, tk("一句一句跟读"), tk("点一句就循环，随时放慢，用你自己的音频。")],
-  [Captions, tk("没有字幕也能练"), tk("Whisper 把音频转写成带时间的句子，可以在这台 Mac 上免费运行。")],
+  [
+    Captions,
+    tk("没有字幕也能练"),
+    // Windows has no transcribing on the computer itself (yet): only the cloud services.
+    isWindows ? tk("AI 把音频转写成带时间的句子，用 Groq、OpenAI 等云端转写服务。") : tk("Whisper 把音频转写成带时间的句子，可以在这台 Mac 上免费运行。"),
+  ],
   [Sparkles, tk("看懂每一句"), tk("AI 翻译句子、讲解生词和语法，还能校对听错的字。")],
 ];
 
-const STEPS = [tk("介绍"), tk("本机转写"), tk("登录 AI"), tk("开始")] as const;
+const STEPS = [tk("介绍"), isWindows ? tk("转写") : tk("本机转写"), tk("登录 AI"), tk("开始")] as const;
 
 /**
  * First launch: what the app does and which language, then the two optional
@@ -39,7 +45,7 @@ export function Onboarding() {
         <div key={step} className="my-auto flex animate-fade-in flex-col pt-12">
           {step === 0 && <Intro onNext={next} />}
           {step === 1 && (
-            <Page title={t("在这台 Mac 上转写")} onBack={() => setStep(0)} onNext={next} feature="transcribe">
+            <Page title={isWindows ? t("设置转写") : t("在这台 Mac 上转写")} onBack={() => setStep(0)} onNext={next} feature="transcribe">
               <ModelStep />
             </Page>
           )}
@@ -169,7 +175,7 @@ function Page({ title, feature, onBack, onNext, children }: {
       <footer className="mt-8 flex items-center gap-2 border-t border-line pt-4">
         <Button onClick={onBack}>{t("上一步")}</Button>
         <p className="min-w-0 flex-1 text-right text-[12px] text-faint">
-          {downloading ? t("模型会在后台继续下载") : go ? "" : t("可以先跳过，之后在设置（⌘,）里补上")}
+          {downloading ? t("模型会在后台继续下载") : go ? "" : t("可以先跳过，之后在设置（{key}）里补上", { key: shortcut("⌘,") })}
         </p>
         <Button primary={go} onClick={onNext}>
           {go ? t("下一步") : t("跳过")}
@@ -194,7 +200,7 @@ function Start({ onBack }: { onBack: () => void }) {
         <Status state={chat} label={t("句子解释")} text={{ ok: t("可以用了"), pending: "", off: t("还没有设置") }} />
       </ul>
       {(transcribe === "off" || chat === "off") && (
-        <p className="mt-3 text-[12px] text-faint">{t("没设置也能练：播放、循环和导入字幕都不需要 AI。随时可以在设置（⌘,）里补上。")}</p>
+        <p className="mt-3 text-[12px] text-faint">{t("没设置也能练：播放、循环和导入字幕都不需要 AI。随时可以在设置（{key}）里补上。", { key: shortcut("⌘,") })}</p>
       )}
       <BigButton onClick={() => void startPractice()}>
         <Play size={15} fill="currentColor" strokeWidth={0} /> {t("用示例练一下")}

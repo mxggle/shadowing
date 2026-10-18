@@ -7,6 +7,7 @@ import { fresh, samples, sampleTranscripts } from "./mockSamples";
 import { mockRecord, seedTakes, stopClip } from "./mockRecorder";
 import { mockPlugins } from "./mockPlugins";
 import { mockReshape } from "./mockReshape";
+import { isWindows } from "../lib/platform";
 
 const root = "/Mock/日本語ポッドキャスト";
 const tracks: Track[] = [
@@ -64,7 +65,8 @@ const durationOf = (path: string) => (path.startsWith("/App/samples/") ? 32.7 : 
 
 // AI settings: a trimmed copy of the Rust presets; "bad" as a key fails the test, LM Studio is "not running".
 const cloud: Omit<Preset, "id" | "name" | "baseUrl"> = { api: "openAi", local: false, key: "required", keyUrl: "https://example.com", features: ["chat"], transcribeModel: null, transcribePrices: [], chatModel: null, note: "" };
-const presets: Preset[] = [
+// ?platform=windows previews Windows: no transcribing on the computer itself there, so no "local" preset.
+const allPresets: Preset[] = [
   { ...cloud, id: "local", name: "本机", api: "builtin", baseUrl: "", local: true, key: "none", keyUrl: null, features: ["transcribe"], note: "在这台 Mac 上用 Whisper 转写：免费、可离线，需要先下载一个模型" },
   { ...cloud, id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1", features: ["transcribe"], transcribeModel: "whisper-large-v3", transcribePrices: [["whisper-large-v3", 0.111], ["whisper-large-v3-turbo", 0.04]], note: "Whisper large-v3，约 $0.11 / 小时音频，速度很快" },
   { ...cloud, id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", features: ["transcribe", "chat"], transcribeModel: "whisper-1", transcribePrices: [["whisper-1", 0.36]], chatModel: "gpt-5-mini", note: "转写用 whisper-1（约 $0.36 / 小时）；解释可选 GPT 系列" },
@@ -78,6 +80,7 @@ const presets: Preset[] = [
   { ...cloud, id: "custom-transcribe", name: "自定义", baseUrl: "", key: "optional", keyUrl: null, features: ["transcribe"], note: "任何 OpenAI 兼容的转写服务（需要支持 verbose_json 时间戳）" },
   { ...cloud, id: "custom-chat", name: "自定义", baseUrl: "", key: "optional", keyUrl: null, note: "任何 OpenAI 兼容的服务" },
 ];
+const presets = allPresets.filter((p) => !(isWindows && p.id === "local"));
 const aiConfig: AiConfig = { transcribe: { provider: null, model: "" }, chat: { provider: null, model: "" }, baseUrls: {}, keyHints: {}, chatgptClientId: null, chatgptHostId: null };
 const keys: Record<string, string> = {};
 const mockModels: Record<string, string[]> = {
@@ -99,15 +102,15 @@ function mockList(provider: string, feature: Feature): string[] {
 }
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// Local models: downloads take ~5 s; turbo q5 is "already downloaded".
+// Local models: downloads take ~5 s; turbo q5 is "already downloaded" (on a Mac).
 const localModels = [
-  { id: "large-v3-turbo-q5_0", name: "Large v3 Turbo（压缩）", size: 574e6, memoryGb: 1, note: "速度和准确度平衡，日语、英语都不错", downloaded: true, partial: 0, fit: "good" as const },
+  { id: "large-v3-turbo-q5_0", name: "Large v3 Turbo（压缩）", size: 574e6, memoryGb: 1, note: "速度和准确度平衡，日语、英语都不错", downloaded: !isWindows, partial: 0, fit: "good" as const },
   { id: "large-v3-turbo-q8_0", name: "Large v3 Turbo", size: 874e6, memoryGb: 1.3, note: "比压缩版略准一点，速度差不多", downloaded: false, partial: 0, fit: "good" as const },
   { id: "large-v3", name: "Large v3", size: 3.1e9, memoryGb: 3.9, note: "最准（尤其日语），但慢很多", downloaded: false, partial: 9e8, fit: "tight" as const },
   { id: "small-q5_1", name: "Small", size: 190e6, memoryGb: 0.6, note: "很快、很小，但日语错误较多，适合先试试", downloaded: false, partial: 0, fit: "good" as const },
 ];
 let downloading: { id: string; timer: number; cancelled: boolean } | null = null;
-const localOverview = () => ({ supported: true, chip: "Apple M2 Pro", ramGb: 16, freeBytes: 120e9, recommended: "large-v3-turbo-q8_0", reason: "16 GB 内存，选比压缩版略准的 Turbo", models: localModels, downloading: downloading?.id ?? null });
+const localOverview = () => ({ supported: !isWindows, chip: isWindows ? "" : "Apple M2 Pro", ramGb: 16, freeBytes: 120e9, recommended: "large-v3-turbo-q8_0", reason: "16 GB 内存，选比压缩版略准的 Turbo", models: localModels, downloading: downloading?.id ?? null });
 function mockDownload(id: string) {
   if (downloading) throw "已经有一个模型在下载";
   const m = localModels.find((x) => x.id === id)!;

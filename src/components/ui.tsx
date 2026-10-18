@@ -4,6 +4,7 @@
 // including when their keyboard shortcut fires (`flash`).
 import { Fragment, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { useFlash, type FlashId } from "../hooks/useFlash";
+import { shortcut } from "../lib/platform";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { flash?: FlashId };
 
@@ -38,13 +39,13 @@ export function DeckButton({ ink, flash, className = "", ...rest }: ButtonProps 
   );
 }
 
-/** A keyboard key, drawn as a small outlined key. */
+/** A keyboard key, drawn as a small outlined key. Written the Mac way (⌘, ⇧↩); Windows gets Ctrl, Shift+Enter. */
 export function Kbd({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <kbd
       className={`inline-grid h-[19px] min-w-[19px] place-items-center rounded-[5px] px-1 font-sans text-[11px] leading-none font-medium text-muted shadow-[inset_0_0_0_1px_var(--line-strong)] ${className}`}
     >
-      {children}
+      {typeof children === "string" ? shortcut(children) : children}
     </kbd>
   );
 }

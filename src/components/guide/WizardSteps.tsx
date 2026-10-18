@@ -2,6 +2,8 @@ import { Check, Cloud, Laptop, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, LOCAL_PROVIDER, type Feature, type Preset } from "../../lib/api";
 import { t } from "../../lib/i18n";
+import { isWindows } from "../../lib/platform";
+import { device } from "../../lib/wording";
 import { useApp } from "../../store";
 import { formatBytes, LocalModels } from "../settings/LocalModels";
 import { ProviderSetup } from "../settings/ProviderSetup";
@@ -57,7 +59,11 @@ export function TranscribeStep() {
           points={[t("Groq、OpenAI 等，速度很快"), t("Groq 约 $0.11 / 小时音频"), t("需要注册并填写 API Key，音频会上传")]}
         />
       </div>
-      {!supported && <p className="text-[12px] text-faint">{t("这台 Mac 不是 Apple 芯片，本机转写会非常慢，所以只提供云端服务。")}</p>}
+      {!supported && (
+        <p className="text-[12px] text-faint">
+          {isWindows ? t("Windows 版暂不支持本机转写，只提供云端服务。") : t("这台 Mac 不是 Apple 芯片，本机转写会非常慢，所以只提供云端服务。")}
+        </p>
+      )}
       {mode === "local" && <LocalModels />}
       {mode === "cloud" && <ProviderSetup feature="transcribe" only={isCloud} allowNone={false} />}
     </div>
@@ -86,7 +92,7 @@ export function ChatStep() {
           selected={mode === "local"}
           onClick={() => mode !== "local" && void choose("chat", server?.id ?? "ollama", "")}
           points={[
-            t("免费，句子不会离开这台 Mac"),
+            t("免费，句子不会离开{device}", { device: device() }),
             server ? t("检测到 {name} 正在运行", { name: server.name }) : t("需要先安装 Ollama 或 LM Studio，再下载一个模型"),
             t("效果取决于模型大小和内存，建议 Qwen 系列"),
           ]}

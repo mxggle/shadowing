@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type PluginInfo, type PluginOffer } from "../../lib/api";
 import { t } from "../../lib/i18n";
+import { isWindows } from "../../lib/platform";
 import { useApp } from "../../store";
 import { Button } from "../ui";
 import { formatBytes } from "./LocalModels";
@@ -43,7 +44,9 @@ export function PluginsSection() {
     <div ref={ref} className="mt-2 scroll-mt-4 border-t border-line pt-5">
       <h3 className="text-[12px] font-medium text-faint">{t("插件")}</h3>
       <p className="mt-1 text-[12px] leading-relaxed text-muted">
-        {t("插件给应用加上额外的功能，例如粘贴 YouTube 链接导入音频。插件是运行在这台 Mac 上的程序，只安装你信任的插件。")}
+        {isWindows
+          ? t("插件给应用加上额外的功能，例如粘贴 YouTube 链接导入音频。插件是运行在这台电脑上的程序，只安装你信任的插件。")
+          : t("插件给应用加上额外的功能，例如粘贴 YouTube 链接导入音频。插件是运行在这台 Mac 上的程序，只安装你信任的插件。")}
       </p>
       <div className="mt-1 flex flex-col divide-y divide-line">
         {plugins.map((p) => (
@@ -77,7 +80,9 @@ function Offer({ offer, onInstall, onCancel }: { offer: PluginOffer; onInstall: 
         {runs && <p>{t("它会：{runs}", { runs })}</p>}
         {network.length > 0 && <p>{t("联网：{hosts}", { hosts: network.join(t("、")) })}</p>}
         {offer.replacing && <p>{t("会替换已安装的 {name}。", { name: offer.replacing })}</p>}
-        <p className="text-fg">{t("插件是运行在这台 Mac 上的程序，可以读写你的文件。只安装你信任的插件。")}</p>
+        <p className="text-fg">
+          {isWindows ? t("插件是运行在这台电脑上的程序，可以读写你的文件。只安装你信任的插件。") : t("插件是运行在这台 Mac 上的程序，可以读写你的文件。只安装你信任的插件。")}
+        </p>
       </div>
       <div className="mt-3 flex justify-end gap-2">
         <Button onClick={onCancel}>{t("取消")}</Button>

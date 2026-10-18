@@ -15,6 +15,8 @@ export const settings: Record<string, Entry> = {
   "AI 功能（可选）": "AI features (optional)",
   "不设置也能正常播放、循环和使用字幕。API Key 保存在 macOS 钥匙串里，只在这台 Mac 上使用。":
     "Playback, loops and subtitles all work without these. API keys are kept in the macOS Keychain and only used on this Mac.",
+  "不设置也能正常播放、循环和使用字幕。API Key 保存在 Windows 凭据管理器里，只在这台电脑上使用。":
+    "Playback, loops and subtitles all work without these. API keys are kept in the Windows Credential Manager and only used on this PC.",
   转写: "Transcription",
   "把没有字幕的音频变成带时间的句子，就能点句循环。": "Turns audio without subtitles into timed sentences, so you can click a sentence to loop it.",
   句子解释: "Explanations",
@@ -45,6 +47,7 @@ export const settings: Record<string, Entry> = {
   "要解释的句子会发送到 {name}": "Sentences to explain are sent to {name}",
   要解释的句子会发送到你填写的地址: "Sentences to explain are sent to the address you enter",
   "在这台 Mac 上运行，内容不会离开本机": "Runs on this Mac; nothing leaves it",
+  "在这台电脑上运行，内容不会离开本机": "Runs on this PC; nothing leaves it",
   地址: "Address",
   账号: "Account",
   模型: "Model",
@@ -57,6 +60,7 @@ export const settings: Record<string, Entry> = {
 
   // API key
   已保存在钥匙串: "Saved in Keychain",
+  已保存在凭据管理器: "Saved in Credential Manager",
   更换: "Change",
   确认删除: "Confirm delete",
   删除: "Delete",
@@ -102,6 +106,8 @@ export const settings: Record<string, Entry> = {
     `${plural(Number(n), "track")} can't be found anymore (moved or deleted), with ${size} of recordings. An unplugged external drive doesn't count as missing.`,
   "跟读录音和整段录音存在这台 Mac 的应用数据里，不会写到音频旁边。":
     "Shadow recordings and section readings are kept in the app's data on this Mac, never next to your audio.",
+  "跟读录音和整段录音存在这台电脑的应用数据里，不会写到音频旁边。":
+    "Shadow recordings and section readings are kept in the app's data on this PC, never next to your audio.",
   确定删除: "Confirm delete",
   删除这些录音: "Delete these recordings",
 
@@ -109,6 +115,8 @@ export const settings: Record<string, Entry> = {
   插件: "Plugins",
   "插件给应用加上额外的功能，例如粘贴 YouTube 链接导入音频。插件是运行在这台 Mac 上的程序，只安装你信任的插件。":
     "Plugins add extra features to the app, such as importing audio by pasting a YouTube link. A plugin is a program that runs on this Mac; only install plugins you trust.",
+  "插件给应用加上额外的功能，例如粘贴 YouTube 链接导入音频。插件是运行在这台电脑上的程序，只安装你信任的插件。":
+    "Plugins add extra features to the app, such as importing audio by pasting a YouTube link. A plugin is a program that runs on this PC; only install plugins you trust.",
   "从文件夹安装…": "Install from folder…",
   安装插件: "Install plugin",
   "安装插件「{name}」？": "Install plugin “{name}”?",
@@ -119,6 +127,8 @@ export const settings: Record<string, Entry> = {
   "会替换已安装的 {name}。": "Replaces the installed {name}.",
   "插件是运行在这台 Mac 上的程序，可以读写你的文件。只安装你信任的插件。":
     "A plugin is a program that runs on this Mac and can read and write your files. Only install plugins you trust.",
+  "插件是运行在这台电脑上的程序，可以读写你的文件。只安装你信任的插件。":
+    "A plugin is a program that runs on this PC and can read and write your files. Only install plugins you trust.",
   安装: "Install",
   "可以导入：{kinds}": "Imports: {kinds}",
   占用: "Uses",
@@ -167,7 +177,7 @@ export const settings: Record<string, Entry> = {
   "AI 校对用「句子解释」的服务，还没有设置好。": "AI proofreading uses the Explanations service, which isn't set up yet.",
   去设置: "Open Settings",
   "把这 {count} 句文字交给本机的 {label}，找出可能听错的字。只给建议，改不改由你决定。": ({ n }) =>
-    `Send {count} ${one(n) ? "sentence" : "sentences"} to {label} on this Mac to find words that may be misheard. It only suggests; you decide what to change.`,
+    `Send {count} ${one(n) ? "sentence" : "sentences"} to {label} on {device} to find words that may be misheard. It only suggests; you decide what to change.`,
   "把这 {count} 句文字发给 {label}，找出可能听错的字。只给建议，改不改由你决定。": ({ n }) =>
     `Send {count} ${one(n) ? "sentence" : "sentences"} to {label} to find words that may be misheard. It only suggests; you decide what to change.`,
   开始校对: "Start proofreading",
