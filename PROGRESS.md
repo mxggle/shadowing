@@ -2,6 +2,29 @@
 
 _最后更新：2026-10-18_
 
+## Windows 版（进行中，在 feat/windows 分支，2026-10-18）
+- 来由：想让 Windows 上的人也能用。前端、Tauri 配置、CI 和文档在 `feat/windows-ui`，Rust 的部分（钥匙串、转写、更新、插件）另有人做，做完由主线补到这里。
+  总的规则：**Mac 上的文案、快捷键、布局和以前一模一样，只有 Windows 变**。
+- 已实现（前端 / 配置 / CI / 文档）：
+  - `src/lib/platform.ts`：看 WebView 的 user agent（WebView2 是 “Windows NT”，WKWebView 是 “Macintosh”）判断系统；浏览器 mock 里地址加 `?platform=windows` 预览 Windows
+    （mock 里也不再有本机转写，`mockBackend.ts`）。`isMod(e)` / `isCmd(e)` 判断命令键（Mac 保持原来的 ⌘ 或 Ctrl，Windows 只认 Ctrl），`shortcut()` 把 Mac 的写法（`⌘F`、`⇧↩`）换成 Windows 的（Ctrl+F、Shift+Enter）。
+  - 快捷键：`useShortcuts`、设置的 ⌘,、改句子里的 ⌘Z / ⌫ 都经过上面的判断；`Kbd`、`?` 表、tooltip 和更新说明里的按键都显示 Ctrl / Shift / Alt / Enter / Backspace。tooltip 里的快捷键改成 `{key}` 变量。
+  - 文案：Windows 上说“这台电脑”“Windows 凭据管理器”（英文 this PC、Windows Credential Manager）；新手引导和设置向导里没有“在这台 Mac 上转写”，只讲云端转写；
+    语言选项“跟随系统”的英文在 Windows 上是 Same as Windows。词在句子中间的句子给 Windows 单独写了一句（中文里 Mac 前后有空格而“电脑”没有）。`lib/wording.ts` 管 `{device}` / `{vault}`。
+  - 窗口：顶栏给红绿灯留的空白（侧栏顶栏 `pl-20`、侧栏收起后主栏 `pl-[84px]`）只在 Mac 上留；`tauri.windows.conf.json` 的窗口没有 Overlay 标题栏、红绿灯位置和隐藏标题。
+  - 字体：`index.css` 里 Windows 的字体接在 Mac 的后面（Segoe UI / Microsoft YaHei UI / Yu Gothic UI；Yu Mincho / MS Mincho / SimSun；SimSun / NSimSun；Cascadia Mono / Consolas）。
+  - 路径：`lib/paths.ts` 同时认 `/` 和 `\`（面包屑、学习记录里没有标题时用文件名）；其余的 `src/` 里没有别处拆路径。
+  - WebView2 自带的 F5 / Ctrl+R / Ctrl+P / Ctrl+F 等在发布版里拦掉（`tauri dev` 里保留）。CSS 对照 Chromium 的支持情况查过（没在真机上看）：滚动条（`scrollbar-none`）、数字输入框的上下箭头、`-webkit-` 前缀的样式都有标准写法或 Chromium 也认，没有只在 WebKit 里有的写法（没有 `backdrop-filter`）。
+  - Tauri 配置：`src-tauri/tauri.windows.conf.json`（NSIS、当前用户安装、简体中文和英文、WebView2 下载式引导、含 icon.ico 的图标、没有 Mac 标题栏设置的窗口）；Mac 的打包配置和更新相关的键没动，`createUpdaterArtifacts` 仍是 false。
+  - CI：`check.yml` 加了 `windows` 任务；新的 `windows-build.yml`（手动，或推到 `feat/windows*`）出 NSIS 安装包，保留 14 天。
+  - 文档：CLAUDE.md 加了 Windows 一节、“Mac 和 Windows”的文案规则和 CI 说明；PRODUCT.md 的 Windows 版表按行写了现状。
+- 已验证（自动）：tsc、vitest（新增 platform、wording、paths 的测试，i18n 测试仍找不出没翻译的中文）；两个 workflow 和 `tauri.windows.conf.json` 解析过，键名对照了 Tauri 的 schema。
+  浏览器 mock 里分别用 `?platform=windows` 和 `?platform=mac` 看过：快捷键表、设置、新手引导（三步）、侧栏收起前后的顶栏，浅色和深色、中文和英文。Mac 的顶栏空白和以前一样。
+- 待验证（只有真实的 Windows 电脑能回答）：安装包能不能装、WebView2 下载引导、`samples/ja/` 的日文文件名；原生标题栏下顶栏的高度和拖动；Ctrl 快捷键（特别是 Ctrl+F、Ctrl+,）有没有被 WebView2 或输入法抢走；
+  菜单栏（Rust 的菜单在 Windows 上是窗口里的一行，Alt 会激活它）；字体看起来怎样（SimSun 的标题、没装日文语言包时没有 Yu Mincho）；音频输出、录音权限；路径带 `\` 时的列表分组（取决于 Rust 给的 `relDir` 用哪种分隔符）。
+- 没做：Windows ARM64、签名、应用内更新（Windows 版先手动下载）、自定义标题栏。
+- 下一步：Rust 的部分合进来后，在这里补上并让 CI 的 Windows 任务变绿；找一台真机试装，试过之前不发布。
+
 ## 英文界面（2026-10-18）
 - 来由：要给不说中文的人用；README 已经是英文。界面保留中文，新装的跟随 Mac 的语言，设置里能切换。
 - 已实现：

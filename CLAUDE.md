@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Shadowing：macOS 优先的 Tauri 2 桌面应用，用于本地音频的反复听和跟读。
+Shadowing：macOS 优先的 Tauri 2 桌面应用，用于本地音频的反复听和跟读。Windows（x86_64）正在移植，见下面的“Windows”一节。
 产品目标与范围见 [PRODUCT.md](PRODUCT.md)，当前进度见 [PROGRESS.md](PROGRESS.md)。开工前先读这两个文件。
 
 ## 技术栈
@@ -26,6 +26,10 @@ src/                      前端
   lib/reshape.ts          拆句 / 合并后跟着挪的东西（句子序号、段落、解释、建议、撤销），有单元测试
   lib/aiReady.ts          转写 / 解释是否已设置好、向导从哪一步继续，有单元测试
   lib/i18n.ts             界面语言：t() / tk() 取中文或英文（英文在 src/i18n/en/，按界面的各部分分文件），有单元测试（也检查没翻译的中文）
+  lib/platform.ts         在哪个系统上跑（Windows 还是 Mac，看 WebView 的 user agent；浏览器 mock 里地址加 ?platform=windows 预览 Windows）、
+                          命令键判断（isMod / isCmd）和按键名（shortcut()：⌘ → Ctrl、⇧ → Shift），有单元测试
+  lib/wording.ts          Mac 和 Windows 说法不同的词（这台 Mac / 这台电脑，macOS 钥匙串 / Windows 凭据管理器），有单元测试
+  lib/paths.ts            路径里的 / 和 \（面包屑的子文件夹、没有标题时用文件名），有单元测试
   lib/update.ts           更新提示里的更新说明要点、下载百分比，有单元测试
   lib/changelog.ts        新功能：把打包进应用的 CHANGELOG.md（releases.ts）读成各个版本、更新后要不要说“已更新到 …”，有单元测试
   lib/practice.ts         学习记录：按天（4 点换日）汇总练习时间、每天的目标、连续达标天数，有单元测试
@@ -101,10 +105,25 @@ src-tauri/src/
 plugins/youtube/          「YouTube 导入」插件：单独的小 Rust 程序（不进应用的构建），说插件协议；
                           第一次用时下载 yt-dlp 文件夹版和 QuickJS-ng（校验 SHA-256），每天最多查一次 yt-dlp 新版本；
                           只取 m4a 音轨（不用 ffmpeg）和人工字幕。scripts/build-plugin.sh youtube 生成可安装的文件夹
+src-tauri/tauri.windows.conf.json   只在 Windows 上叠加到 tauri.conf.json 的配置（JSON Merge Patch，数组整个替换）：
+                          没有 Mac 的标题栏设置的窗口、NSIS 安装包（当前用户、简体中文和英文）、WebView2 下载式引导、含 icon.ico 的图标列表
 docs/plugin-dev.md        写插件的人看的文档（manifest、协议、运行环境、打包、提交和审核）
 site/                     落地页 index.html 和插件目录 plugins.html（列表是 plugins.json，scripts/check-plugin-list.mjs 检查格式；
                           提交插件用 .github/ISSUE_TEMPLATE/plugin.yml），见 site/README.md
 ```
+
+## Windows（移植中）
+
+x86_64 先做；**还没有在真实的 Windows 电脑上试过，试过之前不发布**。每一行的现状见 [PRODUCT.md](PRODUCT.md) 的“Windows 版”，做了什么见 [PROGRESS.md](PROGRESS.md)。
+
+- 前端怎么判断系统、怎么写文案和快捷键：见“约定”里的“Mac 和 Windows”。`lib/platform.ts` 只看 WebView 的 user agent（WebView2 是 “Windows NT”，WKWebView 是 “Macintosh”）。
+- 窗口：Mac 用 `titleBarStyle: Overlay`（红绿灯压在界面上）；Windows 是原生标题栏，`tauri.windows.conf.json` 里的窗口设置没有这几项。
+  WebView2 是 Chromium：它自带的 F5 / Ctrl+R / Ctrl+P / Ctrl+F 在发布版里被 `useShortcuts` 拦掉（`tauri dev` 里保留，方便刷新）。
+- **只有 macOS 有的**：本机转写（whisper.cpp + Metal，Windows 只提供云端转写）；应用内更新和发布流程（`release.yml`、`scripts/release-*.sh`、更新签名、
+  `latest.json` 里只有 darwin-aarch64，Windows 版暂时手动下载安装包）；代码签名（自签证书，Windows 安装包没有签名，SmartScreen 会警告）。
+- 拿到 Windows 安装包：GitHub 的 Actions → “Windows build”（手动运行；推到 `feat/windows*` 分支也会自动跑）→ 运行结果里的 Artifacts → `Shadowing-windows-x64-setup`（保留 14 天，
+  解压后运行里面的 `…_x64-setup.exe`，装在当前用户下，不要管理员权限）。在 Windows 上本机构建：`npx tauri build --bundles nsis`，安装包在 `src-tauri/target/release/bundle/nsis/`。
+- 在 Windows 上克隆仓库时执行 `git config --global core.autocrlf false`：shell 脚本带上 CRLF 就跑不了（CI 的 Windows 任务也先关掉了）。
 
 ## 播放引擎（src-tauri/src/audio）
 
@@ -144,6 +163,14 @@ site/                     落地页 index.html 和插件目录 plugins.html（�
   - 滚动区域不显示滚动条（`scrollbar-none`），在边缘用渐隐或细线提示还有内容。
   - 时间、速度、计数用等宽数字（`font-mono tabular`）；文字不小于 11px；快捷键提示放在 tooltip 和 `?` 表里，不贴在控件上；
     要提到按键时用 `Kbd`（细线框）。动效 ≤ 250ms、只缓出不回弹。
+- Mac 和 Windows（`lib/platform.ts`）：只有 Windows 会变，**Mac 上的文案、快捷键、布局必须和以前一模一样**。
+  - 快捷键按 Mac 的写法写（`⌘F`、`⇧↩`），显示时经过 `shortcut()` 或 `Kbd`（Windows 上是 Ctrl+F、Shift+Enter）；tooltip 里写成 `t("查找和替换 ({key})", { key: shortcut("⌘F") })`。
+    判断“按了命令键”用 `isMod(e)`（Mac 仍是 ⌘ 或 Ctrl，Windows 只认 Ctrl）或 `isCmd(e)`（只认本系统自己的键：Mac 的 ⌘、Windows 的 Ctrl），不要直接读 `e.metaKey`。
+  - 提到“这台 Mac”“钥匙串”：词在句末、前后本来就有空格、或只是英文时，用 `device()` / `vault()`（`lib/wording.ts`）填 `{device}` / `{vault}`。
+    中文里 Mac 前后有空格而“电脑”没有，所以词在句子中间时给 Windows 单独写一句：`isWindows ? t("…这台电脑上…") : t("…这台 Mac 上…")`，两句都要有英文。
+    只有 Mac 才会出现的界面（本机 Whisper 的卡片、芯片和内存）照写 Mac。
+  - 顶栏给 Mac 红绿灯留的空白（`pl-20`、`pl-[84px]`）只在 Mac 上留；Windows 有自己的标题栏。路径里的分隔符用 `lib/paths.ts`，不要 `split("/")`。
+  - 字体栈（`src/index.css`）里 Mac 的字体在前，Windows 的接在后面。
 - 不为旧项目（~/code/lingoloop）做任何兼容或迁移；参考它的思路可以，不搬它的结构。
 
 ## 验证
@@ -154,7 +181,8 @@ scripts/make-fixtures.sh <文件夹>       # 生成自测用的测试音频（�
 npm run smoke -- <文件夹>              # 构建调试版 .app，在真实应用里跑自测并打印 PASS/FAIL
                                       # （会在 18765 端口启动 scripts/fake-whisper.py 测转写全流程）
 scripts/build-plugin.sh youtube       # 构建插件，生成 plugins/youtube/dist/youtube/（设置 → 插件 → 从文件夹安装）
-npm run dev                           # 浏览器 + mock 后端，只用来调 UI（没有真实声音）；地址加 ?fresh 模拟第一次打开
+npm run dev                           # 浏览器 + mock 后端，只用来调 UI（没有真实声音）；地址加 ?fresh 模拟第一次打开，
+                                      # 加 ?platform=windows 看 Windows 的界面（Ctrl 快捷键、“这台电脑”、没有红绿灯的空白、没有本机转写）
 npm run app                           # 开发模式启动应用
 SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的数据文件夹（看第一次打开的新手引导，不动真实数据；
                                       # 加 SHADOWING_MODELS_DIR=~/Library/Application\ Support/dev.shadowing.app/models 可复用已下载的模型）
@@ -220,5 +248,7 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
 
 ## CI
 
-- `.github/workflows/check.yml`：每个 PR 和推到 `main` 时在 macOS（Apple Silicon）上跑 `scripts/check-version.sh` 和 `npm run check`。
+- `.github/workflows/check.yml`：每个 PR 和推到 `main` 时在 macOS（Apple Silicon）上跑 `scripts/check-version.sh` 和 `npm run check`；
+  另有一个 `windows` 任务（windows-latest，x86_64）在 Windows 上跑 `npm run check`。runner 没有声卡，要真实音频设备的测试照旧是 `#[ignore]`。
+- `.github/workflows/windows-build.yml`：手动运行或推到 `feat/windows*` 分支时，用 `npx tauri build --bundles nsis` 出 Windows 安装包，作为 Artifacts 保留 14 天（用来在真机上试，不是发布）。
 - `.github/workflows/release.yml`：推送 `v*.*.*` 标签时出草稿 Release（含签名的更新包和 latest.json）；改了 Rust 依赖的 main 推送和每周一次只构建，用来保住依赖的编译缓存（标签构建只能用 main 上存的缓存）；手动运行只构建，zip 留在 Actions 的产物里 14 天。
