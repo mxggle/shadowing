@@ -60,17 +60,16 @@ pub async fn update_check(
 pub async fn update_install(app: AppHandle, pending: State<'_, Pending>) -> Result<(), String> {
     let exe = std::env::current_exe().map_err(message)?;
     if translocated(&exe.to_string_lossy()) {
-        return Err(
-            "应用是从“下载”文件夹直接打开的，系统不允许它替换自己。请先把 Shadowing 拖进“应用程序”文件夹，从那里打开后再更新。"
-                .into(),
-        );
+        return Err(pick(
+            "应用是从“下载”文件夹直接打开的，系统不允许它替换自己。请先把 Shadowing 拖进“应用程序”文件夹，从那里打开后再更新。",
+            "The app was opened straight from Downloads, where macOS won’t let it replace itself. Drag Shadowing into Applications, open it from there, then update.",
+        )
+        .into());
     }
-    let update = pending
-        .0
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("没有可安装的更新，请重新检查")?;
+    let update = pending.0.lock().unwrap().clone().ok_or(pick(
+        "没有可安装的更新，请重新检查",
+        "There’s no update to install. Check again.",
+    ))?;
     let mut done = 0u64;
     update
         .download_and_install(
@@ -146,16 +145,23 @@ fn message(e: impl std::fmt::Display) -> String {
     let e = e.to_string();
     let lower = e.to_lowercase();
     if lower.contains("signature") {
-        format!("下载的更新没有通过签名校验，已放弃安装（{e}）")
+        crate::tr!(
+            "下载的更新没有通过签名校验，已放弃安装（{e}）",
+            "The downloaded update failed its signature check and wasn’t installed ({e})"
+        )
     } else if lower.contains("network")
         || lower.contains("connect")
         || lower.contains("dns")
         || lower.contains("timed out")
         || lower.contains("error sending request")
     {
-        "连不上更新服务器，请检查网络后再试".into()
+        pick(
+            "连不上更新服务器，请检查网络后再试",
+            "Can’t reach the update server. Check your connection and try again.",
+        )
+        .into()
     } else {
-        format!("更新失败：{e}")
+        crate::tr!("更新失败：{e}", "Update failed: {e}")
     }
 }
 
