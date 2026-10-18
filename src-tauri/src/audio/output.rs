@@ -1,7 +1,7 @@
 //! Owns the cpal output stream on a dedicated thread (streams are not `Send`
 //! on every platform). Follows the system default device: reopens when the
 //! device errors (e.g. headphones unplugged) or the default changes, and
-//! pauses the stream after a few idle seconds so the Mac can sleep.
+//! pauses the stream after a few idle seconds so the computer can sleep.
 
 use super::engine::{Engine, Shared};
 use super::EventSink;
@@ -98,8 +98,9 @@ pub fn spawn(
     tx
 }
 
-/// Host time in ns (mach absolute time on macOS, the same clock for input and
-/// output streams), so the recorder can line the microphone up with the tap.
+/// Host time in ns (mach absolute time on macOS, QueryPerformanceCounter on Windows:
+/// the same clock for input and output streams), so the recorder can line the
+/// microphone up with the tap.
 pub fn host_nanos(t: &cpal::StreamInstant) -> u64 {
     t.duration_since(&cpal::StreamInstant::new(0, 0))
         .map_or(0, |d| d.as_nanos() as u64)
@@ -119,7 +120,7 @@ fn output_device(host: &cpal::Host) -> Option<cpal::Device> {
         let found = host
             .output_devices()
             .ok()?
-            .find(|d| d.name().is_ok_and(|n| n.contains(&name)));
+            .find(|d| device_name(d).is_some_and(|n| n.contains(&name)));
         if found.is_some() {
             return found;
         }
@@ -127,8 +128,16 @@ fn output_device(host: &cpal::Host) -> Option<cpal::Device> {
     host.default_output_device()
 }
 
+/// The device's name, None if it can't be read. On Windows cpal panics instead of failing
+/// when the device goes away (unplugged) between being found and being asked.
+pub fn device_name(device: &cpal::Device) -> Option<String> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| device.name().ok()))
+        .ok()
+        .flatten()
+}
+
 fn default_name(host: &cpal::Host) -> Option<String> {
-    output_device(host).and_then(|d| d.name().ok())
+    output_device(host).and_then(|d| device_name(&d))
 }
 
 fn open(
@@ -137,7 +146,7 @@ fn open(
     failed: Arc<AtomicBool>,
 ) -> Result<Open, String> {
     let device = output_device(host).ok_or(err_device())?;
-    let name = device.name().unwrap_or_default();
+    let name = device_name(&device).unwrap_or_default();
     let supported = device.default_output_config().map_err(|e| e.to_string())?;
     let config: StreamConfig = supported.config();
     if let Ok(mut e) = engine.lock() {

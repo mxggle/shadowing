@@ -1,5 +1,7 @@
-//! API keys and tokens live in the macOS Keychain, one item per provider.
-//! Tests and smoke runs use an in-memory store so they never touch the real one.
+//! API keys and tokens live in the system's secret store, one item per provider: the
+//! Keychain on macOS, Credential Manager on Windows (where a long value takes several
+//! entries, see `pieces.rs`). Tests and smoke runs use an in-memory store so they never
+//! touch the real one.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -12,51 +14,79 @@ pub trait SecretStore: Send + Sync {
 
 pub struct Secrets(pub Box<dyn SecretStore>);
 
-/// The item name macOS shows when it asks about the Keychain.
+/// The item name macOS shows when it asks about the Keychain (on Windows, entries are
+/// named `<provider>.Shadowing`).
 const SERVICE: &str = "Shadowing";
 /// Before 0.5.1 the items were named after the bundle identifier, which read like a “dev” build.
 /// Read once and copied to `SERVICE`; the old item is left alone, since removing it could ask again.
+#[cfg(target_os = "macos")]
 const OLD_SERVICE: &str = "dev.shadowing.app";
+/// Longest value of one Credential Manager entry: 2560 bytes, as UTF-16.
+#[cfg(windows)]
+const ENTRY_UNITS: usize = 2560 / 2;
 
+/// The system's store: the Keychain on macOS, Credential Manager on Windows.
 pub struct Keychain;
 
 impl Keychain {
     pub fn new() -> Result<Self, String> {
+        #[cfg(target_os = "macos")]
         let store = apple_native_keyring_store::keychain::Store::new().map_err(fail)?;
-        keyring_core::set_default_store(store);
-        Ok(Self)
+        #[cfg(windows)]
+        let store = windows_native_keyring_store::Store::new().map_err(fail)?;
+        #[cfg(any(target_os = "macos", windows))]
+        {
+            keyring_core::set_default_store(store);
+            Ok(Self)
+        }
+        #[cfg(not(any(target_os = "macos", windows)))]
+        Err(fail(keyring_core::Error::NoDefaultStore))
     }
 }
 
 fn fail(e: keyring_core::Error) -> String {
-    tr!("无法访问钥匙串：{e}", "Couldn't access the Keychain: {e}")
+    let store = crate::i18n::pick(
+        crate::i18n::os("钥匙串", "Windows 凭据管理器"),
+        crate::i18n::os("the Keychain", "Windows Credential Manager"),
+    );
+    tr!("无法访问{store}：{e}", "Couldn't access {store}: {e}")
 }
 
 fn entry(service: &str, id: &str) -> Result<keyring_core::Entry, String> {
     keyring_core::Entry::new(service, id).map_err(fail)
 }
 
-fn read(service: &str, id: &str) -> Result<Option<String>, String> {
-    match entry(service, id)?.get_password() {
-        Ok(secret) => Ok(Some(secret)),
-        Err(keyring_core::Error::NoEntry) => Ok(None),
-        Err(e) => Err(fail(e)),
+/// One entry per id, in one service: the store as the system sees it.
+struct Entries(&'static str);
+
+impl SecretStore for Entries {
+    fn get(&self, id: &str) -> Result<Option<String>, String> {
+        match entry(self.0, id)?.get_password() {
+            Ok(secret) => Ok(Some(secret)),
+            Err(keyring_core::Error::NoEntry) => Ok(None),
+            Err(e) => Err(fail(e)),
+        }
+    }
+
+    fn set(&self, id: &str, secret: &str) -> Result<(), String> {
+        entry(self.0, id)?.set_password(secret).map_err(fail)
+    }
+
+    fn delete(&self, id: &str) -> Result<(), String> {
+        match entry(self.0, id)?.delete_credential() {
+            Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
+            Err(e) => Err(fail(e)),
+        }
     }
 }
 
-fn remove(service: &str, id: &str) -> Result<(), String> {
-    match entry(service, id)?.delete_credential() {
-        Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
-        Err(e) => Err(fail(e)),
-    }
-}
-
+#[cfg(target_os = "macos")]
 impl SecretStore for Keychain {
     fn get(&self, id: &str) -> Result<Option<String>, String> {
-        if let Some(secret) = read(SERVICE, id)? {
+        if let Some(secret) = Entries(SERVICE).get(id)? {
             return Ok(Some(secret));
         }
-        let Some(secret) = read(OLD_SERVICE, id)? else {
+        let Some(secret) = Entries(OLD_SERVICE).get(id)? else {
             return Ok(None);
         };
         // Saved by an older version: keep a copy under the new name (still usable if that fails).
@@ -67,18 +97,45 @@ impl SecretStore for Keychain {
     }
 
     fn set(&self, id: &str, secret: &str) -> Result<(), String> {
-        entry(SERVICE, id)?.set_password(secret).map_err(fail)
+        Entries(SERVICE).set(id, secret)
     }
 
     /// Both names, so signing out or clearing a key leaves no copy behind.
     fn delete(&self, id: &str) -> Result<(), String> {
-        remove(SERVICE, id)?;
-        remove(OLD_SERVICE, id)
+        Entries(SERVICE).delete(id)?;
+        Entries(OLD_SERVICE).delete(id)
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+impl SecretStore for Keychain {
+    fn get(&self, id: &str) -> Result<Option<String>, String> {
+        super::pieces::get(&Entries(SERVICE), id)
+    }
+
+    fn set(&self, id: &str, secret: &str) -> Result<(), String> {
+        #[cfg(windows)]
+        let limit = ENTRY_UNITS;
+        #[cfg(not(windows))]
+        let limit = usize::MAX;
+        super::pieces::set(&Entries(SERVICE), id, secret, limit)
+    }
+
+    fn delete(&self, id: &str) -> Result<(), String> {
+        super::pieces::delete(&Entries(SERVICE), id)
     }
 }
 
 #[derive(Default)]
 pub struct Memory(Mutex<HashMap<String, String>>);
+
+impl Memory {
+    /// What is saved, for tests.
+    #[cfg(test)]
+    pub fn ids(&self) -> Vec<String> {
+        self.0.lock().unwrap().keys().cloned().collect()
+    }
+}
 
 impl SecretStore for Memory {
     fn get(&self, id: &str) -> Result<Option<String>, String> {
@@ -126,16 +183,23 @@ mod tests {
         k.set(id, "secret-1").unwrap();
         k.set(id, "secret-2").unwrap();
         assert_eq!(k.get(id).unwrap().as_deref(), Some("secret-2"));
+        // Longer than one Credential Manager entry, with characters outside ASCII.
+        let long = "語𝄞-token.".repeat(400);
+        k.set(id, &long).unwrap();
+        assert_eq!(k.get(id).unwrap(), Some(long));
         k.delete(id).unwrap();
         assert_eq!(k.get(id).unwrap(), None);
 
         // An item saved by an older version is read and copied to the new name.
-        entry(OLD_SERVICE, id).unwrap().set_password("old").unwrap();
-        assert_eq!(k.get(id).unwrap().as_deref(), Some("old"));
-        assert_eq!(read(SERVICE, id).unwrap().as_deref(), Some("old"));
-        k.delete(id).unwrap();
-        assert_eq!(read(OLD_SERVICE, id).unwrap(), None);
-        assert_eq!(k.get(id).unwrap(), None);
+        #[cfg(target_os = "macos")]
+        {
+            Entries(OLD_SERVICE).set(id, "old").unwrap();
+            assert_eq!(k.get(id).unwrap().as_deref(), Some("old"));
+            assert_eq!(Entries(SERVICE).get(id).unwrap().as_deref(), Some("old"));
+            k.delete(id).unwrap();
+            assert_eq!(Entries(OLD_SERVICE).get(id).unwrap(), None);
+            assert_eq!(k.get(id).unwrap(), None);
+        }
     }
 
     #[test]

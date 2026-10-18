@@ -1,5 +1,5 @@
 //! Optional AI features: which service and model each feature uses, the API
-//! keys (Keychain), and checking that a service answers. Nothing here is
+//! keys (Keychain / Credential Manager), and checking that a service answers. Nothing here is
 //! needed for playback or subtitles.
 
 pub mod chat;
@@ -8,6 +8,9 @@ pub mod check;
 pub mod http;
 pub mod oauth;
 pub mod openrouter;
+/// Long secrets across several entries: Windows (the Keychain holds them whole).
+#[cfg(any(not(target_os = "macos"), test))]
+pub mod pieces;
 pub mod providers;
 pub mod secrets;
 
@@ -283,11 +286,7 @@ pub fn ai_open_key_page(provider: String) -> Result<(), String> {
         "这个服务没有 Key 页面",
         "This service has no API key page.",
     ))?;
-    std::process::Command::new("open")
-        .arg(url)
-        .spawn()
-        .map(drop)
-        .map_err(|e| e.to_string())
+    oauth::open_browser(url)
 }
 
 #[cfg(test)]
