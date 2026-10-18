@@ -17,9 +17,9 @@ podcast/
 ```
 
 应用要用插件时启动 `bin/podcast`，在它的标准输入输出上一行一条 [JSON-RPC 2.0](https://www.jsonrpc.org/specification) 消息
-（和 LSP、MCP 同一种做法），用完就结束这个进程。用什么语言写都行，只要程序能直接在 Mac 上运行：
-Rust、Go、Swift 编译出来的程序，或者用 Mac 自带解释器的脚本（`#!/bin/sh`、`#!/bin/zsh`）。
-别依赖 Homebrew、Python、Node：插件的 `PATH` 只有系统目录，用户的 Mac 上也不一定有。
+（和 LSP、MCP 同一种做法），用完就结束这个进程。用什么语言写都行，只要程序能直接在用户的电脑上运行：
+Rust、Go、Swift 编译出来的程序，或者用系统自带解释器的脚本（Mac 上 `#!/bin/sh`、`#!/bin/zsh`；Windows 上 `.cmd`，见[Windows](#windows)）。
+别依赖 Homebrew、Python、Node：插件的 `PATH` 只有系统目录，用户的电脑上也不一定有。
 
 现在只有一个扩展点：**从链接导入**。用户粘贴一个链接，你的插件把音频（和字幕）下载下来，应用放进用户的文件夹。
 导出（比如导出到 Anki）、查词典这些扩展点在计划中。
@@ -35,7 +35,7 @@ Rust、Go、Swift 编译出来的程序，或者用 Mac 自带解释器的脚本
   "minAppVersion": "0.9.0",
   "author": "你的名字",
   "description": "粘贴播客单集的链接，导入音频。",
-  "main": { "darwin-arm64": "bin/podcast" },
+  "main": { "darwin-arm64": "bin/podcast", "windows-x86_64": "bin/podcast.exe" },
   "contributes": {
     "importers": [
       { "id": "episode", "title": "播客", "match": ["https://*.example.fm/episodes/*"] }
@@ -56,7 +56,7 @@ Rust、Go、Swift 编译出来的程序，或者用 Mac 自带解释器的脚本
 | `protocol` | 是 | 现在是 `1` |
 | `minAppVersion` | | 需要的最低应用版本，例如 `"0.9.0"`；更旧的应用会拒绝安装 |
 | `author`、`description` | | 安装前和设置里显示 |
-| `main` | 是 | 平台 → 插件文件夹里的程序路径。平台是 `darwin-arm64`（Apple Silicon）或 `darwin-x86_64`（Intel）。路径不能出插件文件夹 |
+| `main` | 是 | 平台 → 插件文件夹里的程序路径。平台是 `darwin-arm64`（Apple Silicon）、`darwin-x86_64`（Intel Mac）、`windows-x86_64`、`windows-arm64`。Windows on Arm 上没有 `windows-arm64` 时用 `windows-x86_64` 的程序（Windows 11 会模拟运行）；Mac 不这样回退。路径用 `/` 分隔，不能出插件文件夹，也不能有 `:`；Windows 的程序要写全文件名（`bin/podcast.exe`） |
 | `contributes.importers` | | 能导入哪些链接，见下面 |
 | `permissions.network` | | 会联网到哪些域名 |
 | `permissions.runs` | | 一句话：会下载或运行什么程序（例如“第一次使用时从 GitHub 下载 yt-dlp（约 51 MB）”） |
@@ -149,6 +149,7 @@ resolve 时也可以发（例如第一次用时要先下载工具）。`log` 只
 
 - 环境变量清空，只留：`PATH=/usr/bin:/bin:/usr/sbin:/sbin`、`LANG=en_US.UTF-8`、`HOME`、`TMPDIR` 和代理变量
   （`http_proxy`、`https_proxy`、`all_proxy`、`no_proxy`，大小写都有）。联网时请尊重代理变量，国内用户常用代理。
+  Windows 上留的不一样，见[Windows](#windows)。
 - 工作目录是插件的 `data/`。
 - 插件**只写**自己的 `data/` 和应用给的 `outDir`，不读写用户的其他文件、不碰钥匙串、不收集使用数据。这是上架的条件。
 - 要下载别的程序（像 YouTube 导入下载 yt-dlp）时：固定版本或校验官方发布的 SHA-256，下载到 `data/`，并写进 `permissions.runs`。
@@ -161,13 +162,13 @@ resolve 时也可以发（例如第一次用时要先下载工具）。`log` 只
    扩展名是 `mp3`、`m4a`、`m4b`、`aac`、`wav`、`flac`、`aif`、`aiff`、`caf` 之一。没有就报“插件没有下载到能播放的音频”。
    （Opus、WebM 应用放不了，请下载成上面的格式。）
 2. 字幕取第一个 `.srt` 或 `.vtt`（不超过 20 MB），存成这个音频的导入字幕：用户能在应用里移除、改用转写。字幕不放在音频旁边。
-3. 用标题起文件名（去掉 `/ : \` 等字符，重名加 “ (2)”），移进用户选的子文件夹，删掉暂存文件夹。
+3. 用标题起文件名（去掉 `/ : \` 等字符，Windows 留给设备的名字如 `CON`、`nul.txt` 加 `_`，重名加 “ (2)”），移进用户选的子文件夹，删掉暂存文件夹。
 
 ## 在本机试
 
 1. 把程序和 `manifest.json` 放进一个文件夹（Rust 可以参考 [`scripts/build-plugin.sh`](../scripts/build-plugin.sh)）。
 2. 在应用里打开 设置 → 插件 →「从文件夹安装…」，选这个文件夹。改了程序再装一次就会替换（`data/` 保留）。
-3. 复制一个你的插件能接的链接，回到应用按 `⌘V`。
+3. 复制一个你的插件能接的链接，回到应用按 `⌘V`（Windows 上 `Ctrl+V`）。
 
 也可以不开应用，直接在终端里喂消息：
 
@@ -178,7 +179,31 @@ printf '%s\n' \
   | env -i PATH=/usr/bin:/bin HOME="$HOME" ./bin/podcast
 ```
 
+Windows 上在 cmd 里把消息写进一个文件再喂给它：`bin\podcast.exe < requests.jsonl`（文件存成 UTF-8）。
+
 用开发模式运行应用（`npm run app`）时，插件的 stderr 和 `log` 会打印在终端里。
+
+## Windows
+
+插件在 Windows 上也是一个文件夹加一个程序，协议完全一样。不同的地方：
+
+- **程序**：`main` 里写 `windows-x86_64`（Windows on Arm 也会用它）和程序的全名，例如 `bin/podcast.exe`。
+  Rust 可以在 Mac 上交叉编译（`scripts/build-plugin.sh <插件> x86_64-pc-windows-gnu`，要先装 mingw-w64），或者在 Windows 上直接构建。
+  也可以写 `.cmd`（应用经 cmd.exe 运行它），再交给系统自带的 PowerShell：要写完整路径
+  `"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%~dp0podcast.ps1"`。
+- **环境变量**：清空后只留 Windows 程序启动要用的：`SystemRoot`、`windir`、`SystemDrive`、`TEMP`、`TMP`、`USERPROFILE`、`LOCALAPPDATA`、
+  `APPDATA`、`ProgramData`、`ProgramFiles`、`PATHEXT`、`ComSpec`、`PROCESSOR_ARCHITECTURE`、`NUMBER_OF_PROCESSORS`，
+  `PATH` 是 `%SystemRoot%\System32;%SystemRoot%;%SystemRoot%\System32\Wbem`（不是用户自己的 `Path`），
+  再加代理变量 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、`NO_PROXY`（Windows 的环境变量不分大小写）。没有 `HOME`、`TMPDIR`、`LANG`。
+- **没有控制台窗口**：应用启动插件时不开控制台（`CREATE_NO_WINDOW`）。插件再启动别的命令行程序时也请这样做，不然会闪出一个黑窗口。
+- **系统工具用完整路径**：例如 `%SystemRoot%\System32\curl.exe`、`%SystemRoot%\System32\tar.exe`（能解 zip）。用户的 `Path` 里可能先有 Git 带的
+  `curl`、`tar`，行为不一样（Git 的 `tar` 把 `C:\…` 当成远程主机）。
+- **编码**：stdout 上写 UTF-8 的字节，不要用控制台代码页（中文 Windows 是 GBK）。Rust、Go 写出去的本来就是字节；
+  .NET / PowerShell 自己建一个 UTF-8 的 `StreamWriter` 包住标准输出；Python 设 `PYTHONUTF8=1`。应用发来的消息也是 UTF-8。
+- **路径**：`dataDir`、`outDir` 是 `C:\Users\…` 这样的路径，里面可能有中文、日文。交给不认识 Unicode 路径的旧工具时，把工作目录设到那个文件夹、只传文件名。
+- **取消**：2 秒内不退出时，应用用 `taskkill /T /F` 结束插件**和它启动的所有程序**。（macOS 上只结束插件本身，所以看到 `$/cancel` 时请自己结束启动的程序。）
+- **安装**：浏览器下载的 zip 解出来的文件带“来自网络”的标记（`Zone.Identifier`），应用安装时会去掉。不需要代码签名；
+  开着“智能应用控制”的电脑可能拦下没有签名的程序（还没验证）。
 
 ## 打包
 
@@ -189,7 +214,14 @@ ditto -c -k --norsrc --noextattr --keepParent podcast podcast-0.1.0-macos-arm64.
 ```
 
 （`--norsrc --noextattr` 不带 macOS 的 `._` 文件。）不需要 Apple 的签名：浏览器下载的 zip 解压后带隔离标记，
-应用安装时会去掉，插件程序照常能运行。最好把 zip 作为源代码仓库 Release 的附件发布，用户和审核看到的是同一个文件。
+应用安装时会去掉，插件程序照常能运行。Windows 上用系统自带的 tar 打 zip（Windows 10 1803 起都有）：
+
+```bat
+tar -a -c -f podcast-0.1.0-windows-x86_64.zip podcast
+```
+
+每个平台一个 zip，里面的 `manifest.json` 最好只写这个平台（`scripts/build-plugin.sh` 就是这样做的），
+装到别的电脑上时应用会直接说“不支持这台电脑”。最好把 zip 作为源代码仓库 Release 的附件发布，用户和审核看到的是同一个文件。
 
 ## 提交到插件目录
 
@@ -223,7 +255,8 @@ SHA-256 是固定的，Release 里的文件被换掉，插件目录里的旧条�
   "released": "2026-11-01",
   "permissions": { "network": ["example.fm"], "runs": "只下载这一集的音频" },
   "packages": {
-    "darwin-arm64": { "url": "https://github.com/you/shadowing-podcast/releases/download/v0.1.0/podcast-0.1.0-macos-arm64.zip", "sha256": "…", "size": 123456 }
+    "darwin-arm64": { "url": "https://github.com/you/shadowing-podcast/releases/download/v0.1.0/podcast-0.1.0-macos-arm64.zip", "sha256": "…", "size": 123456 },
+    "windows-x86_64": { "url": "https://github.com/you/shadowing-podcast/releases/download/v0.1.0/podcast-0.1.0-windows-x86_64.zip", "sha256": "…", "size": 234567 }
   }
 }
 ```
