@@ -78,3 +78,42 @@ fn picking_the_folder_around_one_plugin_finds_it() {
     plugin_folder(&dist.join("other"), "0.1.0");
     assert_eq!(super::plugin_folder(dist.clone()), dist);
 }
+
+#[test]
+fn installing_clears_the_download_quarantine() {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+    let tmp = tempfile::tempdir().unwrap();
+    let (source, root) = (tmp.path().join("src"), tmp.path().join("plugins"));
+    plugin_folder(&source, "0.1.0");
+    fs::create_dir_all(&root).unwrap();
+    let name = c"com.apple.quarantine";
+    let mark = b"0083;6ad41e38;Safari;";
+    let has_mark = |p: &Path| {
+        let p = CString::new(p.as_os_str().as_bytes()).unwrap();
+        // SAFETY: NUL-terminated strings; a null buffer only asks for the size.
+        unsafe { libc::getxattr(p.as_ptr(), name.as_ptr(), std::ptr::null_mut(), 0, 0, 0) >= 0 }
+    };
+    let program = source.join("bin/run");
+    let p = CString::new(program.as_os_str().as_bytes()).unwrap();
+    // SAFETY: as above; `mark` outlives the call.
+    let set = unsafe {
+        libc::setxattr(
+            p.as_ptr(),
+            name.as_ptr(),
+            mark.as_ptr().cast(),
+            mark.len(),
+            0,
+            0,
+        )
+    };
+    assert_eq!(set, 0);
+    assert!(has_mark(&program));
+    // A plain copy keeps the mark: clearing it is what makes the difference.
+    fs::copy(&program, tmp.path().join("plain")).unwrap();
+    assert!(has_mark(&tmp.path().join("plain")));
+
+    copy_in(&source, &root, &Manifest::read(&source).unwrap()).unwrap();
+    assert!(!has_mark(&root.join("fake/bin/run")));
+    assert!(!has_mark(&root.join("fake/manifest.json")));
+}

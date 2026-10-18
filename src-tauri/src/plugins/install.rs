@@ -40,6 +40,7 @@ pub fn copy_in(source: &Path, root: &Path, manifest: &Manifest) -> Result<(), St
             fs::create_dir_all(&to).map_err(|e| e.to_string())?;
         } else if kind.is_file() {
             fs::copy(entry.path(), &to).map_err(|e| format!("复制插件文件失败：{e}"))?;
+            clear_quarantine(&to);
         }
     }
     let program = staging.join(manifest.program_path()?);
@@ -57,6 +58,24 @@ pub fn copy_in(source: &Path, root: &Path, manifest: &Manifest) -> Result<(), St
         fs::remove_dir_all(&target).map_err(|e| format!("无法替换旧版本：{e}"))?;
     }
     fs::rename(&staging, &target).map_err(|e| e.to_string())
+}
+
+/// Installing is the learner's go-ahead. A plugin downloaded as a zip in a browser
+/// carries macOS's quarantine mark onto every file it unpacks (and a copy keeps
+/// it), and macOS kills a quarantined program the moment the app starts it.
+fn clear_quarantine(path: &Path) {
+    use std::os::unix::ffi::OsStrExt;
+    let Ok(path) = std::ffi::CString::new(path.as_os_str().as_bytes()) else {
+        return;
+    };
+    // SAFETY: both are NUL-terminated C strings that live through the call.
+    unsafe {
+        libc::removexattr(
+            path.as_ptr(),
+            c"com.apple.quarantine".as_ptr(),
+            libc::XATTR_NOFOLLOW,
+        );
+    }
 }
 
 /// The folder picked, or the one plugin folder inside it: picking the folder a plugin
