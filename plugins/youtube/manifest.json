@@ -3,7 +3,7 @@
   "name": "YouTube 导入",
   "version": "0.1.0",
   "protocol": 1,
-  "minAppVersion": "0.8.1",
+  "minAppVersion": "0.9.0",
   "author": "Shadowing",
   "description": "粘贴 YouTube 链接，把视频的音频（m4a，不转码）和人工字幕导入到打开的文件夹。只下载你有权使用的内容。",
   "main": {
