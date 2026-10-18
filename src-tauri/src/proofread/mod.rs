@@ -40,6 +40,23 @@ Lines are "id: text". Reply with JSON only, no other text:
 - reason: written in Simplified Chinese whatever the transcript's language (the learner reads Chinese), under 30 characters
 If nothing needs fixing, reply {"fixes": []}"#;
 
+/// The `reason` line of `SYSTEM` for a learner who reads English.
+const REASON_EN: &str = "- reason: written in English whatever the transcript's language (the learner reads English), at most 15 words";
+
+/// `SYSTEM` with the reasons in English or Chinese (the interface language).
+fn system(en: bool) -> String {
+    if en {
+        SYSTEM
+            .replace("前后说的是去听讲座，应为「講演」", "the lines around it are about going to a lecture, so 講演")
+            .replace(
+                "- reason: written in Simplified Chinese whatever the transcript's language (the learner reads Chinese), under 30 characters",
+                REASON_EN,
+            )
+    } else {
+        SYSTEM.to_string()
+    }
+}
+
 /// Characters of the learner's text per request; most lessons fit in one.
 const CHUNK_CHARS: usize = 4000;
 /// Lines either side of a chunk, sent as context only.
@@ -123,8 +140,9 @@ pub async fn ask(
     sentences: &[Sentence],
     own: Range<usize>,
 ) -> Result<(String, Vec<Suggestion>), String> {
+    let system = system(crate::i18n::is_en());
     let prompt = Prompt {
-        system: SYSTEM,
+        system: &system,
         user: &user_message(sentences, &own),
         max_tokens: 8192,
     };
@@ -149,7 +167,10 @@ pub async fn transcript_proofread(
     running: State<'_, Proofreading>,
     path: String,
 ) -> Result<Vec<Suggestion>, String> {
-    let transcript = transcript::for_track(&state, &path)?.ok_or("这个音频没有字幕")?;
+    let transcript = transcript::for_track(&state, &path)?.ok_or(crate::i18n::pick(
+        "这个音频没有字幕",
+        "This audio has no subtitles.",
+    ))?;
     let (target, model) = ai::chat_target(&state, &secrets).await?;
 
     let cancel = Arc::new(AtomicBool::new(false));
@@ -168,7 +189,7 @@ pub async fn transcript_proofread(
         let _ = app.emit("proofread:progress", progress);
         let (_, part) = tokio::select! {
             r = ask(&target, &model, sentences, own.clone()) => r?,
-            _ = cancelled(&cancel) => return Err(crate::transcribe::CANCELLED.into()),
+            _ = cancelled(&cancel) => return Err(crate::transcribe::cancelled_error()),
         };
         found.extend(part);
     }

@@ -3,24 +3,35 @@
 // darker = more; hover any day for its numbers.
 import { useRef, useState, type ReactNode } from "react";
 import type { GoalChange } from "../lib/api";
+import { isEnglish, t } from "../lib/i18n";
 import { dayKey, formatDuration, goalOn, level, metGoal, shiftDay, type DayTotal } from "../lib/practice";
 
 const MIN = 60_000;
-const WEEKDAYS = "日一二三四五六";
+const WEEKDAYS = "日一二三四五六"; // i18n: keep (Chinese weekday names; English ones come from Intl)
 
+/** "10月18日 周六" / "Sat, Oct 18". */
 const dateLabel = (ms: number) => {
   const d = new Date(ms);
-  return `${d.getMonth() + 1}月${d.getDate()}日 周${WEEKDAYS[d.getDay()]}`;
+  if (isEnglish()) return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return `${d.getMonth() + 1}月${d.getDate()}日 周${WEEKDAYS[d.getDay()]}`; // i18n: keep (English above)
 };
+
+/** Heatmap rows, Monday first: "一" … "日" / "Mon" … "Sun" (2024-01-01 was a Monday). */
+const weekdayNames = () =>
+  isEnglish() ? Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString("en-US", { weekday: "short" })) : [..."一二三四五六日"]; // i18n: keep
+
+/** "10月" / "Oct". */
+const monthName = (month: number) =>
+  isEnglish() ? new Date(2024, month, 1).toLocaleDateString("en-US", { month: "short" }) : `${month + 1}月`; // i18n: keep
 
 function dayTip(ms: number, day: DayTotal | undefined, goals: GoalChange[]): ReactNode {
   const goal = goalOn(goals, dayKey(ms));
   return (
     <>
       <div className="text-faint">{dateLabel(ms)}</div>
-      <div className="mt-0.5 font-medium text-fg">{day ? formatDuration(day.active) : "没有练习"}</div>
-      {day && day.active >= MIN && <div className="text-muted">其中播放 {formatDuration(day.played)}</div>}
-      {goal > 0 && day && metGoal(day.active, goal) && <div className="text-muted">达到当天目标（{goal} 分钟）</div>}
+      <div className="mt-0.5 font-medium text-fg">{day ? formatDuration(day.active) : t("没有练习")}</div>
+      {day && day.active >= MIN && <div className="text-muted">{t("其中播放 {time}", { time: formatDuration(day.played) })}</div>}
+      {goal > 0 && day && metGoal(day.active, goal) && <div className="text-muted">{t("达到当天目标（{goal} 分钟）", { goal })}</div>}
     </>
   );
 }
@@ -94,10 +105,10 @@ export function DailyBars({ days, goals, now }: ChartProps) {
           </div>
         </div>
         <div className="relative w-9 text-[11px] text-faint">
-          <span className="tabular absolute -translate-y-1/2 font-mono" style={{ top: 0 }}>{formatScale(top)}</span>
+          <span className="tabular absolute -translate-y-1/2 font-mono whitespace-nowrap" style={{ top: 0 }}>{formatScale(top)}</span>
           {goal > 0 && (
             <span className="absolute translate-y-1/2 text-muted" style={{ bottom: `${(goal / top) * 100}%` }}>
-              目标
+              {t("目标")}
             </span>
           )}
         </div>
@@ -105,7 +116,7 @@ export function DailyBars({ days, goals, now }: ChartProps) {
       <div className="mr-12 flex pt-1.5">
         {list.map(({ ms }, i) => (
           <span key={ms} className={`tabular flex-1 text-center font-mono text-[11px] ${i === 13 ? "text-fg" : "text-faint"}`}>
-            {i === 13 ? "今" : new Date(ms).getDate()}
+            {i === 13 ? t("今") : new Date(ms).getDate()}
           </span>
         ))}
       </div>
@@ -114,7 +125,7 @@ export function DailyBars({ days, goals, now }: ChartProps) {
   );
 }
 
-const formatScale = (minutes: number) => (minutes >= 60 && minutes % 60 === 0 ? `${minutes / 60}时` : `${minutes}分`);
+const formatScale = (minutes: number) => (minutes >= 60 && minutes % 60 === 0 ? t("{n}时", { n: minutes / 60 }) : t("{n}分", { n: minutes }));
 
 const SHADES = ["bg-fill", "bg-ink/20", "bg-ink/40", "bg-ink/62", "bg-ink/85"];
 const WEEKS = 26;
@@ -131,7 +142,7 @@ export function Heatmap({ days, goals, now }: ChartProps) {
       {/* Column by column: weekday names, then one column per week sharing the width. */}
       <div className="grid grid-flow-col grid-cols-[auto_repeat(26,minmax(0,1fr))] grid-rows-[auto_repeat(7,auto)] gap-[3px]">
         <span />
-        {[..."一二三四五六日"].map((d, i) => (
+        {weekdayNames().map((d, i) => (
           <span key={d} className={`mr-1 self-center text-[11px] leading-none text-faint ${i % 2 ? "invisible" : ""}`}>
             {d}
           </span>
@@ -141,7 +152,7 @@ export function Heatmap({ days, goals, now }: ChartProps) {
           const newMonth = w === 0 || month !== new Date(weeks[w - 1][0]).getMonth();
           return [
             <span key={`m${week[0]}`} className="h-[15px] overflow-visible text-[11px] leading-[12px] whitespace-nowrap text-faint">
-              {newMonth ? `${month + 1}月` : ""}
+              {newMonth ? monthName(month) : ""}
             </span>,
             ...week.map((ms) => {
               const day = days.get(dayKey(ms));
@@ -161,11 +172,11 @@ export function Heatmap({ days, goals, now }: ChartProps) {
         })}
       </div>
       <div className="mt-2 flex items-center justify-end gap-[3px] text-[11px] text-faint">
-        <span className="mr-1">少</span>
+        <span className="mr-1">{t("少")}</span>
         {SHADES.map((s) => (
           <span key={s} className={`size-3 rounded-[3px] ${s}`} />
         ))}
-        <span className="ml-1">多</span>
+        <span className="ml-1">{t("多")}</span>
       </div>
       {view}
     </div>

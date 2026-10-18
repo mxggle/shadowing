@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { PluginInfo, Track } from "./api";
+import { setLang } from "./i18n";
 import { downloadLine, folderName, languageName, linkSites, nextDownload, percent, pickSubtitle, placeDownloads, progressText, type Download } from "./imports";
 
 const subs = (...langs: string[]) => langs.map((lang) => ({ lang, name: lang }));
@@ -111,5 +112,16 @@ describe("downloads", () => {
     });
     expect(linkSites([plugin(["YouTube"]), plugin(["Bilibili", "YouTube"]), plugin(["Broken"], "manifest.json 写得不对")])).toEqual(["YouTube", "Bilibili"]);
     expect(linkSites([])).toEqual([]);
+  });
+});
+
+describe("in English", () => {
+  afterEach(() => setLang("zh"));
+
+  it("names languages, rows and the fallback folder in English", () => {
+    setLang("en");
+    expect(languageName("ja", "x")).toBe("Japanese");
+    expect(downloadLine(download(1, "queued"))).toBe("Waiting for the one before");
+    expect(folderName("../..")).toBe("Untitled");
   });
 });

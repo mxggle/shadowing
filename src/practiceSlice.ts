@@ -1,6 +1,7 @@
 // Practice-time part of the single store: the 学习记录 sheet, the daily goal and
 // today's progress towards it (polled from Rust, which does the counting).
 import { api, type Settings } from "./lib/api";
+import { t } from "./lib/i18n";
 import { byDay, dayKey, dayStart, goalOn, metGoal, withGoal } from "./lib/practice";
 import type { AppState } from "./store";
 
@@ -55,7 +56,7 @@ export function createPracticeSlice(set: Set, get: Get, persistSettings: (patch:
       // Opened another audio while this was loading: its total comes with the next refresh.
       if (get().current?.path === audio) set({ trackMs: track.reduce((sum, s) => sum + s.end - s.start, 0) });
       const { goal, met } = metNow(todayMs);
-      if (met && seen.day === day && !seen.met) get().say(`今天的 ${goal} 分钟目标完成了。`);
+      if (met && seen.day === day && !seen.met) get().say(t("今天的 {goal} 分钟目标完成了。", { goal }));
       seen = { day, met };
       set({ todayMs });
     },

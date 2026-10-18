@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { PracticeSession } from "./api";
+import { setLang } from "./i18n";
 import { byDay, dayKey, goalOn, longestStreak, durationParts, formatDuration, level, metGoal, streak, summarize, topAudios, withGoal } from "./practice";
 
 const at = (y: number, m: number, d: number, h: number, min = 0) => new Date(y, m - 1, d, h, min).getTime();
@@ -101,4 +102,18 @@ it("formats durations", () => {
   expect(formatDuration(120 * MIN)).toBe("2 小时");
   expect(durationParts(130 * MIN)).toEqual([["2", "小时"], ["10", "分"]]);
   expect([0, 5, 15, 30, 60].map((m) => level(m * MIN))).toEqual([0, 1, 2, 3, 4]);
+});
+
+describe("in English", () => {
+  afterEach(() => setLang("zh"));
+
+  it("formats durations", () => {
+    setLang("en");
+    expect(formatDuration(0)).toBe("0 min");
+    expect(formatDuration(40_000)).toBe("< 1 min");
+    expect(formatDuration(25 * MIN)).toBe("25 min");
+    expect(formatDuration(99 * MIN)).toBe("1 h 39 min");
+    expect(formatDuration(120 * MIN)).toBe("2 h");
+    expect(durationParts(130 * MIN)).toEqual([["2", "h"], ["10", "min"]]);
+  });
 });

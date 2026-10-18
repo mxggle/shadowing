@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import changelog from "../../CHANGELOG.md?raw";
 import pkg from "../../package.json";
 import { announces, compareVersions, dateLabel, headline, highlights, highlightsSince, inline, parseChangelog } from "./changelog";
+import { setLang } from "./i18n";
 
 const MD = `# 更新日志
 
@@ -132,6 +133,13 @@ describe("dateLabel", () => {
     expect(dateLabel("2025-01-02", 2026)).toBe("2025 年 1 月 2 日");
     expect(dateLabel(null, 2026)).toBe("");
   });
+
+  it("reads as English dates in English", () => {
+    setLang("en");
+    expect(dateLabel("2026-10-17", 2026)).toBe("Oct 17");
+    expect(dateLabel("2025-01-02", 2026)).toBe("Jan 2, 2025");
+  });
+  afterEach(() => setLang("zh"));
 });
 
 describe("compareVersions", () => {

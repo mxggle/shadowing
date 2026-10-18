@@ -32,8 +32,16 @@ impl CmdTx {
     }
 
     pub fn send(&self, cmd: Cmd) -> Result<(), String> {
-        let mut tx = self.tx.lock().map_err(|_| "播放器不可用")?;
-        tx.push(cmd).map_err(|_| "播放器繁忙，请稍后再试")?;
+        let mut tx = self
+            .tx
+            .lock()
+            .map_err(|_| crate::i18n::pick("播放器不可用", "The player isn't available"))?;
+        tx.push(cmd).map_err(|_| {
+            crate::i18n::pick(
+                "播放器繁忙，请稍后再试",
+                "The player is busy. Try again in a moment.",
+            )
+        })?;
         self.sent.fetch_add(1, Relaxed);
         drop(tx);
         if let Ok(out) = self.out.lock() {

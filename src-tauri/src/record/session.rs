@@ -28,6 +28,9 @@ const LEVEL_EVERY: Duration = Duration::from_millis(33);
 const THRESHOLD_EVERY: usize = 10;
 const ERR_BLOCKED: &str = "麦克风没有声音：如果刚才弹出了使用麦克风的提示，点“允许”后再录一次；\
     否则请在“系统设置 → 隐私与安全性 → 麦克风”里允许 Shadowing";
+const ERR_BLOCKED_EN: &str = "No sound from the microphone. If you were just asked about \
+    microphone access, click “Allow” and record again. Otherwise, allow Shadowing in \
+    System Settings → Privacy & Security → Microphone.";
 
 pub enum Msg {
     /// Another time through: hand back what was captured (the time just said)
@@ -90,7 +93,11 @@ pub fn run(
     let opened = Instant::now();
     while mic.first_at.load(Relaxed) == 0 {
         if opened.elapsed() > Duration::from_secs(2) {
-            let _ = ready.send(Err("麦克风没有响应".into()));
+            let _ = ready.send(Err(crate::i18n::pick(
+                "麦克风没有响应",
+                "The microphone isn't responding",
+            )
+            .into()));
             return;
         }
         thread::sleep(Duration::from_millis(5));
@@ -188,9 +195,11 @@ pub fn run(
         }
         let secs = buf.len() as f64 / mic.rate as f64;
         if mic.failed.load(Relaxed) {
-            error = Some("麦克风断开了".to_string());
+            error = Some(
+                crate::i18n::pick("麦克风断开了", "The microphone was disconnected").to_string(),
+            );
         } else if secs > SILENT_MIC_SECS && !sound {
-            error = Some(ERR_BLOCKED.to_string());
+            error = Some(crate::i18n::pick(ERR_BLOCKED, ERR_BLOCKED_EN).to_string());
         }
         if let Some(e) = error.as_ref() {
             out.error(e);

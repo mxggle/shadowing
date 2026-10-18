@@ -131,6 +131,7 @@ fn answer(index: usize, text: &str, translation: &str) -> saved::Saved {
     saved::Saved {
         index,
         text: text.into(),
+        lang: "zh".into(),
         explanation: super::Explanation {
             translation: translation.into(),
             ..Default::default()
@@ -168,6 +169,22 @@ fn answers_are_kept_per_track_and_only_while_the_sentence_is_unchanged() {
     saved::remove(dir.path(), "/a.mp3").unwrap();
     assert!(saved::load(dir.path(), "/a.mp3", &all).is_empty());
     saved::remove(dir.path(), "/a.mp3").unwrap();
+}
+
+#[test]
+fn an_answer_in_the_other_language_does_not_replace_this_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let all = sentences(2);
+    saved::save(dir.path(), "/a.mp3", &all, answer(1, "line 1", "一")).unwrap();
+    let english = saved::Saved {
+        lang: "en".into(),
+        ..answer(1, "line 1", "one")
+    };
+    saved::save(dir.path(), "/a.mp3", &all, english).unwrap();
+    // The tests run with the interface in Chinese.
+    let kept = saved::load(dir.path(), "/a.mp3", &all);
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].explanation.translation, "一");
 }
 
 #[test]

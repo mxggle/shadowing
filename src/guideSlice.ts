@@ -3,13 +3,14 @@
 import type { AudioEngine } from "./audio/engine";
 import { NO_LOOP } from "./audio/logic";
 import { api, type Guide, type Track } from "./lib/api";
+import { t, tk } from "./lib/i18n";
 import type { AppState } from "./store";
 
 /** Shown once each, when the learner uses the mouse for something that has a key. */
 export const TIPS = {
-  sentenceLoop: "下次可以直接按 S 循环当前句，[ 和 ] 换到上一句 / 下一句。",
-  rate: "按 − 和 = 也能调速度。",
-  abLoop: "按 L 依次设 A、设 B、取消循环。",
+  sentenceLoop: tk("下次可以直接按 S 循环当前句，[ 和 ] 换到上一句 / 下一句。"),
+  rate: tk("按 − 和 = 也能调速度。"),
+  abLoop: tk("按 L 依次设 A、设 B、取消循环。"),
 } as const;
 export type TipId = keyof typeof TIPS;
 
@@ -89,7 +90,7 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
       const { guide } = get();
       if (guide.tips.includes(id)) return;
       get().saveGuide({ tips: [...guide.tips, id] });
-      get().say(TIPS[id]);
+      get().say(t(TIPS[id]));
     },
 
     say(text) {

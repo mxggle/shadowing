@@ -36,6 +36,14 @@ pub struct Settings {
     pub paragraph_drill: bool,
     /// 逐句跟读: times each sentence is said before the next (the frontend keeps it to 1–20).
     pub drill_rounds: u32,
+    /// Interface language: "" follows the Mac, "zh" or "en" (see i18n.rs). Settings saved
+    /// before it existed stay Chinese, the only language those versions had.
+    #[serde(default = "chinese")]
+    pub ui_language: String,
+}
+
+fn chinese() -> String {
+    "zh".into()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -61,6 +69,7 @@ impl Default for Settings {
             paragraph_mode: crate::record::Mode::Read,
             paragraph_drill: false,
             drill_rounds: 3,
+            ui_language: String::new(),
         }
     }
 }
@@ -252,6 +261,15 @@ mod tests {
             (0.8, PlayMode::Next, 5.0)
         );
         assert!(s.daily_goals.is_empty());
+    }
+
+    #[test]
+    fn only_a_fresh_start_follows_the_system_language() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("state.json");
+        assert_eq!(Persisted::load(&path).settings.ui_language, "");
+        fs::write(&path, r#"{"settings":{"rate":0.8}}"#).unwrap();
+        assert_eq!(Persisted::load(&path).settings.ui_language, "zh");
     }
 
     #[test]

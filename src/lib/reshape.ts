@@ -69,7 +69,7 @@ export function moveSuggestions(suggestions: Suggestion[], c: Change): Suggestio
 }
 
 /** Chinese and Japanese, and their punctuation: written without spaces between words. */
-const UNSPACED = /[　-ヿㇰ-ㇿ㐀-䶿一-鿿豈-﫿＀-￯\u{20000}-\u{3ffff}]/u;
+const UNSPACED = /[　-ヿㇰ-ㇿ㐀-䶿一-鿿豈-﫿＀-￯\u{20000}-\u{3ffff}]/u; // i18n: keep
 
 /** Two sentences' text as one: a space between them, unless either side is written without. */
 export function joinText(a: string, b: string): string {

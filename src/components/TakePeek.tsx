@@ -1,6 +1,7 @@
 import { memo, useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import type { Sentence, Take } from "../lib/api";
+import { t } from "../lib/i18n";
 import { headOnTake } from "../lib/readings";
 import { comparePart, inTurns, lagNote, paceNote, peekTake, playheadAt } from "../lib/takes";
 import { useApp, type AppState } from "../store";
@@ -21,8 +22,8 @@ export const TakePeek = memo(function TakePeek({ sentence, open }: { sentence: S
       setMounted(true);
       return;
     }
-    const t = window.setTimeout(() => setMounted(false), 250);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => setMounted(false), 250);
+    return () => window.clearTimeout(timer);
   }, [open]);
   return (
     <div
@@ -57,7 +58,7 @@ function PeekTake({ take }: { take: Take }) {
         compact
         take={take}
         head={head}
-        titles={playing ? "停 (空格)" : inTurns(take) ? "从这句听下去：每句先原句，再你的 (P)" : "从这句听下去：原句和你的一起放 (P)"}
+        titles={playing ? t("停 (空格)") : inTurns(take) ? t("从这句听下去：每句先原句，再你的 (P)") : t("从这句听下去：原句和你的一起放 (P)")}
         onPlay={() => (playing ? stopTake() : void playTake(take.id, both))}
       />
       {note && <p className="mt-0.5 pl-[2.75rem] text-[12px] leading-4 text-faint">{note}</p>}

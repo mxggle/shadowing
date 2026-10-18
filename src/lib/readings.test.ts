@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { Reading } from "./api";
+import { setLang } from "./i18n";
 import { headOnTake, howSettings, partAt, readingHow, readingNote, readingRange, readingsFor, saidCount, scopeOf, stretchAt } from "./readings";
+
+afterEach(() => setLang("zh"));
 
 const reading = (over: Partial<Reading> = {}): Reading => ({
   id: "r",
@@ -49,6 +52,11 @@ describe("notes", () => {
   });
   it("lag when shadowing", () => {
     expect(readingNote(reading({ mode: "shadow", lagMs: 420 }))).toBe("平均比原声晚 0.42 秒");
+  });
+  it("in English, with the numbers where English puts them", () => {
+    setLang("en");
+    expect(readingNote(reading({ mineSecs: 39 }))).toBe("You 39.0 s · original 30.0 s, 30% slower");
+    expect(readingNote(reading({ mode: "shadow", lagMs: 420 }))).toBe("0.42 s behind the original on average");
   });
   it("sentences said", () => {
     expect(saidCount(reading())).toBe(1);

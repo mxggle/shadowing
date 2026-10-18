@@ -2,12 +2,13 @@ import { ChevronLeft, ChevronRight, Ear, LoaderCircle, Mic, Pause, Play, Repeat2
 import { useMemo } from "react";
 import { isLoopActive } from "../audio/logic";
 import type { RecordMode, Take, TakePart } from "../lib/api";
+import { t, tk } from "../lib/i18n";
 import { advanceLabel, advanceOf, countOf, hintOf, readyNote, recordsAgain } from "../lib/rounds";
 import { comparePart, inTurns, lagNote, paceNote, playheadAt, takesFor, whenRecorded } from "../lib/takes";
 import { recordTarget, type Rec, type RecordAt } from "../recordSlice";
 import { useApp } from "../store";
 import { TakeWaves } from "./TakeWaves";
-import { Button, IconButton, Kbd } from "./ui";
+import { Button, fillNodes, IconButton, Kbd } from "./ui";
 
 /**
  * 跟读录音, under the sentence (or the A–B loop) being practised: while
@@ -36,7 +37,7 @@ export function RecorderCard({ at }: { at: RecordAt }) {
       <div className="mt-2">
         {rec ? <Live rec={rec} /> : error ? <Problem message={error} at={at} looping={looping} /> : take ? <Result take={take} at={at} looping={looping} /> : <Ready at={at} looping={looping} />}
       </div>
-      <IconButton title="收起 (Esc)" onClick={closeRecorder} className="absolute top-2 right-1.5 !h-6 !min-w-6">
+      <IconButton title={t("收起 (Esc)")} onClick={closeRecorder} className="absolute top-2 right-1.5 !h-6 !min-w-6">
         <X />
       </IconButton>
     </div>
@@ -44,27 +45,27 @@ export function RecorderCard({ at }: { at: RecordAt }) {
 }
 
 const MODES: { mode: RecordMode; label: string; title: string }[] = [
-  { mode: "listen", label: "听完再说", title: "先听一遍原句，轮到你时再说" },
-  { mode: "shadow", label: "边听边说", title: "跟着原句一起说（不戴耳机也可以：录完会自动去掉录进来的原声）" },
+  { mode: "listen", label: tk("听完再说"), title: tk("先听一遍原句，轮到你时再说") },
+  { mode: "shadow", label: tk("边听边说"), title: tk("跟着原句一起说（不戴耳机也可以：录完会自动去掉录进来的原声）") },
 ];
 
 function ModeSwitch({ disabled }: { disabled: boolean }) {
   const mode = useApp((s) => s.settings.recordMode);
   return (
-    <div className="tint flex h-7 rounded-[8px] p-0.5" role="radiogroup" aria-label="跟读方式">
+    <div className="tint flex h-7 rounded-[8px] p-0.5" role="radiogroup" aria-label={t("跟读方式")}>
       {MODES.map((m) => (
         <button
           key={m.mode}
           role="radio"
           aria-checked={mode === m.mode}
-          title={m.title}
+          title={t(m.title)}
           disabled={disabled}
           onClick={() => useApp.getState().setRecordMode(m.mode)}
           className={`rounded-[6px] px-2.5 text-[12px] font-medium transition-[background-color,color] duration-150 disabled:opacity-50 ${
             mode === m.mode ? "bg-raised text-fg shadow-[inset_0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
           }`}
         >
-          {m.label}
+          {t(m.label)}
         </button>
       ))}
     </div>
@@ -77,13 +78,13 @@ function History({ takes, take }: { takes: Take[]; take: Take }) {
   const { showTake } = useApp.getState();
   return (
     <div className="ml-auto flex items-center gap-0.5 text-[12px]">
-      <IconButton title="上一次" disabled={i <= 0} onClick={() => showTake(takes[i - 1].id)} className="!h-6 !min-w-6">
+      <IconButton title={t("上一次")} disabled={i <= 0} onClick={() => showTake(takes[i - 1].id)} className="!h-6 !min-w-6">
         <ChevronLeft />
       </IconButton>
       <span className="tabular min-w-[8.5rem] text-center whitespace-nowrap">
-        第 <span className="font-mono text-fg">{i + 1}</span> / {takes.length} 次 · {whenRecorded(take.created)}
+        {fillNodes(t("第 {n} / {total} 次", { total: takes.length }), { n: <span className="font-mono text-fg">{i + 1}</span> })} · {whenRecorded(take.created)}
       </span>
-      <IconButton title="下一次" disabled={i >= takes.length - 1} onClick={() => showTake(takes[i + 1].id)} className="!h-6 !min-w-6">
+      <IconButton title={t("下一次")} disabled={i >= takes.length - 1} onClick={() => showTake(takes[i + 1].id)} className="!h-6 !min-w-6">
         <ChevronRight />
       </IconButton>
     </div>
@@ -105,17 +106,17 @@ function RecordButtons({ at, looping }: { at: RecordAt; looping: boolean }) {
   const { startTake } = useApp.getState();
   return (
     <span className="flex items-center gap-1.5">
-      <Button title={looping ? "录一遍" : "录一遍 (M)"} onClick={() => void startTake(at, { again: false })} className="h-7 px-2.5">
+      <Button title={looping ? t("录一遍") : t("录一遍 (M)")} onClick={() => void startTake(at, { again: false })} className="h-7 px-2.5">
         <span className="size-2 rounded-full bg-danger" />
-        录一遍
+        {t("录一遍")}
       </Button>
       <Button
-        title={`一遍遍接着说，满意了按空格留下${looping ? " (M)" : "（循环这一句时按 M 也是它）"}`}
+        title={looping ? t("一遍遍接着说，满意了按空格留下 (M)") : t("一遍遍接着说，满意了按空格留下（循环这一句时按 M 也是它）")}
         onClick={() => void startTake(at, { again: true })}
         className="h-7 px-2.5"
       >
         <Repeat2 size={13} />
-        连续录
+        {t("连续录")}
       </Button>
     </span>
   );
@@ -127,7 +128,7 @@ function Live({ rec }: { rec: Rec }) {
     return (
       <p className="flex h-[52px] items-center gap-2">
         <LoaderCircle size={14} className="shrink-0 animate-spin" />
-        {rec.phase === "starting" ? "正在打开麦克风…" : rec.mode === "shadow" ? "正在去掉录进来的原声…" : "正在整理录音…"}
+        {rec.phase === "starting" ? t("正在打开麦克风…") : rec.mode === "shadow" ? t("正在去掉录进来的原声…") : t("正在整理录音…")}
       </p>
     );
   }
@@ -139,12 +140,12 @@ function Live({ rec }: { rec: Rec }) {
     <div className="flex flex-col gap-2">
       <div className="flex h-9 items-center gap-3">
         {rec.paused ? (
-          <span className="flex items-center gap-1.5 font-medium text-fg" title="按底部的播放键继续">
-            <Pause size={13} fill="currentColor" strokeWidth={0} className="shrink-0" /> 已暂停
+          <span className="flex items-center gap-1.5 font-medium text-fg" title={t("按底部的播放键继续")}>
+            <Pause size={13} fill="currentColor" strokeWidth={0} className="shrink-0" /> {t("已暂停")}
           </span>
         ) : listening ? (
           <span className="flex items-center gap-1.5 font-medium text-fg">
-            <Ear size={15} className="shrink-0" /> 先听原句
+            <Ear size={15} className="shrink-0" /> {t("先听原句")}
           </span>
         ) : (
           <span className="flex items-center gap-1.5 font-medium text-fg">
@@ -152,7 +153,7 @@ function Live({ rec }: { rec: Rec }) {
               <span className="absolute size-2.5 rounded-full bg-danger/25" />
               <span className="size-2 rounded-full bg-danger" />
             </span>
-            {rec.along ? "跟着说" : "轮到你了"}
+            {rec.along ? t("跟着说") : t("轮到你了")}
           </span>
         )}
         {count && <span className="tabular -ml-1 text-[12px] whitespace-nowrap text-muted">{count}</span>}
@@ -160,19 +161,19 @@ function Live({ rec }: { rec: Rec }) {
         {!listening && !rec.along && <span className="tabular w-10 text-right font-mono text-[12px] text-fg">{rec.secs.toFixed(1)}</span>}
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Button className="h-7 px-2.5" title={`${label} (空格)`} onClick={advanceTake}>
+        <Button className="h-7 px-2.5" title={t("{label} (空格)", { label })} onClick={advanceTake}>
           {advanceOf(rec) !== "skip" && <Square size={10} fill="currentColor" strokeWidth={0} />}
           {label}
         </Button>
-        <button title="取消 (Esc)" className="text-[12px] text-faint hover:text-fg" onClick={cancelTake}>
-          取消
+        <button title={t("取消 (Esc)")} className="text-[12px] text-faint hover:text-fg" onClick={cancelTake}>
+          {t("取消")}
         </button>
-        <span className="ml-auto text-right text-[12px] text-faint" title={rec.mic ? `用「${rec.mic}」录音` : undefined}>
+        <span className="ml-auto text-right text-[12px] text-faint" title={rec.mic ? t("用「{mic}」录音", { mic: rec.mic }) : undefined}>
           {hint.text}
           {hint.space !== undefined && (
             <>
               {" "}
-              <Kbd>空格</Kbd>
+              <Kbd>{t("空格")}</Kbd>
               {hint.space}
             </>
           )}
@@ -228,12 +229,12 @@ function Result({ take, at, looping }: { take: Take; at: RecordAt; looping: bool
         {note && <p className="mt-0.5 pl-[3.75rem] text-[12px] text-faint">{note}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
-        <PlayButton active={playing?.what === both} paused={playing?.paused} onClick={() => toggle(both)} title={turns ? "从这句听下去：每句先放原句，再放你的 (P)" : "从这句听下去：原句和你的一起放，听合不合拍 (P)"}>
-          {turns ? "对比" : "一起听"}
+        <PlayButton active={playing?.what === both} paused={playing?.paused} onClick={() => toggle(both)} title={turns ? t("从这句听下去：每句先放原句，再放你的 (P)") : t("从这句听下去：原句和你的一起放，听合不合拍 (P)")}>
+          {turns ? t("对比") : t("一起听")}
         </PlayButton>
-        {playing?.paused && <span className="text-[12px] text-faint">已暂停</span>}
+        {playing?.paused && <span className="text-[12px] text-faint">{t("已暂停")}</span>}
         <span className="ml-auto flex items-center gap-1">
-          <IconButton title="删除这次录音" onClick={() => void deleteTake(take.id)}>
+          <IconButton title={t("删除这次录音")} onClick={() => void deleteTake(take.id)}>
             <Trash2 />
           </IconButton>
           <RecordButtons at={at} looping={looping} />
@@ -261,7 +262,7 @@ export function MicButton({ at, count, className = "" }: { at: RecordAt; count: 
   const live = useApp((s) => s.rec?.at === at);
   return (
     <button
-      title={open ? "收起跟读录音" : count ? `跟读录音（录过 ${count} 次）(M)` : "跟读录音 (M)"}
+      title={open ? t("收起跟读录音") : count ? t("跟读录音（录过 {n} 次）(M)", { n: count }) : t("跟读录音 (M)")}
       aria-pressed={open}
       onClick={() => useApp.getState().toggleRecorder(at)}
       className={`relative grid size-[28px] place-items-center rounded-[8px] transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${

@@ -1,5 +1,6 @@
 // 新功能: the CHANGELOG.md bundled with the app, read into releases to show, and
 // whether to say “已更新到 …” after an update.
+import { isEnglish } from "./i18n";
 
 /** A run of a point's text: plain, **bold**, or a `key` (shown as a Kbd). */
 export type Inline = { kind: "text" | "bold" | "key"; text: string };
@@ -68,7 +69,7 @@ export function parseChangelog(md: string): Release[] {
 /** **bold**, `keys` and [links](…) (their text only: the app doesn't leave the window). */
 export function inline(s: string): Inline[] {
   const out: Inline[] = [];
-  const re = /\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\([^)]*\)/g;
+  const re = /\*\*(.+?)\*\*|\x60([^\x60]+)\x60|\[([^\]]+)\]\([^)]*\)/g; // \x60: a backtick (a bare one reads as a template string to i18n.test.ts)
   let at = 0;
   for (let m = re.exec(s); m; m = re.exec(s)) {
     if (m.index > at) out.push({ kind: "text", text: s.slice(at, m.index) });
@@ -90,7 +91,7 @@ export function headline(item: NoteItem): string {
 
 /** What a release brought, by name, for the card after an update (its known limits aren't news). */
 export function highlights(release: Release): string[] {
-  return release.groups.filter((g) => g.title !== "已知限制").flatMap((g) => g.items.map(headline));
+  return release.groups.filter((g) => g.title !== "已知限制").flatMap((g) => g.items.map(headline)); // i18n: keep (CHANGELOG.md's own title)
 }
 
 /**
@@ -103,12 +104,13 @@ export function highlightsSince(releases: Release[], seen: string, current: stri
     .flatMap(highlights);
 }
 
-/** "2026-10-17" → "10 月 17 日" (with the year when it isn't `thisYear`). */
+/** "2026-10-17" → "10 月 17 日" / "Oct 17" (with the year when it isn't `thisYear`). */
 export function dateLabel(date: string | null, thisYear = new Date().getFullYear()): string {
   if (!date) return "";
   const [y, m, d] = date.split("-").map(Number);
-  const day = `${m} 月 ${d} 日`;
-  return y === thisYear ? day : `${y} 年 ${day}`;
+  if (isEnglish()) return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: y === thisYear ? undefined : "numeric" });
+  const day = `${m} 月 ${d} 日`; // i18n: keep (English above)
+  return y === thisYear ? day : `${y} 年 ${day}`; // i18n: keep
 }
 
 /** -1, 0 or 1; anything that isn't a version (an empty “seen”) is older than all. */

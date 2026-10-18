@@ -60,7 +60,10 @@ pub fn pick(staging: &Path, made: &[Made]) -> Result<Picked, String> {
         .filter(|m| m.kind == "audio")
         .filter_map(|m| inside(staging, &m.path, MAX_AUDIO))
         .find(|p| library::is_audio(p))
-        .ok_or("插件没有下载到能播放的音频")?;
+        .ok_or(crate::i18n::pick(
+            "插件没有下载到能播放的音频",
+            "The plugin didn't download any playable audio",
+        ))?;
     let subtitle = made.iter().filter(|m| m.kind == "subtitle").find_map(|m| {
         let path = inside(staging, &m.path, MAX_SUBTITLE)?;
         has_extension(&path, &["srt", "vtt"]).then(|| (path, m.lang.clone().unwrap_or_default()))
@@ -92,7 +95,7 @@ pub fn safe_name(title: &str) -> String {
     }
     let name = name.trim_end_matches(['.', ' ']).to_string();
     if name.is_empty() {
-        "未命名".into()
+        crate::i18n::pick("未命名", "Untitled").into()
     } else {
         name
     }
@@ -131,14 +134,20 @@ pub fn place(audio: &Path, root: &Path, folder: &str, title: &str) -> Result<Pat
     } else {
         root.join(safe_name(folder))
     };
-    fs::create_dir_all(&dir).map_err(|e| format!("无法创建文件夹：{e}"))?;
+    fs::create_dir_all(&dir)
+        .map_err(|e| tr!("无法创建文件夹：{e}", "Couldn't create the folder: {e}"))?;
     let ext = audio
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("m4a")
         .to_ascii_lowercase();
     let dest = free_path(&dir, &safe_name(title), &ext);
-    move_file(audio, &dest).map_err(|e| format!("无法把音频放进文件夹：{e}"))?;
+    move_file(audio, &dest).map_err(|e| {
+        tr!(
+            "无法把音频放进文件夹：{e}",
+            "Couldn't move the audio into the folder: {e}"
+        )
+    })?;
     Ok(dest)
 }
 

@@ -64,10 +64,19 @@ pub fn platform() -> &'static str {
 
 impl Manifest {
     pub fn read(dir: &Path) -> Result<Self, String> {
-        let text = std::fs::read_to_string(dir.join("manifest.json"))
-            .map_err(|_| "文件夹里没有 manifest.json，不是一个插件".to_string())?;
-        let manifest: Manifest =
-            serde_json::from_str(&text).map_err(|e| format!("manifest.json 写得不对：{e}"))?;
+        let text = std::fs::read_to_string(dir.join("manifest.json")).map_err(|_| {
+            crate::i18n::pick(
+                "文件夹里没有 manifest.json，不是一个插件",
+                "This folder has no manifest.json, so it isn't a plugin",
+            )
+            .to_string()
+        })?;
+        let manifest: Manifest = serde_json::from_str(&text).map_err(|e| {
+            tr!(
+                "manifest.json 写得不对：{e}",
+                "manifest.json isn't valid: {e}"
+            )
+        })?;
         manifest.check(env!("CARGO_PKG_VERSION"))?;
         Ok(manifest)
     }
@@ -82,29 +91,44 @@ impl Manifest {
                 .chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
         if !id_ok {
-            return Err(format!("插件 id “{}” 只能用小写字母、数字和 -", self.id));
+            let id = &self.id;
+            return Err(tr!(
+                "插件 id “{id}” 只能用小写字母、数字和 -",
+                "The plugin ID “{id}” can only contain lowercase letters, digits, and -"
+            ));
         }
         if self.name.trim().is_empty() {
-            return Err("插件没有名字".into());
+            return Err(crate::i18n::pick("插件没有名字", "The plugin has no name").into());
         }
         if self.protocol != PROTOCOL {
-            return Err(format!(
-                "这个插件需要另一个版本的应用（插件协议 {}，应用支持 {PROTOCOL}）",
-                self.protocol
+            let protocol = self.protocol;
+            return Err(tr!(
+                "这个插件需要另一个版本的应用（插件协议 {protocol}，应用支持 {PROTOCOL}）",
+                "This plugin needs a different version of the app (plugin protocol {protocol}; this app supports {PROTOCOL})"
             ));
         }
         if let Some(min) = &self.min_app_version {
             if older(app_version, min) {
-                return Err(format!("这个插件需要 Shadowing {min} 或更新的版本"));
+                return Err(tr!(
+                    "这个插件需要 Shadowing {min} 或更新的版本",
+                    "This plugin needs Shadowing {min} or later"
+                ));
             }
         }
         self.program_path()?;
         for importer in &self.contributes.importers {
             if importer.matches.is_empty() {
-                return Err(format!("“{}” 没有写能导入哪些链接", importer.title));
+                let title = &importer.title;
+                return Err(tr!(
+                    "“{title}” 没有写能导入哪些链接",
+                    "“{title}” doesn't say which links it can import"
+                ));
             }
             if let Some(bad) = importer.matches.iter().find(|p| split_url(p).is_none()) {
-                return Err(format!("链接规则 “{bad}” 要以 https:// 或 http:// 开头"));
+                return Err(tr!(
+                    "链接规则 “{bad}” 要以 https:// 或 http:// 开头",
+                    "The link pattern “{bad}” must start with https:// or http://"
+                ));
             }
         }
         Ok(())
@@ -112,17 +136,20 @@ impl Manifest {
 
     /// The program for this Mac, relative to the plugin folder (never outside it).
     pub fn program_path(&self) -> Result<PathBuf, String> {
-        let rel = self
-            .main
-            .get(platform())
-            .ok_or("这个插件不支持这台 Mac（没有对应芯片的程序）")?;
+        let rel = self.main.get(platform()).ok_or(crate::i18n::pick(
+            "这个插件不支持这台 Mac（没有对应芯片的程序）",
+            "This plugin doesn't support this Mac (it has no program for this chip)",
+        ))?;
         let path = PathBuf::from(rel);
         let inside = !rel.is_empty()
             && path
                 .components()
                 .all(|c| matches!(c, Component::Normal(_) | Component::CurDir));
         if !inside {
-            return Err(format!("插件程序的路径 “{rel}” 不在插件文件夹里"));
+            return Err(tr!(
+                "插件程序的路径 “{rel}” 不在插件文件夹里",
+                "The plugin's program path “{rel}” isn't inside the plugin folder"
+            ));
         }
         Ok(path)
     }

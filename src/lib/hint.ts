@@ -2,7 +2,7 @@
 export type HintPiece = { text: string; key: boolean };
 
 // No lookbehind: WebKit before Safari 16.4 rejects it, and this module loads with the app.
-const KEY = /(^|[\s，、,])([A-Z[\]−=-])(?=\s|$)/g;
+const KEY = /(^|[\s，、,])([A-Z[\]−=-])(?=\s|$)/g; // i18n: keep
 
 export function hintPieces(text: string): HintPiece[] {
   const out: HintPiece[] = [];

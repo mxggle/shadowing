@@ -1,6 +1,7 @@
 // The only module that talks to Rust. Everything else imports from here.
 import { invoke } from "@tauri-apps/api/core";
 import type { PlayMode } from "../audio/logic";
+import type { Lang, LangSetting } from "./i18n";
 
 export interface Track {
   path: string;
@@ -35,6 +36,8 @@ export interface Settings {
   paragraphDrill: boolean;
   /** 逐句跟读: times each sentence is said before the next (1–20). */
   drillRounds: number;
+  /** Interface language chosen in settings ("" follows the Mac); see lib/i18n.ts. */
+  uiLanguage: LangSetting;
 }
 
 /** 听完再说 / 边听边说 for one sentence; "read" is reading a paragraph on your own. */
@@ -183,6 +186,8 @@ export interface Snapshot {
   settings: Settings;
   progress: Record<string, Progress>;
   guide: Guide;
+  /** The interface language in use, resolved by Rust from `settings.uiLanguage`. */
+  uiLang: Lang;
 }
 
 /** A stretch of practice on one audio (see src-tauri/src/practice/clock.rs). */
@@ -437,6 +442,8 @@ export const api = {
     invoke<void>("save_progress", { path, position, duration }),
   setLastTrack: (path: string | null) => invoke<void>("set_last_track", { path }),
   saveSettings: (settings: Settings) => invoke<void>("save_settings", { settings }),
+  /** Saves the interface language and returns the one now in use. */
+  setUiLanguage: (language: LangSetting) => invoke<Lang>("set_ui_language", { language }),
   saveGuide: (guide: Guide) => invoke<void>("guide_save", { guide }),
   /** The bundled practice clip (Japanese for "ja", English otherwise), with its subtitles beside it. */
   sampleTrack: (language: string) => invoke<Track>("sample_track", { language }),

@@ -34,6 +34,9 @@ fn sample_sentence(language: &str) -> &'static str {
 const SAMPLE_SYSTEM: &str =
     "你是耐心的语言老师。用简体中文解释用户给出的句子：先给出自然的中文翻译，\
      再用一两句话讲一个最值得注意的语法点或用法。总共不超过 100 字，不要用 Markdown 标题。";
+const SAMPLE_SYSTEM_EN: &str = "You are a patient language teacher. Explain the user's sentence in English: \
+     first a natural English translation, then one or two sentences on the grammar point or usage most worth noticing. \
+     Under 80 words in all, no Markdown headings.";
 
 /// Checks the chosen service for a feature: key, address, model, and (for
 /// explanations) a real answer.
@@ -45,7 +48,10 @@ pub async fn ai_test(
 ) -> Result<TestReport, String> {
     let started = Instant::now();
     let choice = state.read(|d| d.ai.choice(feature).clone());
-    let id = choice.provider.ok_or("还没有选择服务")?;
+    let id = choice.provider.ok_or(crate::i18n::pick(
+        "还没有选择服务",
+        "Choose a service first.",
+    ))?;
     if id == local::PROVIDER {
         let models = local::downloaded(&state);
         return Ok(TestReport {
@@ -76,11 +82,11 @@ pub async fn ai_test(
         .map(|ids| providers::filter_models(target.preset, feature, ids))
         .unwrap_or_default();
     if choice.model.is_empty() {
-        return Err("还没有选择模型".into());
+        return Err(crate::i18n::pick("还没有选择模型", "Choose a model first.").into());
     }
     let sample = sample_sentence(&state.read(|d| d.settings.transcribe_language.clone()));
     let prompt = Prompt {
-        system: SAMPLE_SYSTEM,
+        system: crate::i18n::pick(SAMPLE_SYSTEM, SAMPLE_SYSTEM_EN),
         user: sample,
         max_tokens: 1024,
     };

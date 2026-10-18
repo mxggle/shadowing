@@ -25,6 +25,7 @@ src/                      前端
   lib/edits.ts            改字幕的规则（改动取整词、查找匹配、全部替换），有单元测试
   lib/reshape.ts          拆句 / 合并后跟着挪的东西（句子序号、段落、解释、建议、撤销），有单元测试
   lib/aiReady.ts          转写 / 解释是否已设置好、向导从哪一步继续，有单元测试
+  lib/i18n.ts             界面语言：t() / tk() 取中文或英文（英文在 src/i18n/en/，按界面的各部分分文件），有单元测试（也检查没翻译的中文）
   lib/update.ts           更新提示里的更新说明要点、下载百分比，有单元测试
   lib/changelog.ts        新功能：把打包进应用的 CHANGELOG.md（releases.ts）读成各个版本、更新后要不要说“已更新到 …”，有单元测试
   lib/practice.ts         学习记录：按天（4 点换日）汇总练习时间、每天的目标、连续达标天数，有单元测试
@@ -48,6 +49,7 @@ src/                      前端
   dev/smoke.ts            应用内自测脚本（只在 smoke 模式加载）
 src-tauri/src/
   lib.rs                  AppState + 命令注册
+  i18n.rs                 界面语言：设置里选的，或跟随 Mac（系统首选语言是中文才用中文）；tr! / pick 给 Rust 里的提示选中文或英文
   library.rs              扫描文件夹、路径校验（resolve_inside）
   guide.rs                引导状态（state.json 的 guide）、打包的示例音频（samples/，见 samples/README.md 的出处）
   store.rs                state.json 读写、原子写入
@@ -126,7 +128,11 @@ site/                     落地页 index.html 和插件目录 plugins.html（�
 - 所有对外网络请求都从 Rust 发出（不经 WebView）；前端只传服务 id，不传 URL 或 Key 去请求。
   插件程序自己联网（它是独立进程，同样不经 WebView），但碰不到用户的文件夹和钥匙串：只写自己的 data/ 和应用给的暂存文件夹。
 - 新规则优先写成纯函数并加测试（TS 放 `*.test.ts`，Rust 放模块内 `#[cfg(test)]`）。
-- 用户可见文案用简体中文，直接写在组件里（暂不做 i18n）。
+- 用户可见文案有简体中文和英文两套。中文直接写在组件里，经过 `t()`（`lib/i18n.ts`）显示：中文本身就是 key，
+  英文写在 `src/i18n/en/` 里对应的文件；模块级常量里的中文用 `tk()` 标记，显示的地方再 `t()`（不要在模块顶层调用 `t()`）。
+  `src/lib/i18n.test.ts` 会找出没经过 `t()` 的中文、没有英文的 key 和用不到的英文；要原样保留的中文（语言自己的名字、
+  CHANGELOG 的小标题）在同一行加 `// i18n: keep`。Rust 里给用户看的文字用 `tr!("中文 {x}", "English {x}")` 或
+  `i18n::pick("中文", "English")`（`src-tauri/src/i18n.rs`）。新文案两种语言一起写。
 - 界面风格“稿纸 + 播放台”（变量都在 `src/index.css`）：
   - 主区是纸（`paper`），放要听要说的原文：原文和音频标题用衬线 `font-script`（日文明朝体），应用自己的中文标题用
     `font-heading`（宋体），其余界面用系统无衬线。

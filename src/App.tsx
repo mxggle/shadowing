@@ -13,14 +13,22 @@ import { ShortcutHelp } from "./components/ShortcutHelp";
 import { Stage } from "./components/Stage";
 import { UpdateNotice } from "./components/UpdateNotice";
 import { WhatsNewDialog } from "./components/WhatsNew";
+import { fillNodes } from "./components/ui";
 import { usePracticePing } from "./hooks/usePracticePing";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { api, isTauri } from "./lib/api";
+import { t } from "./lib/i18n";
 import { useApp } from "./store";
 
 let booted = false; // StrictMode runs effects twice in dev
 
+/** Everything is drawn again in the new language when it changes (text is looked up while drawing). */
 export default function App() {
+  const lang = useApp((s) => s.lang);
+  return <Shell key={lang} />;
+}
+
+function Shell() {
   const ready = useApp((s) => s.ready);
   const folder = useApp((s) => s.folder);
   const practicing = useApp((s) => s.practicing);
@@ -42,7 +50,7 @@ export default function App() {
   }, []);
 
   if (!isTauri()) {
-    return <Centered>请用 <code>npm run app</code> 在桌面应用中打开。</Centered>;
+    return <Centered>{fillNodes(t("请用 {command} 在桌面应用中打开。"), { command: <code>npm run app</code> })}</Centered>;
   }
   if (!ready) return null;
   if (!folder && !practicing) {
@@ -109,7 +117,7 @@ function Breadcrumb() {
   const folderName = useApp((s) => s.folder?.name);
   const relDir = useApp((s) => s.current?.relDir);
   const onSample = useApp((s) => !!s.current && s.current.path === s.sample?.path);
-  const parts = onSample ? ["示例"] : [folderName, ...(relDir ? relDir.split("/") : [])].filter(Boolean);
+  const parts = onSample ? [t("示例")] : [folderName, ...(relDir ? relDir.split("/") : [])].filter(Boolean);
   return (
     // pointer-events-none: drags on the text still reach the bar's drag region.
     <div className="pointer-events-none mr-auto flex min-w-0 items-center gap-1 text-[12px] text-faint">

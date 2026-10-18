@@ -130,7 +130,7 @@ pub fn play_reading(
     let reading = saved::readings(root, audio)
         .into_iter()
         .find(|r| r.id == id)
-        .ok_or("这次朗读不见了")?;
+        .ok_or(saved::reading_gone())?;
     let whole = read(&saved::wav_path(root, audio, id))?;
     let takes = saved::list(root, audio);
     let take = |tid: &str| {

@@ -176,7 +176,9 @@ impl Recorder {
             Ok(Err(e)) => return Err(e),
             Err(_) => {
                 let _ = tx.send(Msg::Stop);
-                return Err("麦克风没有响应".into());
+                return Err(
+                    crate::i18n::pick("麦克风没有响应", "The microphone isn't responding").into(),
+                );
             }
         };
         player.set_tap(Some(tap))?;
@@ -212,7 +214,9 @@ impl Recorder {
         let raw = s
             .done
             .recv_timeout(Duration::from_secs(3))
-            .unwrap_or_else(|_| Err("录音没有结束".into()));
+            .unwrap_or_else(|_| {
+                Err(crate::i18n::pick("录音没有结束", "The recording didn't finish").into())
+            });
         let _ = player.set_tap(None);
         if s.held {
             let _ = player.pause(); // the original held for it won't go on: as if it was paused

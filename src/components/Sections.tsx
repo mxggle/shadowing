@@ -2,6 +2,7 @@ import { ArrowUpToLine, BookOpenText, ChevronDown, Repeat } from "lucide-react";
 import { memo, useRef, useState } from "react";
 import { useDismiss } from "../hooks/useDismiss";
 import type { Sentence, Transcript } from "../lib/api";
+import { t } from "../lib/i18n";
 import { sectionIndexOf, sectionName, sectionRange, sectionsOf } from "../lib/sections";
 import { sentenceIndexAt } from "../lib/sentences";
 import { formatTime } from "../lib/time";
@@ -32,7 +33,7 @@ export const SectionHeading = memo(function SectionHeading({ k, active }: { k: n
       {editing ? (
         <TitleInput
           initial={section.title ?? ""}
-          placeholder={`对话 ${k + 1}`}
+          placeholder={t("对话 {n}", { n: k + 1 })}
           onDone={(title) => {
             setEditing(false);
             if (title !== null) renameSection(k, title);
@@ -40,7 +41,7 @@ export const SectionHeading = memo(function SectionHeading({ k, active }: { k: n
         />
       ) : (
         <button
-          title="点一下改名"
+          title={t("点一下改名")}
           onClick={() => setEditing(true)}
           className={`max-w-[60%] truncate rounded-[6px] px-1 -mx-1 font-heading text-[14px] font-semibold transition-colors duration-150 hover:bg-hover hover:text-fg ${tone}`}
         >
@@ -48,17 +49,17 @@ export const SectionHeading = memo(function SectionHeading({ k, active }: { k: n
         </button>
       )}
       <button
-        title="从这一段开头播放"
+        title={t("从这一段开头播放")}
         onClick={() => playSection(k)}
         className="shrink-0 rounded-[5px] px-1 text-[11px] text-faint transition-colors duration-150 hover:text-fg"
       >
-        <span className="tabular font-mono">{count}</span> 句 · <span className="tabular font-mono">{formatTime(secs)}</span>
+        <span className="tabular font-mono">{count}</span> {t("句", { n: count })} · <span className="tabular font-mono">{formatTime(secs)}</span>
       </button>
       <span className={`h-px min-w-6 flex-1 ${looping ? "bg-loop/40" : "bg-line"}`} />
       <span className="flex shrink-0 items-center">
         {k > 0 && (
           <button
-            title="合并到上一段"
+            title={t("合并到上一段")}
             onClick={() => mergeSection(k)}
             className="grid size-[26px] place-items-center rounded-[7px] text-muted opacity-0 transition-[opacity,background-color,color,scale] duration-150 group-hover/section:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100 active:scale-90"
           >
@@ -66,14 +67,14 @@ export const SectionHeading = memo(function SectionHeading({ k, active }: { k: n
           </button>
         )}
         <button
-          title="整段录这一段"
+          title={t("整段录这一段")}
           onClick={() => void useApp.getState().startReading({ at: section.start, scope: "section" })}
           className="grid size-[26px] place-items-center rounded-[7px] text-muted opacity-0 transition-[opacity,background-color,color,scale] duration-150 group-hover/section:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100 active:scale-90"
         >
           <BookOpenText size={14} strokeWidth={2.1} />
         </button>
         <button
-          title={looping ? "取消循环这段 ({ } 换段)" : "循环这段 ({ } 换段)"}
+          title={looping ? t("取消循环这段 ({ } 换段)") : t("循环这段 ({ } 换段)")}
           aria-pressed={looping}
           onClick={() => toggleSectionLoop(k)}
           className={`grid size-[26px] place-items-center rounded-[7px] transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${
@@ -110,7 +111,7 @@ function TitleInput({ initial, placeholder, onDone }: { initial: string; placeho
       defaultValue={initial}
       placeholder={placeholder}
       maxLength={40}
-      aria-label="段落名称"
+      aria-label={t("段落名称")}
       onFocus={(e) => e.currentTarget.select()}
       onBlur={(e) => finish(e.currentTarget.value)}
       onKeyDown={(e) => {
@@ -142,7 +143,7 @@ export function SectionMenu() {
   return (
     <div ref={root} className="relative shrink-0">
       <button
-        title="段落：跳到某一段 ({ } 换段)"
+        title={t("段落：跳到某一段 ({ } 换段)")}
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         className={`flex h-6 items-center gap-1 rounded-[6px] pr-1 pl-1.5 text-[12px] transition-colors duration-150 ${
@@ -158,7 +159,7 @@ export function SectionMenu() {
       {open && (
         <div
           role="menu"
-          aria-label="段落"
+          aria-label={t("段落")}
           className="scrollbar-none absolute top-full left-0 z-20 mt-1.5 max-h-[320px] w-[248px] origin-top-left animate-pop-in overflow-y-auto rounded-[12px] bg-raised p-1 shadow-lift"
         >
           {sections.map((section, k) => {
@@ -177,7 +178,7 @@ export function SectionMenu() {
               >
                 <span className={`min-w-0 flex-1 truncate ${loopSection === k ? "text-loop-text" : ""}`}>{sectionName(sections, k)}</span>
                 <span className="shrink-0 text-[11px] text-faint">
-                  <span className="tabular font-mono">{end - first}</span> 句
+                  <span className="tabular font-mono">{end - first}</span> {t("句", { n: end - first })}
                 </span>
                 <span className="tabular w-9 shrink-0 text-right font-mono text-[11px] text-faint">{formatTime(sentences[first]?.start ?? 0)}</span>
               </button>

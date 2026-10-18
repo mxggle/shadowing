@@ -3,6 +3,7 @@ import { AudioEngine } from "./audio/engine";
 import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, trackAfter, type Loop, type PlayMode } from "./audio/logic";
 import { listen } from "@tauri-apps/api/event";
 import { api, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
+import { setLang, type Lang, type LangSetting } from "./lib/i18n";
 import { playKey } from "./lib/playKey";
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createDrillSlice, type DrillState } from "./drillSlice";
@@ -40,9 +41,12 @@ export interface AppState extends TranscriptState, CorrectState, ReshapeState, P
   settingsOpen: boolean;
   /** Whether the recordings sidebar is shown; remembered between launches. */
   shelfOpen: boolean;
+  /** Interface language in use; the app re-renders when it changes (lib/i18n.ts). */
+  lang: Lang;
 
   init(): Promise<void>;
   setSettingsOpen(open: boolean): void;
+  setUiLanguage(language: LangSetting): Promise<void>;
   toggleShelf(): void;
   setAiConfig(config: AiConfig): void;
   setLocal(local: LocalOverview): void;
@@ -178,7 +182,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3 },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, uiLanguage: "" },
     current: null,
     playing: false,
     time: 0,
@@ -191,6 +195,7 @@ export const useApp = create<AppState>((set, get) => {
     download: null,
     settingsOpen: false,
     shelfOpen: loadShelfOpen(),
+    lang: "zh",
     ...createTranscriptSlice(set, get, engine, applyLoop),
     ...createCorrectSlice(set, get),
     ...createReshapeSlice(set, get, engine, applyLoop),
@@ -206,8 +211,10 @@ export const useApp = create<AppState>((set, get) => {
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
+      setLang(snap.uiLang);
       set({
         ready: true,
+        lang: snap.uiLang,
         folder: snap.folder,
         missingFolder: snap.missingFolder,
         progress: snap.progress,
@@ -228,6 +235,16 @@ export const useApp = create<AppState>((set, get) => {
     setSettingsOpen(settingsOpen) {
       // One overlay at a time: ⌘, while the AI wizard is open replaces it (as the wizard replaces settings).
       set(settingsOpen ? { settingsOpen, wizardOpen: false, statsOpen: false, newsOpen: false } : { settingsOpen });
+    },
+    async setUiLanguage(uiLanguage) {
+      // Kept in the store's settings too, so a settings save still pending can't undo it.
+      set({ settings: { ...get().settings, uiLanguage } });
+      const lang = await api.setUiLanguage(uiLanguage);
+      setLang(lang);
+      set({ lang });
+      // Explanations are kept per language (src-tauri/src/explain/saved.rs).
+      const current = get().current;
+      if (current) void get().loadExplanations(current.path);
     },
     toggleShelf() {
       const shelfOpen = !get().shelfOpen;

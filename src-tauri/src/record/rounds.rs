@@ -11,7 +11,12 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc;
 use std::time::Duration;
 
-const STOPPED: &str = "录音已经停了，再录一次吧";
+fn stopped() -> &'static str {
+    crate::i18n::pick(
+        "录音已经停了，再录一次吧",
+        "The recording has already stopped. Record it again.",
+    )
+}
 
 impl Recorder {
     /// Another time through: the mic stays open and the take starts afresh.
@@ -21,13 +26,13 @@ impl Recorder {
         let (tx, rx) = mpsc::channel();
         let (mode, id) = {
             let session = self.lock();
-            let s = session.as_ref().ok_or(STOPPED)?;
-            s.tx.send(Msg::Round(tx)).map_err(|_| STOPPED)?;
+            let s = session.as_ref().ok_or(stopped())?;
+            s.tx.send(Msg::Round(tx)).map_err(|_| stopped())?;
             (s.meta.mode, s.id)
         };
         let raw = rx
             .recv_timeout(Duration::from_secs(2))
-            .map_err(|_| STOPPED)?;
+            .map_err(|_| stopped())?;
         // Removing the echo takes a moment: the lock isn't held meanwhile.
         let Ok(built) = take::build(&raw, mode) else {
             return Ok(false);

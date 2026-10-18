@@ -128,9 +128,13 @@ pub fn local_download(
     id: String,
 ) -> Result<(), String> {
     if !models::supported() {
-        return Err("这台 Mac 不支持本机转写".into());
+        return Err(crate::i18n::pick(
+            "这台 Mac 不支持本机转写",
+            "This Mac doesn't support local transcription.",
+        )
+        .into());
     }
-    let model = models::find(&id).ok_or("未知的模型")?;
+    let model = models::find(&id).ok_or(crate::i18n::pick("未知的模型", "Unknown model."))?;
     let dest = models_dir(&state).join(model.file);
     if dest.is_file() {
         return Ok(());
@@ -141,10 +145,10 @@ pub fn local_download(
     if let Some(free) = models::free_bytes(&dest) {
         if free < need + DISK_MARGIN {
             let gb = |b: u64| b as f64 / 1e9;
-            return Err(format!(
-                "磁盘空间不够：还需要 {:.1} GB，目前可用 {:.1} GB",
-                gb(need + DISK_MARGIN),
-                gb(free)
+            let (need, free) = (gb(need + DISK_MARGIN), gb(free));
+            return Err(tr!(
+                "磁盘空间不够：还需要 {need:.1} GB，目前可用 {free:.1} GB",
+                "Not enough disk space: {need:.1} GB needed, {free:.1} GB available."
             ));
         }
     }
@@ -152,7 +156,11 @@ pub fn local_download(
     {
         let mut current = downloads.0.lock().unwrap();
         if current.is_some() {
-            return Err("已经有一个模型在下载".into());
+            return Err(crate::i18n::pick(
+                "已经有一个模型在下载",
+                "Another model is already downloading.",
+            )
+            .into());
         }
         *current = Some((id.clone(), cancel.clone()));
     }
@@ -185,7 +193,7 @@ pub fn local_download(
             app.state::<Downloads>().0.lock().unwrap().take();
             emit(match result {
                 Ok(()) => DownloadStatus::Done { id },
-                Err(m) if m == download::CANCELLED => DownloadStatus::Cancelled { id },
+                Err(m) if crate::transcribe::is_cancelled(&m) => DownloadStatus::Cancelled { id },
                 Err(message) => DownloadStatus::Failed { id, message },
             });
         });
@@ -211,7 +219,7 @@ pub fn local_delete(
     downloads: State<Downloads>,
     id: String,
 ) -> Result<Overview, String> {
-    let model = models::find(&id).ok_or("未知的模型")?;
+    let model = models::find(&id).ok_or(crate::i18n::pick("未知的模型", "Unknown model."))?;
     if downloads
         .0
         .lock()
@@ -219,7 +227,7 @@ pub fn local_delete(
         .as_ref()
         .is_some_and(|d| d.0 == id)
     {
-        return Err("请先取消下载".into());
+        return Err(crate::i18n::pick("请先取消下载", "Cancel the download first.").into());
     }
     let file = models_dir(&state).join(model.file);
     for path in [download::part_path(&file), file] {

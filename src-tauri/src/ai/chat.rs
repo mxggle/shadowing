@@ -33,7 +33,7 @@ fn timeout(target: &Target, prompt: &Prompt<'_>) -> Duration {
 pub async fn complete(target: &Target, model: &str, prompt: &Prompt<'_>) -> Result<String, String> {
     let ep = target.endpoint();
     let wait = timeout(target, prompt);
-    let name = target.preset.name;
+    let name = target.preset.name.get();
     match target.preset.api {
         Api::OpenAi => {
             // OpenAI's own reasoning models reject `max_tokens`; everyone else expects it.
@@ -81,7 +81,11 @@ pub async fn complete(target: &Target, model: &str, prompt: &Prompt<'_>) -> Resu
                 .await?;
             super::chatgpt::read_stream(&text)
         }
-        Api::Builtin => Err("这个服务不能用于解释".into()),
+        Api::Builtin => Err(crate::i18n::pick(
+            "这个服务不能用于解释",
+            "This service can't be used for explanations.",
+        )
+        .into()),
     }
 }
 
@@ -92,7 +96,10 @@ pub fn json_object(reply: &str) -> Option<&str> {
 }
 
 fn unreadable(name: &str) -> String {
-    format!("{name} 的回复无法识别，或者回答为空（可能被截断）")
+    tr!(
+        "{name} 的回复无法识别，或者回答为空（可能被截断）",
+        "The reply from {name} couldn't be read, or it was empty (it may have been cut off)."
+    )
 }
 
 fn openai_text(body: &str) -> Option<String> {

@@ -1,5 +1,6 @@
 import { Play, Square } from "lucide-react";
 import type { Take, TakePart } from "../lib/api";
+import { t } from "../lib/i18n";
 import { formatSecs, lanes, mineSecs } from "../lib/takes";
 
 /** Peaks are stored 50 a second. */
@@ -28,7 +29,7 @@ export function TakeWaves({ take, head, onPlay, compact, titles, playing }: {
   return (
     <div className={`grid ${compact ? "grid-cols-[2.25rem_1fr_3.25rem] gap-y-0.5" : "grid-cols-[3.25rem_1fr_3.25rem] gap-y-1"} items-center gap-x-2`}>
       <Lane
-        label="原句"
+        label={t("原句")}
         named={!compact}
         on={playing === "original"}
         peaks={take.peaks.original}
@@ -42,7 +43,7 @@ export function TakeWaves({ take, head, onPlay, compact, titles, playing }: {
         onClick={() => onPlay("original")}
       />
       <Lane
-        label="我的"
+        label={t("我的")}
         named={!compact}
         on={playing === "mine"}
         peaks={take.peaks.mine}
@@ -89,7 +90,7 @@ function Lane({ label, named, on, peaks, from, width, secs, head, tone, height, 
     <>
       {named ? (
         <button
-          title={`从这句听下去：只听${label}`}
+          title={t("从这句听下去：只听{label}", { label })}
           aria-pressed={on}
           onClick={onClick}
           className={`flex h-6 items-center gap-1 justify-self-start rounded-[6px] px-1.5 text-[11px] transition-[background-color,color,scale] duration-150 active:scale-95 ${
@@ -103,7 +104,7 @@ function Lane({ label, named, on, peaks, from, width, secs, head, tone, height, 
         <span className="text-[11px] text-faint">{label}</span>
       )}
       <button
-        title={title ?? `听${label}`}
+        title={title ?? t("听{label}", { label })}
         onClick={onClick}
         className={`relative ${height} w-full rounded-[6px] transition-colors hover:bg-hover ${tone}`}
       >

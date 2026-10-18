@@ -75,13 +75,17 @@ pub fn normalize_url(url: &str) -> Result<Option<String>, String> {
     if !(url.starts_with("http://") || url.starts_with("https://"))
         || url.contains(char::is_whitespace)
     {
-        return Err("地址需要以 http:// 或 https:// 开头".into());
+        return Err(crate::i18n::pick(
+            "地址需要以 http:// 或 https:// 开头",
+            "The address must start with http:// or https://.",
+        )
+        .into());
     }
     Ok(Some(url.to_string()))
 }
 
 fn preset(id: &str) -> Result<&'static Preset, String> {
-    providers::find(id).ok_or_else(|| format!("未知的服务：{id}"))
+    providers::find(id).ok_or_else(|| tr!("未知的服务：{id}", "Unknown service: {id}"))
 }
 
 /// Everything needed to call one provider, read out of state and the Keychain.
@@ -94,12 +98,19 @@ pub struct Target {
 impl Target {
     pub fn resolve(state: &AppState, secrets: &Secrets, id: &str) -> Result<Self, String> {
         let preset = preset(id)?;
+        let name = preset.name.get();
         let base_url = state.read(|d| d.ai.base_url(preset));
         if base_url.is_empty() {
-            return Err(format!("还没有填写{}服务的地址", preset.name));
+            return Err(tr!(
+                "还没有填写{name}服务的地址",
+                "Enter an address for the {name} service first."
+            ));
         }
         if preset.key == KeyPolicy::Account && !state.read(|d| d.ai.key_hints.contains_key(id)) {
-            return Err(format!("还没有用 {} 登录", preset.name));
+            return Err(tr!(
+                "还没有用 {name} 登录",
+                "You're not signed in with your {name} yet."
+            ));
         }
         let key = match preset.key {
             // Account tokens are put on by `ready` (they may need refreshing first).
@@ -107,7 +118,10 @@ impl Target {
             _ => secrets.0.get(id)?,
         };
         if preset.key == KeyPolicy::Required && key.is_none() {
-            return Err(format!("还没有填写 {} 的 API Key", preset.name));
+            return Err(tr!(
+                "还没有填写 {name} 的 API Key",
+                "Enter your {name} API key first."
+            ));
         }
         Ok(Self {
             preset,
@@ -129,7 +143,7 @@ impl Target {
             api: self.preset.api,
             base_url: &self.base_url,
             key: self.key.as_deref(),
-            name: self.preset.name,
+            name: self.preset.name.get(),
             local: self.preset.local,
         }
     }
@@ -138,11 +152,16 @@ impl Target {
 /// The service and model chosen under 「句子解释」, ready to call.
 pub async fn chat_target(state: &AppState, secrets: &Secrets) -> Result<(Target, String), String> {
     let choice = state.read(|d| d.ai.choice(Feature::Chat).clone());
-    let id = choice
-        .provider
-        .ok_or("还没有设置「句子解释」用的 AI 服务")?;
+    let id = choice.provider.ok_or(crate::i18n::pick(
+        "还没有设置「句子解释」用的 AI 服务",
+        "Choose an AI service for explanations first.",
+    ))?;
     if choice.model.is_empty() {
-        return Err("还没有选择「句子解释」用的模型".into());
+        return Err(crate::i18n::pick(
+            "还没有选择「句子解释」用的模型",
+            "Choose a model for explanations first.",
+        )
+        .into());
     }
     let target = Target::resolve(state, secrets, &id)?.ready(secrets).await?;
     Ok((target, choice.model))
@@ -176,7 +195,11 @@ pub fn ai_choose(
 ) -> Result<AiConfig, String> {
     if let Some(id) = &provider {
         if !preset(id)?.supports(feature) {
-            return Err("这个服务不支持该功能".into());
+            return Err(crate::i18n::pick(
+                "这个服务不支持该功能",
+                "This service doesn't support that feature.",
+            )
+            .into());
         }
     }
     let model = model.trim().to_string();
@@ -192,7 +215,11 @@ pub fn ai_set_base_url(
 ) -> Result<AiConfig, String> {
     let preset = preset(&provider)?;
     if !preset.url_editable() {
-        return Err(format!("{} 的地址不能修改", preset.name));
+        let name = preset.name.get();
+        return Err(tr!(
+            "{name} 的地址不能修改",
+            "The address of {name} can't be changed."
+        ));
     }
     let url = normalize_url(&url)?.filter(|u| u != preset.base_url);
     state.update(|d| match url {
@@ -211,7 +238,11 @@ pub fn ai_set_key(
     key: String,
 ) -> Result<AiConfig, String> {
     if matches!(preset(&provider)?.key, KeyPolicy::None | KeyPolicy::Account) {
-        return Err("这个服务不需要 API Key".into());
+        return Err(crate::i18n::pick(
+            "这个服务不需要 API Key",
+            "This service doesn't need an API key.",
+        )
+        .into());
     }
     let key = key.trim();
     if key.is_empty() {
@@ -248,7 +279,10 @@ pub async fn ai_models(
 /// Opens the provider's API-key page in the default browser (fixed URLs only).
 #[tauri::command]
 pub fn ai_open_key_page(provider: String) -> Result<(), String> {
-    let url = preset(&provider)?.key_url.ok_or("这个服务没有 Key 页面")?;
+    let url = preset(&provider)?.key_url.ok_or(crate::i18n::pick(
+        "这个服务没有 Key 页面",
+        "This service has no API key page.",
+    ))?;
     std::process::Command::new("open")
         .arg(url)
         .spawn()

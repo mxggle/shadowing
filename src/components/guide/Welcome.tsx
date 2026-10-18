@@ -1,4 +1,5 @@
 import { FolderOpen, Pause, Repeat } from "lucide-react";
+import { t } from "../../lib/i18n";
 import { useApp } from "../../store";
 import { TextLink } from "../ui";
 import { Onboarding } from "./Onboarding";
@@ -23,19 +24,19 @@ function Returning() {
         <div className="flex flex-col items-start">
           <p className="text-[13px] font-semibold tracking-[0.01em] text-muted">Shadowing</p>
           <h1 className="mt-3 font-heading text-[34px] leading-[1.25] font-semibold tracking-[-0.015em] text-balance">
-            反复听、放慢，
+            {t("反复听、放慢，")}
             <br />
-            一句一句跟读。
+            {t("一句一句跟读。")}
           </h1>
-          <p className="mt-3 text-[15px] leading-relaxed text-muted">用你自己的音频练习，不需要联网。</p>
+          <p className="mt-3 text-[15px] leading-relaxed text-muted">{t("用你自己的音频练习，不需要联网。")}</p>
           {missing && (
-            <p className="mt-4 rounded-[8px] bg-danger-soft px-3 py-1.5 text-[12px] break-all text-danger">上次的文件夹无法打开：{missing}</p>
+            <p className="mt-4 rounded-[8px] bg-danger-soft px-3 py-1.5 text-[12px] break-all text-danger">{t("上次的文件夹无法打开：{folder}", { folder: missing })}</p>
           )}
           <BigButton onClick={() => void chooseFolder()}>
-            <FolderOpen size={16} strokeWidth={1.9} /> 打开文件夹
+            <FolderOpen size={16} strokeWidth={1.9} /> {t("打开文件夹")}
           </BigButton>
           <TextLink className="mt-5" onClick={() => void startPractice()}>
-            先用示例练一下
+            {t("先用示例练一下")}
           </TextLink>
         </div>
         <Preview language={guide.language === "en" ? "en" : "ja"} />
@@ -55,9 +56,9 @@ export function BigButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) 
 
 const PREVIEW: Record<"ja" | "en", [string, string][]> = {
   ja: [
-    ["0:00", "これは、私が小さいときに、村の茂平というおじいさんからきいたお話です。"],
-    ["0:18", "その中山から、少しはなれた山の中に、「ごん狐」という狐がいました。"],
-    ["0:25", "ごんは、一人ぼっちの小狐で、しだの一ぱいしげった森の中に穴をほって住んでいました。"],
+    ["0:00", "これは、私が小さいときに、村の茂平というおじいさんからきいたお話です。"], // i18n: keep
+    ["0:18", "その中山から、少しはなれた山の中に、「ごん狐」という狐がいました。"], // i18n: keep
+    ["0:25", "ごんは、一人ぼっちの小狐で、しだの一ぱいしげった森の中に穴をほって住んでいました。"], // i18n: keep
   ],
   en: [
     ["0:00", "Once upon a time there were four little Rabbits."],
@@ -83,7 +84,7 @@ export function Preview({ language }: { language: "ja" | "en" }) {
               <p className={`font-script text-[14.5px] leading-[24px] ${looping ? "text-fg" : "text-muted"}`}>{text}</p>
               {looping ? (
                 <span className="flex h-6 items-center gap-1 font-mono text-[10.5px] text-loop-text">
-                  第 3 遍 <Repeat size={12} strokeWidth={2.2} className="text-loop" />
+                  {t("第 {n} 遍", { n: 3 })} <Repeat size={12} strokeWidth={2.2} className="text-loop" />
                 </span>
               ) : (
                 <span />
@@ -95,7 +96,7 @@ export function Preview({ language }: { language: "ja" | "en" }) {
       <div className="flex items-center gap-2 border-t border-line bg-deck px-4 py-3">
         <span className="flex h-7 items-center gap-1.5 rounded-[8px] bg-loop-soft px-2.5 text-[11px] font-medium text-loop-text">
           <span className="size-[7px] rounded-full bg-loop" />
-          循环第 2 句
+          {t("循环第 {n} 句", { n: 2 })}
         </span>
         <span className="btn-ink ml-auto grid size-8 place-items-center rounded-full">
           <Pause size={13} fill="currentColor" strokeWidth={0} />

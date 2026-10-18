@@ -1,6 +1,7 @@
 import { LoaderCircle, Sparkles, X } from "lucide-react";
 import type { AiOverview, Explanation } from "../lib/api";
 import type { Explain } from "../explainSlice";
+import { t } from "../lib/i18n";
 import { useApp } from "../store";
 import { Button, IconButton } from "./ui";
 
@@ -21,30 +22,28 @@ export function ExplainNote({ index, entry }: { index: number; entry: Explain })
     <div className="relative mt-1 mb-2 animate-fade rounded-[10px] border border-line py-2 pr-1.5 pl-3 text-[13px] text-muted">
       {entry.state === "unset" && (
         <div className={line}>
-          <span className="min-w-0">解释用「句子解释」的服务，还没有设置好。</span>
+          <span className="min-w-0">{t("解释用「句子解释」的服务，还没有设置好。")}</span>
           <Button className="h-6 px-2 text-[12px]" onClick={() => setSettingsOpen(true)}>
-            去设置
+            {t("去设置")}
           </Button>
         </div>
       )}
       {entry.state === "running" && (
         <div className={line}>
           <LoaderCircle size={13} className="shrink-0 animate-spin" />
-          <span>
-            正在请 {service?.label ?? "AI"} 解释这一句…
-          </span>
+          <span>{t("正在请 {service} 解释这一句…", { service: service?.label ?? "AI" })}</span>
         </div>
       )}
       {entry.state === "failed" && (
         <div className={line}>
           <span className="min-w-0 text-danger">{entry.message}</span>
           <Button className="h-6 px-2 text-[12px]" onClick={() => retryExplain(index)}>
-            重试
+            {t("重试")}
           </Button>
         </div>
       )}
       {entry.state === "done" && <Answer value={entry.value} />}
-      <IconButton title="收起 (I)" onClick={() => toggleExplain(index)} className="absolute top-1.5 right-1.5 !h-6 !min-w-6">
+      <IconButton title={t("收起 (I)")} onClick={() => toggleExplain(index)} className="absolute top-1.5 right-1.5 !h-6 !min-w-6">
         <X />
       </IconButton>
     </div>
@@ -56,7 +55,7 @@ function Answer({ value }: { value: Explanation }) {
     <div className="flex flex-col gap-2 pr-7">
       <div>
         <p className="text-[14px] leading-[22px] text-fg">{value.translation}</p>
-        {value.tone && <p className="text-[12px] text-faint">语气：{value.tone}</p>}
+        {value.tone && <p className="text-[12px] text-faint">{t("语气：{tone}", { tone: value.tone })}</p>}
       </div>
       {value.parts.length > 0 && (
         <dl className="grid grid-cols-[fit-content(45%)_1fr] items-baseline gap-x-3 gap-y-1">
@@ -79,7 +78,7 @@ function Answer({ value }: { value: Explanation }) {
       {value.source && (
         <p className="flex items-center gap-1 text-[11px] text-faint">
           <Sparkles size={11} className="shrink-0" />
-          {value.source} 的解释，可能有误
+          {t("{source} 的解释，可能有误", { source: value.source })}
         </p>
       )}
     </div>

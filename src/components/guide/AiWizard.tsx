@@ -1,12 +1,13 @@
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { featureReady, firstOpenStep } from "../../lib/aiReady";
+import { t, tk } from "../../lib/i18n";
 import { useApp } from "../../store";
 import { Button, IconButton } from "../ui";
 import { TrialStep } from "./TrialStep";
 import { ChatStep, TranscribeStep } from "./WizardSteps";
 
-const STEPS = ["转写", "句子解释", "试一试"] as const;
+const STEPS = [tk("转写"), tk("句子解释"), tk("试一试")] as const;
 
 /**
  * Step-by-step AI setup: transcription → explanations → a real test on the
@@ -50,7 +51,7 @@ function WizardDialog() {
       >
         <header className="flex h-12 shrink-0 items-center gap-4 border-b border-line pr-2.5 pl-6">
           <h2 id="wizard-title" className="text-[14px] font-semibold">
-            设置 AI <span className="ml-1 font-normal text-faint">可选</span>
+            {t("设置 AI")} <span className="ml-1 font-normal text-faint">{t("可选")}</span>
           </h2>
           <ol className="flex items-center gap-1 text-[12px]">
             {STEPS.map((label, i) => (
@@ -70,12 +71,12 @@ function WizardDialog() {
                   >
                     {i + 1}
                   </span>
-                  {label}
+                  {t(label)}
                 </button>
               </li>
             ))}
           </ol>
-          <IconButton className="ml-auto" title="以后再说 (Esc)" onClick={close}>
+          <IconButton className="ml-auto" title={t("以后再说 (Esc)")} onClick={close}>
             <X />
           </IconButton>
         </header>
@@ -87,17 +88,17 @@ function WizardDialog() {
         </div>
 
         <footer className="flex shrink-0 items-center gap-2 border-t border-line bg-deck px-6 py-3">
-          {step > 0 && <Button onClick={() => setStep((step - 1) as 0 | 1)}>上一步</Button>}
+          {step > 0 && <Button onClick={() => setStep((step - 1) as 0 | 1)}>{t("上一步")}</Button>}
           <p className="min-w-0 flex-1 text-right text-[12px] text-faint">
-            {downloading ? "模型会在后台继续下载" : step < 2 && !ready ? "可以先跳过，之后在设置（⌘,）里补上" : ""}
+            {downloading ? t("模型会在后台继续下载") : step < 2 && !ready ? t("可以先跳过，之后在设置（⌘,）里补上") : ""}
           </p>
           {step < 2 ? (
             <Button primary={ready || downloading} onClick={() => setStep((step + 1) as 1 | 2)}>
-              {ready || downloading ? "下一步" : "跳过"}
+              {ready || downloading ? t("下一步") : t("跳过")}
             </Button>
           ) : (
             <Button primary onClick={close}>
-              完成
+              {t("完成")}
             </Button>
           )}
         </footer>

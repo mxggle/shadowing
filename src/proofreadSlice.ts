@@ -3,6 +3,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { api, type ProofreadProgress, type SentenceEdit, type Suggestion } from "./lib/api";
 import { fixEdit, matchingSentences } from "./lib/edits";
+import { isCancelled } from "./lib/i18n";
 import type { AppState } from "./store";
 
 export type Proofread = { path: string } & (
@@ -68,7 +69,7 @@ export function createProofreadSlice(set: Set, get: Get): ProofreadState {
         const suggestions = await api.proofread.start(path);
         if (get().proofread?.path === path) set({ proofread: { path, state: "done", suggestions } });
       } catch (e) {
-        const cancelled = String(e) === "已取消";
+        const cancelled = isCancelled(e);
         if (get().proofread?.path === path) set({ proofread: cancelled ? null : { path, state: "failed", message: String(e) } });
       }
     },

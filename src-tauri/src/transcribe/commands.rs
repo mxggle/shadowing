@@ -1,7 +1,7 @@
 //! The `transcribe_*` commands: one job at a time on its own thread, with the
 //! service chosen in settings, then who is speaking (`speakers`).
 
-use super::{chunk, cloud, run, Job, Status, Step, CANCELLED};
+use super::{chunk, cloud, is_cancelled, run, Job, Status, Step};
 use crate::ai::secrets::Secrets;
 use crate::ai::Target;
 use crate::transcript::{self, Source, Transcript};
@@ -39,23 +39,39 @@ pub fn transcribe_start(
 ) -> Result<(), String> {
     let audio = state.audio(&path)?;
     let choice = state.read(|d| d.ai.transcribe.clone());
-    let provider = choice.provider.ok_or("还没有设置转写服务")?;
+    let provider = choice.provider.ok_or(crate::i18n::pick(
+        "还没有设置转写服务",
+        "Choose a transcription service first.",
+    ))?;
     if choice.model.is_empty() {
-        return Err("还没有选择转写模型".into());
+        return Err(
+            crate::i18n::pick("还没有选择转写模型", "Choose a transcription model first.").into(),
+        );
     }
+    let model = &choice.model;
     let (backend, origin) = if provider == local::PROVIDER {
-        let file = local::model_file(&state, &choice.model).ok_or("这个模型还没有下载完")?;
-        (Backend::Local(file), format!("本机 · {}", choice.model))
+        let file = local::model_file(&state, model).ok_or(crate::i18n::pick(
+            "这个模型还没有下载完",
+            "This model hasn't finished downloading.",
+        ))?;
+        (
+            Backend::Local(file),
+            tr!("本机 · {model}", "On this Mac · {model}"),
+        )
     } else {
         let target = Target::resolve(&state, &secrets, &provider)?;
-        let origin = format!("{} · {}", target.preset.name, choice.model);
+        let origin = format!("{} · {model}", target.preset.name.get());
         (Backend::Cloud(target), origin)
     };
     let cancel = Arc::new(AtomicBool::new(false));
     {
         let mut current = jobs.0.lock().unwrap();
         if current.is_some() {
-            return Err("已经有一个音频在转写，请等它完成".into());
+            return Err(crate::i18n::pick(
+                "已经有一个音频在转写，请等它完成",
+                "Another audio file is being transcribed. Wait for it to finish.",
+            )
+            .into());
         }
         *current = Some(Running {
             path: path.clone(),
@@ -131,11 +147,11 @@ pub fn transcribe_start(
                         },
                         Err(e) => Status::Failed {
                             path: path.clone(),
-                            message: format!("字幕保存失败：{e}"),
+                            message: tr!("字幕保存失败：{e}", "Couldn't save the subtitles: {e}"),
                         },
                     }
                 }
-                Err(m) if m == CANCELLED => Status::Cancelled { path: path.clone() },
+                Err(m) if is_cancelled(&m) => Status::Cancelled { path: path.clone() },
                 Err(message) => Status::Failed {
                     path: path.clone(),
                     message,

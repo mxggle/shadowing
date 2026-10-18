@@ -7,8 +7,8 @@ mod cluster;
 mod fbank;
 
 use crate::local::download::{self, Spec};
+use crate::transcribe::cancelled_error;
 use crate::transcribe::pcm::{Pcm16k, RATE};
-use crate::transcribe::CANCELLED;
 use crate::transcript::Sentence;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -40,7 +40,7 @@ pub fn find(
         .and_then(|file| Voices::load(&file))
         .and_then(|voices| label(&voices, audio, sentences, cancel, progress));
     match found {
-        Err(_) if cancel.load(Ordering::Relaxed) => Err(CANCELLED.into()),
+        Err(_) if cancel.load(Ordering::Relaxed) => Err(cancelled_error()),
         Err(e) => {
             eprintln!("speakers not identified: {e}");
             Ok(())
@@ -76,9 +76,12 @@ impl Voices {
                 .into_optimized()?
                 .into_runnable()
         };
-        load()
-            .map(Self)
-            .map_err(|e| format!("说话人识别模型无法加载：{e}"))
+        load().map(Self).map_err(|e| {
+            tr!(
+                "说话人识别模型无法加载：{e}",
+                "Couldn't load the speaker model: {e}"
+            )
+        })
     }
 
     /// A voice fingerprint for a stretch of 16 kHz speech.
@@ -135,7 +138,7 @@ pub fn label(
         let last = i + 1 == sentences.len();
         if batched as f64 >= BATCH_SECS * f64::from(RATE) || (last && !batch.is_empty()) {
             if cancel.load(Ordering::Relaxed) {
-                return Err(CANCELLED.into());
+                return Err(cancelled_error());
             }
             fingerprint_all(voices, &mut batch, &mut prints);
             batched = 0;
