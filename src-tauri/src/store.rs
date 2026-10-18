@@ -216,7 +216,7 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 /// `rename`, which replaces `to`. On Windows that fails with "access denied" while
 /// someone else has `to` open without sharing it (a virus scanner, the search indexer,
 /// another write landing at the same moment): try again for a little while.
-fn replace(from: &Path, to: &Path) -> std::io::Result<()> {
+pub fn replace(from: &Path, to: &Path) -> std::io::Result<()> {
     let mut wait = std::time::Duration::from_millis(5);
     loop {
         match fs::rename(from, to) {

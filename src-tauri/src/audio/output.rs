@@ -98,8 +98,9 @@ pub fn spawn(
     tx
 }
 
-/// Host time in ns (mach absolute time on macOS, the same clock for input and
-/// output streams), so the recorder can line the microphone up with the tap.
+/// Host time in ns (mach absolute time on macOS, QueryPerformanceCounter on Windows:
+/// the same clock for input and output streams), so the recorder can line the
+/// microphone up with the tap.
 pub fn host_nanos(t: &cpal::StreamInstant) -> u64 {
     t.duration_since(&cpal::StreamInstant::new(0, 0))
         .map_or(0, |d| d.as_nanos() as u64)

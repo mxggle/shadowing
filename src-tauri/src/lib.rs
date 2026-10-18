@@ -256,6 +256,17 @@ pub(crate) fn save_all(app: &tauri::AppHandle) {
     }
 }
 
+/// Where state.json, transcripts, models and recordings live. On Windows the local
+/// app data folder, not the roaming one: models and recordings are large and belong
+/// to this PC (the folder paths in state.json do too).
+fn data_dir(path: &tauri::path::PathResolver<tauri::Wry>) -> tauri::Result<PathBuf> {
+    if cfg!(windows) {
+        path.app_local_data_dir()
+    } else {
+        path.app_data_dir()
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -295,7 +306,7 @@ pub fn run() {
                         .map(PathBuf::from);
                     let path = match dir {
                         Some(dir) => dir.join("state.json"),
-                        None => app.path().app_data_dir()?.join("state.json"),
+                        None => data_dir(app.path())?.join("state.json"),
                     };
                     let data = Persisted::load(&path);
                     (path, data)
