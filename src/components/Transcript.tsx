@@ -205,6 +205,7 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
   /** The last sentence: nothing after it to join. */
   last: boolean;
 }) {
+  useApp((s) => s.lang); // memo'd: re-render in a new language (lib/i18n.ts)
   const { playSentence, toggleSentenceLoop, editSentence, toggleExplain, splitSection, mergeSentence } = useApp.getState();
   const explaining = !!explain?.open;
   const tone = reading ? "bg-danger-soft" : looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";

@@ -47,6 +47,8 @@ tauri-plugin-updater = { version = "2", default-features = false, features = ["n
 [target.'cfg(target_os = "macos")'.dependencies]
 coreaudio-rs = { version = "0.13", default-features = false, features = ["core_audio", "audio_toolbox"] }
 objc2-core-audio = { version = "0.3", default-features = false, features = ["std", "AudioHardware"] }
+# The Mac's preferred language for the interface (src/i18n.rs); already in the tree via Tauri.
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSLocale", "NSString"] }
 
 [dev-dependencies]
 tempfile = "3"

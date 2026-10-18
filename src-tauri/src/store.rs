@@ -36,6 +36,8 @@ pub struct Settings {
     pub paragraph_drill: bool,
     /// 逐句跟读: times each sentence is said before the next (the frontend keeps it to 1–20).
     pub drill_rounds: u32,
+    /// Interface language: "zh", "en", or "" to follow the Mac (see `i18n`).
+    pub language: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -61,6 +63,7 @@ impl Default for Settings {
             paragraph_mode: crate::record::Mode::Read,
             paragraph_drill: false,
             drill_rounds: 3,
+            language: String::new(),
         }
     }
 }

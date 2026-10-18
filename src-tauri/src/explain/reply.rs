@@ -35,7 +35,13 @@ pub struct Explanation {
 /// then repeats a key (the last one counts) or writes null, and that shouldn't
 /// cost the whole answer.
 pub(super) fn parse(reply: &str, sentence: &str) -> Result<Explanation, String> {
-    let unreadable = || "AI 的回复不是要求的格式，可以再试一次或换一个模型".to_string();
+    let unreadable = || {
+        crate::i18n::pick(
+            "AI 的回复不是要求的格式，可以再试一次或换一个模型",
+            "The AI's reply wasn't in the expected format. Try again, or try another model.",
+        )
+        .to_string()
+    };
     let json: Value = chat::json_object(reply)
         .and_then(|json| serde_json::from_str(json).ok())
         .ok_or_else(unreadable)?;

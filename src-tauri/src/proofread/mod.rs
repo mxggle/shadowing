@@ -40,6 +40,20 @@ Lines are "id: text". Reply with JSON only, no other text:
 - reason: written in Simplified Chinese whatever the transcript's language (the learner reads Chinese), under 30 characters
 If nothing needs fixing, reply {"fixes": []}"#;
 
+/// How `SYSTEM` asks for the reason when the learner reads English instead.
+fn system() -> String {
+    if crate::i18n::english() {
+        SYSTEM
+            .replace("前后说的是去听讲座，应为「講演」", "The lines around it are about a lecture: 講演")
+            .replace(
+                "written in Simplified Chinese whatever the transcript's language (the learner reads Chinese), under 30 characters",
+                "written in English whatever the transcript's language (the learner reads English), under 15 words",
+            )
+    } else {
+        SYSTEM.to_string()
+    }
+}
+
 /// Characters of the learner's text per request; most lessons fit in one.
 const CHUNK_CHARS: usize = 4000;
 /// Lines either side of a chunk, sent as context only.
@@ -123,8 +137,9 @@ pub async fn ask(
     sentences: &[Sentence],
     own: Range<usize>,
 ) -> Result<(String, Vec<Suggestion>), String> {
+    let system = system();
     let prompt = Prompt {
-        system: SYSTEM,
+        system: &system,
         user: &user_message(sentences, &own),
         max_tokens: 8192,
     };
@@ -149,7 +164,10 @@ pub async fn transcript_proofread(
     running: State<'_, Proofreading>,
     path: String,
 ) -> Result<Vec<Suggestion>, String> {
-    let transcript = transcript::for_track(&state, &path)?.ok_or("这个音频没有字幕")?;
+    let transcript = transcript::for_track(&state, &path)?.ok_or(crate::i18n::pick(
+        "这个音频没有字幕",
+        "This audio has no subtitles",
+    ))?;
     let (target, model) = ai::chat_target(&state, &secrets).await?;
 
     let cancel = Arc::new(AtomicBool::new(false));

@@ -2,6 +2,7 @@ mod ai;
 mod audio;
 mod explain;
 mod guide;
+pub mod i18n;
 mod library;
 mod local;
 mod plugins;
@@ -129,6 +130,8 @@ struct Snapshot {
     settings: Settings,
     progress: HashMap<String, Progress>,
     guide: guide::Guide,
+    /// The Mac's language ("zh" / "en"), what an empty `settings.language` means.
+    system_language: &'static str,
 }
 
 fn now_secs() -> u64 {
@@ -156,6 +159,7 @@ fn get_snapshot(state: State<AppState>) -> Snapshot {
         settings: data.settings,
         progress: data.progress,
         guide: data.guide,
+        system_language: i18n::system(),
     }
 }
 
@@ -215,8 +219,19 @@ fn set_last_track(state: State<AppState>, path: Option<String>) -> Result<(), St
 }
 
 #[tauri::command]
-fn save_settings(state: State<AppState>, settings: Settings) -> Result<(), String> {
-    state.update(|d| d.settings = settings)
+fn save_settings(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    settings: Settings,
+) -> Result<(), String> {
+    let language = settings.language.clone();
+    let changed = state.data.lock().unwrap().settings.language != language;
+    state.update(|d| d.settings = settings)?;
+    if changed {
+        i18n::apply(&language);
+        update::refresh_menu(&app);
+    }
+    Ok(())
 }
 
 /// Debug aid: lets the webview print to the terminal. Silent in release builds.
@@ -246,10 +261,12 @@ pub fn run() {
                             eprintln!("smoke plugin not installed: {e}");
                         }
                     }
-                    let data = Persisted {
+                    // In Chinese whatever the Mac's language: the checks look for its wording.
+                    let mut data = Persisted {
                         folder: Some(folder),
                         ..Default::default()
                     };
+                    data.settings.language = "zh".into();
                     (path, data)
                 }
                 None => {
@@ -265,6 +282,8 @@ pub fn run() {
                     (path, data)
                 }
             };
+            i18n::apply(&data.settings.language);
+            update::refresh_menu(app.handle());
             app.manage(AppState::new(
                 state_path,
                 data,

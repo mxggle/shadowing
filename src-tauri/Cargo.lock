@@ -4023,6 +4023,7 @@ dependencies = [
  "keyring-core",
  "libc",
  "objc2-core-audio",
+ "objc2-foundation",
  "realfft",
  "reqwest",
  "rtrb",

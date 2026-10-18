@@ -3,6 +3,7 @@ import { AudioEngine } from "./audio/engine";
 import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, trackAfter, type Loop, type PlayMode } from "./audio/logic";
 import { listen } from "@tauri-apps/api/event";
 import { api, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
+import { setLang, resolveLang, type Lang, type LanguageChoice } from "./lib/i18n";
 import { playKey } from "./lib/playKey";
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createDrillSlice, type DrillState } from "./drillSlice";
@@ -40,9 +41,14 @@ export interface AppState extends TranscriptState, CorrectState, ReshapeState, P
   settingsOpen: boolean;
   /** Whether the recordings sidebar is shown; remembered between launches. */
   shelfOpen: boolean;
+  /** Interface language in use (lib/i18n.ts); App re-renders everything when it changes. */
+  lang: Lang;
+  /** The Mac's language, for 跟随系统. */
+  systemLanguage: Lang;
 
   init(): Promise<void>;
   setSettingsOpen(open: boolean): void;
+  setLanguage(choice: LanguageChoice): void;
   toggleShelf(): void;
   setAiConfig(config: AiConfig): void;
   setLocal(local: LocalOverview): void;
@@ -178,7 +184,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3 },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, language: "" },
     current: null,
     playing: false,
     time: 0,
@@ -191,6 +197,8 @@ export const useApp = create<AppState>((set, get) => {
     download: null,
     settingsOpen: false,
     shelfOpen: loadShelfOpen(),
+    lang: "zh",
+    systemLanguage: "zh",
     ...createTranscriptSlice(set, get, engine, applyLoop),
     ...createCorrectSlice(set, get),
     ...createReshapeSlice(set, get, engine, applyLoop),
@@ -206,8 +214,12 @@ export const useApp = create<AppState>((set, get) => {
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
+      const lang = resolveLang(snap.settings.language, snap.systemLanguage);
+      setLang(lang);
       set({
         ready: true,
+        lang,
+        systemLanguage: snap.systemLanguage,
         folder: snap.folder,
         missingFolder: snap.missingFolder,
         progress: snap.progress,
@@ -228,6 +240,14 @@ export const useApp = create<AppState>((set, get) => {
     setSettingsOpen(settingsOpen) {
       // One overlay at a time: ⌘, while the AI wizard is open replaces it (as the wizard replaces settings).
       set(settingsOpen ? { settingsOpen, wizardOpen: false, statsOpen: false, newsOpen: false } : { settingsOpen });
+    },
+    setLanguage(language) {
+      const lang = resolveLang(language, get().systemLanguage);
+      setLang(lang);
+      persistSettings({ language });
+      // Now, not when settings settle: Rust words its menu and messages by it.
+      flushSettings();
+      set({ lang });
     },
     toggleShelf() {
       const shelfOpen = !get().shelfOpen;

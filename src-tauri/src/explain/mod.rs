@@ -1,6 +1,6 @@
 //! "解释这一句": asks the explanation model (see `ai::chat`) for a translation of
-//! one sentence and what each piece of it means and does, for a learner who
-//! reads Chinese. It only explains; nothing in the transcript changes.
+//! one sentence and what each piece of it means and does, in the interface's
+//! language (Chinese or English). It only explains; nothing in the transcript changes.
 
 #[cfg(test)]
 mod real_tests;
@@ -12,6 +12,7 @@ mod tests;
 use crate::ai::chat::{self, Prompt};
 use crate::ai::secrets::Secrets;
 use crate::ai::{self, Target};
+use crate::i18n::pick;
 use crate::transcript::{self, Sentence};
 use crate::AppState;
 pub use reply::Explanation;
@@ -29,6 +30,20 @@ Reply with JSON only, no other text. For example, for 今日はちょっと散�
   - meaning: what the piece means here, Simplified Chinese, under 12 characters; "" for a piece that is only grammar.
   - note: what its grammar or form does, Simplified Chinese, under 30 characters: the dictionary form of a conjugated word, the full form of a contraction or slang (なんない = ならない), a dropped particle, the nuance of an ending. "" when the meaning says it all; never explain what a beginner knows (a plain は, が, を, に, で, or の between nouns).
 - tone: how the speaker says it, for the learner to carry over when repeating it aloud (带点埋怨, 撒娇, 吃惊, 新闻播报的平稳语调), Simplified Chinese, under 15 characters; "" if nothing stands out.
+The transcript was made by speech recognition, so if a word looks misheard, say in its note what it most likely is."#;
+
+/// `SYSTEM` for a learner who reads English.
+const SYSTEM_EN: &str = r#"You help an English-speaking language learner who is shadowing a recording (listening, then repeating it aloud). Explain ONE sentence from its transcript piece by piece, so the learner understands every part of what they say, but keep it brief.
+
+Reply with JSON only, no other text. For example, for 今日はちょっと散歩に行こっか。
+{"translation": "Shall we go for a little walk today?", "parts": [{"text": "今日は", "reading": "きょうは", "meaning": "today", "note": ""}, {"text": "ちょっと", "reading": "", "meaning": "a little", "note": "makes the suggestion sound casual"}, {"text": "散歩に", "reading": "さんぽに", "meaning": "for a walk", "note": "に marks the purpose of going"}, {"text": "行こっか", "reading": "いこっか", "meaning": "shall we go?", "note": "= 行こうか, a casual contraction; a light suggestion"}], "tone": "a casual suggestion"}
+- translation: a natural English translation of the whole sentence. Use the lines around it to resolve who or what is meant. Keep the speaker's tone (casual stays casual). If the sentence is already English, rephrase it in plain English instead.
+- parts: the sentence split into pieces, in order, together covering all of it except punctuation. A piece is a word or short phrase with the particle or ending attached to it (散歩に, 行きました, 兵士や志願兵の情報を), or a grammar pattern that means something on its own (の, んだから, ようにする). Usually 2 to 6 pieces, at most 10: in a long sentence, keep easy words inside a longer piece rather than giving each its own. A one-word reply is one piece.
+  - text: exactly as written in the sentence.
+  - reading: only for Japanese, in kana, for a piece that contains kanji; otherwise "".
+  - meaning: what the piece means here, in English, under 5 words; "" for a piece that is only grammar.
+  - note: what its grammar or form does, in English, under 15 words: the dictionary form of a conjugated word, the full form of a contraction or slang (なんない = ならない), a dropped particle, the nuance of an ending. "" when the meaning says it all; never explain what a beginner knows (a plain は, が, を, に, で, or の between nouns).
+- tone: how the speaker says it, for the learner to carry over when repeating it aloud (a little annoyed, coaxing, surprised, the even tone of a newsreader), in English, under 6 words; "" if nothing stands out.
 The transcript was made by speech recognition, so if a word looks misheard, say in its note what it most likely is."#;
 
 /// Lines of the transcript sent either side of the sentence, for context only.
@@ -70,7 +85,11 @@ pub async fn sentence_explain(
     let (audio, transcript) = track(&state, &path)?;
     let sentences = &transcript.sentences;
     if sentences.get(index).map(|s| s.text.as_str()) != Some(text.as_str()) {
-        return Err("这一句刚被修改过，请再试一次".into());
+        return Err(pick(
+            "这一句刚被修改过，请再试一次",
+            "This sentence was just changed. Try again.",
+        )
+        .into());
     }
     let (target, model) = ai::chat_target(&state, &secrets).await?;
     let explanation = ask(&target, &model, sentences, index).await?;
@@ -100,7 +119,8 @@ fn dir(state: &AppState) -> std::path::PathBuf {
 /// The track's key (its canonical path) and the transcript it shows.
 fn track(state: &AppState, path: &str) -> Result<(String, transcript::Transcript), String> {
     let audio = state.audio(path)?.to_string_lossy().into_owned();
-    let transcript = transcript::for_track(state, path)?.ok_or("这个音频没有字幕")?;
+    let transcript = transcript::for_track(state, path)?
+        .ok_or(pick("这个音频没有字幕", "This audio has no subtitles"))?;
     Ok((audio, transcript))
 }
 
@@ -124,7 +144,7 @@ pub async fn ask(
     index: usize,
 ) -> Result<Explanation, String> {
     let prompt = Prompt {
-        system: SYSTEM,
+        system: pick(SYSTEM, SYSTEM_EN),
         user: &user_message(sentences, index),
         max_tokens: 3072,
     };
@@ -132,7 +152,11 @@ pub async fn ask(
     let mut explanation = reply::parse(&text, &sentences[index].text)?;
     explanation.source = format!(
         "{}{} · {model}",
-        if target.preset.local { "本机 " } else { "" },
+        if target.preset.local {
+            pick("本机 ", "Local ")
+        } else {
+            ""
+        },
         target.preset.name
     );
     Ok(explanation)

@@ -25,6 +25,8 @@ export default function App() {
   const folder = useApp((s) => s.folder);
   const practicing = useApp((s) => s.practicing);
   const shelfOpen = useApp((s) => s.shelfOpen);
+  // Re-renders the whole tree in the new language (see lib/i18n.ts).
+  useApp((s) => s.lang);
   useShortcuts();
   usePracticePing();
 

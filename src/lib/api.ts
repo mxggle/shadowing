@@ -1,6 +1,7 @@
 // The only module that talks to Rust. Everything else imports from here.
 import { invoke } from "@tauri-apps/api/core";
 import type { PlayMode } from "../audio/logic";
+import type { Lang, LanguageChoice } from "./i18n";
 
 export interface Track {
   path: string;
@@ -35,6 +36,8 @@ export interface Settings {
   paragraphDrill: boolean;
   /** 逐句跟读: times each sentence is said before the next (1–20). */
   drillRounds: number;
+  /** Interface language; "" follows the Mac (see lib/i18n.ts). */
+  language: LanguageChoice;
 }
 
 /** 听完再说 / 边听边说 for one sentence; "read" is reading a paragraph on your own. */
@@ -183,6 +186,8 @@ export interface Snapshot {
   settings: Settings;
   progress: Record<string, Progress>;
   guide: Guide;
+  /** The Mac's language, what an empty `settings.language` means. */
+  systemLanguage: Lang;
 }
 
 /** A stretch of practice on one audio (see src-tauri/src/practice/clock.rs). */

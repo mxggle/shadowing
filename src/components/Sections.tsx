@@ -16,6 +16,7 @@ const NONE: Sentence[] = [];
  * without boxing the sentences in.
  */
 export const SectionHeading = memo(function SectionHeading({ k, active }: { k: number; active: boolean }) {
+  useApp((s) => s.lang); // memo'd: re-render in a new language (lib/i18n.ts)
   const section = useApp((s) => sectionsOf(s.transcript)[k]);
   const name = useApp((s) => sectionName(sectionsOf(s.transcript), k));
   const [count, secs] = useApp((s) => span(s.transcript, k))

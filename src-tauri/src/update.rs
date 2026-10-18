@@ -3,6 +3,7 @@
 //! relaunches. The download is checked against the public key before anything is replaced.
 //! Requests go out from Rust like every other one; the webview only calls these commands.
 
+use crate::i18n::pick;
 use serde::Serialize;
 use std::sync::Mutex;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -92,13 +93,35 @@ pub fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let menu = Menu::default(app)?;
     if let Some(app_menu) = menu.items()?.first().and_then(|i| i.as_submenu().cloned()) {
         // About, —, 检查更新…, 新功能…, —, Services…: in their own group under “About”, as in most Mac apps.
-        let check = MenuItem::with_id(app, MENU_CHECK, "检查更新…", true, None::<&str>)?;
-        let news = MenuItem::with_id(app, MENU_NEWS, "新功能…", true, None::<&str>)?;
+        let check = MenuItem::with_id(
+            app,
+            MENU_CHECK,
+            pick("检查更新…", "Check for Updates…"),
+            true,
+            None::<&str>,
+        )?;
+        let news = MenuItem::with_id(
+            app,
+            MENU_NEWS,
+            pick("新功能…", "What’s New…"),
+            true,
+            None::<&str>,
+        )?;
         app_menu.insert(&check, 2)?;
         app_menu.insert(&news, 3)?;
         app_menu.insert(&PredefinedMenuItem::separator(app)?, 4)?;
     }
     Ok(menu)
+}
+
+/// Rebuilds the menu in the language now in use (at launch, and when settings change it).
+pub fn refresh_menu(app: &AppHandle) {
+    match menu(app) {
+        Ok(menu) => {
+            let _ = app.set_menu(menu);
+        }
+        Err(e) => eprintln!("menu not rebuilt: {e}"),
+    }
 }
 
 pub fn on_menu(app: &AppHandle, id: &str) {

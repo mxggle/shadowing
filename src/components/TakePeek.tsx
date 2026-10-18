@@ -14,6 +14,7 @@ import { TakeWaves } from "./TakeWaves";
  * record, earlier takes, 录一遍 / 连续录) is the mic's.
  */
 export const TakePeek = memo(function TakePeek({ sentence, open }: { sentence: Sentence; open: boolean }) {
+  useApp((s) => s.lang); // memo'd: re-render in a new language (lib/i18n.ts)
   // Kept a moment after closing, so it can fold away.
   const [mounted, setMounted] = useState(open);
   useEffect(() => {
