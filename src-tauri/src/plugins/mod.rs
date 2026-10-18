@@ -9,6 +9,7 @@ pub mod import;
 pub mod install;
 mod job;
 pub mod manifest;
+mod names;
 pub mod rpc;
 
 use crate::AppState;
