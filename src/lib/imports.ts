@@ -1,6 +1,7 @@
 // 从链接导入: which subtitles to bring along, how progress reads, and the
 // downloads waiting or running in the track list (one runs at a time).
 import type { PluginInfo, Resolved, Track } from "./api";
+import { lang as interfaceLang, t } from "./i18n";
 
 /** A link being downloaded, waiting its turn, or failed (shown in its folder's group). */
 export interface Download {
@@ -32,13 +33,15 @@ export function pickSubtitle(subtitles: Resolved["subtitles"], spoken: string | 
   return (exact ?? subtitles.find((s) => base(s.lang) === base(want)))?.lang ?? null;
 }
 
-let names: Intl.DisplayNames | null = null;
+let names: { shown: string; display: Intl.DisplayNames } | null = null;
 
 /** "ja" → "日语", "zh-Hant" → "繁体中文"; the site's own name when the code isn't known. */
 export function languageName(lang: string, fallback: string): string {
   try {
-    names ??= new Intl.DisplayNames(["zh-Hans"], { type: "language", fallback: "none" });
-    return names.of(lang) ?? fallback;
+    // In the interface language: "Japanese" in English.
+    const shown = interfaceLang() === "en" ? "en" : "zh-Hans";
+    if (names?.shown !== shown) names = { shown, display: new Intl.DisplayNames([shown], { type: "language", fallback: "none" }) };
+    return names.display.of(lang) ?? fallback;
   } catch {
     return fallback;
   }
@@ -88,10 +91,10 @@ export function nextDownload(downloads: Download[]): Download | null {
 
 /** The second line of a download's row. */
 export function downloadLine(d: Download): string {
-  if (d.state === "queued") return "等前一个下载完";
+  if (d.state === "queued") return t("等前一个下载完", "Waiting for the previous download");
   if (d.state === "failed") return d.message;
-  if (d.state === "finishing") return "已导入";
-  return progressText(d.message || "开始下载", d.done, d.total);
+  if (d.state === "finishing") return t("已导入", "Imported");
+  return progressText(d.message || t("开始下载", "Starting download"), d.done, d.total);
 }
 
 export interface Group {

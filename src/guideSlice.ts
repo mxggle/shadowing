@@ -3,13 +3,23 @@
 import type { AudioEngine } from "./audio/engine";
 import { NO_LOOP } from "./audio/logic";
 import { api, type Guide, type Track } from "./lib/api";
+import { t } from "./lib/i18n";
 import type { AppState } from "./store";
 
-/** Shown once each, when the learner uses the mouse for something that has a key. */
+/**
+ * Shown once each, when the learner uses the mouse for something that has a key. Getters, not
+ * constants: each read picks the wording for the language in use (see lib/i18n.ts).
+ */
 export const TIPS = {
-  sentenceLoop: "下次可以直接按 S 循环当前句，[ 和 ] 换到上一句 / 下一句。",
-  rate: "按 − 和 = 也能调速度。",
-  abLoop: "按 L 依次设 A、设 B、取消循环。",
+  get sentenceLoop() {
+    return t("下次可以直接按 S 循环当前句，[ 和 ] 换到上一句 / 下一句。", "Next time, press S to loop the current sentence. [ and ] go to the previous or next sentence.");
+  },
+  get rate() {
+    return t("按 − 和 = 也能调速度。", "You can also press − and = to change the speed.");
+  },
+  get abLoop() {
+    return t("按 L 依次设 A、设 B、取消循环。", "Press L to set A, set B, then clear the loop.");
+  },
 } as const;
 export type TipId = keyof typeof TIPS;
 

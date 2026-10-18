@@ -5,6 +5,7 @@
 
 use super::engine::{Engine, Shared};
 use super::EventSink;
+use crate::i18n::pick;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SampleFormat, SizedSample, Stream, StreamConfig};
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
@@ -17,7 +18,13 @@ pub enum OutMsg {
     Wake,
 }
 
-const ERR_DEVICE: &str = "没有可用的音频输出设备";
+fn err_device() -> &'static str {
+    pick(
+        "没有可用的音频输出设备",
+        "No audio output device is available",
+    )
+}
+
 const IDLE_PAUSE: Duration = Duration::from_secs(5);
 const DEVICE_CHECK: Duration = Duration::from_secs(1);
 
@@ -65,7 +72,7 @@ pub fn spawn(
                         }
                         Err(_) => {
                             if !reported && (wake || shared.playing()) {
-                                sink.error(None, ERR_DEVICE);
+                                sink.error(None, err_device());
                                 reported = true;
                             }
                         }
@@ -130,7 +137,7 @@ fn open(
     engine: &Arc<Mutex<Engine>>,
     failed: Arc<AtomicBool>,
 ) -> Result<Open, String> {
-    let device = output_device(host).ok_or(ERR_DEVICE)?;
+    let device = output_device(host).ok_or(err_device())?;
     let name = device.name().unwrap_or_default();
     let supported = device.default_output_config().map_err(|e| e.to_string())?;
     let config: StreamConfig = supported.config();

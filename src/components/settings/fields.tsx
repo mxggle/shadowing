@@ -2,6 +2,7 @@
 import { AlertTriangle, Check, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type AiConfig, type Preset } from "../../lib/api";
+import { t } from "../../lib/i18n";
 import { fieldClass } from "../ui";
 
 export function Label({ children }: { children: React.ReactNode }) {
@@ -66,13 +67,13 @@ export function ModelPicker({ value, models, onChange }: { value: string; models
         value={value}
         onChange={(e) => (e.target.value === MANUAL ? setManual(true) : onChange(e.target.value))}
       >
-        {!value && <option value="">请选择模型</option>}
+        {!value && <option value="">{t("请选择模型", "Choose a model")}</option>}
         {models!.map((m) => (
           <option key={m} value={m}>
             {m}
           </option>
         ))}
-        <option value={MANUAL}>手动输入…</option>
+        <option value={MANUAL}>{t("手动输入…", "Enter manually…")}</option>
       </select>
     );
   }
@@ -82,7 +83,7 @@ export function ModelPicker({ value, models, onChange }: { value: string; models
       value={draft}
       autoFocus={manual}
       spellCheck={false}
-      placeholder="模型名称"
+      placeholder={t("模型名称", "Model name")}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
         setManual(false);

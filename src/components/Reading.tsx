@@ -1,6 +1,7 @@
 import { AlertCircle, BookOpenText, LoaderCircle, Pause, Square, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useDismiss } from "../hooks/useDismiss";
+import { t } from "../lib/i18n";
 import { readingHow, readingRange, readingsFor, type ReadingHow, type ReadingScope } from "../lib/readings";
 import { drillNote } from "../lib/rounds";
 import { sectionIndexOf, sectionName, sectionsOf } from "../lib/sections";
@@ -9,11 +10,26 @@ import { useApp } from "../store";
 import { RoundsInput } from "./Drill";
 import { Button, IconButton, Kbd } from "./ui";
 
-const MODES: { mode: ReadingHow; label: string; note: string }[] = [
-  { mode: "read", label: "自己读", note: "不放原文，你按自己的速度读；停顿一下，高亮就跳到下一句。" },
-  { mode: "shadow", label: "跟着原文读", note: "原文一直往下放，你跟着读（不戴耳机也可以，录进来的原文会被去掉）。" },
+/** A function, not a constant: the wording follows the language (see lib/i18n.ts). */
+const modes = (): { mode: ReadingHow; label: string; note: string }[] => [
+  {
+    mode: "read",
+    label: t("自己读", "Read on Your Own"),
+    note: t(
+      "不放原文，你按自己的速度读；停顿一下，高亮就跳到下一句。",
+      "The original isn’t played. Read at your own pace; pause, and the highlight moves to the next sentence.",
+    ),
+  },
+  {
+    mode: "shadow",
+    label: t("跟着原文读", "Read Along"),
+    note: t(
+      "原文一直往下放，你跟着读（不戴耳机也可以，录进来的原文会被去掉）。",
+      "The original keeps playing and you read along (no headphones needed: the original picked up by the mic is removed).",
+    ),
+  },
   // The line depends on 每句几遍: drillNote.
-  { mode: "drill", label: "逐句跟读", note: "" },
+  { mode: "drill", label: t("逐句跟读", "Sentence by Sentence"), note: "" },
 ];
 
 /**
@@ -28,7 +44,7 @@ export function ReadingProblem() {
     <div className="mx-auto flex w-full max-w-[760px] animate-fade items-start gap-2 pr-8 pb-2.5 pl-10 text-[12px] text-danger">
       <AlertCircle size={14} className="mt-[5px] shrink-0" />
       <span className="min-w-0 py-1 break-words">{error}</span>
-      <IconButton title="知道了" onClick={() => useApp.getState().showReading(null)} className="ml-auto !h-6 !min-w-6 shrink-0">
+      <IconButton title={t("知道了", "Got it")} onClick={() => useApp.getState().showReading(null)} className="ml-auto !h-6 !min-w-6 shrink-0">
         <X />
       </IconButton>
     </div>
@@ -43,7 +59,7 @@ export function ReadingButton() {
   const busy = useApp((s) => !!s.live || !!s.rec || !!s.drill);
   return (
     <div ref={root} className="relative">
-      <IconButton title="整段录音 (⇧M)" active={open} disabled={busy} onClick={() => setOpen(!open)}>
+      <IconButton title={t("整段录音 (⇧M)", "Section recording (⇧M)")} active={open} disabled={busy} onClick={() => setOpen(!open)}>
         <BookOpenText />
       </IconButton>
       {open && <ReadingMenu onClose={() => setOpen(false)} />}
@@ -53,7 +69,7 @@ export function ReadingButton() {
 
 function ReadingMenu({ onClose }: { onClose: () => void }) {
   const mode = useApp((s) => readingHow(s.settings));
-  const note = useApp((s) => (mode === "drill" ? drillNote(s.settings.recordMode, s.settings.drillRounds) : MODES.find((m) => m.mode === mode)?.note));
+  const note = useApp((s) => (mode === "drill" ? drillNote(s.settings.recordMode, s.settings.drillRounds) : modes().find((m) => m.mode === mode)?.note));
   const sections = useApp((s) => sectionsOf(s.transcript));
   const count = useApp((s) => s.transcript?.sentences.length ?? 0);
   const here = useApp((s) => s.loopSentence ?? Math.max(0, sentenceIndexAt(s.transcript?.sentences ?? [], s.time)));
@@ -71,23 +87,25 @@ function ReadingMenu({ onClose }: { onClose: () => void }) {
   };
   return (
     <div className="absolute top-full right-0 z-20 mt-1.5 w-[320px] origin-top-right animate-pop-in rounded-[12px] bg-raised p-3 text-[13px] shadow-lift">
-      <p className="font-heading text-[14px] font-semibold">整段录音</p>
-      <p className="mt-0.5 text-[12px] leading-relaxed text-muted">读一整段，系统按句子分开保存，读完逐句对比。</p>
+      <p className="font-heading text-[14px] font-semibold">{t("整段录音", "Section recording")}</p>
+      <p className="mt-0.5 text-[12px] leading-relaxed text-muted">
+        {t("读一整段，系统按句子分开保存，读完逐句对比。", "Read a whole section. It’s saved sentence by sentence, and you compare them when you finish.")}
+      </p>
       {sections.length > 1 && (
         <Choice
-          label="读哪些"
+          label={t("读哪些", "Scope")}
           value={scope}
           options={[
             ["section", sectionName(sections, sectionIndexOf(sections, here))],
-            ["all", "全文"],
+            ["all", t("全文", "Whole text")],
           ]}
           onChange={(v) => setScope(v as ReadingScope)}
         />
       )}
-      <Choice label="怎么读" value={mode} options={MODES.map((m) => [m.mode, m.label])} onChange={(v) => setParagraphMode(v as ReadingHow)} />
+      <Choice label={t("怎么读", "Mode")} value={mode} options={modes().map((m) => [m.mode, m.label])} onChange={(v) => setParagraphMode(v as ReadingHow)} />
       {mode === "drill" && (
         <div className="mt-2.5 flex items-start gap-2">
-          <span className="mt-2 w-12 shrink-0 text-[12px] text-muted">每句</span>
+          <span className="mt-2 w-12 shrink-0 text-[12px] text-muted">{t("每句", "Each")}</span>
           <RoundsInput />
         </div>
       )}
@@ -102,24 +120,24 @@ function ReadingMenu({ onClose }: { onClose: () => void }) {
           }}
         >
           <span className="size-2 rounded-full bg-danger" />
-          开始录 {end - first} 句
+          {t(`开始录 ${end - first} 句`, `Record ${end - first} ${end - first === 1 ? "Sentence" : "Sentences"}`)}
         </Button>
         {past > 0 && mode !== "drill" && (
           <Button
             className="h-8"
-            title="看上次的整段录音"
+            title={t("看上次的整段录音", "Show the last section recording")}
             onClick={() => {
               onClose();
               const r = latest();
               if (r) showReading(r.id);
             }}
           >
-            上次的
+            {t("上次的", "Last Recording")}
           </Button>
         )}
       </div>
       <p className="mt-2 text-[11px] text-faint">
-        快捷键 <Kbd>⇧</Kbd> <Kbd>M</Kbd>
+        {t("快捷键", "Shortcut")} <Kbd>⇧</Kbd> <Kbd>M</Kbd>
       </p>
     </div>
   );
@@ -158,7 +176,7 @@ export function LiveReadingBar() {
   const reading = live.phase === "reading";
   // Paused, the clock stands where it was (going on, it leaves the pause out).
   const secs = live.pausedAt !== null ? (live.pausedAt - live.startedAt) / 1000 : ticking;
-  const label = live.mode === "read" ? "自己读" : "跟着原文读";
+  const label = live.mode === "read" ? t("自己读", "Read on Your Own") : t("跟着原文读", "Read Along");
   const at = live.mode === "read" ? live.current : null;
   return (
     <div className="mx-auto w-full max-w-[760px] pr-8 pl-10">
@@ -166,11 +184,15 @@ export function LiveReadingBar() {
         {live.phase === "starting" || live.phase === "saving" ? (
           <span className="flex items-center gap-2 text-muted">
             <LoaderCircle size={14} className="animate-spin" />
-            {live.phase === "starting" ? "正在打开麦克风…" : live.mode === "shadow" ? "正在去掉录进来的原文，按句子分开…" : "正在按句子分开…"}
+            {live.phase === "starting"
+              ? t("正在打开麦克风…", "Opening the microphone…")
+              : live.mode === "shadow"
+                ? t("正在去掉录进来的原文，按句子分开…", "Removing the original from the recording, splitting by sentence…")
+                : t("正在按句子分开…", "Splitting by sentence…")}
           </span>
         ) : (
           <>
-            <span className="flex shrink-0 items-center gap-1.5 font-medium text-fg" title={paused ? "按底部的播放键继续" : undefined}>
+            <span className="flex shrink-0 items-center gap-1.5 font-medium text-fg" title={paused ? t("按底部的播放键继续", "Press the play button at the bottom to continue") : undefined}>
               {paused ? (
                 <Pause size={12} fill="currentColor" strokeWidth={0} />
               ) : (
@@ -179,35 +201,50 @@ export function LiveReadingBar() {
                   <span className="size-2 rounded-full bg-danger" />
                 </span>
               )}
-              {paused ? `${label} · 已暂停` : label}
+              {paused ? t(`${label} · 已暂停`, `${label} · Paused`) : label}
             </span>
             {at !== null && (
               <span className="tabular shrink-0 text-[12px] text-muted">
-                第 <span className="font-mono text-fg">{at - live.first + 1}</span> / {live.end - live.first} 句
+                {t(
+                  <>
+                    第 <span className="font-mono text-fg">{at - live.first + 1}</span> / {live.end - live.first} 句
+                  </>,
+                  <>
+                    Sentence <span className="font-mono text-fg">{at - live.first + 1}</span> of {live.end - live.first}
+                  </>,
+                )}
               </span>
             )}
             <Meter levels={live.levels} />
             <span className="tabular w-10 shrink-0 text-right font-mono text-[12px] text-fg">{fmt(secs)}</span>
-            <Button className="h-7 px-2.5" title="读完了 (空格)" onClick={() => void finishReading()}>
-              <Square size={10} fill="currentColor" strokeWidth={0} /> 读完了
+            <Button className="h-7 px-2.5" title={t("读完了 (空格)", "Finish reading (Space)")} onClick={() => void finishReading()}>
+              <Square size={10} fill="currentColor" strokeWidth={0} /> {t("读完了", "Finish Reading")}
             </Button>
             <button className="shrink-0 text-[12px] text-faint hover:text-fg" onClick={cancelReading}>
-              取消
+              {t("取消", "Cancel")}
             </button>
           </>
         )}
       </div>
       {reading && (
         <p className="-mt-1 pb-1.5 text-[12px] text-faint">
-          {live.mode === "read" ? (
-            <>
-              停顿一下就跳到下一句，读完最后一句会自动结束 · 高亮不对时按 <Kbd>[</Kbd> <Kbd>]</Kbd> · <Kbd>空格</Kbd> 结束 · <Kbd>Esc</Kbd> 取消
-            </>
-          ) : (
-            <>
-              原文放完、你停下就结束 · <Kbd>空格</Kbd> 结束 · <Kbd>Esc</Kbd> 取消
-            </>
-          )}
+          {live.mode === "read"
+            ? t(
+                <>
+                  停顿一下就跳到下一句，读完最后一句会自动结束 · 高亮不对时按 <Kbd>[</Kbd> <Kbd>]</Kbd> · <Kbd>空格</Kbd> 结束 · <Kbd>Esc</Kbd> 取消
+                </>,
+                <>
+                  A pause moves to the next sentence; it ends after the last one · If the highlight is off, press <Kbd>[</Kbd> <Kbd>]</Kbd> · <Kbd>Space</Kbd> to finish · <Kbd>Esc</Kbd> to cancel
+                </>,
+              )
+            : t(
+                <>
+                  原文放完、你停下就结束 · <Kbd>空格</Kbd> 结束 · <Kbd>Esc</Kbd> 取消
+                </>,
+                <>
+                  Ends when the original finishes and you stop · <Kbd>Space</Kbd> to finish · <Kbd>Esc</Kbd> to cancel
+                </>,
+              )}
         </p>
       )}
     </div>

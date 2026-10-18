@@ -7,6 +7,7 @@ pub mod models;
 mod real_tests;
 pub mod whisper;
 
+use crate::i18n::pick;
 use crate::AppState;
 use models::{Fit, Model, DISK_MARGIN, MODELS};
 use serde::Serialize;
@@ -48,6 +49,9 @@ pub fn downloaded(state: &AppState) -> Vec<&'static str> {
 pub struct ModelState {
     #[serde(flatten)]
     model: &'static Model,
+    /// The model's name and note in the language in use.
+    name: &'static str,
+    note: &'static str,
     downloaded: bool,
     /// Bytes of an unfinished download, kept for resuming.
     partial: u64,
@@ -104,6 +108,8 @@ fn overview(state: &AppState, downloads: &Downloads) -> Overview {
                 let file = dir.join(m.file);
                 ModelState {
                     model: m,
+                    name: pick(m.name, m.name_en),
+                    note: pick(m.note, m.note_en),
                     downloaded: file.is_file(),
                     partial: download::partial_len(&file),
                     fit: models::fit(m, ram),
@@ -128,9 +134,13 @@ pub fn local_download(
     id: String,
 ) -> Result<(), String> {
     if !models::supported() {
-        return Err("这台 Mac 不支持本机转写".into());
+        return Err(pick(
+            "这台 Mac 不支持本机转写",
+            "This Mac doesn’t support local transcription",
+        )
+        .into());
     }
-    let model = models::find(&id).ok_or("未知的模型")?;
+    let model = models::find(&id).ok_or(pick("未知的模型", "Unknown model"))?;
     let dest = models_dir(&state).join(model.file);
     if dest.is_file() {
         return Ok(());
@@ -141,8 +151,9 @@ pub fn local_download(
     if let Some(free) = models::free_bytes(&dest) {
         if free < need + DISK_MARGIN {
             let gb = |b: u64| b as f64 / 1e9;
-            return Err(format!(
+            return Err(crate::tr!(
                 "磁盘空间不够：还需要 {:.1} GB，目前可用 {:.1} GB",
+                "Not enough disk space: {:.1} GB needed, {:.1} GB free",
                 gb(need + DISK_MARGIN),
                 gb(free)
             ));
@@ -152,7 +163,7 @@ pub fn local_download(
     {
         let mut current = downloads.0.lock().unwrap();
         if current.is_some() {
-            return Err("已经有一个模型在下载".into());
+            return Err(pick("已经有一个模型在下载", "A model is already downloading").into());
         }
         *current = Some((id.clone(), cancel.clone()));
     }
@@ -211,7 +222,7 @@ pub fn local_delete(
     downloads: State<Downloads>,
     id: String,
 ) -> Result<Overview, String> {
-    let model = models::find(&id).ok_or("未知的模型")?;
+    let model = models::find(&id).ok_or(pick("未知的模型", "Unknown model"))?;
     if downloads
         .0
         .lock()
@@ -219,7 +230,7 @@ pub fn local_delete(
         .as_ref()
         .is_some_and(|d| d.0 == id)
     {
-        return Err("请先取消下载".into());
+        return Err(pick("请先取消下载", "Cancel the download first").into());
     }
     let file = models_dir(&state).join(model.file);
     for path in [download::part_path(&file), file] {

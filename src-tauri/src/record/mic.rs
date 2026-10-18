@@ -3,6 +3,7 @@
 //! not `Send` on every platform, so it lives on the recorder's thread.
 
 use crate::audio::output::host_nanos;
+use crate::i18n::pick;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, Sample, SampleFormat, SizedSample, Stream, StreamConfig};
 use rtrb::{Producer, RingBuffer};
@@ -10,6 +11,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::Relaxed};
 use std::sync::Arc;
 
 pub const ERR_NO_MIC: &str = "没有找到麦克风";
+const ERR_NO_MIC_EN: &str = "No microphone found";
 
 pub struct Mic {
     pub stream: Stream,
@@ -23,11 +25,11 @@ pub struct Mic {
 
 /// Opens and starts the default microphone, with room for `secs` between drains.
 pub fn open(secs: f64) -> Result<Mic, String> {
-    let device = input_device(&cpal::default_host()).ok_or(ERR_NO_MIC)?;
+    let device = input_device(&cpal::default_host()).ok_or(pick(ERR_NO_MIC, ERR_NO_MIC_EN))?;
     let name = device.name().unwrap_or_default();
     let supported = device
         .default_input_config()
-        .map_err(|_| ERR_NO_MIC.to_string())?;
+        .map_err(|_| pick(ERR_NO_MIC, ERR_NO_MIC_EN).to_string())?;
     let config: StreamConfig = supported.config();
     let rate = config.sample_rate.0;
     let (tx, samples) = RingBuffer::new((secs * rate as f64) as usize);
@@ -39,9 +41,14 @@ pub fn open(secs: f64) -> Result<Mic, String> {
         SampleFormat::I16 => build::<i16>(&device, &config, tx, f, x),
         SampleFormat::I32 => build::<i32>(&device, &config, tx, f, x),
         SampleFormat::U16 => build::<u16>(&device, &config, tx, f, x),
-        other => Err(format!("不支持的麦克风格式 {other:?}")),
+        other => Err(crate::tr!(
+            "不支持的麦克风格式 {other:?}",
+            "Unsupported microphone format {other:?}"
+        )),
     }?;
-    stream.play().map_err(|e| format!("麦克风打不开：{e}"))?;
+    stream
+        .play()
+        .map_err(|e| crate::tr!("麦克风打不开：{e}", "Couldn’t open the microphone: {e}"))?;
     Ok(Mic {
         stream,
         name,
@@ -95,5 +102,5 @@ where
             move |_err| failed.store(true, Relaxed),
             None,
         )
-        .map_err(|e| format!("麦克风打不开：{e}"))
+        .map_err(|e| crate::tr!("麦克风打不开：{e}", "Couldn’t open the microphone: {e}"))
 }

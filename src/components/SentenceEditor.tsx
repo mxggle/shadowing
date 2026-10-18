@@ -1,5 +1,6 @@
 import { ArrowDownToLine, ArrowUpToLine, Scissors } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
+import { t } from "../lib/i18n";
 import { useApp } from "../store";
 import { Button, IconButton } from "./ui";
 
@@ -49,7 +50,7 @@ function Field() {
         value={text}
         rows={1}
         spellCheck={false}
-        aria-label="修改这一句"
+        aria-label={t("修改这一句", "Edit this sentence")}
         onChange={(e) => {
           setDraft(e.target.value);
           fit(e.target);
@@ -85,20 +86,20 @@ function Field() {
         className="-mx-2 block w-[calc(100%+1rem)] resize-none overflow-hidden rounded-[8px] bg-fill px-2 font-script text-[18px] leading-[30px] break-words text-fg outline-none transition-[background-color,box-shadow] duration-150 focus:bg-raised focus:shadow-[inset_0_0_0_1px_var(--line-strong),0_0_0_3px_var(--hover)]"
       />
       <div className="mt-2 mb-1 flex items-center gap-1.5">
-        <Button primary title="保存 (↩)" disabled={empty} className="h-7 px-2.5 text-[12px]" onClick={() => void saveEdit()}>
-          保存
+        <Button primary title={t("保存 (↩)", "Save (↩)")} disabled={empty} className="h-7 px-2.5 text-[12px]" onClick={() => void saveEdit()}>
+          {t("保存", "Save")}
         </Button>
-        <Button title="取消 (Esc)" className="h-7 px-2.5 text-[12px]" onClick={cancelEdit}>
-          取消
+        <Button title={t("取消 (Esc)", "Cancel (Esc)")} className="h-7 px-2.5 text-[12px]" onClick={cancelEdit}>
+          {t("取消", "Cancel")}
         </Button>
         <span className="ml-auto flex gap-0.5">
-          <IconButton title="在光标处断开成两句 (⇧↩)" onClick={cut}>
+          <IconButton title={t("在光标处断开成两句 (⇧↩)", "Split into two sentences at the cursor (⇧↩)")} onClick={cut}>
             <Scissors />
           </IconButton>
-          <IconButton title="并入上一句（光标在句首时按 ⌫）" disabled={first} className="disabled:opacity-40" onClick={() => void mergeDraft(-1)}>
+          <IconButton title={t("并入上一句（光标在句首时按 ⌫）", "Merge into the sentence before (⌫ at its start)")} disabled={first} className="disabled:opacity-40" onClick={() => void mergeDraft(-1)}>
             <ArrowUpToLine />
           </IconButton>
-          <IconButton title="并入下一句（光标在句尾时按 ⌦）" disabled={last} className="disabled:opacity-40" onClick={() => void mergeDraft(1)}>
+          <IconButton title={t("并入下一句（光标在句尾时按 ⌦）", "Merge into the sentence after (⌦ at its end)")} disabled={last} className="disabled:opacity-40" onClick={() => void mergeDraft(1)}>
             <ArrowDownToLine />
           </IconButton>
         </span>

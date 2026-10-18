@@ -76,8 +76,9 @@ async fn request(
     };
     let body = endpoint.send_retrying(build, ATTEMPTS).await?;
     serde_json::from_str(&body).map_err(|_| {
-        format!(
+        crate::tr!(
             "{} 没有返回带时间的结果，请确认模型支持 verbose_json（比如 whisper 系列）",
+            "{} didn’t return timed results. Check that the model supports verbose_json (such as the Whisper series).",
             endpoint.name
         )
     })

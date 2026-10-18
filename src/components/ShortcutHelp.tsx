@@ -1,6 +1,7 @@
 import { Keyboard } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { isTypingTarget } from "../lib/focus";
+import { t } from "../lib/i18n";
 import { useApp } from "../store";
 import { IconButton, Kbd } from "./ui";
 
@@ -8,56 +9,56 @@ type Group = { title: string; keys: [string[], string][]; column: 0 | 1 };
 
 const groups = (seekStep: number): Group[] => [
   {
-    title: "播放",
+    title: t("播放", "Playback"),
     column: 0,
     keys: [
-      [["空格"], "播放 / 暂停"],
-      [["←", "→"], `后退 / 前进 ${seekStep} 秒`],
-      [["↑", "↓"], "上一个 / 下一个音频"],
-      [["−", "="], "放慢 / 加快"],
-      [["R"], "切换播放顺序"],
+      [[t("空格", "Space")], t("播放 / 暂停", "Play / Pause")],
+      [["←", "→"], t(`后退 / 前进 ${seekStep} 秒`, `Back / forward ${seekStep} s`)],
+      [["↑", "↓"], t("上一个 / 下一个音频", "Previous / next track")],
+      [["−", "="], t("放慢 / 加快", "Slower / faster")],
+      [["R"], t("切换播放顺序", "Change play order")],
     ],
   },
   {
-    title: "循环",
+    title: t("循环", "Loop"),
     column: 0,
     keys: [
-      [["L"], "设 A → 设 B → 取消"],
-      [["Esc"], "取消循环"],
+      [["L"], t("设 A → 设 B → 取消", "Set A → set B → cancel")],
+      [["Esc"], t("取消循环", "Cancel loop")],
     ],
   },
   {
-    title: "字幕",
+    title: t("字幕", "Subtitles"),
     column: 1,
     keys: [
-      [["S"], "循环当前句 / 取消"],
-      [["[", "]"], "上一句 / 下一句"],
-      [["{", "}"], "上一段 / 下一段"],
-      [["I"], "解释当前句"],
-      [["M"], "跟读录音（循环时连续录；录音时：说完了）"],
-      [["⇧", "M"], "整段录音（这一段或全文）"],
-      [["P"], "回放录音和原句对比"],
+      [["S"], t("循环当前句 / 取消", "Loop current sentence / cancel")],
+      [["[", "]"], t("上一句 / 下一句", "Previous / next sentence")],
+      [["{", "}"], t("上一段 / 下一段", "Previous / next section")],
+      [["I"], t("解释当前句", "Explain this sentence")],
+      [["M"], t("跟读录音（循环时连续录；录音时：说完了）", "Record shadowing (in a loop: back-to-back takes; while recording: done speaking)")],
+      [["⇧", "M"], t("整段录音（这一段或全文）", "Record the section (this section or the whole text)")],
+      [["P"], t("回放录音和原句对比", "Play back your take against the original")],
     ],
   },
   {
-    title: "修改字幕",
+    title: t("修改字幕", "Edit subtitles"),
     column: 1,
     keys: [
-      [["E"], "修改当前句"],
-      [["⇧", "↩"], "在光标处断开成两句"],
-      [["⌫"], "在句首：并入上一句"],
-      [["⌦"], "在句尾：并入下一句"],
-      [["⌘", "F"], "查找和替换"],
-      [["⌘", "Z"], "撤销修改、断开或合并"],
+      [["E"], t("修改当前句", "Edit current sentence")],
+      [["⇧", "↩"], t("在光标处断开成两句", "Split into two sentences at the cursor")],
+      [["⌫"], t("在句首：并入上一句", "At start: join with previous sentence")],
+      [["⌦"], t("在句尾：并入下一句", "At end: join with next sentence")],
+      [["⌘", "F"], t("查找和替换", "Find and replace")],
+      [["⌘", "Z"], t("撤销修改、断开或合并", "Undo edit, split or join")],
     ],
   },
   {
-    title: "其他",
+    title: t("其他", "Other"),
     column: 0,
     keys: [
-      [["?"], "显示 / 隐藏本表"],
-      [["⌘", "B"], "显示 / 隐藏左侧列表"],
-      [["⌘", ","], "设置"],
+      [["?"], t("显示 / 隐藏本表", "Show / hide this list")],
+      [["⌘", "B"], t("显示 / 隐藏左侧列表", "Show / hide sidebar")],
+      [["⌘", ","], t("设置", "Settings")],
     ],
   },
 ];
@@ -92,12 +93,12 @@ export function ShortcutHelp() {
 
   return (
     <div ref={root} className="relative">
-      <IconButton title="键盘快捷键 (?)" active={open} aria-expanded={open} onClick={() => setOpen(!open)}>
+      <IconButton title={t("键盘快捷键 (?)", "Keyboard shortcuts (?)")} active={open} aria-expanded={open} onClick={() => setOpen(!open)}>
         <Keyboard />
       </IconButton>
       {open && (
         <div className="scrollbar-none absolute top-full right-0 z-20 mt-2 max-h-[calc(100vh-64px)] w-[544px] origin-top-right animate-pop-in overflow-y-auto rounded-[12px] bg-raised px-3.5 pt-3 pb-3.5 shadow-lift">
-          <h2 className="text-[13px] font-semibold">键盘快捷键</h2>
+          <h2 className="text-[13px] font-semibold">{t("键盘快捷键", "Keyboard shortcuts")}</h2>
           <div className="grid grid-cols-2 gap-x-6">
             {([0, 1] as const).map((column) => (
               <div key={column}>

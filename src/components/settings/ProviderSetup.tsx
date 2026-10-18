@@ -1,6 +1,7 @@
 import { Cloud, Laptop, LoaderCircle, RotateCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, type AiConfig, type Feature, type Preset } from "../../lib/api";
+import { count, t } from "../../lib/i18n";
 import { useApp } from "../../store";
 import { serviceReady } from "../../lib/aiReady";
 import { Button } from "../ui";
@@ -41,19 +42,19 @@ export function ProviderSetup({ feature, only, allowNone = true }: {
 
   return (
     <div className="mt-3">
-      <div role="radiogroup" aria-label="服务" className="flex flex-wrap gap-1.5">
+      <div role="radiogroup" aria-label={t("服务", "Service")} className="flex flex-wrap gap-1.5">
         {allowNone && (
           <Chip selected={!preset} onClick={() => void pick(null)}>
-            不使用
+            {t("不使用", "None")}
           </Chip>
         )}
         {presets.map((p) => (
           <Chip key={p.id} selected={p.id === preset?.id} onClick={() => void pick(p.id)}>
             {p.name}
-            {p.local && p.api !== "builtin" && <Tag>本机</Tag>}
-            {p.api === "responses" && <Tag>预览</Tag>}
+            {p.local && p.api !== "builtin" && <Tag>{t("本机", "On this Mac")}</Tag>}
+            {p.api === "responses" && <Tag>{t("预览", "Preview")}</Tag>}
             {running[p.id] !== undefined && (
-              <span title={`正在运行，有 ${running[p.id]} 个模型`} className="size-1.5 rounded-full bg-ok shadow-[0_0_0_2px_color-mix(in_oklab,var(--ok)_20%,transparent)]" />
+              <span title={t(`正在运行，有 ${running[p.id]} 个模型`, `Running, with ${count(running[p.id], "个模型", "model")}`)} className="size-1.5 rounded-full bg-ok shadow-[0_0_0_2px_color-mix(in_oklab,var(--ok)_20%,transparent)]" />
             )}
           </Chip>
         ))}
@@ -131,15 +132,21 @@ function Details({ feature, preset, config }: { feature: Feature; preset: Preset
   }, [ready, hint, baseUrl]);
 
   async function runTest() {
-    if (!model) return setTest({ kind: "warn", text: "请先选择一个模型" });
+    if (!model) return setTest({ kind: "warn", text: t("请先选择一个模型", "Choose a model first") });
     setTest({ kind: "running" });
     try {
       const r = await api.ai.test(feature);
-      if (!r.modelFound) setTest({ kind: "warn", text: `连接成功，但没有找到模型“${model}”，请确认名称` });
+      if (!r.modelFound)
+        setTest({
+          kind: "warn",
+          text: t(`连接成功，但没有找到模型“${model}”，请确认名称`, `Connected, but no model named “${model}” was found. Check the name.`),
+        });
       else
         setTest({
           kind: "ok",
-          text: r.reply ? `连接成功，${model} 用了 ${(r.millis / 1000).toFixed(1)} 秒回答` : `连接成功，可以使用 ${model}`,
+          text: r.reply
+            ? t(`连接成功，${model} 用了 ${(r.millis / 1000).toFixed(1)} 秒回答`, `Connected. ${model} answered in ${(r.millis / 1000).toFixed(1)} seconds`)
+            : t(`连接成功，可以使用 ${model}`, `Connected. You can use ${model}`),
           sample: r.sample,
           reply: r.reply,
         });
@@ -148,27 +155,30 @@ function Details({ feature, preset, config }: { feature: Feature; preset: Preset
     }
   }
 
-  const sends = feature === "transcribe" ? "转写时音频会上传到" : "要解释的句子会发送到";
+  const sends =
+    feature === "transcribe" ? t("转写时音频会上传到", "Audio is uploaded to") : t("要解释的句子会发送到", "Sentences to explain are sent to");
   return (
     <div className="mt-4 grid animate-fade-in grid-cols-[64px_1fr] items-start gap-x-3 gap-y-3 border-t border-line pt-4">
       <p className="col-span-2 flex flex-col gap-1 text-[12px] text-muted">
         <span>{preset.note}</span>
         <span className="flex items-center gap-1.5 text-faint">
           {preset.local ? <Laptop size={13} /> : <Cloud size={13} />}
-          {preset.local ? "在这台 Mac 上运行，内容不会离开本机" : `${sends}${preset.baseUrl ? ` ${preset.name}` : "你填写的地址"}`}
+          {preset.local
+            ? t("在这台 Mac 上运行，内容不会离开本机", "Runs on this Mac, and nothing leaves it")
+            : `${sends}${preset.baseUrl ? ` ${preset.name}` : t("你填写的地址", " the address you enter")}`}
         </span>
       </p>
 
       {(preset.local || !preset.baseUrl) && (
         <>
-          <Label>地址</Label>
+          <Label>{t("地址", "Address")}</Label>
           <UrlField preset={preset} value={baseUrl} onSaved={save} />
         </>
       )}
 
       {preset.key === "account" && (
         <>
-          <Label>账号</Label>
+          <Label>{t("账号", "Account")}</Label>
           <ChatGPTAccount email={hint} onSaved={save} />
         </>
       )}
@@ -183,11 +193,11 @@ function Details({ feature, preset, config }: { feature: Feature; preset: Preset
         </>
       )}
 
-      <Label>模型</Label>
+      <Label>{t("模型", "Model")}</Label>
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex gap-2">
           <ModelPicker value={model} models={models} onChange={(m) => void chooseModel(m)} />
-          <Button title="重新获取模型列表" disabled={!ready || loading} onClick={() => void fetchModels()} className="w-8 px-0">
+          <Button title={t("重新获取模型列表", "Fetch the model list again")} disabled={!ready || loading} onClick={() => void fetchModels()} className="w-8 px-0">
             <RotateCw size={14} className={loading ? "animate-spin" : ""} />
           </Button>
         </div>
@@ -198,13 +208,13 @@ function Details({ feature, preset, config }: { feature: Feature; preset: Preset
       <div className="flex min-w-0 items-start gap-3">
         <Button disabled={!ready || test.kind === "running"} onClick={() => void runTest()}>
           {test.kind === "running" && <LoaderCircle size={14} className="animate-spin" />}
-          测试连接
+          {t("测试连接", "Test Connection")}
         </Button>
         {(test.kind === "ok" || test.kind === "warn" || test.kind === "error") && <TestResult kind={test.kind} text={test.text} />}
       </div>
       {test.kind === "ok" && test.reply && (
         <figure className="tint col-span-2 animate-fade-in rounded-[10px] px-3 py-2.5 text-[12px] leading-relaxed">
-          <figcaption className="text-faint">示例：{test.sample}</figcaption>
+          <figcaption className="text-faint">{t("示例：", "Sample: ")}{test.sample}</figcaption>
           <p className="mt-1 whitespace-pre-wrap">{test.reply}</p>
         </figure>
       )}

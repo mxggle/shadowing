@@ -19,7 +19,7 @@ export function LanguageRow() {
       <select
         className={`${fieldClass} w-auto`}
         value={choice}
-        onChange={(e) => useApp.getState().setLanguage(e.target.value as LanguageChoice)}
+        onChange={(e) => void useApp.getState().setLanguage(e.target.value as LanguageChoice)}
       >
         <option value="">
           {follow} ({system === "en" ? "English" : "简体中文"})

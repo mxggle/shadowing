@@ -1,6 +1,7 @@
 import { ChevronRight, X } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import { dateLabel, type Inline, type NoteItem, type Release } from "../lib/changelog";
+import { t } from "../lib/i18n";
 import { releases } from "../releases";
 import { useApp } from "../store";
 import { IconButton, Kbd } from "./ui";
@@ -39,9 +40,9 @@ export function WhatsNewDialog() {
       >
         <header className="flex h-12 shrink-0 items-center justify-between border-b border-line pr-2.5 pl-6">
           <h2 id="news-title" className="text-[14px] font-semibold">
-            新功能
+            {t("新功能", "What’s New")}
           </h2>
-          <IconButton title="关闭 (Esc)" onClick={() => setOpen(false)}>
+          <IconButton title={t("关闭 (Esc)", "Close (Esc)")} onClick={() => setOpen(false)}>
             <X />
           </IconButton>
         </header>
@@ -52,11 +53,11 @@ export function WhatsNewDialog() {
               <Notes release={latest} />
             </>
           ) : (
-            <p className="text-[13px] text-muted">这个版本没有带更新说明。</p>
+            <p className="text-[13px] text-muted">{t("这个版本没有带更新说明。", "This version has no release notes.")}</p>
           )}
           {older.length > 0 && (
             <div className="mt-6 border-t border-line pt-5">
-              <h3 className="text-[12px] font-medium text-faint">以前的版本</h3>
+              <h3 className="text-[12px] font-medium text-faint">{t("以前的版本", "Earlier versions")}</h3>
               <ul className="mt-1 flex flex-col divide-y divide-line">
                 {older.map((r) => {
                   const shown = expanded === r.version;

@@ -4,6 +4,7 @@
 //! model's alignment heads (as the cloud APIs do): plain token times put the
 //! first word of a turn where the previous one ended, up to a second early.
 
+use crate::i18n::pick;
 use crate::transcribe::pcm::RATE;
 use crate::transcribe::sentences::{Segment, Verbose, Word};
 use crate::transcribe::{Piece, PieceProgress, Transcriber, CANCELLED};
@@ -45,7 +46,12 @@ impl Whisper {
             ..Default::default()
         };
         let ctx = WhisperContext::new_with_params(file, params)
-            .map_err(|e| format!("无法加载转写模型（文件可能已损坏，可以删除后重新下载）：{e}"))?;
+            .map_err(|e| {
+                crate::tr!(
+                    "无法加载转写模型（文件可能已损坏，可以删除后重新下载）：{e}",
+                    "Can’t load the transcription model (the file may be damaged; you can delete it and download it again): {e}"
+                )
+            })?;
         Ok(Self { ctx })
     }
 }
@@ -90,7 +96,7 @@ impl Transcriber for Whisper {
         if piece.cancel.load(Ordering::Relaxed) {
             return Err(CANCELLED.into());
         }
-        result.map_err(|e| format!("本机转写失败：{e}"))?;
+        result.map_err(|e| crate::tr!("本机转写失败：{e}", "Local transcription failed: {e}"))?;
         collect(&self.ctx, &state)
     }
 
@@ -118,7 +124,10 @@ fn collect(ctx: &WhisperContext, state: &WhisperState) -> Result<Verbose, String
     let eot = ctx.token_eot();
     let mut out = Verbose::default();
     for i in 0..state.full_n_segments() {
-        let seg = state.get_segment(i).ok_or("本机转写结果不完整")?;
+        let seg = state.get_segment(i).ok_or(pick(
+            "本机转写结果不完整",
+            "The local transcription came back incomplete",
+        ))?;
         let mut tokens = Vec::new();
         let mut logprob = 0.0;
         for k in 0..seg.n_tokens() {

@@ -1,6 +1,7 @@
 // The daily goal: a ring in the top bar that fills as you practise and becomes a
 // check once today's goal is met, and the goal row on the 学习记录 sheet.
 import { ChartColumn, Check } from "lucide-react";
+import { t } from "../lib/i18n";
 import { dayKey, formatDuration, GOAL_CHOICES, goalOn, metGoal } from "../lib/practice";
 import { useApp } from "../store";
 import { fieldClass, IconButton } from "./ui";
@@ -47,10 +48,10 @@ export function PracticeButton() {
   const setOpen = useApp((s) => s.setStatsOpen);
   const { todayMs, loaded, goal, met } = useTodayGoal();
   const title = !goal
-    ? "学习记录"
+    ? t("学习记录", "Practice log")
     : met
-      ? `学习记录 · 今天的目标完成了（练了 ${formatDuration(todayMs)}）`
-      : `学习记录 · 今天 ${Math.floor(todayMs / 60_000)} / ${goal} 分钟`;
+      ? t(`学习记录 · 今天的目标完成了（练了 ${formatDuration(todayMs)}）`, `Practice log · Goal met today (${formatDuration(todayMs)} practiced)`)
+      : t(`学习记录 · 今天 ${Math.floor(todayMs / 60_000)} / ${goal} 分钟`, `Practice log · Today ${Math.floor(todayMs / 60_000)} / ${goal} min`);
   const minutes = Math.floor(todayMs / 60_000);
   // Today's minutes beside the mark, so the day's progress is readable without opening the sheet.
   const readout = !loaded ? null : goal && !met ? `${minutes}/${goal}` : minutes > 0 ? `${minutes}` : null;
@@ -60,7 +61,8 @@ export function PracticeButton() {
         {goal > 0 && loaded ? <GoalMark ratio={todayMs / (goal * 60_000)} met={met} size={16} /> : <ChartColumn size={16} strokeWidth={1.75} />}
         {readout && (
           <span className="text-[12px]">
-            <span className="tabular font-mono">{readout}</span> 分
+            <span className="tabular font-mono">{readout}</span>
+            {t(" 分", " min")}
           </span>
         )}
       </span>
@@ -73,6 +75,8 @@ export function GoalRow({ weekMet }: { weekMet: number }) {
   const { todayMs, goal, met } = useTodayGoal();
   const setGoal = useApp((s) => s.setDailyGoal);
   const left = goal * 60_000 - todayMs;
+  // Under a minute left still reads as 1 min.
+  const toGo = formatDuration(Math.max(left, 60_000));
   const choices = GOAL_CHOICES.includes(goal) ? GOAL_CHOICES : [...GOAL_CHOICES, goal].sort((a, b) => a - b);
 
   return (
@@ -80,18 +84,24 @@ export function GoalRow({ weekMet }: { weekMet: number }) {
       {goal > 0 && <GoalMark ratio={todayMs / (goal * 60_000)} met={met} size={22} />}
       <div className="min-w-0 flex-1">
         <div className="text-[13px] font-medium">
-          {!goal ? "没有设每日目标" : met ? `今天的 ${goal} 分钟完成了` : `今天还差 ${formatDuration(left).replace("不到 1 分钟", "1 分钟")}`}
+          {!goal
+            ? t("没有设每日目标", "No daily goal set")
+            : met
+              ? t(`今天的 ${goal} 分钟完成了`, `Today’s ${goal} min goal is met`)
+              : t(`今天还差 ${toGo}`, `${toGo} to go today`)}
         </div>
         <div className="text-[12px] text-muted">
-          {goal ? `最近 7 天有 ${weekMet} 天达到目标` : "连续天数按每天至少练 1 分钟算"}
+          {goal
+            ? t(`最近 7 天有 ${weekMet} 天达到目标`, `${weekMet} of the last 7 days met the goal`)
+            : t("连续天数按每天至少练 1 分钟算", "Streaks count days with at least 1 min of practice")}
         </div>
       </div>
       <label className="flex items-center gap-2 text-[12px] whitespace-nowrap text-muted">
-        每日目标
+        {t("每日目标", "Daily goal")}
         <select className={`${fieldClass} w-auto`} value={goal} onChange={(e) => setGoal(Number(e.target.value))}>
           {choices.map((m) => (
             <option key={m} value={m}>
-              {m ? `${m} 分钟` : "不设"}
+              {m ? t(`${m} 分钟`, `${m} min`) : t("不设", "None")}
             </option>
           ))}
         </select>

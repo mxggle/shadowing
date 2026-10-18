@@ -8,6 +8,7 @@ import type { AudioEngine } from "./audio/engine";
 import type { Loop } from "./audio/logic";
 import { moveExplanations } from "./explainSlice";
 import { api, type Transcript } from "./lib/api";
+import { t } from "./lib/i18n";
 import { caretInClean, cleanText, cutText, moveSuggestions, movedIndex, restoredSections, undoChange, undoOf, type Change, type Undo } from "./lib/reshape";
 import { sectionsOf } from "./lib/sections";
 import { sentenceIndexAt, sentenceLoop } from "./lib/sentences";
@@ -47,7 +48,7 @@ export function createReshapeSlice(set: Set, get: Get, engine: AudioEngine, appl
     const s = get();
     if (busy || s.rec || s.live || !s.current || !s.transcript) return nothing;
     if (s.proofread?.state === "running") {
-      set({ error: "AI 校对还在进行，完成后再拆分或合并句子" });
+      set({ error: t("AI 校对还在进行，完成后再拆分或合并句子", "AI proofreading is still running; split or join sentences when it finishes") });
       return nothing;
     }
     busy = true;

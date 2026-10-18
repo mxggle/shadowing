@@ -5,6 +5,7 @@
 use super::oauth::{self, Loopback};
 use super::secrets::{self, Secrets};
 use super::AiConfig;
+use crate::i18n::pick;
 use crate::AppState;
 use serde_json::json;
 use tauri::State;
@@ -40,9 +41,16 @@ pub async fn ai_sign_in_openrouter(
     .await
     .map_err(|e| e.to_string())??;
     if query.get("state") != Some(&csrf) {
-        return Err("登录回调不匹配，请重试".into());
+        return Err(pick(
+            "登录回调不匹配，请重试",
+            "The sign-in callback didn’t match. Try again.",
+        )
+        .into());
     }
-    let code = query.get("code").ok_or("没有完成 OpenRouter 授权")?;
+    let code = query.get("code").ok_or(pick(
+        "没有完成 OpenRouter 授权",
+        "OpenRouter authorization wasn’t completed.",
+    ))?;
 
     let body = json!({ "code": code, "code_verifier": verifier, "code_challenge_method": "S256" });
     let res = super::http::client()
@@ -50,7 +58,7 @@ pub async fn ai_sign_in_openrouter(
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("无法连接到 OpenRouter：{e}"))?;
+        .map_err(|e| crate::tr!("无法连接到 OpenRouter：{e}", "Can’t reach OpenRouter: {e}"))?;
     let status = res.status().as_u16();
     let text = res.text().await.map_err(|e| e.to_string())?;
     if status != 200 {
@@ -59,7 +67,10 @@ pub async fn ai_sign_in_openrouter(
     let key = serde_json::from_str::<serde_json::Value>(&text)
         .ok()
         .and_then(|v| v["key"].as_str().map(String::from))
-        .ok_or("OpenRouter 没有返回 API Key")?;
+        .ok_or(pick(
+            "OpenRouter 没有返回 API Key",
+            "OpenRouter didn’t return an API key.",
+        ))?;
 
     secrets.0.set(PROVIDER, &key)?;
     state.update(|d| drop(d.ai.key_hints.insert(PROVIDER.into(), secrets::hint(&key))))?;

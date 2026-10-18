@@ -8,6 +8,7 @@ use super::saved::{self, Reading};
 use super::take::{convert, RATE};
 use super::watch::watch;
 use crate::audio::Player;
+use crate::i18n::pick;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::atomic::Ordering::Relaxed;
@@ -130,7 +131,7 @@ pub fn play_reading(
     let reading = saved::readings(root, audio)
         .into_iter()
         .find(|r| r.id == id)
-        .ok_or("这次朗读不见了")?;
+        .ok_or(pick("这次朗读不见了", "This reading is gone"))?;
     let whole = read(&saved::wav_path(root, audio, id))?;
     let takes = saved::list(root, audio);
     let take = |tid: &str| {

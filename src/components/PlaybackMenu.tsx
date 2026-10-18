@@ -3,8 +3,9 @@ import { useRef, useState } from "react";
 import { formatRate, RATE_PRESETS, RATE_STEP, SEEK_STEP_MAX, SEEK_STEP_MIN } from "../audio/logic";
 import { useDismiss } from "../hooks/useDismiss";
 import { useFlash } from "../hooks/useFlash";
+import { t } from "../lib/i18n";
 import { useApp } from "../store";
-import { PLAY_MODE_LOOK, PlayModePicker } from "./PlayMode";
+import { playModeLook, PlayModePicker } from "./PlayMode";
 import { Stepper } from "./ui";
 
 /**
@@ -19,14 +20,14 @@ export function PlaybackMenu() {
   const root = useRef<HTMLDivElement>(null);
   useDismiss(open, () => setOpen(false), root);
   const flashing = [useFlash("slower"), useFlash("faster"), useFlash("playMode")].some(Boolean);
-  const { icon: ModeIcon, label: modeLabel } = PLAY_MODE_LOOK[playMode];
+  const { icon: ModeIcon, label: modeLabel } = playModeLook()[playMode];
   const showMode = playMode !== "next";
 
   return (
     <div ref={root} className="relative">
       <button
-        title={`播放设置：速度、跳转步长、播放顺序${showMode ? `\n现在：${modeLabel}` : ""}`}
-        aria-label={`播放设置，速度 ${formatRate(rate)}${showMode ? `，${modeLabel}` : ""}`}
+        title={t(`播放设置：速度、跳转步长、播放顺序${showMode ? `\n现在：${modeLabel}` : ""}`, `Playback settings: speed, jump length, play order${showMode ? `\nNow: ${modeLabel}` : ""}`)}
+        aria-label={t(`播放设置，速度 ${formatRate(rate)}${showMode ? `，${modeLabel}` : ""}`, `Playback settings, speed ${formatRate(rate)}${showMode ? `, ${modeLabel}` : ""}`)}
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         data-flash={flashing || undefined}
@@ -44,14 +45,14 @@ export function PlaybackMenu() {
       {open && (
         <div
           role="dialog"
-          aria-label="播放设置"
+          aria-label={t("播放设置", "Playback settings")}
           className="absolute right-0 bottom-full z-20 mb-2.5 w-[288px] origin-bottom-right animate-pop-up divide-y divide-line rounded-[12px] bg-raised px-1 py-0.5 shadow-lift"
         >
           <SpeedSection />
-          <Row label="跳转步长" hint="← / →">
+          <Row label={t("跳转步长", "Jump length")} hint="← / →">
             <SeekStepControl />
           </Row>
-          <Row label="播放顺序" hint={`${modeLabel} · R`}>
+          <Row label={t("播放顺序", "Play order")} hint={`${modeLabel} · R`}>
             <PlayModePicker />
           </Row>
         </div>
@@ -79,10 +80,10 @@ function SpeedSection() {
   return (
     <div className="px-2.5 pt-3 pb-3">
       <div className="flex items-baseline justify-between">
-        <span className="text-[13px] font-medium">速度</span>
+        <span className="text-[13px] font-medium">{t("速度", "Speed")}</span>
         <span className="text-[11px] text-faint">− / =</span>
       </div>
-      <div className="tint mt-2.5 grid grid-cols-4 gap-0.5 rounded-[10px] p-[3px]" role="group" aria-label="常用速度">
+      <div className="tint mt-2.5 grid grid-cols-4 gap-0.5 rounded-[10px] p-[3px]" role="group" aria-label={t("常用速度", "Common speeds")}>
         {RATE_PRESETS.map((p) => {
           const on = Math.abs(rate - p) < 0.001;
           return (
@@ -101,14 +102,14 @@ function SpeedSection() {
       </div>
       <div className="mt-2">
         <Stepper
-          decTitle="减速 (−)"
-          incTitle="加速 (=)"
+          decTitle={t("减速 (−)", "Slower (−)")}
+          incTitle={t("加速 (=)", "Faster (=)")}
           decFlash="slower"
           incFlash="faster"
           onDec={() => (setRate(rate - RATE_STEP), useApp.getState().tip("rate"))}
           onInc={() => (setRate(rate + RATE_STEP), useApp.getState().tip("rate"))}
         >
-          <button title="点击恢复 1.0×" onClick={() => setRate(1)} className="tabular h-7 w-full font-mono text-[12px] font-medium">
+          <button title={t("点击恢复 1.0×", "Click to reset to 1.0×")} onClick={() => setRate(1)} className="tabular h-7 w-full font-mono text-[12px] font-medium">
             {rate.toFixed(2)}×
           </button>
         </Stepper>
@@ -123,8 +124,8 @@ function SeekStepControl() {
   const setSeekStep = useApp((s) => s.setSeekStep);
   const [draft, setDraft] = useState<string | null>(null);
   return (
-    <Stepper decTitle="减少 1 秒" incTitle="增加 1 秒" onDec={() => setSeekStep(seekStep - 1)} onInc={() => setSeekStep(seekStep + 1)}>
-      <label title={`快退 / 快进的秒数（${SEEK_STEP_MIN}–${SEEK_STEP_MAX}）`} className="flex items-baseline">
+    <Stepper decTitle={t("减少 1 秒", "Decrease by 1 second")} incTitle={t("增加 1 秒", "Increase by 1 second")} onDec={() => setSeekStep(seekStep - 1)} onInc={() => setSeekStep(seekStep + 1)}>
+      <label title={t(`快退 / 快进的秒数（${SEEK_STEP_MIN}–${SEEK_STEP_MAX}）`, `Seconds to skip back or forward (${SEEK_STEP_MIN}–${SEEK_STEP_MAX})`)} className="flex items-baseline">
         <input
           type="number"
           inputMode="numeric"
@@ -144,7 +145,7 @@ function SeekStepControl() {
           }}
           className="tabular w-6 [appearance:textfield] rounded-[4px] bg-transparent text-right font-mono text-[12px] font-medium outline-none focus:bg-raised focus:ring-1 focus:ring-line-strong [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
-        <span className="ml-0.5 text-[11px] text-muted">秒</span>
+        <span className="ml-0.5 text-[11px] text-muted">{t("秒", "s")}</span>
       </label>
     </Stepper>
   );

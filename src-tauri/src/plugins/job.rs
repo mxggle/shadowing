@@ -74,8 +74,12 @@ impl Job {
             "subtitles": self.subtitles,
         });
         let answer = process.call("import/run", params, &self.cancel, &mut notify)?;
-        let result: RunResult =
-            serde_json::from_value(answer).map_err(|e| format!("插件的回答看不懂：{e}"))?;
+        let result: RunResult = serde_json::from_value(answer).map_err(|e| {
+            crate::tr!(
+                "插件的回答看不懂：{e}",
+                "Couldn’t read the plugin’s answer: {e}"
+            )
+        })?;
         let title = Some(result.title)
             .filter(|t| !t.trim().is_empty())
             .unwrap_or_else(|| self.title.clone());

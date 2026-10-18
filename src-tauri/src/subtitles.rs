@@ -1,6 +1,7 @@
 //! SRT / WebVTT parsing into timed sentences. Both formats share the
 //! `start --> end` cue line, so one forgiving line scanner reads either.
 
+use crate::i18n::pick;
 use crate::transcript::Sentence;
 
 /// Subtitle bytes as text: UTF-8 (with or without BOM) or UTF-16 with a BOM.
@@ -14,7 +15,13 @@ pub fn decode(bytes: &[u8]) -> Result<String, String> {
     } else {
         String::from_utf8(bytes.to_vec()).ok()
     };
-    text.ok_or_else(|| "字幕文件不是 UTF-8 编码，请先另存为 UTF-8".to_string())
+    text.ok_or_else(|| {
+        pick(
+            "字幕文件不是 UTF-8 编码，请先另存为 UTF-8",
+            "The subtitle file isn’t UTF-8. Save it as UTF-8 first.",
+        )
+        .to_string()
+    })
 }
 
 fn utf16(bytes: &[u8], word: fn([u8; 2]) -> u16) -> Option<String> {
@@ -80,7 +87,7 @@ pub fn parse(text: &str) -> Result<Vec<Sentence>, String> {
     }
     out.sort_by(|a, b| a.start.total_cmp(&b.start));
     if out.is_empty() {
-        return Err("文件里没有找到字幕".into());
+        return Err(pick("文件里没有找到字幕", "No subtitles found in the file").into());
     }
     Ok(out)
 }

@@ -2,6 +2,7 @@
 //! failures turned into short Chinese messages a learner can act on.
 
 use super::providers::Api;
+use crate::i18n::pick;
 use serde::Deserialize;
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -100,13 +101,25 @@ impl Endpoint<'_> {
 
     fn transport_error(&self, e: &reqwest::Error) -> String {
         if e.is_timeout() {
-            format!("{} 响应超时，请稍后再试", self.name)
+            crate::tr!(
+                "{} 响应超时，请稍后再试",
+                "{} didn’t respond in time. Try again later.",
+                self.name
+            )
         } else if e.is_connect() && self.local {
-            format!("没有连接到 {}，请确认它已经启动", self.name)
+            crate::tr!(
+                "没有连接到 {}，请确认它已经启动",
+                "Can’t connect to {}. Make sure it’s running.",
+                self.name
+            )
         } else if e.is_connect() {
-            format!("无法连接到 {}，请检查网络或地址", self.name)
+            crate::tr!(
+                "无法连接到 {}，请检查网络或地址",
+                "Can’t reach {}. Check your network or the address.",
+                self.name
+            )
         } else {
-            format!("请求 {} 失败：{e}", self.name)
+            crate::tr!("请求 {} 失败：{e}", "Request to {} failed: {e}", self.name)
         }
     }
 
@@ -126,11 +139,21 @@ impl Endpoint<'_> {
         };
         let body = self.send(self.get(path)).await?;
         if self.api == Api::Responses {
-            return super::chatgpt::read_models(&body)
-                .ok_or_else(|| format!("{} 返回的模型列表无法识别", self.name));
+            return super::chatgpt::read_models(&body).ok_or_else(|| {
+                crate::tr!(
+                    "{} 返回的模型列表无法识别",
+                    "Couldn’t read the model list from {}.",
+                    self.name
+                )
+            });
         }
-        let list: List = serde_json::from_str(&body)
-            .map_err(|_| format!("{} 返回的模型列表无法识别，请检查地址", self.name))?;
+        let list: List = serde_json::from_str(&body).map_err(|_| {
+            crate::tr!(
+                "{} 返回的模型列表无法识别，请检查地址",
+                "Couldn’t read the model list from {}. Check the address.",
+                self.name
+            )
+        })?;
         Ok(list.data.into_iter().map(|m| m.id).collect())
     }
 }
@@ -138,14 +161,30 @@ impl Endpoint<'_> {
 /// HTTP status → what to do about it, with the provider's own words when short enough.
 pub fn describe_status(status: u16, body: &str, name: &str) -> String {
     let base = match status {
-        401 | 403 => format!("{name} 拒绝了这个 API Key（{status}），请检查是否填错或已失效"),
-        404 => format!("{name} 上找不到这个地址或模型（404），请检查地址和模型名"),
-        402 | 429 => format!("{name} 额度不足或请求太频繁（{status}）"),
-        500..=599 => format!("{name} 暂时不可用（{status}），请稍后再试"),
-        _ => format!("{name} 返回错误（{status}）"),
+        401 | 403 => crate::tr!(
+            "{name} 拒绝了这个 API Key（{status}），请检查是否填错或已失效",
+            "{name} rejected this API key ({status}). Check that it’s correct and hasn’t expired."
+        ),
+        404 => crate::tr!(
+            "{name} 上找不到这个地址或模型（404），请检查地址和模型名",
+            "{name} can’t find this address or model (404). Check the address and model name."
+        ),
+        402 | 429 => crate::tr!(
+            "{name} 额度不足或请求太频繁（{status}）",
+            "{name} is out of credit or getting too many requests ({status})."
+        ),
+        500..=599 => crate::tr!(
+            "{name} 暂时不可用（{status}），请稍后再试",
+            "{name} is unavailable for now ({status}). Try again later."
+        ),
+        _ => crate::tr!(
+            "{name} 返回错误（{status}）",
+            "{name} returned an error ({status})."
+        ),
     };
     match provider_message(body) {
-        Some(msg) => format!("{base}：{msg}"),
+        // English bases end in a full stop; before the provider's words it becomes a colon.
+        Some(msg) => format!("{}{}{msg}", base.trim_end_matches('.'), pick("：", ": ")),
         None => base,
     }
 }

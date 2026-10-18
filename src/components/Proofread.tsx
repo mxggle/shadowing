@@ -1,6 +1,7 @@
 import { ArrowRight, LoaderCircle, Sparkles, SpellCheck, X } from "lucide-react";
 import type { Suggestion } from "../lib/api";
 import { featureReady } from "../lib/aiReady";
+import { t } from "../lib/i18n";
 import { useApp } from "../store";
 import { Button, IconButton, TextLink } from "./ui";
 
@@ -9,7 +10,7 @@ export function ProofreadButton() {
   const open = useApp((s) => !!s.proofread);
   const { openProofread, closeProofread } = useApp.getState();
   return (
-    <IconButton title="AI 校对：找出可能听错的字" active={open} onClick={() => (open ? closeProofread() : openProofread())}>
+    <IconButton title={t("AI 校对：找出可能听错的字", "AI proofreading: finds words that were probably misheard")} active={open} onClick={() => (open ? closeProofread() : openProofread())}>
       <SpellCheck />
     </IconButton>
   );
@@ -30,7 +31,7 @@ export function ProofreadBar() {
   const preset = ai?.presets.find((p) => p.id === choice?.provider);
   const service = preset && choice ? { label: `${preset.name} · ${choice.model}`, local: preset.local } : null;
   const close = (
-    <IconButton title="关闭" onClick={closeProofread} className="ml-auto">
+    <IconButton title={t("关闭", "Close")} onClick={closeProofread} className="ml-auto">
       <X />
     </IconButton>
   );
@@ -38,9 +39,9 @@ export function ProofreadBar() {
   if (proofread.state === "ready" && (!ready || !service)) {
     return (
       <div className={bar}>
-        <span>AI 校对用「句子解释」的服务，还没有设置好。</span>
+        <span>{t("AI 校对用「句子解释」的服务，还没有设置好。", "AI proofreading uses the Sentence explanations service, which isn’t set up yet.")}</span>
         <Button className={small} onClick={() => setSettingsOpen(true)}>
-          去设置
+          {t("去设置", "Open Settings")}
         </Button>
         {close}
       </div>
@@ -51,11 +52,18 @@ export function ProofreadBar() {
       <div className={bar}>
         <Sparkles size={13} className="shrink-0" />
         <span className="min-w-0">
-          把这 <span className="tabular font-mono">{count}</span> 句文字{service!.local ? "交给本机的" : "发给"} {service!.label}
-          ，找出可能听错的字。只给建议，改不改由你决定。
+          {service!.local
+            ? t(
+                <>把这 <span className="tabular font-mono">{count}</span> 句文字交给本机的 {service!.label}，找出可能听错的字。只给建议，改不改由你决定。</>,
+                <>Checks these <span className="tabular font-mono">{count}</span> sentences on this Mac with {service!.label} to find words that were probably misheard. It only suggests changes; you decide whether to make them.</>,
+              )
+            : t(
+                <>把这 <span className="tabular font-mono">{count}</span> 句文字发给 {service!.label}，找出可能听错的字。只给建议，改不改由你决定。</>,
+                <>Sends these <span className="tabular font-mono">{count}</span> sentences to {service!.label} to find words that were probably misheard. It only suggests changes; you decide whether to make them.</>,
+              )}
         </span>
         <Button primary className={small} onClick={() => void startProofread()}>
-          开始校对
+          {t("开始校对", "Start Proofreading")}
         </Button>
         {close}
       </div>
@@ -66,7 +74,7 @@ export function ProofreadBar() {
       <div className={bar}>
         <LoaderCircle size={13} className="shrink-0 animate-spin" />
         <span>
-          正在校对…
+          {t("正在校对…", "Proofreading…")}
           {proofread.total > 1 && (
             <span className="tabular font-mono">
               {" "}
@@ -75,7 +83,7 @@ export function ProofreadBar() {
           )}
         </span>
         <TextLink className="text-[12px]" onClick={cancelProofread}>
-          取消
+          {t("取消", "Cancel")}
         </TextLink>
       </div>
     );
@@ -85,7 +93,7 @@ export function ProofreadBar() {
       <div className={bar}>
         <span className="min-w-0 text-danger">{proofread.message}</span>
         <Button className={small} onClick={() => void startProofread()}>
-          重试
+          {t("重试", "Try Again")}
         </Button>
         {close}
       </div>
@@ -95,7 +103,7 @@ export function ProofreadBar() {
     return (
       <div className={bar}>
         <Sparkles size={13} className="shrink-0" />
-        <span>AI 没有发现明显听错的字。</span>
+        <span>{t("AI 没有发现明显听错的字。", "AI didn’t find any obvious misheard words.")}</span>
         {close}
       </div>
     );
@@ -103,14 +111,17 @@ export function ProofreadBar() {
   return (
     <div className={bar}>
       <Sparkles size={13} className="shrink-0" />
-      <button title="播放下一处" onClick={playNext} className="transition-colors hover:text-fg">
-        AI 找到 <span className="tabular font-mono">{proofread.suggestions.length}</span> 处可能听错，写在句子下面
+      <button title={t("播放下一处", "Play the next suggestion")} onClick={playNext} className="transition-colors hover:text-fg">
+        {t(
+          <>AI 找到 <span className="tabular font-mono">{proofread.suggestions.length}</span> 处可能听错，写在句子下面</>,
+          <>AI found <span className="tabular font-mono">{proofread.suggestions.length}</span> possibly misheard {proofread.suggestions.length === 1 ? "word" : "words"}, shown under {proofread.suggestions.length === 1 ? "the sentence" : "the sentences"}</>,
+        )}
       </button>
       <Button className={`${small} ml-auto`} onClick={() => void acceptAll()}>
-        全部改正
+        {t("全部改正", "Accept All")}
       </Button>
       <TextLink className="text-[12px]" onClick={closeProofread}>
-        全部忽略
+        {t("全部忽略", "Ignore All")}
       </TextLink>
     </div>
   );
@@ -131,7 +142,7 @@ export function SuggestionNote({ suggestion }: { suggestion: Suggestion }) {
   return (
     <div className="mt-0.5 mb-1.5 flex animate-fade flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-muted">
       <span className="flex items-center gap-1.5 font-script text-[15px] text-fg">
-        <Sparkles size={12} className="shrink-0 text-muted" aria-label="AI 建议" />
+        <Sparkles size={12} className="shrink-0 text-muted" aria-label={t("AI 建议", "AI suggestion")} />
         <span className="line-through decoration-faint">{suggestion.from}</span>
         <ArrowRight size={12} className="shrink-0 text-faint" />
         <span>{suggestion.to}</span>
@@ -139,10 +150,10 @@ export function SuggestionNote({ suggestion }: { suggestion: Suggestion }) {
       {suggestion.reason && <span className="min-w-0">{suggestion.reason}</span>}
       <span className="flex items-center gap-2">
         <Button className="h-6 px-2 text-[12px]" onClick={() => void acceptSuggestion(suggestion)}>
-          改正
+          {t("改正", "Accept")}
         </Button>
         <TextLink className="text-[12px]" onClick={() => ignoreSuggestion(suggestion)}>
-          忽略
+          {t("忽略", "Ignore")}
         </TextLink>
       </span>
     </div>

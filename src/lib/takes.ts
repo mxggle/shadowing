@@ -2,6 +2,7 @@
 // sentence, how the two voices line up on screen, and the words under them.
 import { formatRate } from "../audio/logic";
 import type { ClipPart, Take } from "./api";
+import { t } from "./i18n";
 
 /** Whether a take has you after the original (听完再说, or cut from a paragraph read on your own) rather than over it. */
 export const inTurns = (take: Pick<Take, "mode">) => take.mode !== "shadow";
@@ -99,7 +100,7 @@ export function playheadAt(parts: ClipPart[], secs: number): { original: number 
 export const mineSecs = (take: Take) => Math.max(0, take.mine[1] - take.mine[0] - 0.45);
 
 /** "2.4 秒" */
-export const formatSecs = (s: number) => `${s.toFixed(1)} 秒`;
+export const formatSecs = (s: number) => t(`${s.toFixed(1)} 秒`, `${s.toFixed(1)} s`);
 
 /**
  * How your length compares with the original's as you heard it (听完再说):
@@ -111,30 +112,33 @@ export function paceNote(take: Take): string {
   const m = mineSecs(take);
   if (o <= 0 || m <= 0) return "";
   const r = m / o;
-  const at = Math.abs(take.rate - 1) > 0.01 ? `（原句放的是 ${formatRate(take.rate)}）` : "";
-  if (r > 1.15) return `比原句慢 ${Math.round((r - 1) * 100)}%${at}`;
-  if (r < 0.87) return `比原句快 ${Math.round((1 - r) * 100)}%${at}`;
-  return `节奏和原句差不多${at}`;
+  const at = Math.abs(take.rate - 1) > 0.01 ? t(`（原句放的是 ${formatRate(take.rate)}）`, ` (original played at ${formatRate(take.rate)})`) : "";
+  if (r > 1.15) return t(`比原句慢 ${Math.round((r - 1) * 100)}%${at}`, `${Math.round((r - 1) * 100)}% slower than the original${at}`);
+  if (r < 0.87) return t(`比原句快 ${Math.round((1 - r) * 100)}%${at}`, `${Math.round((1 - r) * 100)}% faster than the original${at}`);
+  return t(`节奏和原句差不多${at}`, `Pace close to the original${at}`);
 }
 
 /** Bluetooth earphones add a delay of their own that isn't measured. */
-export const BLUETOOTH_LAG = "戴蓝牙耳机时测不准晚多少";
+export const bluetoothLag = () => t("戴蓝牙耳机时测不准晚多少", "With Bluetooth earphones, the delay can’t be measured");
 
 /** 边听边说: how far behind the original you were. */
 export function lagNote(ms: number | null, bluetooth = false): string {
   if (ms === null) return "";
-  if (bluetooth) return BLUETOOTH_LAG;
-  return ms < 80 ? "几乎和原声同步" : `比原声晚 ${(ms / 1000).toFixed(2)} 秒`;
+  if (bluetooth) return bluetoothLag();
+  return ms < 80
+    ? t("几乎和原声同步", "Almost in sync with the original")
+    : t(`比原声晚 ${(ms / 1000).toFixed(2)} 秒`, `${(ms / 1000).toFixed(2)} s behind the original`);
 }
 
 /** "刚刚", "3 分钟前", "今天 14:05", "10月12日" */
 export function whenRecorded(created: number, now = Date.now()): string {
   const mins = Math.floor((now - created) / 60_000);
-  if (mins < 1) return "刚刚";
-  if (mins < 60) return `${mins} 分钟前`;
+  if (mins < 1) return t("刚刚", "Just now");
+  if (mins < 60) return t(`${mins} 分钟前`, `${mins} min ago`);
   const d = new Date(created);
   const today = new Date(now);
   const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  if (d.toDateString() === today.toDateString()) return `今天 ${hm}`;
-  return `${d.getMonth() + 1}月${d.getDate()}日 ${hm}`;
+  const clock = t(hm, d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }));
+  if (d.toDateString() === today.toDateString()) return t(`今天 ${hm}`, `Today ${clock}`);
+  return t(`${d.getMonth() + 1}月${d.getDate()}日 ${hm}`, `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${clock}`);
 }

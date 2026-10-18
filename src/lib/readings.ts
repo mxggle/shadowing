@@ -3,7 +3,8 @@
 // words that sum one up.
 import type { ParagraphMode, Reading, ReadingPlaying, Section, Settings, Take } from "./api";
 import { sectionIndexOf, sectionRange } from "./sections";
-import { BLUETOOTH_LAG } from "./takes";
+import { t } from "./i18n";
+import { bluetoothLag } from "./takes";
 
 /** How 整段录音 goes: read on your own, along with the original, or 逐句跟读. */
 export type ReadingHow = ParagraphMode | "drill";
@@ -41,14 +42,16 @@ export function readingsFor(readings: Reading[], start: number, end: number): Re
 export function readingNote(r: Reading): string {
   if (r.mode === "shadow") {
     if (r.lagMs === null) return "";
-    if (r.bluetooth) return BLUETOOTH_LAG;
-    return r.lagMs < 80 ? "几乎和原声同步" : `平均比原声晚 ${(r.lagMs / 1000).toFixed(2)} 秒`;
+    if (r.bluetooth) return bluetoothLag();
+    return r.lagMs < 80
+      ? t("几乎和原声同步", "Almost in sync with the original")
+      : t(`平均比原声晚 ${(r.lagMs / 1000).toFixed(2)} 秒`, `On average ${(r.lagMs / 1000).toFixed(2)} s behind the original`);
   }
   const ratio = r.mineSecs / Math.max(0.1, r.originalSecs);
-  const times = `你 ${r.mineSecs.toFixed(1)} 秒 · 原文 ${r.originalSecs.toFixed(1)} 秒`;
-  if (ratio > 1.1) return `${times}，慢 ${Math.round((ratio - 1) * 100)}%`;
-  if (ratio < 0.9) return `${times}，快 ${Math.round((1 - ratio) * 100)}%`;
-  return `${times}，节奏差不多`;
+  const times = t(`你 ${r.mineSecs.toFixed(1)} 秒 · 原文 ${r.originalSecs.toFixed(1)} 秒`, `You ${r.mineSecs.toFixed(1)} s · original ${r.originalSecs.toFixed(1)} s`);
+  if (ratio > 1.1) return t(`${times}，慢 ${Math.round((ratio - 1) * 100)}%`, `${times}, ${Math.round((ratio - 1) * 100)}% slower`);
+  if (ratio < 0.9) return t(`${times}，快 ${Math.round((1 - ratio) * 100)}%`, `${times}, ${Math.round((1 - ratio) * 100)}% faster`);
+  return t(`${times}，节奏差不多`, `${times}, similar pace`);
 }
 
 /** Sentences read (with a take) out of all of them. */

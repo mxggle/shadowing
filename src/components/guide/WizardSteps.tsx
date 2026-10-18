@@ -1,6 +1,7 @@
 import { Check, Cloud, Laptop, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, LOCAL_PROVIDER, type Feature, type Preset } from "../../lib/api";
+import { t } from "../../lib/i18n";
 import { useApp } from "../../store";
 import { formatBytes, LocalModels } from "../settings/LocalModels";
 import { ProviderSetup } from "../settings/ProviderSetup";
@@ -25,34 +26,51 @@ export function TranscribeStep() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-[13px] leading-relaxed text-muted">
-        转写把没有字幕的音频变成一句一句、带时间的字幕，这样就能点句播放、循环跟读。
+        {t(
+          "转写把没有字幕的音频变成一句一句、带时间的字幕，这样就能点句播放、循环跟读。",
+          "Transcription turns audio without subtitles into timed sentences, so you can click one to play or loop it while you repeat.",
+        )}
       </p>
       <div className={`grid gap-2.5 ${supported ? "grid-cols-2" : "grid-cols-1"}`}>
         {supported && (
           <ChoiceCard
             icon={Laptop}
-            title="在这台 Mac 上"
+            title={t("在这台 Mac 上", "On this Mac")}
             recommended
             selected={mode === "local"}
             onClick={() => mode !== "local" && void choose("transcribe", LOCAL_PROVIDER, (downloaded ?? recommended)?.id ?? "")}
             points={[
-              "免费，可以离线使用",
-              "音频不会离开这台 Mac",
+              t("免费，可以离线使用", "Free, and works offline"),
+              t("音频不会离开这台 Mac", "Audio never leaves this Mac"),
               downloaded
-                ? `已经下载了 ${downloaded.name}`
-                : `需要下载一个模型（按 ${Math.round(local!.ramGb)} GB 内存推荐 ${recommended?.name}，${formatBytes(recommended?.size ?? 0)}）`,
+                ? t(`已经下载了 ${downloaded.name}`, `Already downloaded ${downloaded.name}`)
+                : t(
+                    `需要下载一个模型（按 ${Math.round(local!.ramGb)} GB 内存推荐 ${recommended?.name}，${formatBytes(recommended?.size ?? 0)}）`,
+                    `Needs a model download (${recommended?.name} suits ${Math.round(local!.ramGb)} GB of memory, ${formatBytes(recommended?.size ?? 0)})`,
+                  ),
             ]}
           />
         )}
         <ChoiceCard
           icon={Cloud}
-          title="云端服务"
+          title={t("云端服务", "Cloud service")}
           selected={mode === "cloud"}
           onClick={() => mode !== "cloud" && void choose("transcribe", "groq", ai.presets.find((p) => p.id === "groq")?.transcribeModel ?? "")}
-          points={["Groq、OpenAI 等，速度很快", "Groq 约 $0.11 / 小时音频", "需要注册并填写 API Key，音频会上传"]}
+          points={[
+            t("Groq、OpenAI 等，速度很快", "Groq, OpenAI and others, very fast"),
+            t("Groq 约 $0.11 / 小时音频", "Groq, about $0.11 per hour of audio"),
+            t("需要注册并填写 API Key，音频会上传", "Needs a sign-up and an API key; audio is uploaded"),
+          ]}
         />
       </div>
-      {!supported && <p className="text-[12px] text-faint">这台 Mac 不是 Apple 芯片，本机转写会非常慢，所以只提供云端服务。</p>}
+      {!supported && (
+        <p className="text-[12px] text-faint">
+          {t(
+            "这台 Mac 不是 Apple 芯片，本机转写会非常慢，所以只提供云端服务。",
+            "This Mac doesn’t have an Apple chip, so transcribing on it would be very slow. Only cloud services are offered.",
+          )}
+        </p>
+      )}
       {mode === "local" && <LocalModels />}
       {mode === "cloud" && <ProviderSetup feature="transcribe" only={isCloud} allowNone={false} />}
     </div>
@@ -71,28 +89,37 @@ export function ChatStep() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-[13px] leading-relaxed text-muted">
-        句子解释用大语言模型翻译句子、讲解生词和语法，也用来校对字幕里可能听错的字。
+        {t(
+          "句子解释用大语言模型翻译句子、讲解生词和语法，也用来校对字幕里可能听错的字。",
+          "Sentence explanations use a large language model to translate sentences, explain new words and grammar, and proofread subtitles for words that may have been misheard.",
+        )}
       </p>
       <div className="grid grid-cols-2 gap-2.5">
         <ChoiceCard
           icon={Laptop}
-          title="本机模型"
+          title={t("本机模型", "On this Mac")}
           recommended={!!server}
           selected={mode === "local"}
           onClick={() => mode !== "local" && void choose("chat", server?.id ?? "ollama", "")}
           points={[
-            "免费，句子不会离开这台 Mac",
-            server ? `检测到 ${server.name} 正在运行` : "需要先安装 Ollama 或 LM Studio，再下载一个模型",
-            "效果取决于模型大小和内存，建议 Qwen 系列",
+            t("免费，句子不会离开这台 Mac", "Free, and sentences never leave this Mac"),
+            server
+              ? t(`检测到 ${server.name} 正在运行`, `Found ${server.name} running`)
+              : t("需要先安装 Ollama 或 LM Studio，再下载一个模型", "Install Ollama or LM Studio first, then download a model"),
+            t("效果取决于模型大小和内存，建议 Qwen 系列", "Quality depends on model size and memory. Qwen models are recommended."),
           ]}
         />
         <ChoiceCard
           icon={Cloud}
-          title="云端服务"
+          title={t("云端服务", "Cloud service")}
           recommended={running !== null && !server}
           selected={mode === "cloud"}
           onClick={() => mode !== "cloud" && void choose("chat", "openrouter", "")}
-          points={["用 OpenRouter 或 ChatGPT 账号登录，不用复制 Key", "也可以填 OpenAI、Anthropic、Gemini、DeepSeek 的 Key", "按用量付费（ChatGPT 账号用套餐额度）"]}
+          points={[
+            t("用 OpenRouter 或 ChatGPT 账号登录，不用复制 Key", "Sign in with OpenRouter or ChatGPT, no key to copy"),
+            t("也可以填 OpenAI、Anthropic、Gemini、DeepSeek 的 Key", "Or enter a key from OpenAI, Anthropic, Gemini or DeepSeek"),
+            t("按用量付费（ChatGPT 账号用套餐额度）", "Pay as you go (ChatGPT accounts use plan allowance)"),
+          ]}
         />
       </div>
       {mode === "local" && <ProviderSetup feature="chat" only={isLocal} allowNone={false} />}
@@ -121,7 +148,7 @@ function ChoiceCard({ icon: Icon, title, points, selected, recommended, onClick 
       <span className="flex w-full items-center gap-2">
         <Icon size={16} strokeWidth={1.8} className="text-muted" />
         <span className="text-[14px] font-semibold">{title}</span>
-        {recommended && <span className="rounded-[4px] px-1 text-[11px] leading-4 font-medium text-ok shadow-[inset_0_0_0_1px_currentColor]">推荐</span>}
+        {recommended && <span className="rounded-[4px] px-1 text-[11px] leading-4 font-medium text-ok shadow-[inset_0_0_0_1px_currentColor]">{t("推荐", "Recommended")}</span>}
         <span className={`ml-auto grid size-[18px] place-items-center rounded-full ${selected ? "bg-ink text-on-ink" : "border-[1.5px] border-line-strong"}`}>
           {selected && <Check size={11} strokeWidth={3} />}
         </span>

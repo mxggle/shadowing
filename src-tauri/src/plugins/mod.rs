@@ -11,6 +11,7 @@ mod job;
 pub mod manifest;
 pub mod rpc;
 
+use crate::i18n::pick;
 use crate::AppState;
 use manifest::{Importer, Manifest, Permissions};
 use serde::Serialize;
@@ -57,7 +58,11 @@ pub(super) fn scan(root: &Path) -> Vec<(String, PathBuf, Result<Manifest, String
                 if m.id == name {
                     Ok(m)
                 } else {
-                    Err(format!("文件夹名和插件 id “{}” 不一样", m.id))
+                    Err(crate::tr!(
+                        "文件夹名和插件 id “{}” 不一样",
+                        "The folder name doesn’t match the plugin id “{}”",
+                        m.id
+                    ))
                 }
             });
             (name, dir, manifest)
@@ -159,8 +164,9 @@ pub fn plugins_remove(state: State<AppState>, id: String) -> Result<Vec<PluginIn
         .into_iter()
         .find(|(name, _, _)| *name == id)
         .map(|(_, dir, _)| dir)
-        .ok_or("这个插件已经不在了")?;
-    fs::remove_dir_all(dir).map_err(|e| format!("无法删除插件：{e}"))?;
+        .ok_or(pick("这个插件已经不在了", "This plugin is already gone"))?;
+    fs::remove_dir_all(dir)
+        .map_err(|e| crate::tr!("无法删除插件：{e}", "Couldn’t delete the plugin: {e}"))?;
     Ok(list(&state))
 }
 

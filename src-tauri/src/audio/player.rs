@@ -12,6 +12,7 @@ use super::session::{self, Session};
 use super::status::{self, lock, snapshot, CmdTx, Ctl, Track};
 use super::tap::Tap;
 use super::{EventSink, Status};
+use crate::i18n::pick;
 use rtrb::RingBuffer;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
@@ -191,7 +192,7 @@ impl Player {
 
     pub fn seek(&self, time: f64) -> Result<(), String> {
         if !time.is_finite() {
-            return Err("无效的时间".into());
+            return Err(pick("无效的时间", "Invalid time").into());
         }
         self.with_track(|c| {
             let t = c.track.as_ref()?;
@@ -205,7 +206,7 @@ impl Player {
 
     pub fn set_rate(&self, rate: f64) -> Result<(), String> {
         if !rate.is_finite() {
-            return Err("无效的速度".into());
+            return Err(pick("无效的速度", "Invalid speed").into());
         }
         let rate = rate.clamp(0.5, 2.0);
         lock(&self.ctl).rate = rate;
@@ -226,7 +227,7 @@ impl Player {
     /// Plays `a`..`b` once (ignoring any loop) and pauses at `b`.
     pub fn play_range(&self, a: f64, b: f64) -> Result<(), String> {
         if !(a.is_finite() && b.is_finite() && b > a) {
-            return Err("无效的时间".into());
+            return Err(pick("无效的时间", "Invalid time").into());
         }
         self.seek(a)?;
         let stop = {

@@ -6,6 +6,7 @@ import { sectionIndexOf, sectionsOf } from "../lib/sections";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
 import { partAt } from "../lib/readings";
 import { sentenceOf, takeCounts } from "../lib/takes";
+import { t } from "../lib/i18n";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { ExplainNote } from "./Explain";
@@ -136,31 +137,37 @@ function Header({ scrolled }: { scrolled: boolean }) {
   return (
     <div className={`shrink-0 border-b transition-colors duration-200 ${scrolled ? "border-line" : "border-transparent"}`}>
       <div className="mx-auto flex h-10 w-full max-w-[760px] items-center gap-2 pr-8 pl-10">
-        <p className="flex min-w-0 items-center gap-1.5 text-[12px] text-faint" title={`[ ] 换句，S 循环本句 · ${transcript.origin}`}>
+        <p className="flex min-w-0 items-center gap-1.5 text-[12px] text-faint" title={t(`[ ] 换句，S 循环本句 · ${transcript.origin}`, `[ ] previous or next sentence, S loop this sentence · ${transcript.origin}`)}>
           <span className="shrink-0">
-            <span className="tabular font-mono text-muted">{transcript.sentences.length}</span> 句
+            {t(
+              <><span className="tabular font-mono text-muted">{transcript.sentences.length}</span> 句</>,
+              <><span className="tabular font-mono text-muted">{transcript.sentences.length}</span> {transcript.sentences.length === 1 ? "sentence" : "sentences"}</>,
+            )}
           </span>
           {voices > 1 && (
             <span className="shrink-0">
-              · <span className="tabular font-mono text-muted">{voices}</span> 人
+              {t(
+                <>· <span className="tabular font-mono text-muted">{voices}</span> 人</>,
+                <>· <span className="tabular font-mono text-muted">{voices}</span> speakers</>,
+              )}
             </span>
           )}
           <span className="truncate">· {transcript.origin}</span>
-          {transcript.edited && <span className="shrink-0">· 已修改</span>}
+          {transcript.edited && <span className="shrink-0">· {t("已修改", "Edited")}</span>}
           <UnsureCount />
         </p>
         <SectionMenu />
         <span className="ml-auto flex shrink-0 gap-0.5">
-          <IconButton title="查找和替换 (⌘F)" active={replacing} onClick={() => (replacing ? closeReplace() : openReplace())}>
+          <IconButton title={t("查找和替换 (⌘F)", "Find and replace (⌘F)")} active={replacing} onClick={() => (replacing ? closeReplace() : openReplace())}>
             <Replace />
           </IconButton>
           <ReadingButton />
           <ProofreadButton />
-          <IconButton title="导入其他字幕文件" onClick={() => void importTranscript()}>
+          <IconButton title={t("导入其他字幕文件", "Import another subtitle file")} onClick={() => void importTranscript()}>
             <FileUp />
           </IconButton>
           {transcript.source !== "sidecar" && (
-            <IconButton title="移除字幕" onClick={() => void removeTranscript()}>
+            <IconButton title={t("移除字幕", "Remove subtitles")} onClick={() => void removeTranscript()}>
               <Trash2 />
             </IconButton>
           )}
@@ -218,7 +225,7 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
     >
       <div className="flex flex-col items-start">
         <button
-          title="从这一句播放"
+          title={t("从这一句播放", "Play from this sentence")}
           onClick={() => playSentence(index)}
           className="relative flex h-[30px] w-full items-center rounded-[6px] text-left"
         >
@@ -241,7 +248,7 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
         <span className="flex h-[30px] items-center">
           {turn && sentence.speaker !== undefined && (
             <span
-              title={`说话人 ${speakerName(sentence.speaker)}`}
+              title={t(`说话人 ${speakerName(sentence.speaker)}`, `Speaker ${speakerName(sentence.speaker)}`)}
               className={`tint grid size-5 place-items-center rounded-[5px] font-mono text-[11px] font-medium ${lit ? "text-fg" : "text-muted"}`}
             >
               {speakerName(sentence.speaker)}
@@ -268,7 +275,7 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
       </div>
       <span className="flex h-[30px] items-center">
         <button
-          title={explaining ? "收起解释 (I)" : "解释这一句 (I)"}
+          title={explaining ? t("收起解释 (I)", "Hide explanation (I)") : t("解释这一句 (I)", "Explain this sentence (I)")}
           aria-pressed={explaining}
           onClick={() => toggleExplain(index)}
           className={`grid size-[28px] place-items-center rounded-[8px] transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${
@@ -278,22 +285,22 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
           <Languages size={14} strokeWidth={2.1} />
         </button>
         {canSplit && !editing && (
-          <HoverButton title="从这句开始新段" onClick={() => splitSection(index)}>
+          <HoverButton title={t("从这句开始新段", "Start a new section here")} onClick={() => splitSection(index)}>
             <BetweenHorizontalStart size={14} strokeWidth={2.1} />
           </HoverButton>
         )}
         {!editing && (
-          <HoverButton title="修改这一句 (E)" onClick={() => editSentence(index)}>
+          <HoverButton title={t("修改这一句 (E)", "Edit this sentence (E)")} onClick={() => editSentence(index)}>
             <PenLine size={14} strokeWidth={2.1} />
           </HoverButton>
         )}
         {!editing && !last && (
-          <HoverButton title="与下一句合并" onClick={() => void mergeSentence(index)}>
+          <HoverButton title={t("与下一句合并", "Merge with the next sentence")} onClick={() => void mergeSentence(index)}>
             <FoldVertical size={14} strokeWidth={2.1} />
           </HoverButton>
         )}
         <button
-          title={looping ? "取消循环 (S)" : "循环这一句 (S)"}
+          title={looping ? t("取消循环 (S)", "Stop looping (S)") : t("循环这一句 (S)", "Loop this sentence (S)")}
           aria-pressed={looping}
           onClick={() => {
             toggleSentenceLoop(index);

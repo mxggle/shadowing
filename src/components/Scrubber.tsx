@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { clamp } from "../audio/logic";
 import { sentenceIndexAt } from "../lib/sentences";
 import { formatTime } from "../lib/time";
+import { t } from "../lib/i18n";
 import { useApp } from "../store";
 
 /**
@@ -31,7 +32,7 @@ export function Scrubber() {
     <div
       ref={bar}
       role="slider"
-      aria-label="播放进度"
+      aria-label={t("播放进度", "Playback progress")}
       aria-valuemin={0}
       aria-valuemax={Math.round(duration)}
       aria-valuenow={Math.round(shown)}

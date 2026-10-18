@@ -48,7 +48,7 @@ export interface AppState extends TranscriptState, CorrectState, ReshapeState, P
 
   init(): Promise<void>;
   setSettingsOpen(open: boolean): void;
-  setLanguage(choice: LanguageChoice): void;
+  setLanguage(choice: LanguageChoice): Promise<void>;
   toggleShelf(): void;
   setAiConfig(config: AiConfig): void;
   setLocal(local: LocalOverview): void;
@@ -241,13 +241,15 @@ export const useApp = create<AppState>((set, get) => {
       // One overlay at a time: ⌘, while the AI wizard is open replaces it (as the wizard replaces settings).
       set(settingsOpen ? { settingsOpen, wizardOpen: false, statsOpen: false, newsOpen: false } : { settingsOpen });
     },
-    setLanguage(language) {
+    async setLanguage(language) {
       const lang = resolveLang(language, get().systemLanguage);
       setLang(lang);
-      persistSettings({ language });
-      // Now, not when settings settle: Rust words its menu and messages by it.
-      flushSettings();
-      set({ lang });
+      flushSettings(); // a change still settling goes out first
+      set({ lang, settings: { ...get().settings, language } });
+      // Now, not when settings settle: Rust words its menu, messages and the services' names by it.
+      await api.saveSettings(get().settings);
+      const [ai, local] = await Promise.all([api.ai.get(), api.local.models()]);
+      set({ ai, local });
     },
     toggleShelf() {
       const shelfOpen = !get().shelfOpen;

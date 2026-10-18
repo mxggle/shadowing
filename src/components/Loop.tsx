@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { formatPrecise } from "../lib/time";
+import { t } from "../lib/i18n";
 import { sectionName, sectionsOf } from "../lib/sections";
 import { useApp } from "../store";
 import { takesFor } from "../lib/takes";
@@ -18,29 +19,42 @@ function PassInfo({ className = "" }: { className?: string }) {
   const length = useApp((s) => (s.loop.a !== null && s.loop.b !== null ? s.loop.b - s.loop.a : 0));
   return (
     <span className={`tabular font-mono whitespace-nowrap text-loop-text ${className}`} aria-live="polite">
-      第 <span key={repeats} className="inline-block animate-pop">{repeats + 1}</span> 遍
-      <span className="text-loop-text/70"> · {length.toFixed(1)} 秒</span>
+      {t(
+        <>第 <span key={repeats} className="inline-block animate-pop">{repeats + 1}</span> 遍</>,
+        <>Pass <span key={repeats} className="inline-block animate-pop">{repeats + 1}</span></>,
+      )}
+      <span className="text-loop-text/70">{t(` · ${length.toFixed(1)} 秒`, ` · ${length.toFixed(1)} s`)}</span>
     </span>
   );
 }
 
-const CAPTION = {
-  idle: (
+/** A function, not a constant: the wording follows the language (see lib/i18n.ts). */
+const caption = () => ({
+  idle: t(
     <>
       听到想练的句子开头时按 <Kbd>L</Kbd>，结尾再按一次，这一段就会反复播放。
-    </>
+    </>,
+    <>
+      Press <Kbd>L</Kbd> at the start of the part you want to practice, and again at its end. It will repeat.
+    </>,
   ),
-  armed: (
+  armed: t(
     <>
       起点已设好。听到句尾时按 <Kbd>L</Kbd> 设终点。
-    </>
+    </>,
+    <>
+      The start is set. Press <Kbd>L</Kbd> when you reach the end to set the end point.
+    </>,
   ),
-  active: (
+  active: t(
     <>
       ‹ › 把边界移动 0.1 秒。按 <Kbd>M</Kbd> 跟读录音，按 <Kbd>L</Kbd> 或 <Kbd>Esc</Kbd> 取消循环。
-    </>
+    </>,
+    <>
+      ‹ › move a boundary by 0.1 s. Press <Kbd>M</Kbd> to record shadowing, or <Kbd>L</Kbd> or <Kbd>Esc</Kbd> to cancel the loop.
+    </>,
   ),
-};
+});
 
 /**
  * Without a transcript the loop is what you're practising, so it gets the
@@ -56,14 +70,14 @@ export function LoopPanel() {
   const recording = useApp((s) => s.recordAt === "loop");
 
   return (
-    <section className="@container" aria-label="A–B 循环">
+    <section className="@container" aria-label={t("A–B 循环", "A–B loop")}>
       <header className="flex h-7 items-center gap-3">
-        <h2 className="text-[13px] font-semibold">A–B 循环</h2>
+        <h2 className="text-[13px] font-semibold">{t("A–B 循环", "A–B loop")}</h2>
         {phase === "active" && <PassInfo className="text-[12px]" />}
         {phase !== "idle" && (
           <span className="ml-auto flex items-center gap-0.5">
             {phase === "active" && <MicButton at="loop" count={takes} className="!opacity-100" />}
-            <IconButton title="取消循环 (Esc)" onClick={clearLoop}>
+            <IconButton title={t("取消循环 (Esc)", "Cancel loop (Esc)")} onClick={clearLoop}>
               <X />
             </IconButton>
           </span>
@@ -79,7 +93,7 @@ export function LoopPanel() {
       </div>
 
       <p key={phase} className="mt-3.5 animate-fade text-[13px] leading-relaxed text-muted">
-        {CAPTION[phase]}
+        {caption()[phase]}
       </p>
       {recording && phase === "active" && (
         <div className="mt-3">
@@ -119,7 +133,7 @@ function Readout({ label, value, next, onNudge }: {
         </span>
       ) : (
         <span className={`flex items-center gap-1.5 text-[13px] ${next ? (label === "B" ? "text-loop-text" : "text-fg") : "text-faint"}`}>
-          按 <Kbd>L</Kbd> 设{label === "A" ? "起点" : "终点"}
+          {t(<>按 <Kbd>L</Kbd> 设{label === "A" ? "起点" : "终点"}</>, <>Press <Kbd>L</Kbd> to set the {label === "A" ? "start" : "end"}</>)}
         </span>
       )}
     </div>
@@ -129,7 +143,7 @@ function Readout({ label, value, next, onNudge }: {
 function Nudge({ label, d, onNudge, small }: { label: string; d: number; onNudge: (d: number) => void; small?: boolean }) {
   return (
     <button
-      title={`${label} ${d < 0 ? "提前" : "推后"} 0.1 秒`}
+      title={t(`${label} ${d < 0 ? "提前" : "推后"} 0.1 秒`, `Move ${label} 0.1 s ${d < 0 ? "earlier" : "later"}`)}
       onClick={() => onNudge(d)}
       className={`grid place-items-center rounded-[6px] text-muted transition-[background-color,color,scale] duration-150 hover:bg-hover hover:text-fg active:scale-90 ${
         small ? "h-6 w-5 text-[14px]" : "h-9 w-6 text-[18px] @[520px]:w-7"
@@ -156,7 +170,7 @@ export function LoopStrip() {
   return (
     <div className="tint mb-2.5 flex h-9 animate-fade-in items-center gap-3 rounded-[10px] pr-1 pl-3.5">
       <span className="max-w-[10rem] shrink-0 truncate text-[12px] font-medium whitespace-nowrap text-loop-text">
-        {loopSection ?? (loopSentence !== null ? `第 ${loopSentence + 1} 句` : "A–B")}
+        {loopSection ?? (loopSentence !== null ? t(`第 ${loopSentence + 1} 句`, `Sentence ${loopSentence + 1}`) : "A–B")}
       </span>
       <span className="h-3.5 w-px shrink-0 bg-line-strong" />
       <Boundary label="A" value={loop.a!} onNudge={phase === "active" ? (d) => nudgeLoop("a", d) : undefined} />
@@ -164,12 +178,12 @@ export function LoopStrip() {
         <Boundary label="B" value={loop.b!} onNudge={(d) => nudgeLoop("b", d)} />
       ) : (
         <span className="flex items-center gap-1.5 text-[12px] whitespace-nowrap text-loop-text">
-          按 <Kbd>L</Kbd> 设终点 B
+          {t(<>按 <Kbd>L</Kbd> 设终点 B</>, <>Press <Kbd>L</Kbd> to set end B</>)}
         </span>
       )}
       <span className="ml-auto flex min-w-0 items-center gap-1">
         {phase === "active" && <PassInfo className="truncate text-[11px]" />}
-        <IconButton title="取消循环 (Esc)" onClick={clearLoop}>
+        <IconButton title={t("取消循环 (Esc)", "Cancel loop (Esc)")} onClick={clearLoop}>
           <X />
         </IconButton>
       </span>

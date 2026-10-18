@@ -7,6 +7,7 @@
 
 mod cut;
 
+use crate::i18n::pick;
 use crate::sections::{self, Section};
 use crate::transcript::{self, Sentence, Transcript};
 use crate::AppState;
@@ -15,6 +16,7 @@ use std::path::Path;
 use tauri::State;
 
 const STALE: &str = "字幕已经变了，请重新打开这个音频";
+const STALE_EN: &str = "The subtitles have changed. Open this audio again.";
 
 /// Sentences [at, at + removed) replaced by `added` new ones.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -111,8 +113,11 @@ fn merge(a: &Sentence, b: &Sentence) -> Sentence {
 
 /// Cuts sentence `index` in two at `at` in its text.
 fn split(t: &mut Transcript, index: usize, at: u32, audio: &Path) -> Result<Change, String> {
-    let s = t.sentences.get(index).ok_or(STALE)?.clone();
-    let cut = cut_text(&s.text, at).ok_or("要在句子中间断开，两边都要有字")?;
+    let s = t.sentences.get(index).ok_or(pick(STALE, STALE_EN))?.clone();
+    let cut = cut_text(&s.text, at).ok_or(pick(
+        "要在句子中间断开，两边都要有字",
+        "Both sides of the cut need text.",
+    ))?;
     let times = cut::times(&s, &cut, audio);
     Ok(replace(t, index, 1, halves(&s, cut, times).into()))
 }
@@ -127,7 +132,7 @@ fn restore(
     sections: Vec<Section>,
 ) -> Result<Change, String> {
     if count == 0 || sentences.is_empty() || at + count > t.sentences.len() {
-        return Err(STALE.into());
+        return Err(pick(STALE, STALE_EN).into());
     }
     let before = at.checked_sub(1).map(|i| t.sentences[i].start);
     let after = t.sentences.get(at + count).map(|s| s.start);
@@ -141,7 +146,7 @@ fn restore(
         .all(|s| s.start.is_finite() && s.end >= s.start && !s.text.trim().is_empty())
         && starts.windows(2).all(|w| w[0] <= w[1]);
     if !fits {
-        return Err(STALE.into());
+        return Err(pick(STALE, STALE_EN).into());
     }
     for s in &mut sentences {
         let length = len16(&s.text);
@@ -160,9 +165,11 @@ fn update(
     f: impl FnOnce(&mut Transcript, &Path) -> Result<Change, String>,
 ) -> Result<Transcript, String> {
     let (audio, key, dir) = transcript::authorize(state, path)?;
-    let mut t = transcript::current(state, &audio, &dir, &key).ok_or("这个音频没有字幕")?;
+    let mut t = transcript::current(state, &audio, &dir, &key)
+        .ok_or(pick("这个音频没有字幕", "This audio has no subtitles"))?;
     let change = f(&mut t, &audio)?;
-    transcript::save(&dir, &key, &t).map_err(|e| format!("无法保存修改：{e}"))?;
+    transcript::save(&dir, &key, &t)
+        .map_err(|e| crate::tr!("无法保存修改：{e}", "Couldn’t save the changes: {e}"))?;
     crate::explain::follow(state, &key, |i| change.moved(i).unwrap_or(change.at));
     Ok(t)
 }
@@ -187,7 +194,7 @@ pub fn transcript_merge(
 ) -> Result<Transcript, String> {
     update(&state, &path, |t, _| {
         let (Some(a), Some(b)) = (t.sentences.get(index), t.sentences.get(index + 1)) else {
-            return Err(STALE.into());
+            return Err(pick(STALE, STALE_EN).into());
         };
         let merged = merge(a, b);
         Ok(replace(t, index, 2, vec![merged]))

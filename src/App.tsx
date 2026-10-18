@@ -16,6 +16,7 @@ import { WhatsNewDialog } from "./components/WhatsNew";
 import { usePracticePing } from "./hooks/usePracticePing";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { api, isTauri } from "./lib/api";
+import { t } from "./lib/i18n";
 import { useApp } from "./store";
 
 let booted = false; // StrictMode runs effects twice in dev
@@ -44,7 +45,11 @@ export default function App() {
   }, []);
 
   if (!isTauri()) {
-    return <Centered>请用 <code>npm run app</code> 在桌面应用中打开。</Centered>;
+    return (
+      <Centered>
+        {t(<>请用 <code>npm run app</code> 在桌面应用中打开。</>, <>Open it in the desktop app with <code>npm run app</code>.</>)}
+      </Centered>
+    );
   }
   if (!ready) return null;
   if (!folder && !practicing) {
@@ -111,7 +116,7 @@ function Breadcrumb() {
   const folderName = useApp((s) => s.folder?.name);
   const relDir = useApp((s) => s.current?.relDir);
   const onSample = useApp((s) => !!s.current && s.current.path === s.sample?.path);
-  const parts = onSample ? ["示例"] : [folderName, ...(relDir ? relDir.split("/") : [])].filter(Boolean);
+  const parts = onSample ? [t("示例", "Sample")] : [folderName, ...(relDir ? relDir.split("/") : [])].filter(Boolean);
   return (
     // pointer-events-none: drags on the text still reach the bar's drag region.
     <div className="pointer-events-none mr-auto flex min-w-0 items-center gap-1 text-[12px] text-faint">

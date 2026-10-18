@@ -14,6 +14,7 @@ pub(crate) mod snap;
 #[cfg(test)]
 mod tests;
 
+use crate::i18n::pick;
 use crate::transcript::{Sentence, Transcript};
 use chunk::ChunkPlan;
 use pcm::RATE;
@@ -158,7 +159,7 @@ pub fn run(
 
     let mut sentences = sentences::build(pieces, &meter.db);
     if sentences.is_empty() {
-        return Err("没有识别出语音".into());
+        return Err(pick("没有识别出语音", "No speech was recognized").into());
     }
     snap::snap(&mut sentences, &meter.db);
     Ok(sentences)

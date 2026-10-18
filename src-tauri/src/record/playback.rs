@@ -9,6 +9,7 @@ use super::take::{convert, in_turns, RATE};
 use super::watch::watch;
 use crate::audio::decode::Decoder;
 use crate::audio::Player;
+use crate::i18n::pick;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
@@ -124,7 +125,13 @@ pub(super) fn window((l, r): &(Vec<f32>, Vec<f32>), from: f64, secs: f64) -> (Ve
 
 /// A file's two lanes (a one-channel file gives the same samples for both).
 pub(super) fn read(path: &Path) -> Result<(Vec<f32>, Vec<f32>), String> {
-    let mut d = Decoder::open(path).map_err(|_| "这条录音的文件不见了".to_string())?;
+    let mut d = Decoder::open(path).map_err(|_| {
+        pick(
+            "这条录音的文件不见了",
+            "The file for this recording is gone",
+        )
+        .to_string()
+    })?;
     let mut all = Vec::new();
     let mut buf = vec![0.0; 4096 * d.channels];
     loop {
@@ -150,7 +157,7 @@ pub fn play(
     let take = saved::list(root, audio)
         .into_iter()
         .find(|t| t.id == id)
-        .ok_or("这条录音不见了")?;
+        .ok_or(pick("这条录音不见了", "This recording is gone"))?;
     let (left, right) = sound(root, audio, &take)?;
     let parts = parts(&take, what);
     let samples = render(&left, &right, &parts);

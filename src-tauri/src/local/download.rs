@@ -3,6 +3,7 @@
 //! checked, and only then is the file renamed into place.
 
 use crate::ai::http::{client, describe_status};
+use crate::i18n::pick;
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
@@ -15,7 +16,6 @@ pub const CANCELLED: &str = "已取消";
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(6 * 3600);
 /// A connection that stops sending (sleep, Wi-Fi drop without a reset) is given up after this.
 const STALL: Duration = Duration::from_secs(60);
-const STALLED: &str = "下载停住了（1 分钟没有收到数据），请检查网络后重试，会从断点继续";
 
 pub fn part_path(dest: &Path) -> PathBuf {
     let mut name = dest.file_name().unwrap_or_default().to_os_string();
@@ -80,7 +80,7 @@ pub async fn download(
             .append(have > 0)
             .truncate(have == 0)
             .open(&part)
-            .map_err(|e| format!("无法写入模型文件：{e}"))?;
+            .map_err(|e| crate::tr!("无法写入模型文件：{e}", "Can’t write the model file: {e}"))?;
         progress(have, spec.size);
         // Cancel is checked while waiting for bytes too, not only when they arrive.
         loop {
@@ -89,13 +89,20 @@ pub async fn download(
                 _ = cancelled(cancel) => return Err(CANCELLED.into()),
             };
             let Some(chunk) = next
-                .map_err(|_| STALLED.to_string())?
+                .map_err(|_| {
+                    pick(
+                        "下载停住了（1 分钟没有收到数据），请检查网络后重试，会从断点继续",
+                        "The download stalled (no data for a minute). Check your connection and try again. It picks up where it stopped.",
+                    )
+                    .to_string()
+                })?
                 .map_err(|e| net_error(&e))?
             else {
                 break;
             };
-            file.write_all(&chunk)
-                .map_err(|e| format!("无法写入模型文件：{e}"))?;
+            file.write_all(&chunk).map_err(|e| {
+                crate::tr!("无法写入模型文件：{e}", "Can’t write the model file: {e}")
+            })?;
             hasher.update(&chunk);
             have += chunk.len() as u64;
             progress(have, spec.size);
@@ -106,7 +113,11 @@ pub async fn download(
     let digest = format!("{:x}", hasher.finalize());
     if have != spec.size || digest != spec.sha256 {
         let _ = fs::remove_file(&part);
-        return Err("下载的文件不完整或已损坏，请重新下载".into());
+        return Err(pick(
+            "下载的文件不完整或已损坏，请重新下载",
+            "The download is incomplete or damaged. Download it again.",
+        )
+        .into());
     }
     fs::rename(&part, spec.dest).map_err(|e| e.to_string())
 }
@@ -125,9 +136,16 @@ fn hash_file(path: &Path, hasher: &mut Sha256) -> Result<(), String> {
 
 fn net_error(e: &reqwest::Error) -> String {
     if e.is_connect() || e.is_timeout() {
-        "下载中断：无法连接到 Hugging Face，请检查网络后重试（已下载的部分会保留）".into()
+        pick(
+            "下载中断：无法连接到 Hugging Face，请检查网络后重试（已下载的部分会保留）",
+            "Download interrupted: can’t reach Hugging Face. Check your connection and try again (what’s already downloaded is kept).",
+        )
+        .into()
     } else {
-        format!("下载中断：{e}（已下载的部分会保留）")
+        crate::tr!(
+            "下载中断：{e}（已下载的部分会保留）",
+            "Download interrupted: {e} (what’s already downloaded is kept)"
+        )
     }
 }
 

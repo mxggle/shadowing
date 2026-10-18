@@ -49,7 +49,10 @@ pub async fn ai_test(
 ) -> Result<TestReport, String> {
     let started = Instant::now();
     let choice = state.read(|d| d.ai.choice(feature).clone());
-    let id = choice.provider.ok_or("还没有选择服务")?;
+    let id = choice.provider.ok_or(crate::i18n::pick(
+        "还没有选择服务",
+        "Choose a service first.",
+    ))?;
     if id == local::PROVIDER {
         let models = local::downloaded(&state);
         return Ok(TestReport {
@@ -80,7 +83,7 @@ pub async fn ai_test(
         .map(|ids| providers::filter_models(target.preset, feature, ids))
         .unwrap_or_default();
     if choice.model.is_empty() {
-        return Err("还没有选择模型".into());
+        return Err(crate::i18n::pick("还没有选择模型", "Choose a model first.").into());
     }
     let sample = sample_sentence(&state.read(|d| d.settings.transcribe_language.clone()));
     let prompt = Prompt {

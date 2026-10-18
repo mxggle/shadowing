@@ -10,6 +10,7 @@ use super::follow::Followed;
 use super::vad::{self, FRAME_SECS};
 use crate::audio::resample::Resampler;
 use crate::audio::tap::Mark;
+use crate::i18n::pick;
 
 /// Working and storage rate (speech to 16 kHz, half the size of 48 kHz).
 pub const RATE: u32 = 32_000;
@@ -66,9 +67,13 @@ pub struct Built {
 }
 
 pub const NOTHING: &str = "没听到你的声音，再试一次？";
+pub const NOTHING_EN: &str = "Didn’t hear your voice. Try again?";
 /// 边听边说 with nothing of yours: most likely you waited for the original to finish.
 pub const NOTHING_ALONG: &str = "没听到你的声音：原句一放就跟着说，再试一次？";
+const NOTHING_ALONG_EN: &str =
+    "Didn’t hear your voice: speak along as soon as the original starts. Try again?";
 const NOT_PLAYED: &str = "原句没有放出来（刚开始就跳过了，或者声音被关掉了），这次没有保存";
+const NOT_PLAYED_EN: &str = "The original didn’t play (it was skipped at the start, or its sound was off), so this take wasn’t saved";
 /// Speaking along, you may come in a moment before the original (you've heard it before).
 const EARLY_SECS: f64 = 0.3;
 
@@ -81,7 +86,7 @@ pub fn build(raw: &Raw, mode: Mode) -> Result<Built, &'static str> {
         raw.mic_at,
         raw.mic.len() as f64 / raw.mic_rate as f64,
     );
-    let original_span = span(&played, &active(&played)).ok_or(NOT_PLAYED)?;
+    let original_span = span(&played, &active(&played)).ok_or(pick(NOT_PLAYED, NOT_PLAYED_EN))?;
     // The room as the mic heard it: removing the echo also turns the room
     // down wherever the original played, so the cleaned take's own quietest
     // moments are well below it.
@@ -96,13 +101,16 @@ pub fn build(raw: &Raw, mode: Mode) -> Result<Built, &'static str> {
         let from = at(original_span.0 - EARLY_SECS).min(mine.len());
         mine[..from].fill(0.0);
         let yours = along::yours(&levels(&mine), &levels(&played), room);
-        (yours.unwrap_or_default(), NOTHING_ALONG)
+        (
+            yours.unwrap_or_default(),
+            pick(NOTHING_ALONG, NOTHING_ALONG_EN),
+        )
     } else {
         // Before your turn the mic only heard the original.
         let turn = (raw.turn as f64 * RATE as f64 / raw.mic_rate.max(1) as f64) as usize;
         let turn = turn.min(mine.len());
         mine[..turn].fill(0.0);
-        (vad::voiced(&levels(&mine)), NOTHING)
+        (vad::voiced(&levels(&mine)), pick(NOTHING, NOTHING_EN))
     };
     let mine_span = span(&mine, &voiced)
         .map(|(a, b)| ((a - LEAD_SECS).max(0.0), b + TAIL_SECS))

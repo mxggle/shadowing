@@ -1,6 +1,7 @@
 import { LoaderCircle, LogIn } from "lucide-react";
 import { useState } from "react";
 import { api, type AiConfig } from "../../lib/api";
+import { t } from "../../lib/i18n";
 import { Button } from "../ui";
 
 /**
@@ -17,7 +18,8 @@ export function ChatGPTAccount({ email, onSaved }: { email?: string; onSaved: (c
     try {
       onSaved(kind === "signIn" ? await api.ai.signInChatGPT() : await api.ai.signOutChatGPT());
     } catch (e) {
-      if (!String(e).includes("已取消")) setError(String(e));
+      // A cancelled sign-in (Rust says 已取消… / …cancelled) is not an error.
+      if (!/已取消|cancelled/.test(String(e))) setError(String(e));
       // Signing out always clears this Mac, even if OpenAI couldn't confirm it.
       if (kind === "signOut") onSaved((await api.ai.get()).config);
     } finally {
@@ -30,18 +32,18 @@ export function ChatGPTAccount({ email, onSaved }: { email?: string; onSaved: (c
       {email ? (
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-[13px]">{email}</span>
-          <span className="shrink-0 text-[12px] text-faint">已登录</span>
+          <span className="shrink-0 text-[12px] text-faint">{t("已登录", "Signed in")}</span>
           <Button className="ml-auto" disabled={busy !== null} onClick={() => void run("signOut")}>
             {busy === "signOut" && <LoaderCircle size={14} className="animate-spin" />}
-            退出登录
+            {t("退出登录", "Sign Out")}
           </Button>
         </div>
       ) : busy === "signIn" ? (
         <div className="flex items-center gap-2">
           <LoaderCircle size={14} className="animate-spin text-muted" />
-          <span className="text-[12px] text-muted">请在浏览器里登录并授权…</span>
+          <span className="text-[12px] text-muted">{t("请在浏览器里登录并授权…", "Sign in and approve in your browser…")}</span>
           <Button className="ml-auto h-7" onClick={() => void api.ai.cancelSignIn()}>
-            取消
+            {t("取消", "Cancel")}
           </Button>
         </div>
       ) : (
@@ -49,11 +51,14 @@ export function ChatGPTAccount({ email, onSaved }: { email?: string; onSaved: (c
           <div>
             <Button primary onClick={() => void run("signIn")}>
               <LogIn size={14} />
-              用 ChatGPT 登录
+              {t("用 ChatGPT 登录", "Sign In with ChatGPT")}
             </Button>
           </div>
           <p className="text-[12px] text-faint">
-            需要 ChatGPT Plus 或 Pro。解释会占用你的套餐额度（Plus 在所有应用间每 5 小时共享一个上限）。
+            {t(
+              "需要 ChatGPT Plus 或 Pro。解释会占用你的套餐额度（Plus 在所有应用间每 5 小时共享一个上限）。",
+              "Needs ChatGPT Plus or Pro. Explanations use your plan’s allowance (Plus shares one limit across all apps, every 5 hours).",
+            )}
           </p>
         </>
       )}

@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, Play, Square, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import type { Reading, ReadingWhat } from "../lib/api";
+import { count, t } from "../lib/i18n";
 import { readingNote, readingsFor, saidCount, scopeOf } from "../lib/readings";
 import { sentenceIndexAt } from "../lib/sentences";
 import { whenRecorded } from "../lib/takes";
@@ -33,50 +34,75 @@ export function ReadingBar({ reading }: { reading: Reading }) {
   return (
     <div ref={bar} className="mt-1 mb-1 scroll-mt-2 animate-fade pr-1.5 pl-2 text-[12px] text-faint">
       <div className="flex h-7 items-center gap-2">
-        <span className="font-heading text-[13px] font-semibold text-fg">{reading.mode === "read" ? "整段朗读" : "整段跟读"}</span>
+        <span className="font-heading text-[13px] font-semibold text-fg">
+          {reading.mode === "read" ? t("整段朗读", "Section reading") : t("整段跟读", "Section shadowing")}
+        </span>
         <span className="min-w-0 truncate">
-          {said < reading.parts.length ? `${said} / ${reading.parts.length}` : said} 句{readingNote(reading) && ` · ${readingNote(reading)}`}
+          {said < reading.parts.length ? `${said} / ${count(reading.parts.length, "句", "sentence")}` : count(said, "句", "sentence")}
+          {readingNote(reading) && ` · ${readingNote(reading)}`}
         </span>
         <span className="h-px min-w-4 flex-1 bg-line" />
         {others.length > 1 ? (
           <span className="flex shrink-0 items-center gap-0.5">
-            <IconButton title="上一次" disabled={i <= 0} onClick={() => showReading(others[i - 1].id)} className="!h-6 !min-w-6">
+            <IconButton title={t("上一次", "Previous take")} disabled={i <= 0} onClick={() => showReading(others[i - 1].id)} className="!h-6 !min-w-6">
               <ChevronLeft />
             </IconButton>
             <span className="tabular whitespace-nowrap">
-              第 <span className="font-mono text-muted">{i + 1}</span> / {others.length} 次 · {whenRecorded(reading.created)}
+              {t(
+                <>
+                  第 <span className="font-mono text-muted">{i + 1}</span> / {others.length} 次 · {whenRecorded(reading.created)}
+                </>,
+                <>
+                  Take <span className="font-mono text-muted">{i + 1}</span> / {others.length} · {whenRecorded(reading.created)}
+                </>,
+              )}
             </span>
-            <IconButton title="下一次" disabled={i >= others.length - 1} onClick={() => showReading(others[i + 1].id)} className="!h-6 !min-w-6">
+            <IconButton title={t("下一次", "Next take")} disabled={i >= others.length - 1} onClick={() => showReading(others[i + 1].id)} className="!h-6 !min-w-6">
               <ChevronRight />
             </IconButton>
           </span>
         ) : (
           <span className="shrink-0">{whenRecorded(reading.created)}</span>
         )}
-        <IconButton title="收起 (Esc)" onClick={() => showReading(null)} className="!h-6 !min-w-6">
+        <IconButton title={t("收起 (Esc)", "Collapse (Esc)")} onClick={() => showReading(null)} className="!h-6 !min-w-6">
           <X />
         </IconButton>
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-1.5">
-        <PlayButton active={playing?.what === "turns"} paused={playing?.paused} onClick={() => toggle("turns")} title="每句先放原文，再放你的">
-          逐句对比
+        <PlayButton
+          active={playing?.what === "turns"}
+          paused={playing?.paused}
+          onClick={() => toggle("turns")}
+          title={t("每句先放原文，再放你的", "Each sentence: original first, then yours")}
+        >
+          {t("逐句对比", "Compare by Sentence")}
         </PlayButton>
-        <PlayButton active={playing?.what === "mine"} paused={playing?.paused} onClick={() => toggle("mine")} title="从头到尾听你读的">
-          我的整段
+        <PlayButton
+          active={playing?.what === "mine"}
+          paused={playing?.paused}
+          onClick={() => toggle("mine")}
+          title={t("从头到尾听你读的", "Listen to your reading from start to finish")}
+        >
+          {t("我的整段", "Yours in Full")}
         </PlayButton>
         {reading.mode === "shadow" && (
-          <PlayButton active={playing?.what === "together"} paused={playing?.paused} onClick={() => toggle("together")} title="原文和你一起放，听合不合拍">
-            一起听
+          <PlayButton
+            active={playing?.what === "together"}
+            paused={playing?.paused}
+            onClick={() => toggle("together")}
+            title={t("原文和你一起放，听合不合拍", "Play the original and yours together, to hear if they line up")}
+          >
+            {t("一起听", "Listen Together")}
           </PlayButton>
         )}
-        {playing?.paused && <span>已暂停</span>}
+        {playing?.paused && <span>{t("已暂停", "Paused")}</span>}
         <span className="ml-auto flex items-center gap-1">
-          <IconButton title="删除这次整段录音（连同分出来的每句）" onClick={() => void deleteReading(reading.id)}>
+          <IconButton title={t("删除这次整段录音（连同分出来的每句）", "Delete this section recording, with its sentences")} onClick={() => void deleteReading(reading.id)}>
             <Trash2 />
           </IconButton>
-          <Button className="h-7 px-2.5" title="再读一遍 (⇧M)" onClick={() => void startReading({ mode: reading.mode, at: first, scope })}>
+          <Button className="h-7 px-2.5" title={t("再读一遍 (⇧M)", "Read again (⇧M)")} onClick={() => void startReading({ mode: reading.mode, at: first, scope })}>
             <span className="size-2 rounded-full bg-danger" />
-            再读一遍
+            {t("再读一遍", "Read Again")}
           </Button>
         </span>
       </div>

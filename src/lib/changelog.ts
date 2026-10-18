@@ -1,5 +1,6 @@
 // 新功能: the CHANGELOG.md bundled with the app, read into releases to show, and
 // whether to say “已更新到 …” after an update.
+import { lang } from "./i18n";
 
 /** A run of a point's text: plain, **bold**, or a `key` (shown as a Kbd). */
 export type Inline = { kind: "text" | "bold" | "key"; text: string };
@@ -107,6 +108,10 @@ export function highlightsSince(releases: Release[], seen: string, current: stri
 export function dateLabel(date: string | null, thisYear = new Date().getFullYear()): string {
   if (!date) return "";
   const [y, m, d] = date.split("-").map(Number);
+  if (lang() === "en") {
+    const label = new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return y === thisYear ? label : `${label}, ${y}`;
+  }
   const day = `${m} 月 ${d} 日`;
   return y === thisYear ? day : `${y} 年 ${day}`;
 }

@@ -1,6 +1,7 @@
 import { Check, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, LOCAL_PROVIDER, type LocalModel } from "../../lib/api";
+import { t } from "../../lib/i18n";
 import { useApp } from "../../store";
 import { Button } from "../ui";
 
@@ -8,7 +9,8 @@ export function formatBytes(bytes: number) {
   return bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`;
 }
 
-const FIT_LABEL = { good: null, tight: "内存偏紧", tooBig: "内存不够" } as const;
+/** A function, not a constant: the wording follows the language (see lib/i18n.ts). */
+const fitLabel = () => ({ good: null, tight: t("内存偏紧", "Tight on memory"), tooBig: t("内存不够", "Not enough memory") });
 
 /** "本机" transcription: pick a Whisper model, download it (in the background), delete it. */
 export function LocalModels({ intro = true }: { intro?: boolean }) {
@@ -25,24 +27,36 @@ export function LocalModels({ intro = true }: { intro?: boolean }) {
 
   if (!local) return null;
   const chosenModel = local.models.find((m) => m.id === chosen);
+  const free = local.freeBytes !== null ? t(` · 可用空间 ${formatBytes(local.freeBytes)}`, ` · ${formatBytes(local.freeBytes)} free`) : "";
   return (
     <div className="mt-4 flex animate-fade-in flex-col gap-2 border-t border-line pt-4">
       {intro && (
         <p className="text-[12px] text-muted">
-          在这台 Mac 上用 Whisper 转写：免费、可离线，音频不会离开本机。
+          {t(
+            "在这台 Mac 上用 Whisper 转写：免费、可离线，音频不会离开本机。",
+            "Transcribes on this Mac with Whisper: free, works offline, and audio never leaves this Mac.",
+          )}
           <span className="text-faint">
             {" "}
-            这台 Mac：{local.chip} · {Math.round(local.ramGb)} GB 内存{local.freeBytes !== null && ` · 可用空间 ${formatBytes(local.freeBytes)}`}。推荐的原因：{local.reason}
+            {t(
+              `这台 Mac：${local.chip} · ${Math.round(local.ramGb)} GB 内存${free}。推荐的原因：${local.reason}`,
+              `This Mac: ${local.chip} · ${Math.round(local.ramGb)} GB of memory${free}. Recommended because: ${local.reason}`,
+            )}
           </span>
         </p>
       )}
-      <div role="radiogroup" aria-label="模型" className="flex flex-col gap-1">
+      <div role="radiogroup" aria-label={t("模型", "Model")} className="flex flex-col gap-1">
         {local.models.map((m) => (
           <Row key={m.id} model={m} selected={m.id === chosen} recommended={m.id === local.recommended} onSelect={() => void choose(m.id)} />
         ))}
       </div>
       {intro && chosenModel && !chosenModel.downloaded && (
-        <p className="text-[12px] text-warn">选中的模型还没有下载，下载完成后就能转写。下载时可以关闭设置继续使用。</p>
+        <p className="text-[12px] text-warn">
+          {t(
+            "选中的模型还没有下载，下载完成后就能转写。下载时可以关闭设置继续使用。",
+            "The selected model isn’t downloaded yet. You can transcribe once it finishes. You can close Settings while it downloads.",
+          )}
+        </p>
       )}
     </div>
   );
@@ -57,7 +71,7 @@ function Row({ model, selected, recommended, onSelect }: {
   const download = useApp((s) => (s.download?.id === model.id ? s.download : null));
   const busyElsewhere = useApp((s) => s.download?.state === "running" && s.download.id !== model.id);
   const running = download?.state === "running";
-  const fit = FIT_LABEL[model.fit];
+  const fit = fitLabel()[model.fit];
   return (
     <div
       role="radio"
@@ -73,7 +87,7 @@ function Row({ model, selected, recommended, onSelect }: {
           {selected && <span className="size-1.5 rounded-full bg-on-ink" />}
         </span>
         <span className={`text-[13px] ${selected ? "font-medium" : ""}`}>{model.name}</span>
-        {recommended && <Badge tone="ok">推荐</Badge>}
+        {recommended && <Badge tone="ok">{t("推荐", "Recommended")}</Badge>}
         {fit && <Badge tone={model.fit === "tooBig" ? "danger" : "warn"}>{fit}</Badge>}
         <span className="tabular ml-auto shrink-0 text-[12px] text-faint">{formatBytes(model.size)}</span>
         <Action model={model} running={running} disabled={busyElsewhere} />
@@ -97,14 +111,14 @@ function Action({ model, running, disabled }: { model: LocalModel; running: bool
   if (running) {
     return (
       <Button onClick={(e) => (stop(e), void api.local.cancel())} className="h-7">
-        取消
+        {t("取消", "Cancel")}
       </Button>
     );
   }
   if (model.downloaded) {
     return (
       <span className="flex items-center gap-1.5" onClick={stop}>
-        <Check size={14} className="text-ok" aria-label="已下载" />
+        <Check size={14} className="text-ok" aria-label={t("已下载", "Downloaded")} />
         <Button
           className={`h-7 ${confirm ? "text-danger" : ""}`}
           onClick={async () => {
@@ -112,7 +126,7 @@ function Action({ model, running, disabled }: { model: LocalModel; running: bool
             useApp.getState().setLocal(await api.local.remove(model.id));
           }}
         >
-          {confirm ? "确认删除" : "删除"}
+          {confirm ? t("确认删除", "Confirm Delete") : t("删除", "Delete")}
         </Button>
       </span>
     );
@@ -121,7 +135,7 @@ function Action({ model, running, disabled }: { model: LocalModel; running: bool
     <Button
       className="h-7"
       disabled={disabled}
-      title={disabled ? "另一个模型正在下载" : undefined}
+      title={disabled ? t("另一个模型正在下载", "Another model is downloading") : undefined}
       onClick={async (e) => {
         stop(e);
         try {
@@ -133,7 +147,12 @@ function Action({ model, running, disabled }: { model: LocalModel; running: bool
       }}
     >
       <Download size={13} />
-      {model.partial > 0 ? `继续下载（${Math.round((model.partial / model.size) * 100)}%）` : "下载"}
+      {model.partial > 0
+        ? t(
+            `继续下载（${Math.round((model.partial / model.size) * 100)}%）`,
+            `Resume (${Math.round((model.partial / model.size) * 100)}%)`,
+          )
+        : t("下载", "Download")}
     </Button>
   );
 }

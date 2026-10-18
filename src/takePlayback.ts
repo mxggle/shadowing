@@ -6,6 +6,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { AudioEngine } from "./audio/engine";
 import { isLoopActive } from "./audio/logic";
 import { api, type ClipPart, type TakePart } from "./lib/api";
+import { t } from "./lib/i18n";
 import { comparePart, nextTake, sentenceOf } from "./lib/takes";
 import type { Get, Set } from "./recordSlice";
 
@@ -92,7 +93,7 @@ export function createTakePlayback(set: Set, get: Get, engine: AudioEngine): Tak
         set({ playingTake: null });
         // In the card when it's open; played from the sentence (or listening on), above the deck.
         if (get().recordAt !== null) set({ recError: String(e) });
-        else get().say(`录音放不出来：${e}`);
+        else get().say(t(`录音放不出来：${e}`, `Couldn’t play the recording: ${e}`));
       }
     },
 

@@ -68,7 +68,7 @@ impl AppState {
     pub fn audio(&self, path: &str) -> Result<PathBuf, String> {
         self.allowed(Path::new(path))
             .filter(|p| library::is_audio(p))
-            .ok_or_else(|| "无法访问此文件".into())
+            .ok_or_else(|| crate::i18n::pick("无法访问此文件", "Can’t access this file.").into())
     }
 
     /// Where state.json lives; transcripts and models sit beside it.

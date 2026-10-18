@@ -5,6 +5,7 @@
 use super::engine::{Cmd, Shared, Trash, EV_CHANGED, EV_ENDED};
 use super::output::OutMsg;
 use super::{EventSink, Status};
+use crate::i18n::pick;
 use rtrb::{Consumer, Producer};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
@@ -32,8 +33,16 @@ impl CmdTx {
     }
 
     pub fn send(&self, cmd: Cmd) -> Result<(), String> {
-        let mut tx = self.tx.lock().map_err(|_| "播放器不可用")?;
-        tx.push(cmd).map_err(|_| "播放器繁忙，请稍后再试")?;
+        let mut tx = self
+            .tx
+            .lock()
+            .map_err(|_| pick("播放器不可用", "The player isn’t available"))?;
+        tx.push(cmd).map_err(|_| {
+            pick(
+                "播放器繁忙，请稍后再试",
+                "The player is busy. Try again in a moment.",
+            )
+        })?;
         self.sent.fetch_add(1, Relaxed);
         drop(tx);
         if let Ok(out) = self.out.lock() {

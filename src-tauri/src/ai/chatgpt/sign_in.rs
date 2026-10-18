@@ -8,6 +8,7 @@ use super::{
     check_id_token, now, store, token_request, Credentials, AUTHORIZE, PLAN_SCOPE, PROVIDER,
     RESOURCE, SCOPE, TOKEN,
 };
+use crate::i18n::pick;
 use crate::AppState;
 use tauri::State;
 
@@ -76,23 +77,43 @@ pub async fn ai_sign_in_chatgpt(
     .await
     .map_err(|e| e.to_string())??;
     if query.get("state") != Some(&csrf) {
-        return Err("登录回调不匹配，请重试".into());
+        return Err(pick(
+            "登录回调不匹配，请重试",
+            "The sign-in callback didn’t match. Try again.",
+        )
+        .into());
     }
     if let Some(error) = query.get("error") {
         return Err(if error == "access_denied" {
-            "已取消授权".into()
+            pick("已取消授权", "Authorization cancelled.").into()
         } else {
-            format!("ChatGPT 登录失败：{error}")
+            crate::tr!(
+                "ChatGPT 登录失败：{error}",
+                "ChatGPT sign-in failed: {error}"
+            )
         });
     }
-    let code = query.get("code").ok_or("没有完成 ChatGPT 授权")?;
+    let code = query.get("code").ok_or(pick(
+        "没有完成 ChatGPT 授权",
+        "ChatGPT authorization wasn’t completed.",
+    ))?;
     let client_id = match (query.get("client_id"), &known_client) {
         (Some(issued), Some(known)) if issued != known => {
-            return Err("登录返回的应用编号不一致，请重试".into())
+            return Err(pick(
+                "登录返回的应用编号不一致，请重试",
+                "The sign-in returned a different app ID. Try again.",
+            )
+            .into())
         }
         (Some(issued), _) => issued.clone(),
         (None, Some(known)) => known.clone(),
-        (None, None) => return Err("ChatGPT 没有完成应用注册，请重试".into()),
+        (None, None) => {
+            return Err(pick(
+                "ChatGPT 没有完成应用注册，请重试",
+                "ChatGPT didn’t finish registering the app. Try again.",
+            )
+            .into())
+        }
     };
 
     let tokens = token_request(
@@ -108,14 +129,24 @@ pub async fn ai_sign_in_chatgpt(
     )
     .await?;
     if !tokens.scope.split_whitespace().any(|s| s == PLAN_SCOPE) {
-        return Err("这个账号没有授权使用 ChatGPT 额度（需要 Plus 或 Pro 套餐）".into());
+        return Err(pick(
+            "这个账号没有授权使用 ChatGPT 额度（需要 Plus 或 Pro 套餐）",
+            "This account isn’t allowed to use ChatGPT usage. It needs a Plus or Pro plan.",
+        )
+        .into());
     }
-    let id_token = tokens.id_token.ok_or("ChatGPT 没有返回登录信息")?;
+    let id_token = tokens.id_token.ok_or(pick(
+        "ChatGPT 没有返回登录信息",
+        "ChatGPT didn’t return sign-in details.",
+    ))?;
     let email = check_id_token(&id_token, &client_id, &nonce, now())?;
     let creds = Credentials {
         client_id: client_id.clone(),
         access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token.ok_or("ChatGPT 没有返回长期登录凭据")?,
+        refresh_token: tokens.refresh_token.ok_or(pick(
+            "ChatGPT 没有返回长期登录凭据",
+            "ChatGPT didn’t return a long-lived sign-in credential.",
+        ))?,
         id_token,
         expires_at: now() + tokens.expires_in,
         email: email.clone(),

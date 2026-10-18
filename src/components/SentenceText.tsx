@@ -1,7 +1,10 @@
 import { textPieces } from "../lib/edits";
+import { t } from "../lib/i18n";
 import { useApp } from "../store";
 
-const UNSURE_TITLE = "转写时没把握，可能听错了。按 E 改正；没错的话按 E 再按 ↩，虚线就会去掉";
+/** A function, not a constant: the wording follows the language (lib/i18n.ts). */
+const unsureTitle = () =>
+  t("转写时没把握，可能听错了。按 E 改正；没错的话按 E 再按 ↩，虚线就会去掉", "Unsure during transcription; it may be misheard. Press E to correct it. If it’s right, press E, then ↩, and the dotted line goes away");
 
 /**
  * A sentence's text: what the replace bar looks for (and what an AI suggestion
@@ -20,7 +23,7 @@ export function SentenceText({ text, find, unsure, fixes }: { text: string; find
     return (
       <Tag
         key={k}
-        title={piece.unsure ? UNSURE_TITLE : undefined}
+        title={piece.unsure ? unsureTitle() : undefined}
         className={`${piece.match ? "rounded-[3px] bg-press text-fg shadow-[0_0_0_2px_var(--press)]" : ""} ${
           piece.unsure ? "underline decoration-warn decoration-dotted decoration-2 underline-offset-[6px]" : ""
         }`}
@@ -45,11 +48,11 @@ export function UnsureCount() {
     <span className="shrink-0">
       ·{" "}
       <button
-        title="转写时没把握的地方画了虚线，点一下播放下一处"
+        title={t("转写时没把握的地方画了虚线，点一下播放下一处", "Unsure spots from transcription are dotted; click to play the next one")}
         onClick={playNext}
         className="underline decoration-warn decoration-dotted underline-offset-[3px] transition-colors hover:text-fg"
       >
-        <span className="tabular font-mono">{count}</span> 处没把握
+        {t(<><span className="tabular font-mono">{count}</span> 处没把握</>, <><span className="tabular font-mono">{count}</span> unsure {count === 1 ? "spot" : "spots"}</>)}
       </button>
     </span>
   );

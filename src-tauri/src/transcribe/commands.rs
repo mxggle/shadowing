@@ -4,6 +4,7 @@
 use super::{chunk, cloud, run, Job, Status, Step, CANCELLED};
 use crate::ai::secrets::Secrets;
 use crate::ai::Target;
+use crate::i18n::pick;
 use crate::transcript::{self, Source, Transcript};
 use crate::{local, AppState};
 use std::path::PathBuf;
@@ -39,12 +40,18 @@ pub fn transcribe_start(
 ) -> Result<(), String> {
     let audio = state.audio(&path)?;
     let choice = state.read(|d| d.ai.transcribe.clone());
-    let provider = choice.provider.ok_or("还没有设置转写服务")?;
+    let provider = choice.provider.ok_or(pick(
+        "还没有设置转写服务",
+        "No transcription service is set up yet",
+    ))?;
     if choice.model.is_empty() {
-        return Err("还没有选择转写模型".into());
+        return Err(pick("还没有选择转写模型", "No transcription model is chosen yet").into());
     }
     let (backend, origin) = if provider == local::PROVIDER {
-        let file = local::model_file(&state, &choice.model).ok_or("这个模型还没有下载完")?;
+        let file = local::model_file(&state, &choice.model).ok_or(pick(
+            "这个模型还没有下载完",
+            "This model hasn’t finished downloading",
+        ))?;
         (Backend::Local(file), format!("本机 · {}", choice.model))
     } else {
         let target = Target::resolve(&state, &secrets, &provider)?;
@@ -55,7 +62,11 @@ pub fn transcribe_start(
     {
         let mut current = jobs.0.lock().unwrap();
         if current.is_some() {
-            return Err("已经有一个音频在转写，请等它完成".into());
+            return Err(pick(
+                "已经有一个音频在转写，请等它完成",
+                "Another track is already being transcribed. Wait for it to finish.",
+            )
+            .into());
         }
         *current = Some(Running {
             path: path.clone(),
@@ -131,7 +142,10 @@ pub fn transcribe_start(
                         },
                         Err(e) => Status::Failed {
                             path: path.clone(),
-                            message: format!("字幕保存失败：{e}"),
+                            message: crate::tr!(
+                                "字幕保存失败：{e}",
+                                "Can’t save the subtitles: {e}"
+                            ),
                         },
                     }
                 }

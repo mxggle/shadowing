@@ -1,6 +1,7 @@
 // Practice time per day, streaks and totals, from the sessions Rust records
 // (see src-tauri/src/practice/clock.rs for what counts as practice).
 import type { GoalChange, PracticeSession } from "./api";
+import { t } from "./i18n";
 
 /** A late session (until 4:00) still counts for the day before, as in Anki: night owls keep their streak. */
 export const DAY_START_HOUR = 4;
@@ -162,20 +163,20 @@ export function topAudios(sessions: PracticeSession[], since: number, limit = 5)
 /** 0 → "0 分钟", 40 s → "不到 1 分钟", 25 min → "25 分钟", 130 min → "2 小时 10 分". */
 export function formatDuration(ms: number): string {
   const minutes = Math.floor(ms / 60_000);
-  if (minutes === 0) return ms > 0 ? "不到 1 分钟" : "0 分钟";
-  if (minutes < 60) return `${minutes} 分钟`;
+  if (minutes === 0) return ms > 0 ? t("不到 1 分钟", "Less than 1 min") : t("0 分钟", "0 min");
+  if (minutes < 60) return t(`${minutes} 分钟`, `${minutes} min`);
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return m ? `${h} 小时 ${m} 分` : `${h} 小时`;
+  return m ? t(`${h} 小时 ${m} 分`, `${h} h ${m} min`) : t(`${h} 小时`, `${h} h`);
 }
 
 /** Same, split into number and unit for big readouts: [["2", "小时"], ["10", "分"]]. */
 export function durationParts(ms: number): [string, string][] {
   const minutes = Math.floor(ms / 60_000);
-  if (minutes < 60) return [[String(minutes), "分钟"]];
+  if (minutes < 60) return [[String(minutes), t("分钟", "min")]];
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return m ? [[String(h), "小时"], [String(m), "分"]] : [[String(h), "小时"]];
+  return m ? [[String(h), t("小时", "h")], [String(m), t("分", "min")]] : [[String(h), t("小时", "h")]];
 }
 
 /** Heatmap shade 0–4 for a day's practice: none, under 10, 20, 40 minutes, more. */

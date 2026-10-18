@@ -2,6 +2,7 @@
 //! JSON-RPC 2.0 message per line on stdin / stdout. Cancelling asks first
 //! (`$/cancel`), then ends the process.
 
+use crate::i18n::pick;
 use serde_json::{json, Value};
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, Write};
@@ -58,11 +59,11 @@ impl Process {
         }
         let mut child = command
             .spawn()
-            .map_err(|e| format!("插件程序启动不了：{e}"))?;
+            .map_err(|e| crate::tr!("插件程序启动不了：{e}", "The plugin couldn’t start: {e}"))?;
         let (stdin, stdout, stderr) =
             match (child.stdin.take(), child.stdout.take(), child.stderr.take()) {
                 (Some(i), Some(o), Some(e)) => (i, o, e),
-                _ => return Err("插件程序启动不了".into()),
+                _ => return Err(pick("插件程序启动不了", "The plugin couldn’t start").into()),
             };
 
         let (tx, messages) = mpsc::channel();
@@ -128,8 +129,11 @@ impl Process {
         std::thread::sleep(Duration::from_millis(50));
         let last = self.stderr.lock().unwrap().back().cloned();
         match last {
-            Some(line) => format!("插件意外退出：{line}"),
-            None => "插件意外退出".into(),
+            Some(line) => crate::tr!(
+                "插件意外退出：{line}",
+                "The plugin quit unexpectedly: {line}"
+            ),
+            None => pick("插件意外退出", "The plugin quit unexpectedly").into(),
         }
     }
 
@@ -174,7 +178,9 @@ impl Process {
                     }
                     if let Some(error) = msg.get("error") {
                         let message = error.get("message").and_then(Value::as_str);
-                        return Err(message.unwrap_or("插件出错了").to_string());
+                        return Err(message
+                            .unwrap_or(pick("插件出错了", "The plugin failed"))
+                            .to_string());
                     }
                     return Ok(msg.get("result").cloned().unwrap_or(Value::Null));
                 }

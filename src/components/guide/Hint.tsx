@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { hintPieces } from "../../lib/hint";
+import { t } from "../../lib/i18n";
 import { useApp } from "../../store";
 
 /** One-off tip floating just above the deck (see `tip()` in guideSlice). */
@@ -24,7 +25,7 @@ export function Hint() {
           )}
         </span>
         <button
-          title="知道了"
+          title={t("知道了", "Got it")}
           onClick={() => useApp.getState().dismissHint()}
           className="grid size-6 shrink-0 place-items-center rounded-[6px] text-on-ink/60 transition-colors hover:bg-on-ink/10 hover:text-on-ink"
         >

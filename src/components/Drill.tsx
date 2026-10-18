@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { t } from "../lib/i18n";
 import { clampRounds, parseRounds, ROUNDS_MAX, ROUNDS_MIN } from "../lib/rounds";
 import { useApp } from "../store";
 import { Stepper } from "./ui";
@@ -15,12 +16,12 @@ export function RoundsInput() {
   };
   return (
     <div className="min-w-0 flex-1">
-      <Stepper decTitle="少一遍" incTitle="多一遍" onDec={() => step(-1)} onInc={() => step(1)}>
-        <label title={`每句说几遍（${ROUNDS_MIN}–${ROUNDS_MAX}）`} className="flex items-baseline">
+      <Stepper decTitle={t("少一遍", "One fewer")} incTitle={t("多一遍", "One more")} onDec={() => step(-1)} onInc={() => step(1)}>
+        <label title={t(`每句说几遍（${ROUNDS_MIN}–${ROUNDS_MAX}）`, `Times to say each sentence (${ROUNDS_MIN}–${ROUNDS_MAX})`)} className="flex items-baseline">
           <input
             type="number"
             inputMode="numeric"
-            aria-label="每句几遍"
+            aria-label={t("每句几遍", "Times per sentence")}
             aria-invalid={bad}
             min={ROUNDS_MIN}
             max={ROUNDS_MAX}
@@ -40,12 +41,12 @@ export function RoundsInput() {
               bad ? "text-danger ring-1 ring-danger" : "focus:ring-line-strong"
             }`}
           />
-          <span className="ml-1 text-[11px] text-muted">遍</span>
+          <span className="ml-1 text-[11px] text-muted">{t("遍", "times")}</span>
         </label>
       </Stepper>
       {bad && (
         <p className="mt-1 text-[12px] text-danger">
-          输入 {ROUNDS_MIN} 到 {ROUNDS_MAX} 之间的整数
+          {t(`输入 ${ROUNDS_MIN} 到 ${ROUNDS_MAX} 之间的整数`, `Enter a whole number from ${ROUNDS_MIN} to ${ROUNDS_MAX}`)}
         </p>
       )}
     </div>
@@ -64,18 +65,26 @@ export function DrillBar() {
             <span className="absolute size-2.5 rounded-full bg-danger/25" />
             <span className="size-2 rounded-full bg-danger" />
           </span>
-          逐句跟读
+          {t("逐句跟读", "Sentence by sentence")}
         </span>
         <span className="tabular shrink-0 text-[12px] text-muted">
-          第 <span className="font-mono text-fg">{drill.current - drill.first + 1}</span> / {drill.end - drill.first} 句 · 每句{" "}
-          <span className="font-mono">{drill.rounds}</span> 遍
+          {t(
+            <>
+              第 <span className="font-mono text-fg">{drill.current - drill.first + 1}</span> / {drill.end - drill.first} 句 · 每句{" "}
+              <span className="font-mono">{drill.rounds}</span> 遍
+            </>,
+            <>
+              Sentence <span className="font-mono text-fg">{drill.current - drill.first + 1}</span> / {drill.end - drill.first} ·{" "}
+              <span className="font-mono">{drill.rounds}</span> {drill.rounds === 1 ? "time" : "times"} each
+            </>,
+          )}
         </span>
         <button
-          title="停下 (Esc)：录好的句子都留着"
+          title={t("停下 (Esc)：录好的句子都留着", "Stop (Esc): recorded sentences are kept")}
           className="ml-auto shrink-0 text-[12px] text-faint hover:text-fg"
           onClick={() => useApp.getState().cancelTake()}
         >
-          停下
+          {t("停下", "Stop")}
         </button>
       </div>
     </div>

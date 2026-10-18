@@ -3,6 +3,7 @@ import { Check, ChevronRight, ChevronsDownUp, ChevronsUpDown, FolderOpen, PanelL
 import { isFinished } from "../audio/logic";
 import type { FolderListing, Progress, Track } from "../lib/api";
 import { placeDownloads } from "../lib/imports";
+import { t } from "../lib/i18n";
 import { useApp } from "../store";
 import { AddMenu } from "./AddMenu";
 import { DownloadRow } from "./ImportLink";
@@ -13,7 +14,7 @@ export function ShelfToggle() {
   const open = useApp((s) => s.shelfOpen);
   const toggle = useApp((s) => s.toggleShelf);
   return (
-    <IconButton title={open ? "收起左侧列表 (⌘B)" : "展开左侧列表 (⌘B)"} aria-expanded={open} onClick={toggle}>
+    <IconButton title={open ? t("收起左侧列表 (⌘B)", "Hide sidebar (⌘B)") : t("展开左侧列表 (⌘B)", "Show sidebar (⌘B)")} aria-expanded={open} onClick={toggle}>
       {open ? <PanelLeftClose /> : <PanelLeftOpen />}
     </IconButton>
   );
@@ -34,12 +35,21 @@ function NoFolder() {
       </div>
       <div className="flex flex-col items-start gap-3 px-5 pt-3">
         <p className="text-[13px] leading-relaxed text-muted">
-          你的音频会列在这里。
-          <br />
-          选一个放着 mp3、m4a 的文件夹。
+          {t(
+            <>
+              你的音频会列在这里。
+              <br />
+              选一个放着 mp3、m4a 的文件夹。
+            </>,
+            <>
+              Your audio files are listed here.
+              <br />
+              Choose a folder that has mp3 or m4a files.
+            </>,
+          )}
         </p>
         <Button onClick={() => void chooseFolder()}>
-          <FolderOpen size={15} strokeWidth={1.8} /> 打开文件夹
+          <FolderOpen size={15} strokeWidth={1.8} /> {t("打开文件夹", "Open Folder")}
         </Button>
       </div>
     </aside>
@@ -84,13 +94,13 @@ function FolderView({ folder }: { folder: FolderListing }) {
         <ShelfToggle />
         {named.length > 0 && (
           <IconButton
-            title={allCollapsed ? "展开全部" : "折叠全部"}
+            title={allCollapsed ? t("展开全部", "Expand all") : t("折叠全部", "Collapse all")}
             onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(named.map((g) => g.dir)))}
           >
             {allCollapsed ? <ChevronsUpDown /> : <ChevronsDownUp />}
           </IconButton>
         )}
-        <IconButton title="重新扫描" disabled={scanning} onClick={() => void onRescan()}>
+        <IconButton title={t("重新扫描", "Rescan")} disabled={scanning} onClick={() => void onRescan()}>
           <RefreshCw className={scanning ? "animate-spin" : ""} />
         </IconButton>
         <AddMenu />
@@ -104,8 +114,10 @@ function FolderView({ folder }: { folder: FolderListing }) {
       <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto pb-6 [mask-image:linear-gradient(to_bottom,black_calc(100%-24px),transparent)]">
         {folder.tracks.length === 0 && downloads.length === 0 && (
           <div className="px-5 pt-2 text-[13px] leading-relaxed text-muted">
-            这个文件夹里没有可播放的音频。
-            <div className="mt-1 text-[12px] text-faint">支持 mp3、m4a、wav、flac 等格式，子文件夹也会扫描。</div>
+            {t("这个文件夹里没有可播放的音频。", "There’s no playable audio in this folder.")}
+            <div className="mt-1 text-[12px] text-faint">
+              {t("支持 mp3、m4a、wav、flac 等格式，子文件夹也会扫描。", "Supports mp3, m4a, wav, flac and more. Subfolders are scanned too.")}
+            </div>
           </div>
         )}
         {groups.map(({ dir, tracks, downloads }) => {
@@ -177,7 +189,7 @@ function TrackRow({ track }: { track: Track }) {
 
 function NowPlayingBars({ paused }: { paused: boolean }) {
   return (
-    <span className="eq mr-0.5 shrink-0 animate-fade text-fg" data-paused={paused || undefined} aria-label={paused ? "已暂停" : "正在播放"}>
+    <span className="eq mr-0.5 shrink-0 animate-fade text-fg" data-paused={paused || undefined} aria-label={paused ? t("已暂停", "Paused") : t("正在播放", "Now playing")}>
       <span />
       <span />
       <span />
@@ -190,7 +202,7 @@ function ProgressMark({ progress }: { progress: Progress | undefined }) {
   if (!progress || progress.duration <= 0 || progress.position < 1) return null;
   if (isFinished(progress)) {
     return (
-      <span title="已听完" className="shrink-0 text-faint">
+      <span title={t("已听完", "Finished")} className="shrink-0 text-faint">
         <Check size={13} strokeWidth={2.4} />
       </span>
     );
@@ -203,8 +215,8 @@ function ProgressMark({ progress }: { progress: Progress | undefined }) {
   const y = (7 - r * Math.cos(angle)).toFixed(2);
   const wedge = `M7 7V1.5A${r} ${r} 0 ${angle > Math.PI ? 1 : 0} 1 ${x} ${y}Z`;
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" className="shrink-0 text-faint" aria-label={`已听 ${Math.round(ratio * 100)}%`}>
-      <title>{`已听 ${Math.round(ratio * 100)}%`}</title>
+    <svg width="14" height="14" viewBox="0 0 14 14" className="shrink-0 text-faint" aria-label={t(`已听 ${Math.round(ratio * 100)}%`, `${Math.round(ratio * 100)}% listened`)}>
+      <title>{t(`已听 ${Math.round(ratio * 100)}%`, `${Math.round(ratio * 100)}% listened`)}</title>
       <circle cx="7" cy="7" r="6.25" fill="none" stroke="currentColor" strokeOpacity={0.45} strokeWidth="1.25" />
       <path d={wedge} fill="currentColor" fillOpacity={0.75} />
     </svg>
