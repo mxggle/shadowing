@@ -9,7 +9,7 @@ pub fn folder() -> Option<PathBuf> {
     if !cfg!(debug_assertions) {
         return None;
     }
-    std::env::var_os("SHADOWING_SMOKE").and_then(|p| PathBuf::from(p).canonicalize().ok())
+    std::env::var_os("SHADOWING_SMOKE").and_then(|p| crate::library::canonical(Path::new(&p)).ok())
 }
 
 pub fn state_path() -> PathBuf {
