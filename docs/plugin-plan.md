@@ -170,6 +170,13 @@ v1 只做一个，接口按“以后还会有别的”来设计：
 
 学 Obsidian：一个公开的 GitHub 仓库（例如 `mxggle/shadowing-plugins`）放 `plugins.json`，开发者提 PR 加一条，审过合并。
 
+> **已做（2026-10-18）**：先不另开仓库，列表放在这个仓库的 [`site/plugins.json`](../site/plugins.json)，
+> 随落地页发布在 `https://shadowing.nihongo.day/plugins.json`；[插件目录页](https://shadowing.nihongo.day/plugins)（`site/plugins.html`）
+> 读它列出插件（下载、SHA-256、源代码），写着怎么安装、怎么写、怎么提交。提交用 GitHub 的 issue 表单
+> （`.github/ISSUE_TEMPLATE/plugin.yml`，可以直接拖 zip 上传）或改 `plugins.json` 的 PR；开发文档是 [plugin-dev.md](plugin-dev.md)。
+> `scripts/check-plugin-list.mjs`（`npm test` 里有它的测试）检查格式。和下面的设计不同：`repo` 换成了 `source`（源代码地址，可以是子文件夹），
+> 加了 `imports`（显示用的网站名）、`released`、`permissions`。**还没做**：`plugins.json` 的签名、应用里浏览和一键安装 / 更新。
+
 ```json
 {
   "version": 1,
@@ -203,9 +210,9 @@ v1 只做一个，接口按“以后还会有别的”来设计：
    - 没装插件时粘贴 YouTube 链接，确认框里说“在 设置 → 插件 里安装”，带「打开设置」。
    - YouTube 插件先放在这个仓库的 `plugins/youtube/`（单独的 Cargo 项目，`npm run check` 也查它），有市场以后再搬到自己的仓库。
 2. **安装和市场**：插件包格式、签名的 `plugins.json`、设置里的插件面板（浏览 / 安装 / 更新 / 卸载）、粘贴 YouTube 链接时提示安装。
-   YouTube 插件挂到官方仓库，正式发布。
+   YouTube 插件挂到官方仓库，正式发布。（已做：插件包格式、网站上的插件目录和 `plugins.json`；没做：签名、应用里的浏览 / 安装 / 更新。）
 3. **开放给第三方**：插件开发文档、模板仓库（Rust 和 Python 各一个示例）、提交和审核流程、仓库 CI 校验；
-   做第二个扩展点（导出到 Anki）检验接口。
+   做第二个扩展点（导出到 Anki）检验接口。（已做：开发文档 `plugin-dev.md`、issue 表单、`plugins.json` 的格式检查；没做：模板仓库、第二个扩展点。）
 4. **以后**：插件进程的沙盒加固（`sandbox-exec` 规则，只允许写自己的 `data/` 和暂存文件夹）、播放列表、B 站、受限的插件界面。
 
 ## 新增依赖（理由）

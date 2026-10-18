@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "youtube",
+      "name": "YouTube 导入",
+      "author": "Shadowing",
+      "official": true,
+      "description": "粘贴 YouTube 链接，把视频的音频（m4a，不转码）和人工字幕导入到打开的文件夹。只下载你有权使用的内容。",
+      "imports": ["YouTube"],
+      "source": "https://github.com/mxggle/shadowing/tree/main/plugins/youtube",
+      "version": "0.1.0",
+      "minAppVersion": "0.9.0",
+      "released": "2026-10-18",
+      "permissions": {
+        "network": ["youtube.com", "googlevideo.com", "github.com"],
+        "runs": "第一次使用时从 GitHub 下载 yt-dlp（约 51 MB，解压后 124 MB）和 QuickJS（约 1 MB），用它们下载音频"
+      },
+      "packages": {
+        "darwin-arm64": {
+          "url": "https://github.com/mxggle/shadowing/releases/download/v0.9.0/Shadowing-YouTube-plugin-0.1.0-macos-arm64.zip",
+          "sha256": "1542916d3dbee3794e367fa530b4bc475ccdfeef76be0c47654a205475dd9fa7",
+          "size": 253054
+        }
+      }
+    }
+  ]
+}

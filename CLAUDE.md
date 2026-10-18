@@ -99,6 +99,9 @@ src-tauri/src/
 plugins/youtube/          「YouTube 导入」插件：单独的小 Rust 程序（不进应用的构建），说插件协议；
                           第一次用时下载 yt-dlp 文件夹版和 QuickJS-ng（校验 SHA-256），每天最多查一次 yt-dlp 新版本；
                           只取 m4a 音轨（不用 ffmpeg）和人工字幕。scripts/build-plugin.sh youtube 生成可安装的文件夹
+docs/plugin-dev.md        写插件的人看的文档（manifest、协议、运行环境、打包、提交和审核）
+site/                     落地页 index.html 和插件目录 plugins.html（列表是 plugins.json，scripts/check-plugin-list.mjs 检查格式；
+                          提交插件用 .github/ISSUE_TEMPLATE/plugin.yml），见 site/README.md
 ```
 
 ## 播放引擎（src-tauri/src/audio）

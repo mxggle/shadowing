@@ -2,6 +2,21 @@
 
 _最后更新：2026-10-18_
 
+## 落地页的插件一节和插件目录（2026-10-18）
+- 来由：插件是最重要的功能之一，要在落地页上讲清楚；也要有一个地方让别人下载插件、提交自己写的插件。
+- 落地页（`site/index.html`）：首屏标题上方一行「0.9 新增 · 插件，和 YouTube 导入」跳到新的「插件」一节；这一节和「说」一样是横跨页面的一张纸，
+  左边用 HTML 照应用画的导入确认框和列表里下载中的两行，右边三点（粘贴链接就导入 / 谁都能写 / 装之前看清楚），下面是「浏览插件目录」「写一个插件，提交上来」。
+  导航和页脚加了「插件」；隐私一节改成“只有用到 AI 功能或插件时才联网”；更新一节补上 0.8、0.8.1、0.9（标题改成“十天发了十一个版本”）。
+- 插件目录（`site/plugins.html`，线上 `/plugins`）：读 `site/plugins.json` 画卡片（名字、版本、官方、作者、它会做什么、联网到哪里、需要的版本、下载和大小、源代码、SHA-256），
+  一张虚线的「你的插件」卡片；安装步骤（下载 → 解压 → 设置 → 插件 → 从文件夹安装，旁边照应用画的安装确认）；怎么写（manifest 和一次导入的消息）；怎么提交（四步 + 「提交插件」）。
+- 提交（“上传”）：GitHub issue 表单 `.github/ISSUE_TEMPLATE/plugin.yml`，要源代码地址、zip 链接（也可以直接把 zip 拖进表单上传）、它做什么、联网和运行什么、怎么试。
+  不做网站上的直接上传：插件是原生程序，审核源代码是唯一的硬防线（见 plugin-plan.md），所以上架都经过人工审核。
+- 开发文档 [docs/plugin-dev.md](docs/plugin-dev.md)：manifest 字段、链接规则、协议（initialize / import/resolve / import/run / progress / log / 出错 / 取消）、
+  运行环境、应用怎么收文件、本机试、打包、提交和审核、plugins.json 的一条。都对照了 `src-tauri/src/plugins/` 的代码。
+- `site/plugins.json` 现在只有 YouTube 导入 0.1.0（v0.9.0 Release 里的 zip，下载下来核对过 SHA-256 和内容）。`scripts/check-plugin-list.mjs` 检查格式，测试在 `scripts/check-plugin-list.test.mjs`。
+- 已验证：浏览器里看过两页的浅色 / 深色、桌面 / 手机宽度（没有横向滚动），首页的试一句照常，「浏览插件目录」在 `npx serve` 下打开 `/plugins`；控制台只有本地没有的 Vercel 统计脚本 404。
+- 没做：应用里浏览 / 一键安装 / 更新插件、`plugins.json` 签名、插件模板仓库。issue 表单要推到 GitHub 后才出现（`plugin` 标签已建）。
+
 ## 发布 0.9.0 前：插件包能下载安装（2026-10-18）
 - 插件随 Release 发布：`scripts/release-assets.sh` 打包 `Shadowing-YouTube-plugin-0.1.0-macos-arm64.zip`（只有 `youtube/manifest.json` 和 `bin/`，不带 `._` 文件），
   两条发布路径（本机 / Actions）都会上传；发布说明里加了安装步骤。manifest 去掉了 darwin-x86_64（程序只有 Apple Silicon 版）。

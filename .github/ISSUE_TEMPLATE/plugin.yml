@@ -1,0 +1,78 @@
+name: 提交插件
+description: 把你写的插件放进 Shadowing 插件目录（shadowing.nihongo.day/plugins）
+title: "[插件] "
+labels: ["plugin"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        谢谢你写插件！提交前请先读[插件开发文档](https://github.com/mxggle/shadowing/blob/main/docs/plugin-dev.md)。
+        我们会读源代码、核对插件包、在应用里装一次试试，审过以后插件就出现在[插件目录](https://shadowing.nihongo.day/plugins)。
+        发新版本时再提交一次（写上改了什么）。
+  - type: input
+    id: name
+    attributes:
+      label: 插件名和 id
+      description: 和 manifest.json 的 name、id 一样
+      placeholder: 播客导入（podcast）
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: 源代码
+      description: 公开的仓库地址。审核要读源代码，没有源代码的插件不能上架。
+      placeholder: https://github.com/you/shadowing-podcast
+    validations:
+      required: true
+  - type: textarea
+    id: package
+    attributes:
+      label: 插件包
+      description: |
+        Release 里 zip 的下载链接（推荐）；也可以把 zip 直接拖进这个框上传。
+        zip 解压出来是一个以 id 命名的文件夹，里面是 manifest.json 和程序。
+      placeholder: https://github.com/you/shadowing-podcast/releases/download/v0.1.0/podcast-0.1.0-macos-arm64.zip
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: 它做什么
+      description: 一两句话，会显示在插件目录里。能导入哪些网站的链接？
+    validations:
+      required: true
+  - type: textarea
+    id: permissions
+    attributes:
+      label: 会联网到哪里、会下载或运行什么
+      description: 和 manifest.json 的 permissions 一致。比如“联网：example.fm；不下载别的程序”。
+    validations:
+      required: true
+  - type: textarea
+    id: tested
+    attributes:
+      label: 怎么试
+      description: 一两个能用来试的链接，以及你在哪个版本的 Shadowing 上试过。
+    validations:
+      required: true
+  - type: checkboxes
+    id: promise
+    attributes:
+      label: 确认
+      options:
+        - label: 我是作者，或者有权发布这个插件和它下载的东西
+          required: true
+        - label: 插件包是用上面这份源代码构建的
+          required: true
+        - label: 插件只写自己的 data/ 和应用给的暂存文件夹，不读写用户的其他文件，不收集使用数据
+          required: true
+        - label: 出错时回给应用的是一句给人看的中文
+          required: true
