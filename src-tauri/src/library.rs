@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 use std::cmp::Ordering;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf, Prefix};
 use walkdir::WalkDir;
 
 /// Formats WKWebView can play natively on macOS.
@@ -19,7 +19,7 @@ pub struct Track {
     pub path: String,
     /// File name without extension.
     pub name: String,
-    /// Directory relative to the folder root ("" for top level).
+    /// Directory relative to the folder root ("" for top level), parts joined by "/".
     pub rel_dir: String,
     pub size: u64,
 }
@@ -44,7 +44,7 @@ fn is_hidden(name: &str) -> bool {
 }
 
 pub fn scan(root: &Path) -> std::io::Result<FolderListing> {
-    let root = root.canonicalize()?;
+    let root = canonical(root)?;
     let mut tracks: Vec<Track> = WalkDir::new(&root)
         .follow_links(false)
         .max_depth(MAX_DEPTH)
@@ -57,7 +57,7 @@ pub fn scan(root: &Path) -> std::io::Result<FolderListing> {
             let rel_dir = path
                 .parent()
                 .and_then(|p| p.strip_prefix(&root).ok())
-                .map(|p| p.to_string_lossy().into_owned())
+                .map(slashed)
                 .unwrap_or_default();
             Track {
                 name: path
@@ -83,10 +83,65 @@ pub fn scan(root: &Path) -> std::io::Result<FolderListing> {
     })
 }
 
+/// The absolute path with links resolved. On Windows as `C:\Music`, not `\\?\C:\Music`
+/// (kept only where the short form would mean another file, e.g. paths over 260 characters).
+pub fn canonical(path: &Path) -> std::io::Result<PathBuf> {
+    dunce::canonicalize(path)
+}
+
+/// A relative directory with "/" between its parts on every platform (the UI splits on it).
+fn slashed(dir: &Path) -> String {
+    let parts: Vec<_> = dir
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect();
+    parts.join("/")
+}
+
 /// Returns the canonical path if it lies inside `root` (blocks `..` and symlink escapes).
 pub fn resolve_inside(root: &Path, requested: &Path) -> Option<PathBuf> {
-    let canonical = requested.canonicalize().ok()?;
-    canonical.starts_with(root).then_some(canonical)
+    let canonical = canonical(requested).ok()?;
+    inside(root, &canonical).then_some(canonical)
+}
+
+/// Whether canonical `path` is `root` or lies under it, whole component by component
+/// (`/Music` doesn't hold `/Musicals`). Names must match exactly, as canonical paths
+/// spell them the way the disk does. On Windows a drive or share may come as `C:` or
+/// `\\?\C:`, `\\nas\share` or `\\?\UNC\nas\share`, in any case: those are the same place.
+pub fn inside(root: &Path, path: &Path) -> bool {
+    if root.as_os_str().is_empty() {
+        return false;
+    }
+    let mut path = path.components();
+    root.components()
+        .all(|r| path.next().is_some_and(|p| same(r, p)))
+}
+
+fn same(a: Component, b: Component) -> bool {
+    match (a, b) {
+        (Component::Prefix(pa), Component::Prefix(pb)) => {
+            match (volume(pa.kind()), volume(pb.kind())) {
+                (Some(va), Some(vb)) => va == vb,
+                _ => pa == pb,
+            }
+        }
+        _ => a == b,
+    }
+}
+
+/// A drive or network share however it was written; None for other prefixes (devices).
+fn volume(prefix: Prefix) -> Option<String> {
+    match prefix {
+        Prefix::Disk(d) | Prefix::VerbatimDisk(d) => {
+            Some(format!("{}:", char::from(d.to_ascii_uppercase())))
+        }
+        Prefix::UNC(server, share) | Prefix::VerbatimUNC(server, share) => Some(format!(
+            "//{}/{}",
+            server.to_string_lossy().to_lowercase(),
+            share.to_string_lossy().to_lowercase()
+        )),
+        _ => None,
+    }
 }
 
 /// Case-insensitive natural order: "Track 2" < "Track 10".
@@ -141,13 +196,14 @@ mod tests {
     fn scan_filters_and_sorts() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
-        fs::create_dir_all(root.join("Unit 2")).unwrap();
+        fs::create_dir_all(root.join("Unit 2/Part 1")).unwrap();
         fs::create_dir_all(root.join(".hidden")).unwrap();
         for f in [
             "10.mp3",
             "2.M4A",
             "notes.txt",
             "Unit 2/a.wav",
+            "Unit 2/Part 1/b.flac",
             ".hidden/x.mp3",
         ] {
             fs::write(root.join(f), b"x").unwrap();
@@ -158,13 +214,13 @@ mod tests {
             .iter()
             .map(|t| format!("{}/{}", t.rel_dir, t.name))
             .collect();
-        assert_eq!(names, ["/2", "/10", "Unit 2/a"]);
+        assert_eq!(names, ["/2", "/10", "Unit 2/a", "Unit 2/Part 1/b"]);
     }
 
     #[test]
     fn resolve_blocks_escape() {
         let dir = tempfile::tempdir().unwrap();
-        let root = dir.path().canonicalize().unwrap();
+        let root = canonical(dir.path()).unwrap();
         fs::create_dir_all(root.join("in")).unwrap();
         fs::write(root.join("in/a.mp3"), b"x").unwrap();
         let inner = root.join("in");
@@ -172,5 +228,46 @@ mod tests {
         assert!(resolve_inside(&inner, &inner.join("../in/a.mp3")).is_some());
         fs::write(root.join("out.mp3"), b"x").unwrap();
         assert!(resolve_inside(&inner, &inner.join("../out.mp3")).is_none());
+        fs::create_dir_all(root.join("into")).unwrap();
+        fs::write(root.join("into/b.mp3"), b"x").unwrap();
+        assert!(resolve_inside(&inner, &root.join("into/b.mp3")).is_none());
+        assert!(resolve_inside(&inner, &inner.join("missing.mp3")).is_none());
+    }
+
+    #[test]
+    fn inside_compares_whole_components() {
+        let root = Path::new("/m/Music");
+        assert!(inside(root, Path::new("/m/Music/a.mp3")));
+        assert!(inside(root, Path::new("/m/Music/Unit 2/a.mp3")));
+        assert!(inside(root, root));
+        assert!(!inside(root, Path::new("/m/Musicals/a.mp3")));
+        assert!(!inside(root, Path::new("/m/music/a.mp3")));
+        assert!(!inside(root, Path::new("/m")));
+        assert!(!inside(Path::new(""), Path::new("/m")));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn inside_treats_spellings_of_a_windows_drive_or_share_alike() {
+        let yes = |root: &str, path: &str| inside(Path::new(root), Path::new(path));
+        assert!(yes(r"C:\Music", r"\\?\C:\Music\a.mp3"));
+        assert!(yes(r"\\?\C:\Music", r"c:\Music\a.mp3"));
+        assert!(yes(r"\\NAS\Share\Music", r"\\?\UNC\nas\share\Music\a.mp3"));
+        assert!(!yes(r"C:\Music", r"D:\Music\a.mp3"));
+        assert!(!yes(r"C:\Music", r"C:\Musicals\a.mp3"));
+        assert!(!yes(r"C:\Music", r"\\nas\share\Music\a.mp3"));
+        assert!(!yes(r"\\nas\share", r"\\nas\other\a.mp3"));
+        assert!(!yes(r"\\nas\share", r"\\other\share\a.mp3"));
+        // Another kind of prefix only matches itself.
+        assert!(!yes(r"\\.\COM1", r"C:\a.mp3"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn canonical_paths_have_no_verbatim_prefix() {
+        let dir = tempfile::tempdir().unwrap();
+        let c = canonical(dir.path()).unwrap();
+        assert!(!c.to_string_lossy().starts_with(r"\\?\"), "{c:?}");
+        assert_eq!(scan(dir.path()).unwrap().root, c.to_string_lossy());
     }
 }
