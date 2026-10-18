@@ -119,14 +119,21 @@
 }
 
 @theme {
-  /* Interface: the system face, so it reads as a Mac app. */
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans", sans-serif;
-  /* The script: what you listen to and say, set like a printed textbook. */
-  --font-script: ui-serif, "New York", "Hiragino Mincho ProN", "Songti SC", Georgia, serif;
+  /*
+   * Each stack lists the Mac's faces first and Windows' after them, so a Mac sets type as it always did.
+   * A Windows PC skips the Mac names (they aren't installed there; WebView2 has no ui-serif either).
+   */
+  /* Interface: the system face, so it reads as a native app. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans", "Segoe UI", "Microsoft YaHei UI", "Yu Gothic UI", sans-serif;
+  /*
+   * The script: what you listen to and say, set like a printed textbook. Yu Mincho and MS Mincho come with
+   * Windows' Japanese language pack only, so SimSun (always there, and has kana) is the last resort.
+   */
+  --font-script: ui-serif, "New York", "Hiragino Mincho ProN", "Songti SC", Georgia, "Yu Mincho", "MS Mincho", "SimSun", serif;
   /* The same voice for the app's own Chinese headings (Songti has every simplified form). */
-  --font-heading: ui-serif, "New York", "Songti SC", "STSong", Georgia, serif;
+  --font-heading: ui-serif, "New York", "Songti SC", "STSong", Georgia, "SimSun", "NSimSun", serif;
   /* Times, speeds and counts: fixed-width digits that don't jitter as they change. */
-  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --font-mono: ui-monospace, "SF Mono", Menlo, "Cascadia Mono", Consolas, monospace;
   /* Quick to respond, long gentle settle; never overshoots. */
   --ease-snappy: cubic-bezier(0.16, 1, 0.3, 1);
 
