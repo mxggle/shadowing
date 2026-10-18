@@ -8,6 +8,7 @@ and see how your take lines up with the original. It works for Japanese, English
 [简体中文](README.zh-CN.md)
 
 The player works fully without subtitles, models or API keys. Subtitles, transcription and AI are all optional.
+The interface is in English or Simplified Chinese: it follows your Mac's language, and you can switch it in Settings.
 
 ## Shadow recording
 
