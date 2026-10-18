@@ -240,9 +240,12 @@ export const useApp = create<AppState>((set, get) => {
       // Kept in the store's settings too, so a settings save still pending can't undo it.
       set({ settings: { ...get().settings, uiLanguage } });
       const lang = await api.setUiLanguage(uiLanguage);
+      // Service and model names (and notes) come from Rust in the language in use.
+      const [ai, local] = await Promise.all([api.ai.get().catch(() => get().ai), api.local.models().catch(() => get().local)]);
       setLang(lang);
-      set({ lang });
-      // Explanations are kept per language (src-tauri/src/explain/saved.rs).
+      // Explanations are kept per language (src-tauri/src/explain/saved.rs): drop this one's, bring back the other's.
+      get().resetExplanations();
+      set({ lang, ai, local });
       const current = get().current;
       if (current) void get().loadExplanations(current.path);
     },

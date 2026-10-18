@@ -42,6 +42,8 @@ export interface ExplainState {
   retryExplain(index: number): void;
   /** Brings back the answers kept for a track (closed; what is already on screen stays). */
   loadExplanations(path: string): Promise<void>;
+  /** Forgets every answer on screen, and drops the ones still on their way (the interface language changed). */
+  resetExplanations(): void;
 }
 
 type Get = () => AppState;
@@ -56,15 +58,21 @@ export function createExplainSlice(set: Set, get: Get): ExplainState {
       return { explain };
     });
 
+  // Bumped by resetExplanations: an answer asked for before it belongs to the other language.
+  let generation = 0;
+
   async function ask(path: string, index: number, text: string) {
     const key = explainKey(path, index, text);
     if (!featureReady("chat", get().ai, get().local)) return put(key, { open: true, state: "unset" });
     put(key, { open: true, state: "running" });
+    const asked = generation;
     try {
       const value = await api.explainSentence(path, index, text);
+      if (asked !== generation) return;
       // Closed while waiting: keep the answer for later, but don't pop it open again.
       put(key, { open: get().explain[key]?.open ?? false, state: "done", value });
     } catch (e) {
+      if (asked !== generation) return;
       if (get().explain[key]) put(key, { open: get().explain[key].open, state: "failed", message: String(e) });
     }
   }
@@ -90,7 +98,9 @@ export function createExplainSlice(set: Set, get: Get): ExplainState {
     },
 
     async loadExplanations(path) {
+      const asked = generation;
       const kept = await api.savedExplanations(path).catch(() => []);
+      if (asked !== generation) return;
       set((s) => {
         const explain = { ...s.explain };
         for (const k of kept) {
@@ -99,6 +109,11 @@ export function createExplainSlice(set: Set, get: Get): ExplainState {
         }
         return { explain };
       });
+    },
+
+    resetExplanations() {
+      generation += 1;
+      set({ explain: {} });
     },
 
     retryExplain(index) {
