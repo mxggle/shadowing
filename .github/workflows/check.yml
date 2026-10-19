@@ -2,7 +2,7 @@
 # - macOS on Apple Silicon, the platform the app ships for (whisper.cpp needs Metal and cmake);
 # - Windows x86_64, for the Windows port: it builds, lints and tests the same code. The runner has no sound card,
 #   so the tests that need real audio hardware stay ignored there. An installer to try on a real PC comes from
-#   windows-build.yml.
+#   release-windows.yml.
 name: Check
 
 on:

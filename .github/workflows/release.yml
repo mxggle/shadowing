@@ -8,6 +8,8 @@
 #   TAURI_SIGNING_PRIVATE_KEY (contents of the .key file), TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
 #   A tag build fails without them; other builds then make an ad-hoc signed DMG and zip only.
 # - Running it by hand (Actions → Release → Run workflow): only builds, and keeps the files as a workflow artifact.
+# - Windows: when the repository variable WINDOWS_RELEASE is "true", a tag build waits for the tag's Windows build
+#   (release-windows.yml) and drafts the release with its files too (scripts/windows-files.sh), as release-local.sh does.
 # - Releases are packaged on the Mac (scripts/release-local.sh, which stops this tag build): much faster than here.
 #   So nothing else triggers this workflow: no build on PRs or main pushes, no weekly cache run. A tag build that
 #   does finish here has no warm cache and compiles every dependency from scratch.
@@ -20,6 +22,7 @@ on:
 
 permissions:
   contents: write
+  actions: read # the Windows build's files (scripts/windows-files.sh)
 
 concurrency:
   group: release-${{ github.ref }}
@@ -60,6 +63,12 @@ jobs:
       - name: Build the app
         run: npm run tauri build -- --bundles app
 
+      - name: The Windows build's files
+        if: github.ref_type == 'tag' && vars.WINDOWS_RELEASE == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/windows-files.sh "$GITHUB_REF_NAME" windows
+
       - name: Sign and package
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -74,7 +83,9 @@ jobs:
             fi
             export SHADOWING_UNSIGNED=1
           fi
-          scripts/release-assets.sh "$VERSION" src-tauri/target/release/bundle release
+          windows=""
+          if [ -d windows ]; then windows=windows; fi
+          scripts/release-assets.sh "$VERSION" src-tauri/target/release/bundle release ${windows:+"$windows"}
 
       - name: Keep the files (builds without a tag)
         if: github.ref_type != 'tag'
@@ -92,6 +103,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           files=(release/*.dmg release/*.zip release/*.app.tar.gz release/*.sig release/latest.json)
+          if [ -d windows ]; then files+=(release/*.exe); fi
           if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null)" = false ]; then
             # Published already (e.g. by scripts/release-local.sh): installed apps may be updating from it.
             echo "::notice::Release $TAG is already published; leaving its files alone."
