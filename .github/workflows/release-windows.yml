@@ -1,0 +1,94 @@
+# Builds the Windows files of a release on windows-latest: the NSIS installer (x64, for the current user), its .sig
+# for the in-app updater, and the YouTube plugin for Windows (scripts/release-assets-windows.sh). It never touches a
+# GitHub Release: they're kept as the run's artifact Shadowing-X.Y.Z-windows-x64 (14 days), and the Mac side picks
+# them up (scripts/windows-files.sh, from scripts/release-local.sh or release.yml), so a release goes out once,
+# with both systems' files and both entries in latest.json, checked by scripts/verify-release.sh first.
+# - A pushed tag vX.Y.Z: only when the repository variable WINDOWS_RELEASE is "true" (Settings → Secrets and
+#   variables → Actions → Variables). Without it the job is skipped and releases stay Mac only.
+# - Pushing a feat/windows* branch, or Run workflow by hand: a test build to try on a real PC (same files).
+# Signing: the update with the updater key (TAURI_SIGNING_PRIVATE_KEY, _PASSWORD; a tag build fails without it,
+# other builds then skip the .sig). The installer itself has no code signature, so SmartScreen warns
+# ("More info" → "Run anyway"). The config for Windows is src-tauri/tauri.windows.conf.json.
+name: Release (Windows)
+
+on:
+  push:
+    tags: ["v*.*.*"]
+    branches: ["feat/windows*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-windows-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  installer:
+    if: github.ref_type != 'tag' || vars.WINDOWS_RELEASE == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      # bindgen (signalsmith-stretch) finds libclang here; the runner image has LLVM installed.
+      LIBCLANG_PATH: 'C:\Program Files\LLVM\bin'
+    steps:
+      # Files must come out with LF line endings: the shell scripts can't take CRLF.
+      - run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Rust (the version in rust-toolchain.toml)
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri
+            plugins/youtube
+          key: installer
+
+      - name: Version
+        id: version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version=$(scripts/check-version.sh "$GITHUB_REF_NAME")
+          else
+            version=$(scripts/check-version.sh)
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+
+      # beforeBuildCommand (npm run build) builds the frontend; Tauri downloads NSIS itself.
+      - name: Build the installer
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          sign=()
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            if [ "$GITHUB_REF_TYPE" = tag ]; then
+              echo "::error::A release needs TAURI_SIGNING_PRIVATE_KEY (the updater key)." && exit 1
+            fi
+            sign=(--no-sign)
+          fi
+          npx tauri build --bundles nsis "${sign[@]}"
+
+      - name: Package
+        run: scripts/release-assets-windows.sh "${{ steps.version.outputs.version }}" src-tauri/target/release/bundle release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Shadowing-${{ steps.version.outputs.version }}-windows-x64
+          path: release/
+          if-no-files-found: error
+          retention-days: 14
