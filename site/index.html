@@ -21,7 +21,7 @@
 <meta property="og:image:alt" content="Shadowing 的窗口：一句日语下面，原句和我的两条波形上下对齐。">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://shadowing.nihongo.day/og.png">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Shadowing","alternateName":"Shadowing 跟读","url":"https://shadowing.nihongo.day/","description":"给 Mac 的跟读应用：本机转写成一句一句，循环、放慢不变调、看解释，再录下自己和原声对比。","applicationCategory":"EducationalApplication","operatingSystem":"macOS","inLanguage":"zh-CN","image":"https://shadowing.nihongo.day/og.png","screenshot":"https://shadowing.nihongo.day/shots/hero-light.webp","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"downloadUrl":"https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg","publisher":{"@type":"Organization","name":"日语Day","url":"https://nihongo.day/"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Shadowing","alternateName":"Shadowing 跟读","url":"https://shadowing.nihongo.day/","description":"给 Mac 的跟读应用：本机转写成一句一句，循环、放慢不变调、看解释，再录下自己和原声对比。","applicationCategory":"EducationalApplication","operatingSystem":"macOS, Windows","inLanguage":"zh-CN","image":"https://shadowing.nihongo.day/og.png","screenshot":"https://shadowing.nihongo.day/shots/hero-light.webp","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"downloadUrl":"https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg","publisher":{"@type":"Organization","name":"日语Day","url":"https://nihongo.day/"}}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@500;600&family=Noto+Serif+SC:wght@500;600;700&display=swap">
@@ -169,7 +169,7 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 .btn:active { transform: scale(0.97); }
 .btn-ink { background: var(--ink); color: var(--on-ink); box-shadow: 0 1px 2px oklch(0% 0 0 / 0.12), 0 6px 16px -6px oklch(0% 0 0 / 0.3); }
 .btn-ink:hover { box-shadow: 0 1px 2px oklch(0% 0 0 / 0.12), 0 10px 24px -8px oklch(0% 0 0 / 0.38); transform: translateY(-1px); }
-.btn-ink small { font-weight: 400; opacity: 0.72; font-size: 14px; }
+.btn-ink small, .btn-quiet small { font-weight: 400; opacity: 0.72; font-size: 14px; }
 .btn-quiet { background: var(--fill); color: var(--fg); }
 .btn-quiet:hover { background: var(--press); }
 
@@ -192,6 +192,7 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 .meta span { display: inline-flex; align-items: center; gap: 7px; }
 .meta .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px dashed var(--faint); }
 @media (max-width: 480px) { .actions .btn { width: 100%; } }
+.win-note { font-size: 14px; color: var(--faint); margin-top: -12px; }
 
 /* Screenshots of the real app */
 .shot { margin: 0; }
@@ -317,6 +318,8 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 .steps li::before { content: counter(s); font: 600 22px/1.4 var(--font-head); color: var(--faint); }
 .steps h3 { font: 600 17px/1.6 var(--font-sans); }
 .steps p { color: var(--muted); grid-column: 2; }
+.os { font: 600 15px/1.6 var(--font-sans); color: var(--faint); margin-bottom: 4px; }
+.steps + .os { margin-top: 36px; }
 .cmd { grid-column: 2; margin-top: 10px; display: flex; align-items: center; gap: 8px; min-width: 0; background: var(--deck); border: 1px solid var(--line); border-radius: 10px; padding: 6px 6px 6px 14px; }
 .cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font: 400 13.5px/1.6 var(--font-mono); color: var(--fg); scrollbar-width: thin; }
 .cmd button { flex: none; height: 32px; padding: 0 12px; border: 0; border-radius: 7px; background: var(--fill); color: var(--fg); font: 500 13px/1 var(--font-sans); cursor: pointer; transition: background-color 150ms; }
@@ -487,7 +490,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
       <a href="#updates">更新</a>
       <a href="#install">安装</a>
       <a href="https://github.com/mxggle/shadowing" target="_blank" rel="noopener">GitHub</a>
-      <a class="nav-dl" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">下载</a>
+      <a class="nav-dl" data-os="mac" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">下载</a>
     </div>
   </nav>
 
@@ -497,18 +500,23 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
       <h1><span class="ph">把你的声音，</span><span class="ph">放在母语者旁边听。</span></h1>
       <p class="lede">Shadowing 是给 Mac 的跟读应用。拖进你手里的日语音频，它在本机转写成一句一句：循环这一句、放慢也不变调、听不懂就展开解释。然后跟着说，你的录音和原声上下对齐，慢了多少、晚了几秒，一眼就看出来。</p>
       <div class="actions">
-        <a class="btn btn-ink" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">
+        <a class="btn btn-ink" data-os="mac" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">
           <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
           下载 macOS 版 <small>Apple Silicon</small>
         </a>
+        <a class="btn btn-quiet" data-os="windows" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-windows-x64-setup.exe">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+          下载 Windows 版 <small>x64</small>
+        </a>
         <a class="btn btn-quiet" href="#try">先在网页上跟读一句</a>
       </div>
+      <p class="win-note">Windows 安装包还没有代码签名，SmartScreen 拦下时点“更多信息”，再点“仍要运行”（<a href="#windows">安装说明</a>）。</p>
       <div class="meta">
         <span>免费，MIT 开源</span>
         <span data-app-version>v0.10.0 · 约 11 MB</span>
-        <span>macOS 11 及以上</span>
+        <span>macOS 11 及以上，或 64 位的 Windows 10 / 11</span>
         <span>没有遥测</span>
-        <span><i class="dot" aria-hidden="true"></i>Windows 和 Linux 版开发中</span>
+        <span><i class="dot" aria-hidden="true"></i>Linux 版开发中</span>
       </div>
     </section>
 
@@ -733,15 +741,17 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
         <li><span class="v">0.2</span><time datetime="2026-10-10">10 月 10 日</time><p>播放顺序：列表循环、单曲循环、播完停止。</p></li>
         <li><span class="v">0.1</span><time datetime="2026-10-09">10 月 9 日</time><p>第一个公开版本。</p></li>
       </ol>
-      <p class="log-more"><a href="https://github.com/mxggle/shadowing/blob/main/CHANGELOG.md" target="_blank" rel="noopener">完整的更新日志</a>，或者在 GitHub 上关注仓库，Windows 和 Linux 版发布时第一时间收到通知。</p>
+      <p class="log-more"><a href="https://github.com/mxggle/shadowing/blob/main/CHANGELOG.md" target="_blank" rel="noopener">完整的更新日志</a>，或者在 GitHub 上关注仓库，Linux 版发布时第一时间收到通知。</p>
     </section>
 
     <section class="chapter" id="install" aria-labelledby="install-title">
       <div class="head">
         <h2 id="install-title">安装</h2>
-        <p>目前只有 Apple Silicon 的 macOS 版（macOS 11 及以上）。第一次打开有四步引导：选学习语言、下载推荐的本机模型、登录 AI、用示例练一遍；中间两步都可以跳过。</p>
+        <p>Mac 版要 Apple Silicon（macOS 11 及以上），Windows 版要 64 位的 Windows 10 或 11。第一次打开有四步引导：选学习语言、选转写的方式（Mac 上推荐并下载一个本机模型）、登录 AI、用示例练一遍；中间两步都可以跳过。</p>
       </div>
       <div class="split start">
+      <div>
+      <h3 class="os">macOS（Apple Silicon）</h3>
       <ol class="steps">
         <li><h3>下载安装包</h3><p>点这里<a href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">下载最新版</a>，大约 11 MB。</p></li>
         <li><h3>拖进“应用程序”</h3><p>双击下载的 .dmg，在打开的窗口里把 Shadowing 拖到“应用程序”文件夹。</p></li>
@@ -753,6 +763,13 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
         </li>
         <li><h3>以后自动更新</h3><p>有新版本时应用会提示，看过更新说明点一下就装好，安装包会先校验签名。</p></li>
       </ol>
+      <h3 class="os" id="windows">Windows（x64）</h3>
+      <ol class="steps">
+        <li><h3>下载安装包</h3><p>点这里<a href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-windows-x64-setup.exe">下载 Windows 版</a>，双击运行。装在当前用户下，不需要管理员权限。</p></li>
+        <li><h3>“Windows 已保护你的电脑”</h3><p>安装包还没有代码签名，SmartScreen 会拦一下：点“更多信息”，再点“仍要运行”。</p></li>
+        <li><h3>以后自动更新</h3><p>和 Mac 版一样，有新版本时应用会提示，点一下就装好。Windows 版转写只能用云端服务（Groq、OpenAI 等），本机转写只在 Mac 上。</p></li>
+      </ol>
+      </div>
       <figure class="shot crop">
         <picture>
           <source media="(prefers-color-scheme: dark)" srcset="shots/onboarding-dark.webp">
@@ -766,10 +783,16 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
     <section class="close">
       <h2><span class="ph">今天就挑一句，</span><span class="ph">循环到能跟上。</span></h2>
       <p>然后录下来，和原声放在一起听。定个每天 15 分钟的目标，从今天开始。</p>
-      <a class="btn btn-ink" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">
-        <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
-        下载 macOS 版 <small>Apple Silicon</small>
-      </a>
+      <div class="actions">
+        <a class="btn btn-ink" data-os="mac" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+          下载 macOS 版 <small>Apple Silicon</small>
+        </a>
+        <a class="btn btn-quiet" data-os="windows" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-windows-x64-setup.exe">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+          下载 Windows 版 <small>x64</small>
+        </a>
+      </div>
     </section>
   </main>
 
@@ -1249,6 +1272,15 @@ audio.addEventListener("pause", () => { if (take.phase === "rec") { lastT = 0; r
 
 setRate(rate);
 go(0, false);
+
+if (/Windows/.test(navigator.userAgent)) {
+  document.querySelector(".nav-dl").href = "https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-windows-x64-setup.exe";
+  for (const win of document.querySelectorAll('.actions [data-os="windows"]')) {
+    const mac = win.parentElement.querySelector('[data-os="mac"]');
+    mac.before(win);
+    [mac.className, win.className] = [win.className, mac.className];
+  }
+}
 </script>
 
 </body>

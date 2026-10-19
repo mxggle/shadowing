@@ -447,7 +447,10 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
 <script>
 // Renders plugins.json. Entries come from other people (reviewed, still), so
 // everything goes in as text and only https links are followed.
-const PLATFORM = { "darwin-arm64": "Apple Silicon", "darwin-x86_64": "Intel" };
+const PLATFORM = { "darwin-arm64": "Apple Silicon", "darwin-x86_64": "Intel", "windows-x86_64": "Windows（x64）", "windows-arm64": "Windows（ARM）" };
+// The downloads a card offers, once the plugin has a package for them; on a Windows PC its own comes first.
+const DOWNLOADS = [["darwin-arm64", "Mac 版"], ["windows-x86_64", "Windows 版"]];
+const ON_WINDOWS = /Windows/.test(navigator.userAgent);
 const DOWNLOAD_ICON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>';
 
 function h(tag, props, ...kids) {
@@ -465,14 +468,21 @@ const row = (label, text) => [h("dt", {}, label), h("dd", {}, text)];
 
 function card(p) {
   const packages = p.packages || {};
-  const pkg = packages["darwin-arm64"];
-  const zip = https(pkg && pkg.url);
+  const offered = DOWNLOADS.filter(([key]) => https(packages[key] && packages[key].url));
+  if (ON_WINDOWS) offered.reverse();
+  // A Mac-only plugin keeps the plain 下载 button; otherwise each one says which system it's for.
+  const named = offered.length > 1 || (offered.length === 1 && offered[0][0] !== "darwin-arm64");
   const source = https(p.source);
   const network = (p.permissions && p.permissions.network) || [];
   const runs = p.permissions && p.permissions.runs;
-  const macs = Object.keys(packages).map((k) => PLATFORM[k]).filter(Boolean).join("、");
-  const get = zip ? h("a", { class: "btn btn-ink", href: zip }) : h("span", { class: "status" }, "还没有 Apple Silicon 版");
-  if (zip) { get.innerHTML = DOWNLOAD_ICON; get.append("下载 ", h("small", {}, size(pkg.size))); }
+  const systems = Object.keys(packages).map((k) => PLATFORM[k]).filter(Boolean).join("、");
+  const buttons = offered.map(([key, label], i) => {
+    const a = h("a", { class: i === 0 ? "btn btn-ink" : "btn btn-quiet", href: https(packages[key].url) });
+    a.innerHTML = DOWNLOAD_ICON;
+    a.append(named ? `${label} ` : "下载 ", h("small", {}, size(packages[key].size)));
+    return a;
+  });
+  const get = buttons.length ? buttons : h("span", { class: "status" }, "还没有 Apple Silicon 版");
   return h("article", { class: "card", id: p.id },
     h("div", { class: "card-head" }, h("h3", {}, p.name), h("span", { class: "ver" }, p.version), p.official && h("span", { class: "tag" }, "官方")),
     h("p", { class: "by" }, [p.author, day(p.released)].filter(Boolean).join(" · ")),
@@ -481,9 +491,10 @@ function card(p) {
       p.imports && p.imports.length ? row("能导入", `${p.imports.join("、")} 的链接`) : null,
       runs ? row("它会", runs) : null,
       row("联网", network.length ? network.join("、") : "不联网"),
-      row("需要", `Shadowing ${p.minAppVersion} 或更新${macs ? ` · ${macs}` : ""}`)),
+      row("需要", `Shadowing ${p.minAppVersion} 或更新${systems ? ` · ${systems}` : ""}`)),
     h("div", { class: "get" }, get, source && h("a", { href: source, target: "_blank", rel: "noopener" }, "源代码")),
-    pkg && pkg.sha256 && h("details", { class: "sha" }, h("summary", {}, "SHA-256（下载后可以对照）"), h("code", {}, pkg.sha256)));
+    offered.map(([key, label]) => packages[key].sha256 && h("details", { class: "sha" },
+      h("summary", {}, `${named ? `${label} ` : ""}SHA-256（下载后可以对照）`), h("code", {}, packages[key].sha256))));
 }
 
 (async () => {

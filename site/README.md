@@ -6,9 +6,12 @@
 - `shots/`：页面上的应用截图，浅色和深色各一套（`*-light.webp` / `*-dark.webp`，无损 WebP，2× 像素），`*-crop-*` 是手机宽度用的裁切版。这些是真实界面，取自宣传视频工程（本地 `video/`）的舞台画面：去掉字幕层、相机复位、2× 渲染后导出。界面改版后要重新导出一套，文件名不变就不用改页面。
 - `og.png`：分享到社交平台时的预览图（1200×630），用浅色首屏截图拼的。
 - 「更新」一节是手写的版本列表，发新版时顺手在最上面加一行（版本、日期、一句话），保持和 `CHANGELOG.md` 一致。
-- 下载按钮指向 `releases/latest/download/Shadowing-macos-arm64.dmg`，发布流程每次都会上传这个固定名字的 .dmg 安装包，所以发版后不用改页面。
+- 下载按钮指向 `releases/latest/download/Shadowing-macos-arm64.dmg` 和 `…/Shadowing-windows-x64-setup.exe`，发布流程每次都会上传这两个固定名字的安装包，
+  所以发版后不用改页面（Windows 的要仓库变量 `WINDOWS_RELEASE` 开着，见 CLAUDE.md 的“发布”）。在 Windows 电脑上打开时，页面末尾的脚本把 Windows 版的按钮放到前面、
+  导航的“下载”换成安装包。
 - `plugins.html`（线上是 `/plugins`，`vercel.json` 的 `cleanUrls`）：插件目录。列表来自同一文件夹的 `plugins.json`，页面用脚本读出来画成卡片
-  （全部按文字插入，只跟随 https 链接）；下面是安装步骤、怎么写插件、怎么提交。样式里的颜色变量、按钮、导航、页脚是从 `index.html` 复制的，改了那边记得同步。
+  （全部按文字插入，只跟随 https 链接）；下面是安装步骤、怎么写插件、怎么提交。插件有 `darwin-arm64` 和 `windows-x86_64` 两个包时，卡片上是
+  “Mac 版”“Windows 版”两个下载按钮（在 Windows 电脑上 Windows 版在前）；只有 Mac 的包时还是一个“下载”。样式里的颜色变量、按钮、导航、页脚是从 `index.html` 复制的，改了那边记得同步。
 - `plugins.json`：上架的插件，每条固定 zip 的地址、大小和 SHA-256（格式见 [docs/plugin-dev.md](../docs/plugin-dev.md) 末尾）。
   **上架一个插件**：读源代码、核对 zip、在应用里装一次，然后在这里加一条（`shasum -a 256` 算哈希，GitHub Release 的附件也能用
   `gh release view <tag> --json assets` 看 `digest`）。`node scripts/check-plugin-list.mjs` 检查格式（`npm test` 也会查）。
