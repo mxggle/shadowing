@@ -40,7 +40,7 @@ const MENU_CHECK: &str = "update-check";
 const MENU_NEWS: &str = "whats-new";
 
 /// None when this is the newest version, or the newest release has no build for this
-/// platform (yet: Windows builds come later than the Mac ones).
+/// platform (a Mac-only release: Windows ones are switched on separately, see CLAUDE.md).
 #[tauri::command]
 pub async fn update_check(
     app: AppHandle,

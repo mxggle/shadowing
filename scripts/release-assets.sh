@@ -4,6 +4,9 @@
 #   releases/latest/download/... links), the in-app update Shadowing-X.Y.Z-macos-arm64.app.tar.gz + .sig and
 #   latest.json, the YouTube plugin's folder zipped (Shadowing-YouTube-plugin-X.Y.Z-macos-arm64.zip, its own version;
 #   installed from 设置 → 插件 → 从文件夹安装…), and notes.md (release notes with the DMG's SHA-256; not uploaded as a file).
+# With the Windows build's files (4th argument: the folder scripts/windows-files.sh downloaded them to) it adds
+#   Shadowing-X.Y.Z-windows-x64-setup.exe + .sig, the same installer as Shadowing-windows-x64-setup.exe (fixed name),
+#   the Windows plugin zip, latest.json's windows-x86_64 entry and the Windows steps in notes.md.
 #
 # Code signing: the app is signed with our own certificate ("Shadowing Code Signing", self-signed, no Apple account).
 # It doesn't stop Gatekeeper's first-launch warning, but every version then has the same signature identity, so
@@ -14,12 +17,13 @@
 # SHADOWING_UNSIGNED=1 skips both (test builds without the secrets: ad-hoc signature, no update files).
 #
 # Used by .github/workflows/release.yml and scripts/release-local.sh.
-# Usage: scripts/release-assets.sh <X.Y.Z> <tauri bundle dir, e.g. src-tauri/target/release/bundle> <out dir>
+# Usage: scripts/release-assets.sh <X.Y.Z> <tauri bundle dir, e.g. src-tauri/target/release/bundle> <out dir> [<Windows files>]
 set -euo pipefail
 cd "$(dirname "$0")/.."
-version="${1:?usage: scripts/release-assets.sh <X.Y.Z> <bundle dir> <out dir>}"
+version="${1:?usage: scripts/release-assets.sh <X.Y.Z> <bundle dir> <out dir> [<Windows files dir>]}"
 bundle="${2:?missing bundle dir}"
 out="${3:?missing out dir}"
+windows="${4:-}"
 repo="${GITHUB_REPOSITORY:-mxggle/shadowing}"
 identity="Shadowing Code Signing"
 mkdir -p "$out"
@@ -83,6 +87,18 @@ hdiutil create -quiet -volname Shadowing -srcfolder "$work/dmg" -fs APFS -format
 hdiutil verify -quiet "$out/$base.dmg"
 cp "$out/$base.dmg" "$out/Shadowing-macos-arm64.dmg"
 
+setup="Shadowing-$version-windows-x64-setup.exe"
+if [ -n "$windows" ]; then
+  [ -s "$windows/$setup" ] || { echo "no $setup in $windows" >&2; exit 1; }
+  cp "$windows/$setup" "$out/$setup"
+  cp "$out/$setup" "$out/Shadowing-windows-x64-setup.exe"
+  cp "$windows"/Shadowing-YouTube-plugin-*-windows-x86_64.zip "$out/"
+  if [ "${SHADOWING_UNSIGNED:-}" != 1 ]; then
+    [ -s "$windows/$setup.sig" ] || { echo "no $setup.sig: the Windows build had no updater key" >&2; exit 1; }
+    cp "$windows/$setup.sig" "$out/$setup.sig"
+  fi
+fi
+
 if [ "${SHADOWING_UNSIGNED:-}" != 1 ]; then
   # The updater's archive: Shadowing.app at the top (the updater drops that first path component). Python's
   # tarfile, not tar: macOS tar stores file names decomposed (ご → こ + ゛), which breaks the code signature
@@ -91,8 +107,10 @@ if [ "${SHADOWING_UNSIGNED:-}" != 1 ]; then
 with tarfile.open(sys.argv[1], "w:gz") as t: t.add(sys.argv[2], arcname="Shadowing.app")' \
     "$out/$base.app.tar.gz" "$app"
   npx tauri signer sign -k "$TAURI_SIGNING_PRIVATE_KEY" -p "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" "$out/$base.app.tar.gz" > /dev/null
-  scripts/update-manifest.sh "$version" "$out/$base.app.tar.gz.sig" \
-    "https://github.com/$repo/releases/download/v$version/$base.app.tar.gz" > "$out/latest.json"
+  download="https://github.com/$repo/releases/download/v$version"
+  platforms=(darwin-aarch64 "$out/$base.app.tar.gz.sig" "$download/$base.app.tar.gz")
+  if [ -n "$windows" ]; then platforms+=(windows-x86_64 "$out/$setup.sig" "$download/$setup"); fi
+  scripts/update-manifest.sh "$version" "${platforms[@]}" > "$out/latest.json"
 fi
 
 # The YouTube plugin: its folder (manifest.json + bin/), zipped. The app clears the quarantine mark a browser
@@ -102,5 +120,10 @@ plugin_version=$(node -p 'require("./plugins/youtube/manifest.json").version')
 lipo -archs "$plugin/bin/shadowing-youtube"
 ditto -c -k --norsrc --noextattr --keepParent "$plugin" "$out/Shadowing-YouTube-plugin-$plugin_version-macos-arm64.zip"
 
-scripts/release-notes.sh "$version" "$(shasum -a 256 "$out/$base.dmg" | cut -d' ' -f1)" > "$out/notes.md"
+sha256() { shasum -a 256 "$1" | cut -d' ' -f1; }
+if [ -n "$windows" ]; then
+  scripts/release-notes.sh "$version" "$(sha256 "$out/$base.dmg")" "$(sha256 "$out/$setup")" > "$out/notes.md"
+else
+  scripts/release-notes.sh "$version" "$(sha256 "$out/$base.dmg")" > "$out/notes.md"
+fi
 ls -l "$out"
