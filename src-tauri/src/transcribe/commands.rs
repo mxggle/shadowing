@@ -50,6 +50,9 @@ pub fn transcribe_start(
     }
     let model = &choice.model;
     let (backend, origin) = if provider == local::PROVIDER {
+        if !local::models::supported() {
+            return Err(local::unsupported());
+        }
         let file = local::model_file(&state, model).ok_or(crate::i18n::pick(
             "这个模型还没有下载完",
             "This model hasn't finished downloading.",
@@ -113,8 +116,7 @@ pub fn transcribe_start(
                     let mut t = cloud::Cloud::new(&target, &choice.model);
                     run(&job, &mut t, transcribing)
                 }
-                Backend::Local(file) => local::whisper::Whisper::load(&file, &choice.model)
-                    .and_then(|mut t| run(&job, &mut t, transcribing)),
+                Backend::Local(file) => local::transcribe(&file, &choice.model, &job, transcribing),
             };
             // A trial run only shows that transcription works; skip the extra wait.
             let result = result.map(|mut sentences| {

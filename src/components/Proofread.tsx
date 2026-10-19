@@ -2,6 +2,7 @@ import { ArrowRight, LoaderCircle, Sparkles, SpellCheck, X } from "lucide-react"
 import type { Suggestion } from "../lib/api";
 import { featureReady } from "../lib/aiReady";
 import { t } from "../lib/i18n";
+import { device } from "../lib/wording";
 import { useApp } from "../store";
 import { Button, IconButton, TextLink } from "./ui";
 
@@ -54,7 +55,7 @@ export function ProofreadBar() {
         <span className="min-w-0">
           {withCount(
             service!.local
-              ? t("把这 {count} 句文字交给本机的 {label}，找出可能听错的字。只给建议，改不改由你决定。", { label: service!.label, n: count })
+              ? t("把这 {count} 句文字交给本机的 {label}，找出可能听错的字。只给建议，改不改由你决定。", { label: service!.label, n: count, device: device() })
               : t("把这 {count} 句文字发给 {label}，找出可能听错的字。只给建议，改不改由你决定。", { label: service!.label, n: count }),
             count,
           )}

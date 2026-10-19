@@ -18,7 +18,12 @@ import { usePracticePing } from "./hooks/usePracticePing";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { api, isTauri } from "./lib/api";
 import { t } from "./lib/i18n";
+import { pathParts } from "./lib/paths";
+import { isWindows } from "./lib/platform";
 import { useApp } from "./store";
+
+/** The top bar's left edge once the sidebar is closed: room for the Mac's window buttons; Windows has its own title bar above. */
+const BAR_START_CLOSED = isWindows ? "pl-3" : "pl-[84px]";
 
 let booted = false; // StrictMode runs effects twice in dev
 
@@ -84,7 +89,7 @@ function Shell() {
         <div
           data-tauri-drag-region
           className={`flex h-[52px] shrink-0 items-center gap-0.5 pr-3 transition-[padding] duration-200 ease-snappy ${
-            shelfOpen ? "pl-6" : "pl-[84px]"
+            shelfOpen ? "pl-6" : BAR_START_CLOSED
           }`}
         >
           {!shelfOpen && (
@@ -117,7 +122,7 @@ function Breadcrumb() {
   const folderName = useApp((s) => s.folder?.name);
   const relDir = useApp((s) => s.current?.relDir);
   const onSample = useApp((s) => !!s.current && s.current.path === s.sample?.path);
-  const parts = onSample ? [t("示例")] : [folderName, ...(relDir ? relDir.split("/") : [])].filter(Boolean);
+  const parts = onSample ? [t("示例")] : [folderName, ...(relDir ? pathParts(relDir) : [])].filter(Boolean);
   return (
     // pointer-events-none: drags on the text still reach the bar's drag region.
     <div className="pointer-events-none mr-auto flex min-w-0 items-center gap-1 text-[12px] text-faint">

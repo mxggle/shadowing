@@ -7,7 +7,8 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const PLATFORMS = ["darwin-arm64", "darwin-x86_64"];
+// The same keys as platforms_for() in src-tauri/src/plugins/manifest.rs.
+const PLATFORMS = ["darwin-arm64", "darwin-x86_64", "windows-x86_64", "windows-arm64"];
 const ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const VERSION = /^\d+\.\d+\.\d+$/;
 const HOST = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;

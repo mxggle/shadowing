@@ -5,7 +5,7 @@
 use super::saved::WRITING;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Component, Path};
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -78,17 +78,23 @@ pub fn clear_missing(root: &Path) -> Result<Space, String> {
 /// The audio file is gone — not merely on a disk that isn't connected now, or
 /// somewhere it can't be looked at (no permission): only "not found" counts.
 fn gone(audio: &Path) -> bool {
-    if !matches!(audio.try_exists(), Ok(false)) {
-        return false;
-    }
-    let mut parts = audio.components();
+    matches!(audio.try_exists(), Ok(false)) && volume(audio).is_none_or(|v| v.exists())
+}
+
+/// The disk a path is on, when it may be one that comes and goes: `/Volumes/<disk>` on
+/// macOS; on Windows the drive or network share (`E:\`, `\\nas\music\`).
+fn volume(path: &Path) -> Option<PathBuf> {
+    let mut parts = path.components();
     match (parts.next(), parts.next(), parts.next()) {
         (Some(Component::RootDir), Some(Component::Normal(v)), Some(Component::Normal(disk)))
             if v == "Volumes" =>
         {
-            Path::new("/Volumes").join(disk).exists()
+            Some(Path::new("/Volumes").join(disk))
         }
-        _ => true,
+        (Some(Component::Prefix(drive)), Some(Component::RootDir), _) => {
+            Some(Path::new(drive.as_os_str()).join(Component::RootDir.as_os_str()))
+        }
+        _ => None,
     }
 }
 
@@ -136,6 +142,26 @@ mod tests {
             root.path().join("recordings/a").exists() && root.path().join("recordings/c").exists()
         );
         assert!(!root.path().join("recordings/b").exists());
+    }
+
+    #[test]
+    fn removable_disks_are_found_by_path() {
+        assert_eq!(
+            volume(Path::new("/Volumes/USB/a/x.mp3")),
+            Some(PathBuf::from("/Volumes/USB"))
+        );
+        assert_eq!(volume(Path::new("/Users/me/x.mp3")), None);
+        #[cfg(windows)]
+        {
+            assert_eq!(
+                volume(Path::new(r"E:\Music\x.mp3")),
+                Some(PathBuf::from(r"E:\"))
+            );
+            assert_eq!(
+                volume(Path::new(r"\\nas\music\x.mp3")),
+                Some(PathBuf::from(r"\\nas\music\"))
+            );
+        }
     }
 
     #[test]

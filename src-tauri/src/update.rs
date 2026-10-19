@@ -1,13 +1,18 @@
 //! In-app updates: reads `latest.json` from the newest GitHub Release (endpoint and public key in
 //! tauri.conf.json), downloads the signed `Shadowing.app.tar.gz`, swaps it in for the running app and
-//! relaunches. The download is checked against the public key before anything is replaced.
+//! relaunches. On Windows the download is the signed installer, which the updater starts and then
+//! quits the app itself. The download is checked against the public key before anything is replaced.
 //! Requests go out from Rust like every other one; the webview only calls these commands.
+//! The app menu with 检查更新… / 新功能… is macOS only: Windows has no app menu, and Settings has both.
 
 use serde::Serialize;
 use std::sync::Mutex;
+#[cfg(target_os = "macos")]
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
-use tauri::{AppHandle, Emitter, Manager, State, Wry};
-use tauri_plugin_updater::{Update, UpdaterExt};
+use tauri::{AppHandle, Emitter, State};
+#[cfg(target_os = "macos")]
+use tauri::{Manager, Wry};
+use tauri_plugin_updater::{Error, Update, UpdaterExt};
 
 /// The update found by the last check, kept for `update_install`.
 #[derive(Default)]
@@ -29,21 +34,34 @@ struct Progress {
     total: Option<u64>,
 }
 
+#[cfg(target_os = "macos")]
 const MENU_CHECK: &str = "update-check";
+#[cfg(target_os = "macos")]
 const MENU_NEWS: &str = "whats-new";
 
-/// None when this is the newest version.
+/// None when this is the newest version, or the newest release has no build for this
+/// platform (yet: Windows builds come later than the Mac ones).
 #[tauri::command]
 pub async fn update_check(
     app: AppHandle,
     pending: State<'_, Pending>,
 ) -> Result<Option<Available>, String> {
-    let update = app
-        .updater()
-        .map_err(message)?
-        .check()
-        .await
+    // On Windows the updater ends the process itself once the installer is started, without
+    // the exit event: save state.json and the practice log first (the hook replaces the
+    // plugin's own, so its cleanup runs here too).
+    let handle = app.clone();
+    let updater = app
+        .updater_builder()
+        .on_before_exit(move || {
+            crate::save_all(&handle);
+            handle.cleanup_before_exit();
+        })
+        .build()
         .map_err(message)?;
+    let update = match updater.check().await {
+        Err(Error::TargetNotFound(_) | Error::TargetsNotFound(_)) => None,
+        checked => checked.map_err(message)?,
+    };
     let available = update.as_ref().map(|u| Available {
         version: u.version.clone(),
         current: u.current_version.clone(),
@@ -57,8 +75,8 @@ pub async fn update_check(
 /// on the way out, as on quit). Only returns on failure.
 #[tauri::command]
 pub async fn update_install(app: AppHandle, pending: State<'_, Pending>) -> Result<(), String> {
-    let exe = std::env::current_exe().map_err(message)?;
-    if translocated(&exe.to_string_lossy()) {
+    #[cfg(target_os = "macos")]
+    if translocated(&std::env::current_exe().map_err(message)?.to_string_lossy()) {
         return Err(crate::i18n::pick(
             "应用是从“下载”文件夹直接打开的，系统不允许它替换自己。请先把 Shadowing 拖进“应用程序”文件夹，从那里打开后再更新。",
             "Shadowing was opened straight from the Downloads folder, where macOS doesn't let it replace itself. Drag Shadowing to the Applications folder, open it from there, and then update.",
@@ -81,12 +99,14 @@ pub async fn update_install(app: AppHandle, pending: State<'_, Pending>) -> Resu
         .await
         .map_err(message)?;
     // Through the exit event, so state.json and the practice log are written first.
+    // (Not reached on Windows: the installer has taken over and relaunches the app.)
     app.request_restart();
     Ok(())
 }
 
 /// The default menu with “检查更新…” and “新功能…” under the app name; they emit
 /// `update:check` and `news:open`.
+#[cfg(target_os = "macos")]
 pub fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let menu = Menu::default(app)?;
     if let Some(app_menu) = menu.items()?.first().and_then(|i| i.as_submenu().cloned()) {
@@ -100,15 +120,18 @@ pub fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     Ok(menu)
 }
 
+#[cfg(target_os = "macos")]
 fn check_text() -> &'static str {
     crate::i18n::pick("检查更新…", "Check for Updates…")
 }
 
+#[cfg(target_os = "macos")]
 fn news_text() -> &'static str {
     crate::i18n::pick("新功能…", "What's New…")
 }
 
 /// Puts our menu items in the interface language (the menu is built before settings are read).
+#[cfg(target_os = "macos")]
 pub fn retitle_menu(app: &AppHandle) {
     let Some(app_menu) = app
         .menu()
@@ -124,6 +147,11 @@ pub fn retitle_menu(app: &AppHandle) {
     }
 }
 
+/// No app menu on other platforms.
+#[cfg(not(target_os = "macos"))]
+pub fn retitle_menu(_app: &AppHandle) {}
+
+#[cfg(target_os = "macos")]
 pub fn on_menu(app: &AppHandle, id: &str) {
     let event = match id {
         MENU_CHECK => "update:check",
@@ -138,6 +166,7 @@ pub fn on_menu(app: &AppHandle, id: &str) {
 
 /// macOS runs a quarantined app opened in place from a random read-only copy (App Translocation);
 /// it can't be replaced there.
+#[cfg(target_os = "macos")]
 fn translocated(exe: &str) -> bool {
     exe.contains("/AppTranslocation/")
 }
@@ -170,6 +199,7 @@ fn message(e: impl std::fmt::Display) -> String {
 mod tests {
     use super::*;
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn spots_translocated_apps() {
         assert!(translocated(

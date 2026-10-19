@@ -1,6 +1,7 @@
 import { ArrowDownToLine, ArrowUpToLine, Scissors } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 import { t } from "../lib/i18n";
+import { isCmd, isMod, shortcut } from "../lib/platform";
 import { useApp } from "../store";
 import { Button, IconButton } from "./ui";
 
@@ -70,13 +71,13 @@ function Field() {
           } else if (e.key === "Escape") {
             e.preventDefault();
             cancelEdit();
-          } else if (e.key === "Backspace" && caret === 0 && !first && !e.altKey && !e.metaKey) {
+          } else if (e.key === "Backspace" && caret === 0 && !first && !e.altKey && !isCmd(e)) {
             e.preventDefault();
             void mergeDraft(-1);
           } else if (e.key === "Delete" && caret === el.value.length && !last) {
             e.preventDefault();
             void mergeDraft(1);
-          } else if (e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey && text === s.editing?.original && s.undo.length) {
+          } else if (e.key === "z" && isMod(e) && !e.shiftKey && text === s.editing?.original && s.undo.length) {
             // Nothing typed here to take back: ⌘Z takes back the last change instead (a cut just made, say).
             e.preventDefault();
             void undoEdit();
@@ -86,20 +87,20 @@ function Field() {
         className="-mx-2 block w-[calc(100%+1rem)] resize-none overflow-hidden rounded-[8px] bg-fill px-2 font-script text-[18px] leading-[30px] break-words text-fg outline-none transition-[background-color,box-shadow] duration-150 focus:bg-raised focus:shadow-[inset_0_0_0_1px_var(--line-strong),0_0_0_3px_var(--hover)]"
       />
       <div className="mt-2 mb-1 flex items-center gap-1.5">
-        <Button primary title={t("保存 (↩)")} disabled={empty} className="h-7 px-2.5 text-[12px]" onClick={() => void saveEdit()}>
+        <Button primary title={t("保存 ({key})", { key: shortcut("↩") })} disabled={empty} className="h-7 px-2.5 text-[12px]" onClick={() => void saveEdit()}>
           {t("保存")}
         </Button>
         <Button title={t("取消 (Esc)")} className="h-7 px-2.5 text-[12px]" onClick={cancelEdit}>
           {t("取消")}
         </Button>
         <span className="ml-auto flex gap-0.5">
-          <IconButton title={t("在光标处断开成两句 (⇧↩)")} onClick={cut}>
+          <IconButton title={t("在光标处断开成两句 ({key})", { key: shortcut("⇧↩") })} onClick={cut}>
             <Scissors />
           </IconButton>
-          <IconButton title={t("并入上一句（光标在句首时按 ⌫）")} disabled={first} className="disabled:opacity-40" onClick={() => void mergeDraft(-1)}>
+          <IconButton title={t("并入上一句（光标在句首时按 {key}）", { key: shortcut("⌫") })} disabled={first} className="disabled:opacity-40" onClick={() => void mergeDraft(-1)}>
             <ArrowUpToLine />
           </IconButton>
-          <IconButton title={t("并入下一句（光标在句尾时按 ⌦）")} disabled={last} className="disabled:opacity-40" onClick={() => void mergeDraft(1)}>
+          <IconButton title={t("并入下一句（光标在句尾时按 {key}）", { key: shortcut("⌦") })} disabled={last} className="disabled:opacity-40" onClick={() => void mergeDraft(1)}>
             <ArrowDownToLine />
           </IconButton>
         </span>

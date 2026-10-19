@@ -52,7 +52,7 @@ pub fn samples_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
     // A shared target folder can hold another project's `samples`, so only take one with our clips.
     candidates
         .into_iter()
-        .filter_map(|dir| dir.canonicalize().ok())
+        .filter_map(|dir| library::canonical(&dir).ok())
         .find(|dir| sample_in(dir, "ja").is_some() && sample_in(dir, "en").is_some())
 }
 

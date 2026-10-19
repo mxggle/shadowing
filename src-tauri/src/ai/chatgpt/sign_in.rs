@@ -11,15 +11,13 @@ use super::{
 use crate::AppState;
 use tauri::State;
 
-/// A stable, opaque id for this Mac's install (`urn:uuid:` + random UUIDv4).
+/// A stable, opaque id for this install (`urn:uuid:` + random UUIDv4).
 fn host_id(state: &AppState) -> Result<String, String> {
     if let Some(id) = state.read(|d| d.ai.chatgpt_host_id.clone()) {
         return Ok(id);
     }
     let mut b = [0u8; 16];
-    std::fs::File::open("/dev/urandom")
-        .and_then(|mut f| std::io::Read::read_exact(&mut f, &mut b))
-        .map_err(|e| e.to_string())?;
+    oauth::fill_random(&mut b)?;
     b[6] = (b[6] & 0x0f) | 0x40;
     b[8] = (b[8] & 0x3f) | 0x80;
     let h: String = b.iter().map(|x| format!("{x:02x}")).collect();
@@ -146,7 +144,6 @@ pub async fn ai_sign_in_chatgpt(
             "ChatGPT 没有返回长期登录凭据",
             "ChatGPT didn't return a lasting sign-in token.",
         ))?,
-        id_token,
         expires_at: now() + tokens.expires_in,
         email: email.clone(),
     };

@@ -7,7 +7,8 @@
   "author": "Shadowing",
   "description": "粘贴 YouTube 链接，把视频的音频（m4a，不转码）和人工字幕导入到打开的文件夹。只下载你有权使用的内容。",
   "main": {
-    "darwin-arm64": "bin/shadowing-youtube"
+    "darwin-arm64": "bin/shadowing-youtube",
+    "windows-x86_64": "bin/shadowing-youtube.exe"
   },
   "contributes": {
     "importers": [
@@ -25,6 +26,6 @@
   },
   "permissions": {
     "network": ["youtube.com", "googlevideo.com", "github.com"],
-    "runs": "第一次使用时从 GitHub 下载 yt-dlp（约 51 MB，解压后 124 MB）和 QuickJS（约 1 MB），用它们下载音频"
+    "runs": "第一次使用时从 GitHub 下载 yt-dlp（Mac 上约 51 MB，解压后 124 MB；Windows 上约 18 MB）和 QuickJS（约 1–2 MB），用它们下载音频"
   }
 }

@@ -15,7 +15,7 @@ _2026-10-17 的设计稿，还没开始实现。实现时有变化就改这里�
 | --- | --- | --- |
 | 插件代码在哪里运行 | **独立进程**：插件带一个可执行文件，应用启动它，通过 stdin/stdout 用 JSON-RPC 2.0 通信（同 LSP、MCP 的做法） | 任何语言都能写；崩了、卡了不影响播放器；取消就是结束进程；YouTube 本来就要运行 yt-dlp |
 | 插件能不能改界面 | **v1 不能运行自己的界面代码**。插件在 manifest 里声明要加哪些入口和选项，界面由应用按“稿纸 + 播放台”风格画 | WebView 里的脚本能调所有 Tauri 命令，Tauri 的权限只能按窗口分，不能按脚本分；界面也能保持一致 |
-| 安全模型 | 和 Obsidian、VS Code 插件一样：**插件是运行在你 Mac 上的程序**。v1 只能装官方仓库里审过的插件，开发者模式下可以从本机文件夹装 | macOS 上没有 App Sandbox 的应用，没法可靠地限制子进程。限制不了就不假装能，靠审核、校验和“插件碰不到用户文件”的设计 |
+| 安全模型 | 和 Obsidian、VS Code 插件一样：**插件是运行在你电脑上的程序**。v1 只能装官方仓库里审过的插件，开发者模式下可以从本机文件夹装 | macOS 上没有 App Sandbox 的应用，没法可靠地限制子进程（Windows 上也一样）。限制不了就不假装能，靠审核、校验和“插件碰不到用户文件”的设计 |
 
 ### 不选的做法
 
@@ -66,7 +66,7 @@ _2026-10-17 的设计稿，还没开始实现。实现时有变化就改这里�
   "author": "Shadowing",
   "repo": "mxggle/shadowing-youtube",
   "description": "粘贴 YouTube 链接，下载音频（和人工字幕）到当前文件夹。",
-  "main": { "darwin-arm64": "bin/shadowing-youtube" },
+  "main": { "darwin-arm64": "bin/shadowing-youtube", "windows-x86_64": "bin/shadowing-youtube.exe" },
   "contributes": {
     "importers": [
       {
@@ -117,13 +117,16 @@ v1 只做一个，接口按“以后还会有别的”来设计：
 | 应用 → 插件 | `$/cancel` | 取消；2 秒内不退出就结束进程 |
 
 插件进程：环境变量清空，只留 `PATH`（系统目录）、`HOME`、`LANG`、`TMPDIR` 和代理变量，工作目录是插件的 `data/`。
+Windows 上留的是 Windows 程序启动要用的（`SystemRoot`、只有 System32 的 `PATH`、`TEMP` / `TMP`、用户文件夹、`PATHEXT`、`ComSpec`）和代理变量，
+不开控制台窗口（见 `plugins/os.rs`）。
 一个请求处理完，插件回一条带同一个 `id` 的 `result` 或 `error`（`error.message` 直接显示给用户，所以写成中文的一句话）。
 
 ### 应用怎么接收结果（插件碰不到用户的文件夹）
 
 1. 插件只往暂存文件夹 `.jobs/<id>/` 写。
 2. 结束后应用检查：只收 `library::AUDIO_EXTENSIONS` 里的音频和 `.srt` / `.vtt`；路径必须在暂存文件夹里（不跟随符号链接）；大小有上限。
-3. 文件名用视频标题，去掉 `/ : \` 等字符，重名加 “ (2)”。
+3. 文件名用视频标题，去掉 `/ : \` 等字符，重名加 “ (2)”。Windows 留给设备的名字（`CON`、`nul.txt`、`COM1` 等）加 `_`，在 Mac 上也一样，
+   文件夹在两种电脑之间拷来拷去名字不变（`plugins/names.rs`，界面里的 `folderName` 跟它一致）。
 4. 音频移进当前文件夹（默认放 `YouTube/` 子文件夹，确认时可以改），重新扫描，选中新的音频。
    字幕**不**放到音频旁边，而是和“导入字幕”一样存进 app data（`source: "imported"`，来源写“YouTube 字幕”）：
    音频旁的字幕在应用里移除不了，也就没法改用转写；而 YouTube 的人工字幕有的断句很差（见下面的原型结果）。
@@ -220,7 +223,8 @@ v1 只做一个，接口按“以后还会有别的”来设计：
 - Rust：没有。`minisign-verify`、`zip`、`semver`、`sha2`、`reqwest` 都已在树里；`tokio` 可能要多开 `process` 功能。
 - 前端：没有。
 - 实际（第 1 步）：应用没有加任何依赖（进程用 `std::process` 加线程，没开 tokio 的 `process`）。
-- YouTube 插件：`serde`、`serde_json`、`sha2`，下载和解压用 macOS 自带的 `curl`、`ditto`。不进应用。
+- YouTube 插件：`serde`、`serde_json`、`sha2`，下载和解压用 macOS 自带的 `curl`、`ditto`（Windows 上是系统自带的 `curl.exe`、`tar.exe`）。不进应用。
+- Windows（2026-10-18）：读剪贴板用 `windows-sys`（已在依赖树里，来自 cpal 和 tauri），不启动别的程序。
 
 ## 风险 / 待验证
 
@@ -233,6 +237,21 @@ v1 只做一个，接口按“以后还会有别的”来设计：
   现在能下全靠 yt-dlp 默认用的 visionOS 客户端。这是最脆弱的一环，也是 yt-dlp 要能独立更新的原因。
 - 还没验证：播放列表；会员 / 年龄限制的视频；没有 m4a 的视频（测的 8 个都有）；在别的网络（例如国内经代理）下的速度；
   Intel Mac（yt-dlp 是通用二进制，`qjs` 要换 x86_64 版）。
+
+## Windows（2026-10-18）
+
+- 平台键沿用 `{os}-{arch}`：`windows-x86_64`、`windows-arm64`。Windows on Arm 没有 arm64 的程序时用 x86_64 的（Windows 11 会模拟运行 x64 程序），
+  所以 YouTube 插件只发一个 x86_64 版。Mac 不这样回退（不一定装了 Rosetta）。
+- 插件程序是 `.exe`（`.cmd` / `.bat` 也行，经 cmd.exe 运行）。启动时不开控制台窗口（`CREATE_NO_WINDOW`）。
+- 取消：插件 2 秒内不退出，Windows 上用 `taskkill /T /F` 连它启动的程序（例如正在下载的 yt-dlp）一起结束。macOS 上仍只结束插件本身：
+  它启动的程序往插件写输出时会因为插件已经不在而失败退出；YouTube 插件自己收到 `$/cancel` 时就会结束 yt-dlp。
+- 安装：浏览器下载的 zip 解出来的文件带“来自网络”标记（`文件:Zone.Identifier`，复制也会带上），安装时和 macOS 的隔离标记一样去掉。
+- YouTube 插件：yt-dlp 用文件夹版 `yt-dlp_win.zip`（x64，18 MB；arm64 是 `yt-dlp_win_arm64.zip`），同样按 GitHub API 的 `digest` 校验；
+  QuickJS 用 `qjs-windows-x86_64.exe`（没有 arm64 版，arm64 上也用它）。`curl.exe`、`tar.exe` 用 System32 里的完整路径（Git 带的 `tar` 认不得 `C:\`），
+  文件只用名字传给它们（工作目录设成 `data/`），不怕路径里有系统代码页表示不了的字。Windows 的 curl 检查不了证书吊销时（有些代理、杀毒软件下会这样）
+  重试一次 `--ssl-no-revoke`：证书本身照常检查，下载的文件也都按 SHA-256 校验。yt-dlp 加 `PYTHONUTF8=1`，输出是 UTF-8。
+- 还没在真的 Windows 上验证：上面这些都只在 Mac 上交叉编译和单元测试过；SmartScreen / Defender / 智能应用控制对插件程序和 yt-dlp 的反应；
+  Windows 上的系统代理（应用自己的请求用系统代理，插件只拿到代理环境变量；macOS 上也是这样，yt-dlp 自己会读系统代理，curl 不会）。
 
 ## 原型结果（2026-10-17，第 0 步）
 

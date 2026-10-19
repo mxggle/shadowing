@@ -2,7 +2,8 @@
 //! one sentence and what each piece of it means and does, for a learner who
 //! reads Chinese. It only explains; nothing in the transcript changes.
 
-#[cfg(test)]
+// Manual, macOS only (the app data folder and the Keychain).
+#[cfg(all(test, target_os = "macos"))]
 mod real_tests;
 mod reply;
 pub mod saved;

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { featureReady } from "../../lib/aiReady";
 import { api, LOCAL_PROVIDER, type AiConfig } from "../../lib/api";
 import { isCancelled, t } from "../../lib/i18n";
+import { vault } from "../../lib/wording";
 import { useApp } from "../../store";
 import { formatBytes, LocalModels } from "../settings/LocalModels";
 import { ProviderSetup } from "../settings/ProviderSetup";
@@ -149,7 +150,7 @@ export function AccountStep() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-[13px] leading-relaxed text-muted">
-        {t("句子解释和字幕校对要用大语言模型。用你已有的订阅登录，或者填一个 API Key。Key 和登录信息只存在 macOS 钥匙串里。")}
+        {t("句子解释和字幕校对要用大语言模型。用你已有的订阅登录，或者填一个 API Key。Key 和登录信息只存在 {vault}里。", { vault: vault() })}
       </p>
       {ready && chosen && (
         <p className="flex items-center gap-2 text-[13px]">

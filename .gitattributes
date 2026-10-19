@@ -1,0 +1,2 @@
+# LF everywhere, also in a Windows checkout: the shell scripts and rustfmt --check expect it.
+* text=auto eol=lf

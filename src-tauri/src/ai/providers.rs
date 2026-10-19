@@ -31,7 +31,7 @@ pub enum KeyPolicy {
     /// Custom servers may or may not want one.
     Optional,
     None,
-    /// Signed in with an account in the browser; tokens kept in the Keychain.
+    /// Signed in with an account in the browser; tokens kept in the Keychain / Credential Manager.
     Account,
 }
 
@@ -223,7 +223,10 @@ pub const PRESETS: &[Preset] = &[
         key: KeyPolicy::None,
         note: Text::new(
             "本机运行，需要先安装并启动 Ollama",
-            "Runs on this Mac; install and start Ollama first",
+            crate::i18n::os(
+                "Runs on this Mac; install and start Ollama first",
+                "Runs on this PC; install and start Ollama first",
+            ),
         ),
         ..CLOUD
     },
@@ -235,7 +238,10 @@ pub const PRESETS: &[Preset] = &[
         key: KeyPolicy::None,
         note: Text::new(
             "本机运行，需要在 LM Studio 里启动本地服务",
-            "Runs on this Mac; start the local server in LM Studio first",
+            crate::i18n::os(
+                "Runs on this Mac; start the local server in LM Studio first",
+                "Runs on this PC; start the local server in LM Studio first",
+            ),
         ),
         ..CLOUD
     },

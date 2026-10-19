@@ -1,8 +1,9 @@
 import { textPieces } from "../lib/edits";
 import { t, tk } from "../lib/i18n";
+import { shortcut } from "../lib/platform";
 import { useApp } from "../store";
 
-const UNSURE_TITLE = tk("转写时没把握，可能听错了。按 E 改正；没错的话按 E 再按 ↩，虚线就会去掉");
+const UNSURE_TITLE = tk("转写时没把握，可能听错了。按 E 改正；没错的话按 E 再按 {key}，虚线就会去掉");
 
 /**
  * A sentence's text: what the replace bar looks for (and what an AI suggestion
@@ -21,7 +22,7 @@ export function SentenceText({ text, find, unsure, fixes }: { text: string; find
     return (
       <Tag
         key={k}
-        title={piece.unsure ? t(UNSURE_TITLE) : undefined}
+        title={piece.unsure ? t(UNSURE_TITLE, { key: shortcut("↩") }) : undefined}
         className={`${piece.match ? "rounded-[3px] bg-press text-fg shadow-[0_0_0_2px_var(--press)]" : ""} ${
           piece.unsure ? "underline decoration-warn decoration-dotted decoration-2 underline-offset-[6px]" : ""
         }`}

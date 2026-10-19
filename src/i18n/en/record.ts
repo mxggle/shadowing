@@ -105,7 +105,7 @@ export const record: Record<string, Entry> = {
     "The original keeps playing and you read along (works without headphones too; the original picked up by the mic is removed).",
   逐句跟读: "Sentence drill",
   知道了: "Got it",
-  "整段录音 (⇧M)": "Read a section (⇧M)",
+  "整段录音 ({key})": "Read a section ({key})",
   整段录音: "Read a section",
   "读一整段，系统按句子分开保存，读完逐句对比。": "Read a whole section. It's saved sentence by sentence, so afterward you can compare each sentence.",
   读哪些: "What",
@@ -141,7 +141,7 @@ export const record: Record<string, Entry> = {
   我的整段: "My reading",
   "原文和你一起放，听合不合拍": "The original and you together, to hear if you keep time",
   "删除这次整段录音（连同分出来的每句）": "Delete this reading (and the sentences cut from it)",
-  "再读一遍 (⇧M)": "Read again (⇧M)",
+  "再读一遍 ({key})": "Read again ({key})",
   再读一遍: "Read again",
 
   // Sentence drill (Drill.tsx)

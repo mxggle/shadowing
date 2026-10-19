@@ -2,7 +2,8 @@
 //! transcript were most likely misheard. It only suggests; the learner accepts
 //! or ignores each one, and accepting is an ordinary, undoable edit.
 
-#[cfg(test)]
+// Manual, macOS only (the app data folder, the Keychain and whisper.cpp).
+#[cfg(all(test, target_os = "macos"))]
 mod real_tests;
 mod reply;
 #[cfg(test)]

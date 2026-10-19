@@ -2,6 +2,54 @@
 
 _最后更新：2026-10-18_
 
+## Windows 版（进行中，在 feat/windows 分支，2026-10-18）
+- 来由：想让 Windows 上的人也能用。分三块并行做（三个 worktree：Rust 核心、插件和 YouTube 插件、前端 / 配置 / CI / 文档），合到 `feat/windows`。
+  总的规则：**Mac 上的文案、快捷键、布局和以前一模一样，只有 Windows 变**。
+- 已实现（Rust 核心）：
+  - 依赖按平台分：whisper-rs（Metal）和钥匙串存储只在 macOS；Windows 用 `windows-native-keyring-store` 和 windows-sys（都在依赖树里）。新加 dunce、getrandom（也都已在树里）。
+  - Key 和登录存在凭据管理器；一条最多约 1280 个字符，更长的拆成几条（`ai/pieces.rs`，写新值时换一组名字、最后写头一条，中途断了旧值还在）。ChatGPT 的 id_token 登录后从来不读，不再保存。
+  - 本机转写只在 macOS 编译，其他系统返回“不支持”；`local/system.rs` 在 Windows 上用系统接口读内存和可用空间。
+  - 路径：用 dunce 规范化（没有 `\\?\`）；“在不在打开的文件夹里”按路径的每一段比较，盘符和共享名不分大小写；列表的子文件夹名一律用 `/`；音频在没接上的盘上时，它的录音不算“找不到原音频”。
+    存 state.json 和下载完的模型时，Windows 报“被占用 / 拒绝访问”会重试约 1.3 秒（杀毒软件常短暂占着文件）。应用数据放在 `%LOCALAPPDATA%`（模型最大 3 GB，不放 Roaming）。
+  - `/dev/urandom` 换成 getrandom；打开网页在 Windows 上用 `ShellExecuteW`，而且只开 http / https。
+  - Windows 没有应用菜单（检查更新、新功能在设置里）；更新安装程序会直接结束进程，所以先保存 state.json 和学习记录；`latest.json` 里没有这个平台时当作没有更新。
+  - 麦克风被系统设置拦住（0x80070005）时提示去“设置 → 隐私和安全性 → 麦克风”；读设备名时设备被拔掉，cpal 在 Windows 上会 panic，现在接住了。
+  - Rust 里给人看的文字在 Windows 上说“这台电脑 / this PC”“Windows 凭据管理器”（`i18n::os`）。
+- 已实现（插件和 YouTube 插件）：
+  - 平台键 `windows-x86_64` / `windows-arm64`（ARM 上没有 arm64 程序时用 x86_64 的，Windows 11 能模拟）；程序可以是 `.exe`。
+  - `plugins/os.rs`：Windows 上给插件的环境（SystemRoot、System32 的 PATH、TEMP、USERPROFILE、APPDATA、PATHEXT、ComSpec、代理等，可在 Mac 上单元测试），每个子进程都不弹控制台窗口；
+    取消时 2 秒后用 taskkill /T 连插件自己的子进程（yt-dlp）一起结束。
+  - 剪贴板在 Windows 上直接读（`plugins/clipboard.rs`，不起进程）；安装时去掉 Zone.Identifier（“从网上下载”的标记）；用标题起的文件名避开 Windows 不允许的字符和 CON、NUL、COM1 这类名字，Rust 和 `src/lib/imports.ts` 用同一张测试表。
+  - smoke 的假插件在 Windows 上是 `.cmd` 交给 PowerShell 脚本。
+  - YouTube 插件：`platform.rs` 选 `yt-dlp_win.zip`（ARM 用 `yt-dlp_win_arm64.zip`）和 `qjs-windows-x86_64.exe`（没有 ARM 版，用模拟），都校验 SHA-256；
+    下载和解压用 System32 的 curl.exe / tar.exe（写全路径），证书吊销查不到时重试一次；yt-dlp 用 UTF-8 输出。`scripts/build-plugin.sh youtube <target>` 能出 Windows 版。
+- 已实现（前端 / 配置 / CI / 文档）：
+  - `src/lib/platform.ts`：看 WebView 的 user agent（WebView2 是 “Windows NT”，WKWebView 是 “Macintosh”）判断系统；浏览器 mock 里地址加 `?platform=windows` 预览 Windows
+    （mock 里也不再有本机转写，`mockBackend.ts`）。`isMod(e)` / `isCmd(e)` 判断命令键（Mac 保持原来的 ⌘ 或 Ctrl，Windows 只认 Ctrl），`shortcut()` 把 Mac 的写法（`⌘F`、`⇧↩`）换成 Windows 的（Ctrl+F、Shift+Enter）。
+  - 快捷键：`useShortcuts`、设置的 ⌘,、改句子里的 ⌘Z / ⌫ 都经过上面的判断；`Kbd`、`?` 表、tooltip 和更新说明里的按键都显示 Ctrl / Shift / Alt / Enter / Backspace。tooltip 里的快捷键改成 `{key}` 变量。
+  - 文案：Windows 上说“这台电脑”“Windows 凭据管理器”（英文 this PC、Windows Credential Manager）；新手引导和设置向导里没有“在这台 Mac 上转写”，只讲云端转写；
+    语言选项“跟随系统”的英文在 Windows 上是 Same as Windows。词在句子中间的句子给 Windows 单独写了一句（中文里 Mac 前后有空格而“电脑”没有）。`lib/wording.ts` 管 `{device}` / `{vault}`。
+  - 窗口：顶栏给红绿灯留的空白（侧栏顶栏 `pl-20`、侧栏收起后主栏 `pl-[84px]`）只在 Mac 上留；`tauri.windows.conf.json` 的窗口没有 Overlay 标题栏、红绿灯位置和隐藏标题。
+  - 字体：`index.css` 里 Windows 的字体接在 Mac 的后面（Segoe UI / Microsoft YaHei UI / Yu Gothic UI；Yu Mincho / MS Mincho / SimSun；SimSun / NSimSun；Cascadia Mono / Consolas）。
+  - 路径：`lib/paths.ts` 同时认 `/` 和 `\`（面包屑、学习记录里没有标题时用文件名）；其余的 `src/` 里没有别处拆路径。
+  - WebView2 自带的 F5 / Ctrl+R / Ctrl+P / Ctrl+F 等在发布版里拦掉（`tauri dev` 里保留）。CSS 对照 Chromium 的支持情况查过（没在真机上看）：滚动条（`scrollbar-none`）、数字输入框的上下箭头、`-webkit-` 前缀的样式都有标准写法或 Chromium 也认，没有只在 WebKit 里有的写法（没有 `backdrop-filter`）。
+  - Tauri 配置：`src-tauri/tauri.windows.conf.json`（NSIS、当前用户安装、简体中文和英文、WebView2 下载式引导、含 icon.ico 的图标、没有 Mac 标题栏设置的窗口）；Mac 的打包配置和更新相关的键没动，`createUpdaterArtifacts` 仍是 false。
+  - CI：`check.yml` 加了 `windows` 任务；新的 `windows-build.yml`（手动，或推到 `feat/windows*`）出 NSIS 安装包，保留 14 天。
+  - 文档：CLAUDE.md 加了 Windows 一节、“Mac 和 Windows”的文案规则和 CI 说明；PRODUCT.md 的 Windows 版表按行写了现状。
+- 已验证（自动）：tsc、vitest（新增 platform、wording、paths 的测试，i18n 测试仍找不出没翻译的中文）；两个 workflow 和 `tauri.windows.conf.json` 解析过，键名对照了 Tauri 的 schema。
+  浏览器 mock 里分别用 `?platform=windows` 和 `?platform=mac` 看过：快捷键表、设置、新手引导（三步）、侧栏收起前后的顶栏，浅色和深色、中文和英文。Mac 的顶栏空白和以前一样。
+- 已验证（真机，2026-10-19）：在一台 Windows 11（x64，中文）上通过远程桌面装了 CI 出的安装包（SmartScreen 要点“仍要运行”：没签名），装在当前用户下，不要管理员。
+  能打开、新手引导四步的文案都是 Windows 的说法（只有云端转写、Windows 凭据管理器、Ctrl+,），示例音频的日文文件名完好；播放（WASAPI，经远程桌面的声音）、放慢、循环一句都正常；
+  `?` 表显示 Ctrl / Shift / Backspace；Ctrl+B 收起侧栏；原生选择文件夹框；打开有子文件夹的文件夹，分组名是 `Shadowing test/日本語`（`/`）、面包屑正常，旁边的 .srt 自动读入，mp3 和 m4a 都能放；
+  设置里“检查更新”说已是最新（Release 里没有 Windows 版也不报错）；英文界面是 Same as Windows / Windows Credential Manager / this PC。
+- 真机发现并修了：跟读录音（远程桌面转过去的麦克风）说“原句没有放出来”。原因推测是这个虚拟音频设备报给 WASAPI 的时间是 0 或过期的，原句的副本被放到离录音几秒远的地方。
+  现在 Windows 上把设备报的时间和性能计数器比一比，差一秒以上或是 0 就用计数器（`audio/clock.rs`）；macOS 不变。
+  修好后的安装包在真机上装过（覆盖安装，之前的文件夹和播放位置都还在）：听完再说存下了一遍（原句 5.9 秒、我的 3.1 秒、“比原句快 48%”），
+  边听边说也存下了（“比原声晚 1.32 秒”，和测试时让 Mac 晚开口的时间相符）。跟读的人是 Mac 上的 `say`，经远程桌面的麦克风录进去，所以没试真实的人声和延迟。
+- 待验证（真机）：真实声卡和 USB / 蓝牙耳机下的录音和延迟、凭据管理器存长 Key（`keychain_round_trip -- --ignored`）、插件和 yt-dlp、拔插耳机、多显示器。
+- 没做：Windows ARM64、签名、应用内更新（Windows 版先手动下载）、自定义标题栏。
+- 下一步：在一台本地有声卡和麦克风的 Windows 电脑上自己跟读试试；Windows 版插件包进发布流程；签名。
+
 ## 英文界面（2026-10-18）
 - 来由：要给不说中文的人用；README 已经是英文。界面保留中文，新装的跟随 Mac 的语言，设置里能切换。
 - 已实现：

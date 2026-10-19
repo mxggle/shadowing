@@ -155,22 +155,10 @@ pub(super) fn progress_of(method: &str, params: &Value) -> Option<(String, u64, 
     })
 }
 
-/// Text on the clipboard when it looks like one web link (⌘V outside a text field).
+/// Text on the clipboard when it looks like one web link (⌘V / Ctrl+V outside a text field).
 #[tauri::command(async)]
 pub fn import_clipboard() -> Option<String> {
-    let out = std::process::Command::new("/usr/bin/pbpaste")
-        .output()
-        .ok()?;
-    as_link(&String::from_utf8(out.stdout).ok()?)
-}
-
-/// One web link and nothing else (a copied paragraph that mentions a link isn't one).
-fn as_link(text: &str) -> Option<String> {
-    let text = text.trim();
-    let link = (text.starts_with("https://") || text.starts_with("http://"))
-        && text.len() < 2048
-        && !text.contains(char::is_whitespace);
-    link.then(|| text.to_string())
+    super::clipboard::link()
 }
 
 #[tauri::command(async)]
@@ -284,20 +272,5 @@ pub fn import_cancel(imports: State<Imports>, what: String) {
     };
     if let Some(cancel) = imports.slot(slot).lock().unwrap().as_ref() {
         cancel.store(true, Ordering::Relaxed);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::as_link;
-
-    #[test]
-    fn only_a_lone_link_counts() {
-        let url = "https://youtu.be/FFMoTdeD1aM?si=x";
-        assert_eq!(as_link(&format!("  {url}\n")).as_deref(), Some(url));
-        assert_eq!(as_link("see https://youtu.be/x"), None);
-        assert_eq!(as_link("https://youtu.be/x and more"), None);
-        assert_eq!(as_link("youtu.be/x"), None);
-        assert_eq!(as_link(""), None);
     }
 }

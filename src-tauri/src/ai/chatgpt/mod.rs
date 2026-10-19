@@ -2,8 +2,9 @@
 //! ChatGPT Plus/Pro plan for explanations through the Responses API.
 //! https://developers.openai.com/siwc/token-sharing-open-source
 //!
-//! Tokens live in the Keychain as one JSON item; state.json only keeps the
-//! account email (as the "hint"), the issued client id and this Mac's host id.
+//! Tokens live in the Keychain (Credential Manager on Windows) as one JSON item;
+//! state.json only keeps the account email (as the "hint"), the issued client id
+//! and this install's host id.
 
 pub mod sign_in;
 
@@ -25,11 +26,11 @@ const SCOPE: &str = "openid profile email offline_access resource.invoke chatgpt
 const PLAN_SCOPE: &str = "chatgpt.tokens.use.direct";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Kept small: the ID token is only checked at sign-in, not saved (items saved with one still read).
 pub struct Credentials {
     pub client_id: String,
     pub access_token: String,
     pub refresh_token: String,
-    pub id_token: String,
     /// Unix seconds.
     pub expires_at: u64,
     pub email: String,
@@ -180,8 +181,14 @@ pub async fn ai_sign_out_chatgpt(
     state.update(|d| drop(d.ai.key_hints.remove(PROVIDER)))?;
     if !revoked {
         return Err(crate::i18n::pick(
-            "已在这台 Mac 上退出，但没能确认 OpenAI 那边已撤销登录",
-            "Signed out on this Mac, but couldn't confirm that OpenAI revoked the sign-in.",
+            crate::i18n::os(
+                "已在这台 Mac 上退出，但没能确认 OpenAI 那边已撤销登录",
+                "已在这台电脑上退出，但没能确认 OpenAI 那边已撤销登录",
+            ),
+            crate::i18n::os(
+                "Signed out on this Mac, but couldn't confirm that OpenAI revoked the sign-in.",
+                "Signed out on this PC, but couldn't confirm that OpenAI revoked the sign-in.",
+            ),
         )
         .into());
     }

@@ -23,23 +23,25 @@ signalsmith-stretch = "0.1.3"
 rubato = "0.16.2"
 cpal = "0.16.0"
 rtrb = "0.3.2"
-# AI providers (src/ai): HTTP from Rust so keys never reach the WebView; keys in the macOS Keychain.
+# AI providers (src/ai): HTTP from Rust so keys never reach the WebView; keys in the macOS Keychain
+# or the Windows Credential Manager (the platform stores are below).
 reqwest = { version = "0.13.5", default-features = false, features = ["native-tls", "http2", "json", "multipart", "form", "system-proxy"] }
 keyring-core = "1.0.0"
-apple-native-keyring-store = { version = "1.0.2", features = ["keychain"] }
 # Already in the tree via Tauri; named directly for retry back-off and cancellable uploads.
 tokio = { version = "1", features = ["time", "macros", "sync"] }
-# Local transcription (src/local): whisper.cpp on the GPU via Metal. Building it needs cmake.
-whisper-rs = { version = "0.16.0", features = ["metal"] }
 # Verifies downloaded model files against their published SHA-256.
 sha2 = "0.10"
-# RAM (sysctl) and free disk space (statfs) for choosing a model; already in the tree.
+# RAM (sysctl) and free disk space (statfs) for choosing a model on macOS; already in the tree.
 libc = "0.2"
+# Canonical paths without Windows' `\\?\` prefix (the same as std elsewhere); already in the tree via Tauri.
+dunce = "1.0.5"
+# The system's secure randomness (sign-in PKCE values, install id) on every platform; already in the tree via Tauri.
+getrandom = "0.3"
 # Who is speaking (src/speakers): a speaker-embedding model (ONNX) run in pure Rust,
 # no native libraries; realfft (already in the tree via rubato) for its input features.
 tract-onnx = "0.23"
 realfft = "3.5"
-# In-app updates (src/update.rs): signed .app.tar.gz + latest.json from GitHub Releases. native-tls like reqwest above.
+# In-app updates (src/update.rs): signed .app.tar.gz (macOS) or installer (Windows) + latest.json from GitHub Releases. native-tls like reqwest above.
 tauri-plugin-updater = { version = "2", default-features = false, features = ["native-tls", "system-proxy", "zip"] }
 # Interface language (src/i18n.rs): the Mac's preferred languages, read before the window opens
 # (the native menu is built in Rust). Small, no dependencies on macOS.
@@ -50,6 +52,15 @@ sys-locale = "0.3"
 [target.'cfg(target_os = "macos")'.dependencies]
 coreaudio-rs = { version = "0.13", default-features = false, features = ["core_audio", "audio_toolbox"] }
 objc2-core-audio = { version = "0.3", default-features = false, features = ["std", "AudioHardware"] }
+# API keys in the Keychain (src/ai/secrets.rs).
+apple-native-keyring-store = { version = "1.0.2", features = ["keychain"] }
+# Local transcription (src/local): whisper.cpp on the GPU via Metal (offered on Apple Silicon). Building it needs cmake.
+whisper-rs = { version = "0.16.0", features = ["metal"] }
+
+# Windows: API keys in Credential Manager; clipboard, opening links, RAM and free disk, the performance counter (windows-sys is already in the tree via cpal and tauri).
+[target.'cfg(windows)'.dependencies]
+windows-native-keyring-store = { version = "1.1.0", default-features = false }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation", "Win32_System_Performance", "Win32_Storage_FileSystem"] }
 
 [dev-dependencies]
 tempfile = "3"

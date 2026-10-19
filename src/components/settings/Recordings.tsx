@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type RecordingSpace } from "../../lib/api";
 import { t } from "../../lib/i18n";
+import { isWindows } from "../../lib/platform";
 import { Button } from "../ui";
 import { formatBytes } from "./LocalModels";
 
@@ -47,7 +48,9 @@ export function RecordingsRow() {
                   n: space.missingTracks,
                   size: size(space.missingBytes),
                 })
-              : t("跟读录音和整段录音存在这台 Mac 的应用数据里，不会写到音频旁边。"))}
+              : isWindows
+                ? t("跟读录音和整段录音存在这台电脑的应用数据里，不会写到音频旁边。")
+                : t("跟读录音和整段录音存在这台 Mac 的应用数据里，不会写到音频旁边。"))}
         </p>
       </div>
       {space.missingTracks > 0 &&

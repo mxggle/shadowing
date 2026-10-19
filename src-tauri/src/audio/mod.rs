@@ -14,6 +14,7 @@
 //! - `audio-status` frees retired buffers and emits status at ~30 Hz.
 
 pub(crate) mod clip;
+pub(crate) mod clock;
 pub mod commands;
 pub(crate) mod decode;
 mod engine;

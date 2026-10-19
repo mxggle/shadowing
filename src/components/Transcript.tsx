@@ -3,6 +3,7 @@ import { Fragment, memo, useEffect, useMemo, useRef, useState, type ButtonHTMLAt
 import type { Sentence, Suggestion } from "../lib/api";
 import { explainKey, type Explain } from "../explainSlice";
 import { t } from "../lib/i18n";
+import { shortcut } from "../lib/platform";
 import { sectionIndexOf, sectionsOf } from "../lib/sections";
 import { sentenceIndexAt, speakerCount, speakerName, startsTurn } from "../lib/sentences";
 import { partAt } from "../lib/readings";
@@ -152,7 +153,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
         </p>
         <SectionMenu />
         <span className="ml-auto flex shrink-0 gap-0.5">
-          <IconButton title={t("查找和替换 (⌘F)")} active={replacing} onClick={() => (replacing ? closeReplace() : openReplace())}>
+          <IconButton title={t("查找和替换 ({key})", { key: shortcut("⌘F") })} active={replacing} onClick={() => (replacing ? closeReplace() : openReplace())}>
             <Replace />
           </IconButton>
           <ReadingButton />

@@ -45,6 +45,17 @@ pub fn pick(zh: &'static str, en: &'static str) -> &'static str {
     }
 }
 
+/// The macOS wording or the Windows one, for text that names the computer or one of its
+/// parts: "这台 Mac" / "这台电脑", "this Mac" / "this PC", "钥匙串" / "Windows 凭据管理器".
+/// `pick(os(..), os(..))` for messages; usable in constants too.
+pub const fn os(mac: &'static str, windows: &'static str) -> &'static str {
+    if cfg!(target_os = "macos") {
+        mac
+    } else {
+        windows
+    }
+}
+
 /// `format!` with the Chinese or the English template: `tr!("找不到 {name}", "{name} not found")`.
 /// `#[macro_use]` on the module in lib.rs makes it usable in every module declared after it.
 macro_rules! tr {

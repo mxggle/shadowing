@@ -113,7 +113,7 @@ pub async fn download(
         )
         .into());
     }
-    fs::rename(&part, spec.dest).map_err(|e| e.to_string())
+    crate::store::replace(&part, spec.dest).map_err(|e| e.to_string())
 }
 
 fn hash_file(path: &Path, hasher: &mut Sha256) -> Result<(), String> {
