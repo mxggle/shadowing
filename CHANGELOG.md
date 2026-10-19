@@ -5,6 +5,14 @@
 
 ## [未发布]
 
+### 新增
+- **Windows 版**：64 位的 Windows 10 / 11 也能用了。在官网或 Release 页下载 `Shadowing-windows-x64-setup.exe`，装在当前用户下，不需要管理员权限；以后和 Mac 版一样在应用里更新。
+  - 界面、播放、循环、跟读录音都和 Mac 版一样，快捷键用 Ctrl 代替 ⌘。转写只能用云端服务（Groq、OpenAI 等），本机转写只在 Mac 上。
+  - YouTube 导入插件也有 Windows 版（`…-windows-x86_64.zip`）。
+
+### 已知限制
+- Windows 安装包还没有代码签名，SmartScreen 会提示“Windows 已保护你的电脑”：点“更多信息”，再点“仍要运行”。
+
 ## [0.10.0] - 2026-10-18
 
 ### 新增

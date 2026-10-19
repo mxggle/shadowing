@@ -1,6 +1,39 @@
 # 进度
 
-_最后更新：2026-10-18_
+_最后更新：2026-10-19_
+
+## Windows 版加进发布流程（2026-10-19）
+- 来由：发布时也出 Windows 安装包，Windows 上的应用能自己更新。整套由仓库变量 `WINDOWS_RELEASE` 打开，没设时发布和以前一样只有 Mac；
+  2026-10-19 决定下一个版本就带上 Windows。
+- 做法：Windows 的文件只能在 Actions 上构建，发布在 Mac 上做，两边在同一个 Release 里会合。选的是“Mac 等 Windows”：`release-local.sh` 打好 Mac 版后
+  等这个标签在 Actions 上的 Windows 构建、下载它的文件，两个系统一起检查、一起发布。这样 `latest.json` 发布时就有两个系统，以后不再改；
+  每个应用都会解析 `latest.json` 里的每一条，Windows 那条坏了 Mac 也更新不了，所以不让 Actions 事后去改已发布的文件。代价是带 Windows 的发布要等 15–25 分钟。
+- 已实现：
+  - `.github/workflows/release-windows.yml`（原来的 `windows-build.yml`）：NSIS 安装包 + 更新签名（`tauri.windows.conf.json` 打开 `createUpdaterArtifacts`，
+    用 Actions secrets 里的更新私钥）+ Windows 版 YouTube 插件（`scripts/release-assets-windows.sh`，用 Windows 自带的 tar 打 zip），放在运行的 Artifacts 里，不碰 Release。
+    标签上只在 `WINDOWS_RELEASE` 是 `true` 时跑；推 `feat/windows*` 分支和手动运行照旧出试用的安装包。
+  - `scripts/windows-files.sh`：等某个标签（或分支）在这个提交上的 Windows 构建、下载它的文件；`release-local.sh` 和 `release.yml`（Mac 不在手边时的草稿）都用它。
+    `release-local.sh` 只停 `release.yml` 的构建，不停 Windows 的；加了 `--mac-only`（Windows 构建失败、Mac 不想等时）。
+  - `scripts/release-assets.sh` 多一个参数（Windows 的文件夹）：放进安装包、`.sig`、固定名字的 `Shadowing-windows-x64-setup.exe`、Windows 版插件 zip，
+    `latest.json` 加 `windows-x86_64`，说明加 Windows 的安装步骤（SmartScreen：“更多信息 → 仍要运行”）。没有 Windows 时这些文件和以前一字不差。
+  - `scripts/update-manifest.sh` 接受多个平台，只写 https 地址；`scripts/update-sig.mjs` 像应用一样用公钥验 `.sig`（minisign：Ed25519，BLAKE2b-512 预哈希，
+    还有 trusted comment 的签名），有单元测试（tauri signer 用一次性密钥做的签名 + 自己拼的旧格式）。
+  - `scripts/verify-release.sh`：两个更新的签名都验；Windows 的文件要么全有要么全没有；安装包是 NSIS、版本资源里的 ProductVersion 是这个版本；
+    插件 zip 里是 `youtube/` + Windows 程序，manifest 只有 `windows-x86_64`；`latest.json` 里正好是有文件的系统。
+  - `site/plugins.html`：插件有 Windows 的包时显示“Mac 版”“Windows 版”两个按钮（Windows 电脑上 Windows 版在前）；只有 Mac 的包时和以前一样。
+  - 落地页：首屏和结尾的下载按钮旁边加了 Windows 版（`releases/latest/download/Shadowing-windows-x64-setup.exe`），下面一行讲 SmartScreen；
+    在 Windows 电脑上打开时 Windows 版在前、导航的“下载”给安装包。安装一节分成 macOS 和 Windows 两组步骤。版本号还是只有一处（`data-app-version`）。
+  - CHANGELOG「未发布」写了 Windows 版。
+- 已验证（2026-10-19，没打标签、没发布）：
+  - 推分支在 Actions 上跑了一次 Windows 构建（run 39232965337，没有缓存，20 分钟）：安装包 9.2 MB、`.sig`、插件 zip 225 KB；`windows-files.sh` 等到它并下载了文件。
+  - 本机用 `~/.tauri` 的证书和私钥打了 0.10.0 的 Mac 版，加上这些 Windows 文件跑 `release-assets.sh` 和 `verify-release.sh`：通过（macOS and Windows）。
+    Windows 的 `.sig` 用应用里的公钥验过（所以 Actions 上的私钥和本机是同一把）；安装包的 ProductVersion 是 0.10.0；`latest.json` 有两个平台；插件 zip 里是 `youtube/` 和 .exe。
+  - 故意弄坏的副本都会停下：改过的安装包、少了固定名字的文件、`latest.json` 少了或多了 Windows、别的文件的 `.sig`。
+  - 只有 Mac 时 `latest.json` 和说明与 v0.10.0 发布的一样（除了时间和哈希）；`update-sig.mjs` 验过 v0.10.0 已发布的 Mac 更新。
+  - 没有更新私钥时 `tauri build` 报错，加 `--no-sign` 能打（在 Mac 上用 `tauri bundle` 试的）。
+  - 落地页和插件页在浏览器里看过（桌面和手机宽度；Windows 访客的换位用同一段代码手动跑的）。
+- 待验证：在标签上真正走一遍（`release-local.sh` 等标签的运行、上传两边的文件）；Windows 应用内更新在真机上走一遍（装着旧版本的 Windows 版点“更新并重新打开”）；
+  在 Windows 上用资源管理器解压插件 zip 再安装。
 
 ## Windows 版（进行中，在 feat/windows 分支，2026-10-18）
 - 来由：想让 Windows 上的人也能用。分三块并行做（三个 worktree：Rust 核心、插件和 YouTube 插件、前端 / 配置 / CI / 文档），合到 `feat/windows`。
@@ -47,8 +80,8 @@ _最后更新：2026-10-18_
   修好后的安装包在真机上装过（覆盖安装，之前的文件夹和播放位置都还在）：听完再说存下了一遍（原句 5.9 秒、我的 3.1 秒、“比原句快 48%”），
   边听边说也存下了（“比原声晚 1.32 秒”，和测试时让 Mac 晚开口的时间相符）。跟读的人是 Mac 上的 `say`，经远程桌面的麦克风录进去，所以没试真实的人声和延迟。
 - 待验证（真机）：真实声卡和 USB / 蓝牙耳机下的录音和延迟、凭据管理器存长 Key（`keychain_round_trip -- --ignored`）、插件和 yt-dlp、拔插耳机、多显示器。
-- 没做：Windows ARM64、签名、应用内更新（Windows 版先手动下载）、自定义标题栏。
-- 下一步：在一台本地有声卡和麦克风的 Windows 电脑上自己跟读试试；Windows 版插件包进发布流程；签名。
+- 没做：Windows ARM64、签名、自定义标题栏。应用内更新和发布流程已做（见上面“Windows 版加进发布流程”）。
+- 下一步：在一台本地有声卡和麦克风的 Windows 电脑上自己跟读试试；签名。
 
 ## 英文界面（2026-10-18）
 - 来由：要给不说中文的人用；README 已经是英文。界面保留中文，新装的跟随 Mac 的语言，设置里能切换。
