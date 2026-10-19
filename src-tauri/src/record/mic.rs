@@ -2,7 +2,8 @@
 //! time of the first one (the same clock the output tap uses). The stream is
 //! not `Send` on every platform, so it lives on the recorder's thread.
 
-use crate::audio::output::{device_name, host_nanos};
+use crate::audio::clock::{host_nanos, host_now, ns, trusted};
+use crate::audio::output::device_name;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, Sample, SampleFormat, SizedSample, Stream, StreamConfig};
 use rtrb::{Producer, RingBuffer};
@@ -103,14 +104,21 @@ where
     f32: FromSample<T>,
 {
     let ch = config.channels as usize;
+    let rate = config.sample_rate.0.max(1) as f64;
     device
         .build_input_stream(
             config,
             move |data: &[T], info: &cpal::InputCallbackInfo| {
-                if first_at.load(Relaxed) == 0 {
-                    first_at.store(host_nanos(&info.timestamp().capture).max(1), Relaxed);
-                }
                 let frames = data.len() / ch.max(1);
+                if first_at.load(Relaxed) == 0 {
+                    // The device's capture time, or (Windows, when it's missing or stale)
+                    // the host clock less this block's length.
+                    let at = trusted(
+                        host_nanos(&info.timestamp().capture),
+                        host_now().map(|now| now.saturating_sub(ns(frames as f64 / rate))),
+                    );
+                    first_at.store(at.max(1), Relaxed);
+                }
                 let Ok(chunk) = tx.write_chunk_uninit(frames.min(tx.slots())) else {
                     return;
                 };

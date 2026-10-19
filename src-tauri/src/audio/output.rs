@@ -3,6 +3,7 @@
 //! device errors (e.g. headphones unplugged) or the default changes, and
 //! pauses the stream after a few idle seconds so the computer can sleep.
 
+use super::clock::{host_nanos, host_now, ns, trusted};
 use super::engine::{Engine, Shared};
 use super::EventSink;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -98,14 +99,6 @@ pub fn spawn(
     tx
 }
 
-/// Host time in ns (mach absolute time on macOS, QueryPerformanceCounter on Windows:
-/// the same clock for input and output streams), so the recorder can line the
-/// microphone up with the tap.
-pub fn host_nanos(t: &cpal::StreamInstant) -> u64 {
-    t.duration_since(&cpal::StreamInstant::new(0, 0))
-        .map_or(0, |d| d.as_nanos() as u64)
-}
-
 /// Sample rate of the current default device (48 kHz if none).
 pub fn default_rate() -> u32 {
     output_device(&cpal::default_host())
@@ -191,7 +184,12 @@ where
                     .duration_since(&ts.callback)
                     .map_or(0.0, |d| d.as_secs_f64());
                 let mut pending = (lead * sr) as usize;
-                let heard_at = host_nanos(&ts.playback);
+                // When this block is heard: the device's time, or the host clock's on
+                // Windows when the device's is missing or stale (see clock.rs).
+                let heard_at = trusted(
+                    host_nanos(&ts.playback),
+                    host_now().map(|now| now + ns(lead)),
+                );
                 let mut done = 0u64;
                 // Never block: if the control thread holds the lock (device switch), emit silence.
                 let Ok(mut e) = engine.try_lock() else {

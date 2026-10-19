@@ -38,10 +38,15 @@ _最后更新：2026-10-18_
   - 文档：CLAUDE.md 加了 Windows 一节、“Mac 和 Windows”的文案规则和 CI 说明；PRODUCT.md 的 Windows 版表按行写了现状。
 - 已验证（自动）：tsc、vitest（新增 platform、wording、paths 的测试，i18n 测试仍找不出没翻译的中文）；两个 workflow 和 `tauri.windows.conf.json` 解析过，键名对照了 Tauri 的 schema。
   浏览器 mock 里分别用 `?platform=windows` 和 `?platform=mac` 看过：快捷键表、设置、新手引导（三步）、侧栏收起前后的顶栏，浅色和深色、中文和英文。Mac 的顶栏空白和以前一样。
-- 待验证（只有真实的 Windows 电脑能回答）：安装包能不能装、WebView2 下载引导、`samples/ja/` 的日文文件名；原生标题栏下顶栏的高度和拖动；Ctrl 快捷键（特别是 Ctrl+F、Ctrl+,）有没有被 WebView2 或输入法抢走；
-  菜单栏（Rust 的菜单在 Windows 上是窗口里的一行，Alt 会激活它）；字体看起来怎样（SimSun 的标题、没装日文语言包时没有 Yu Mincho）；音频输出、录音权限；路径带 `\` 时的列表分组（取决于 Rust 给的 `relDir` 用哪种分隔符）。
+- 已验证（真机，2026-10-19）：在一台 Windows 11（x64，中文）上通过远程桌面装了 CI 出的安装包（SmartScreen 要点“仍要运行”：没签名），装在当前用户下，不要管理员。
+  能打开、新手引导四步的文案都是 Windows 的说法（只有云端转写、Windows 凭据管理器、Ctrl+,），示例音频的日文文件名完好；播放（WASAPI，经远程桌面的声音）、放慢、循环一句都正常；
+  `?` 表显示 Ctrl / Shift / Backspace；Ctrl+B 收起侧栏；原生选择文件夹框；打开有子文件夹的文件夹，分组名是 `Shadowing test/日本語`（`/`）、面包屑正常，旁边的 .srt 自动读入，mp3 和 m4a 都能放；
+  设置里“检查更新”说已是最新（Release 里没有 Windows 版也不报错）；英文界面是 Same as Windows / Windows Credential Manager / this PC。
+- 真机发现并修了：跟读录音（远程桌面转过去的麦克风）说“原句没有放出来”。原因推测是这个虚拟音频设备报给 WASAPI 的时间是 0 或过期的，原句的副本被放到离录音几秒远的地方。
+  现在 Windows 上把设备报的时间和性能计数器比一比，差一秒以上或是 0 就用计数器（`audio/clock.rs`）；macOS 不变。修好后的安装包待在真机上再试。
+- 待验证（真机）：真实声卡和 USB / 蓝牙耳机下的录音和延迟、凭据管理器存长 Key（`keychain_round_trip -- --ignored`）、插件和 yt-dlp、拔插耳机、多显示器。
 - 没做：Windows ARM64、签名、应用内更新（Windows 版先手动下载）、自定义标题栏。
-- 下一步：Rust 的部分合进来后，在这里补上并让 CI 的 Windows 任务变绿；找一台真机试装，试过之前不发布。
+- 下一步：修好录音后再在真机上试一次跟读录音；Windows 版插件包进发布流程；签名。
 
 ## 英文界面（2026-10-18）
 - 来由：要给不说中文的人用；README 已经是英文。界面保留中文，新装的跟随 Mac 的语言，设置里能切换。
