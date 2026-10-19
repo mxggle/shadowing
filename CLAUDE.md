@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Shadowing：macOS 优先的 Tauri 2 桌面应用，用于本地音频的反复听和跟读。Windows（x86_64）正在移植，见下面的“Windows”一节。
+Shadowing：macOS 优先的 Tauri 2 桌面应用，用于本地音频的反复听和跟读。也有 Windows（x86_64）版，见下面的“Windows”一节。
 产品目标与范围见 [PRODUCT.md](PRODUCT.md)，当前进度见 [PROGRESS.md](PROGRESS.md)。开工前先读这两个文件。
 
 ## 技术栈
@@ -109,28 +109,34 @@ plugins/youtube/          「YouTube 导入」插件：单独的小 Rust 程序�
                           每天最多查一次 yt-dlp 新版本；只取 m4a 音轨（不用 ffmpeg）和人工字幕。
                           scripts/build-plugin.sh youtube [Rust target] 生成可安装的文件夹（带 target 时在 dist/<平台>/ 下）
 src-tauri/tauri.windows.conf.json   只在 Windows 上叠加到 tauri.conf.json 的配置（JSON Merge Patch，数组整个替换）：
-                          没有 Mac 的标题栏设置的窗口、NSIS 安装包（当前用户、简体中文和英文）、WebView2 下载式引导、含 icon.ico 的图标列表
+                          没有 Mac 的标题栏设置的窗口、NSIS 安装包（当前用户、简体中文和英文）、WebView2 下载式引导、含 icon.ico 的图标列表、
+                          更新包（createUpdaterArtifacts：安装包本身就是更新，tauri build 用更新私钥签出 .sig）
 docs/plugin-dev.md        写插件的人看的文档（manifest、协议、运行环境、打包、提交和审核）
 site/                     落地页 index.html 和插件目录 plugins.html（列表是 plugins.json，scripts/check-plugin-list.mjs 检查格式；
                           提交插件用 .github/ISSUE_TEMPLATE/plugin.yml），见 site/README.md
 ```
 
-## Windows（移植中）
+## Windows
 
-x86_64 先做；**还没有在真实的 Windows 电脑上试过，试过之前不发布**。每一行的现状见 [PRODUCT.md](PRODUCT.md) 的“Windows 版”，做了什么见 [PROGRESS.md](PROGRESS.md)。
+x86_64 先做；2026-10-19 在真实的 Windows 11 电脑上试过，从 0.10.0 之后的版本起随 Mac 版一起发布（仓库变量 `WINDOWS_RELEASE` 是 `true` 时，见“发布”里的 Windows）。
+每一行的现状见 [PRODUCT.md](PRODUCT.md) 的“Windows 版”，做了什么见 [PROGRESS.md](PROGRESS.md)。
 
 - 前端怎么判断系统、怎么写文案和快捷键：见“约定”里的“Mac 和 Windows”。`lib/platform.ts` 只看 WebView 的 user agent（WebView2 是 “Windows NT”，WKWebView 是 “Macintosh”）。
 - 窗口：Mac 用 `titleBarStyle: Overlay`（红绿灯压在界面上）；Windows 是原生标题栏，`tauri.windows.conf.json` 里的窗口设置没有这几项。
   WebView2 是 Chromium：它自带的 F5 / Ctrl+R / Ctrl+P / Ctrl+F 在发布版里被 `useShortcuts` 拦掉（`tauri dev` 里保留，方便刷新）。
-- **只有 macOS 有的**：本机转写（whisper.cpp + Metal，Windows 只提供云端转写）；应用内更新和发布流程（`release.yml`、`scripts/release-*.sh`、更新签名、
-  `latest.json` 里只有 darwin-aarch64，Windows 版暂时手动下载安装包）；代码签名（自签证书，Windows 安装包没有签名，SmartScreen 会警告）。
-- 拿到 Windows 安装包：GitHub 的 Actions → “Windows build”（手动运行；推到 `feat/windows*` 分支也会自动跑）→ 运行结果里的 Artifacts → `Shadowing-windows-x64-setup`（保留 14 天，
-  解压后运行里面的 `…_x64-setup.exe`，装在当前用户下，不要管理员权限）。在 Windows 上本机构建：`npx tauri build --bundles nsis`，安装包在 `src-tauri/target/release/bundle/nsis/`。
+- **只有 macOS 有的**：本机转写（whisper.cpp + Metal，Windows 只提供云端转写）；代码签名（自签证书，Windows 安装包没有签名，SmartScreen 会警告“更多信息 → 仍要运行”）。
+- 拿到 Windows 安装包（试用）：GitHub 的 Actions → “Release (Windows)”（手动运行；推到 `feat/windows*` 分支也会自动跑）→ 运行结果里的 Artifacts →
+  `Shadowing-X.Y.Z-windows-x64`（保留 14 天，里面的 `Shadowing-X.Y.Z-windows-x64-setup.exe` 装在当前用户下，不要管理员权限；还有 `.sig` 和 Windows 版插件 zip）。
+  在 Windows 上本机构建：`npx tauri build --bundles nsis --no-sign`（`createUpdaterArtifacts` 开着，没有更新私钥时要 `--no-sign`），安装包在 `src-tauri/target/release/bundle/nsis/`。
+- 发布带上 Windows 要仓库变量 `WINDOWS_RELEASE` = `true`（Settings → Secrets and variables → Actions → Variables，或
+  `gh variable set WINDOWS_RELEASE --body true`）；删掉它就回到只发 Mac。落地页的 Windows 按钮指向 `releases/latest/download/Shadowing-windows-x64-setup.exe`，
+  最新的 Release 没有 Windows 版时是 404。第一个带 Windows 的 Release 发布以后，在 `site/plugins.json` 里给 YouTube 插件加 `windows-x86_64` 的包
+  （这个 Release 里的 zip，`gh release view vX.Y.Z --json assets` 看 `digest` 和大小）。
 - Rust 那边 Windows 和 macOS 不同的地方：
   - 应用数据在 `%LOCALAPPDATA%\dev.shadowing.app`（不放 Roaming：模型最大 3 GB）；macOS 照旧。
   - Key 和登录存在凭据管理器的“普通凭据”里，名字是 `<服务 id>.Shadowing`；一条最多约 1280 个字符，更长的拆成 `#a1`、`#a2`…（`ai/pieces.rs`）。ChatGPT 的 id_token 不再保存。
-  - 没有应用菜单（Windows 上会变成窗口里的一行菜单栏）；检查更新和新功能在设置里。更新安装程序接手前先保存 state.json 和学习记录。
-    `latest.json` 里没有这个平台时当作“没有更新”。
+  - 没有应用菜单（Windows 上会变成窗口里的一行菜单栏）；检查更新和新功能在设置里。应用内更新下载 `latest.json` 里 `windows-x86_64` 的安装包，
+    验过签名后运行它（passive，装完重新打开）；安装程序接手前先保存 state.json 和学习记录。`latest.json` 里没有这个平台时当作“没有更新”。
   - 打开网页用 `ShellExecuteW`（只开 http / https）；麦克风被系统设置拦住时提示去“隐私和安全性 → 麦克风”。
   - 插件：平台键 `windows-x86_64` / `windows-arm64`（ARM 上没有 arm64 程序时用 x86_64 的），程序可以是 `.exe`；详见 [docs/plugin-dev.md](docs/plugin-dev.md)。
 - 在 Mac 上检查 Windows 能不能编译（不能运行）：`rustup target add x86_64-pc-windows-gnu`、`brew install mingw-w64`，然后
@@ -228,14 +234,23 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
 1. 从 `main` 开 `release/vX.Y.Z` 分支：把 CHANGELOG 的「未发布」改成版本号和日期，用 `scripts/bump-version.sh X.Y.Z` 改版本号
    （`package.json`、`package-lock.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`src-tauri/tauri.conf.json`，
    还有落地页 `site/index.html` 上显示的版本；`scripts/check-version.sh` 检查它们一致，CI 也会查），提交 `chore(release): vX.Y.Z`，开 PR，本地检查过就合并，不等 GitHub 的检查（rebase，保留每个小提交）。
-2. **打包在 Mac 上做**：在合并后的 `main` 上打附注标签 `vX.Y.Z` 并推送，然后在本机运行 `scripts/release-local.sh vX.Y.Z`（5 分钟左右）。
-   它会停掉这个标签在 Actions 上的构建，在本机用 `~/.tauri` 里的证书和更新私钥打包、签名，检查过就直接发布（加 `--draft` 只建草稿）：
+2. **打包在 Mac 上做**：在合并后的 `main` 上打附注标签 `vX.Y.Z` 并推送，然后在本机运行 `scripts/release-local.sh vX.Y.Z`（只有 Mac 时 5 分钟左右）。
+   它会停掉这个标签在 Actions 上的 Mac 构建（`release.yml`），在本机用 `~/.tauri` 里的证书和更新私钥打包、签名，检查过就直接发布（加 `--draft` 只建草稿）：
    `Shadowing-X.Y.Z-macos-arm64.dmg`（给人下载的安装包）和 `.zip`，固定名字的 `Shadowing-macos-arm64.dmg` / `.zip`
    （网站的下载按钮链接 `releases/latest/download/Shadowing-macos-arm64.dmg`），应用内更新用的 `Shadowing-X.Y.Z-macos-arm64.app.tar.gz`、`.sig` 和 `latest.json`，
    说明由 `scripts/release-notes.sh` 从 CHANGELOG 生成（含安装步骤和 SHA-256）。
    Mac 不在手边时，标签在 Actions 上的构建（`.github/workflows/release.yml`）会做同样的事并建草稿，但要 20 分钟左右；两边的文件都由 `scripts/release-assets.sh` 生成，名字和内容一样。
-3. 上传前 `scripts/verify-release.sh` 自动检查这些文件（说明在脚本开头：文件齐全、`latest.json` 和 `.sig` 一致、DMG / 两种工具解压的 zip /
-   更新包里的应用都过得了 `site/install.sh` 的签名检查、版本号对），不用再手动下载检查；没过就停下，不上传。**发布的那一刻**，已装的应用
+   **Windows**（仓库变量 `WINDOWS_RELEASE` 是 `true` 时才有；没设就和以前一样只发 Mac）：Windows 的文件只能在 Actions 上构建。推标签时
+   `.github/workflows/release-windows.yml` 在 windows-latest 上打 NSIS 安装包和它的 `.sig`（Actions secrets 里的更新私钥）、Windows 版 YouTube 插件
+   （`scripts/release-assets-windows.sh`），只放在这次运行的 Artifacts 里，不碰 Release。`release-local.sh` 打好 Mac 版以后等这次运行、下载它的文件
+   （`scripts/windows-files.sh`；从推标签起 15–25 分钟，所以整个发布要 25 分钟左右），`release-assets.sh` 把它们和 Mac 的放进同一个 Release：
+   `Shadowing-X.Y.Z-windows-x64-setup.exe` 和 `.sig`、固定名字的 `Shadowing-windows-x64-setup.exe`（`releases/latest/download/Shadowing-windows-x64-setup.exe`）、
+   `Shadowing-YouTube-plugin-<插件版本>-windows-x86_64.zip`；`latest.json` 同时有 `darwin-aarch64` 和 `windows-x86_64`，说明里有 Windows 的安装步骤。
+   两个系统一起检查、一起发布，`latest.json` 发布以后不再改。Actions 上的草稿（`release.yml`）也一样等 Windows 的文件。
+   Windows 的构建失败时：`gh run rerun <id> --failed`，过了再运行一次 `release-local.sh`；或者加 `--mac-only` 只发 Mac（Windows 上的应用留在原来的版本）。
+3. 上传前 `scripts/verify-release.sh` 自动检查这些文件（说明在脚本开头：文件齐全、`latest.json` 和 `.sig` 一致、每个更新的 `.sig` 用 `tauri.conf.json`
+   里的公钥验过（`scripts/update-sig.mjs`，和应用里一样）、DMG / 两种工具解压的 zip / 更新包里的应用都过得了 `site/install.sh` 的签名检查、版本号对；
+   有 Windows 时还查安装包是这个版本的 NSIS 安装包、插件 zip 里是 Windows 程序，`latest.json` 里正好是这次有文件的系统），不用再手动下载检查；没过就停下，不上传。**发布的那一刻**，已装的应用
    下次打开就会提示更新（它们只读最新的已发布 Release 的 `latest.json`，草稿不影响）。Actions 建的草稿：
    `gh release download vX.Y.Z -D <空文件夹>` 后同样用 `scripts/verify-release.sh X.Y.Z <文件夹>` 检查，再 `gh release edit vX.Y.Z --draft=false --latest` 发布。
 
@@ -245,6 +260,8 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
   私钥**不进仓库**，放在仓库的 Actions secrets：`TAURI_SIGNING_PRIVATE_KEY`（私钥文件的内容）和
   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。打标签发布时没有这两个 secret 会直接失败。
 - 私钥或密码丢了，已装的应用就再也收不到更新（只能换公钥、让大家手动装一次新版本）。务必在密码管理器里备份。
+- 本机 `~/.tauri/shadowing-updater.key` 和 Actions secrets 里必须是同一把：Mac 的更新在本机签，Windows 的在 Actions 上签。
+  不是同一把时 `verify-release.sh` 会停下（Windows 的 `.sig` 对不上公钥）。
 - `tauri build` 只打 .app；签名、DMG、zip、更新包和 latest.json 都由 `scripts/release-assets.sh` 生成（说明在脚本开头）。
   它也打包 YouTube 导入插件（`Shadowing-YouTube-plugin-<插件版本>-macos-arm64.zip`，插件自己的版本号在 `plugins/youtube/manifest.json`），
   发布说明里有安装步骤。
@@ -265,5 +282,6 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
 
 - `.github/workflows/check.yml`：每个 PR 和推到 `main` 时在 macOS（Apple Silicon）上跑 `scripts/check-version.sh` 和 `npm run check`；
   另有一个 `windows` 任务（windows-latest，x86_64）在 Windows 上跑 `npm run check`。runner 没有声卡，要真实音频设备的测试照旧是 `#[ignore]`。
-- `.github/workflows/windows-build.yml`：手动运行或推到 `feat/windows*` 分支时，用 `npx tauri build --bundles nsis` 出 Windows 安装包，作为 Artifacts 保留 14 天（用来在真机上试，不是发布）。
+- `.github/workflows/release-windows.yml`（“Release (Windows)”）：Windows 安装包、它的 `.sig` 和 Windows 版插件，作为 Artifacts 保留 14 天。
+  推 `v*.*.*` 标签时只在仓库变量 `WINDOWS_RELEASE` 是 `true` 时跑（给 `release-local.sh` 取用）；手动运行或推到 `feat/windows*` 分支时出一份试用的。
 - `.github/workflows/release.yml`：只在推送 `v*.*.*` 标签时（本机的 `release-local.sh` 会停掉它）和手动运行时打包；PR 和 main 推送都不再在 GitHub 上打包，打包在 Mac 上做。

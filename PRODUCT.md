@@ -25,13 +25,13 @@
 ## 路线图（以后，未排期）
 
 ### Windows 版
-**进行中**（在 `feat/windows` 分支，x86_64 先做）。**还没有在真实的 Windows 电脑上试过，试过之前不发布。** 做了什么见 [PROGRESS.md](PROGRESS.md)。
+**随 0.10.0 之后的下一个版本发布**（2026-10-19 合进 `main`，x86_64 先做）。2026-10-19 在真实的 Windows 11 电脑上试过。做了什么见 [PROGRESS.md](PROGRESS.md)。
 
 | 部分 | 状态（2026-10-18） | 说明 |
 | --- | --- | --- |
 | 界面：快捷键、文案 | 已做；浏览器 mock 里看过，真机待验证 | Windows 上 Ctrl 代替 ⌘，按键名是 Ctrl / Shift / Alt / Enter / Backspace；“这台电脑”“Windows 凭据管理器”；引导和设置向导只提供云端转写。Mac 上的文案和快捷键不变。判断在 `src/lib/platform.ts` |
 | 界面：窗口、字体、路径 | 已做；浏览器 mock 里看过，真机待验证 | 原生标题栏，顶栏不再给红绿灯留空；字体栈里 Windows 的接在 Mac 的后面（Segoe UI / 微软雅黑 UI / Yu Gothic UI，Yu Mincho / MS Mincho / 宋体）；路径同时认 `/` 和 `\`；发布版里拦掉 WebView2 自带的刷新、打印、查找快捷键 |
-| 安装包 | 已配置，待真机试装 | `src-tauri/tauri.windows.conf.json`：NSIS，装在当前用户下（不要管理员），简体中文和英文，WebView2 用下载式引导（Windows 11 和较新的 Windows 10 已自带）。Actions 里的 “Windows build” 出安装包。`samples/ja/` 的日文文件名装进去是否正常待试 |
+| 安装包 | 已配置，待真机试装 | `src-tauri/tauri.windows.conf.json`：NSIS，装在当前用户下（不要管理员），简体中文和英文，WebView2 用下载式引导（Windows 11 和较新的 Windows 10 已自带）。Actions 里的 “Release (Windows)” 出安装包。`samples/ja/` 的日文文件名装进去是否正常待试 |
 | CI | 已加 | `check.yml` 的 `windows` 任务（windows-latest）跑 `npm run check`；runner 没有声卡，真实音频的测试不跑 |
 | 区分说话人 | 已可移植：tract + realfft 都是纯 Rust，CPU 运行，模型是普通 ONNX 文件 | 在真机上验证 |
 | 播放引擎 | symphonia / cpal（WASAPI）都跨平台；设备拔掉时读设备名不会崩，麦克风被系统设置拦住时说清楚去哪里打开 | 在真机上验证音频输出、切换设备（插拔耳机、默认设备改变）、跟读录音的麦克风权限和延迟估计 |
@@ -39,8 +39,8 @@
 | 本机转写 | 已做：Windows 上不提供，只有云端转写（whisper.cpp 只在 macOS 编译，服务列表里没有“本机”，Windows 上也不需要 cmake） | 以后再考虑 CPU / CUDA / Vulkan 版 whisper.cpp |
 | 内存检测（推荐模型） | 已做：Windows 上用系统接口读内存和可用空间（`local/system.rs`），本机转写不显示时用不到 | — |
 | 云端转写的词时间 | 未用真实 Key 测过（DTW 修正只用于本机） | 在 Groq / OpenAI 上核对句子开头和说话人 |
-| 插件（YouTube 导入） | 已做，真机待验证 | 平台键 `windows-x86_64` / `windows-arm64`；插件拿到 Windows 需要的环境变量、不弹控制台窗口，取消时连 yt-dlp 一起结束；直接读剪贴板；安装时去掉 Zone.Identifier；文件名避开 CON、NUL 等。YouTube 插件用 `yt-dlp_win.zip` 和 `qjs-windows-x86_64.exe`，用系统自带的 curl / tar。Windows 版插件 zip 还没进发布流程 |
-| 应用内更新、发布 | 只有 macOS | `latest.json` 里只有 darwin-aarch64；Windows 版先手动下载安装包，以后要做 |
+| 插件（YouTube 导入） | 已做，真机待验证 | 平台键 `windows-x86_64` / `windows-arm64`；插件拿到 Windows 需要的环境变量、不弹控制台窗口，取消时连 yt-dlp 一起结束；直接读剪贴板；安装时去掉 Zone.Identifier；文件名避开 CON、NUL 等。YouTube 插件用 `yt-dlp_win.zip` 和 `qjs-windows-x86_64.exe`，用系统自带的 curl / tar。Windows 版插件 zip 在发布流程里（`Shadowing-YouTube-plugin-<版本>-windows-x86_64.zip`）；插件目录等第一次带 Windows 的 Release 后再加 |
+| 应用内更新、发布 | 已做，仓库变量 `WINDOWS_RELEASE` 是 `true` 时发布带上 Windows；落地页有 Windows 下载按钮 | Actions 上打安装包和更新签名，Mac 上的 `release-local.sh` 等它、和 Mac 的文件一起检查、一起发布；`latest.json` 同时有 `darwin-aarch64` 和 `windows-x86_64`；固定名字 `Shadowing-windows-x64-setup.exe`。应用内更新在真机上还没走过一次（要有比装着的更新的 Windows 版 Release） |
 | 代码签名 | 没有 | 安装包没有签名，SmartScreen 会警告“未知发布者”；以后可以看 Azure Trusted Signing、SignPath 或买证书 |
 
 做法：在 `Cargo.toml` 里按平台区分依赖（`[target.'cfg(...)'.dependencies]`）；Mac 上的界面文案、快捷键和布局保持不变，只有 Windows 改。
