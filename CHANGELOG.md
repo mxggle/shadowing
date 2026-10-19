@@ -5,6 +5,8 @@
 
 ## [未发布]
 
+## [0.11.0] - 2026-10-19
+
 ### 新增
 - **Windows 版**：64 位的 Windows 10 / 11 也能用了。在官网或 Release 页下载 `Shadowing-windows-x64-setup.exe`，装在当前用户下，不需要管理员权限；以后和 Mac 版一样在应用里更新。
   - 界面、播放、循环、跟读录音都和 Mac 版一样，快捷键用 Ctrl 代替 ⌘。转写只能用云端服务（Groq、OpenAI 等），本机转写只在 Mac 上。
@@ -191,7 +193,8 @@
 - 修改字幕、查找和全部替换、AI 校对、解释这一句（译文、生词、语法点，答案会保存）。
 - 第一次打开有示例练习和 AI 设置向导。
 
-[未发布]: https://github.com/mxggle/shadowing/compare/v0.10.0...HEAD
+[未发布]: https://github.com/mxggle/shadowing/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/mxggle/shadowing/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/mxggle/shadowing/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/mxggle/shadowing/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/mxggle/shadowing/compare/v0.8.1...v0.9.0
