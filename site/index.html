@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <title>Shadowing 跟读</title>
-<meta name="description" content="Shadowing：给 Mac 的跟读应用。本机转写成一句一句，循环、放慢不变调、看解释，再录下自己和原声对比。免费开源。">
+<meta name="description" content="Shadowing：给 Mac 和 Windows 的跟读应用。把音频转写成一句一句，循环、放慢不变调、看解释，再录下自己和原声对比。免费开源。">
 <link rel="canonical" href="https://shadowing.nihongo.day/">
 <meta name="theme-color" content="#f5f4f1" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1b1b1a" media="(prefers-color-scheme: dark)">
@@ -14,14 +14,14 @@
 <meta property="og:locale" content="zh_CN">
 <meta property="og:url" content="https://shadowing.nihongo.day/">
 <meta property="og:title" content="Shadowing 跟读：把你的声音，放在母语者旁边听">
-<meta property="og:description" content="本机转写成一句一句，循环、放慢、看解释，再录下自己和原声对比。免费开源的 macOS 应用。">
+<meta property="og:description" content="把音频转写成一句一句，循环、放慢、看解释，再录下自己和原声对比。免费开源，有 macOS 版和 Windows 版。">
 <meta property="og:image" content="https://shadowing.nihongo.day/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Shadowing 的窗口：一句日语下面，原句和我的两条波形上下对齐。">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://shadowing.nihongo.day/og.png">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Shadowing","alternateName":"Shadowing 跟读","url":"https://shadowing.nihongo.day/","description":"给 Mac 的跟读应用：本机转写成一句一句，循环、放慢不变调、看解释，再录下自己和原声对比。","applicationCategory":"EducationalApplication","operatingSystem":"macOS, Windows","inLanguage":"zh-CN","image":"https://shadowing.nihongo.day/og.png","screenshot":"https://shadowing.nihongo.day/shots/hero-light.webp","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"downloadUrl":"https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg","publisher":{"@type":"Organization","name":"日语Day","url":"https://nihongo.day/"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Shadowing","alternateName":"Shadowing 跟读","url":"https://shadowing.nihongo.day/","description":"给 Mac 和 Windows 的跟读应用：把音频转写成一句一句，循环、放慢不变调、看解释，再录下自己和原声对比。","applicationCategory":"EducationalApplication","operatingSystem":"macOS, Windows","inLanguage":"zh-CN","image":"https://shadowing.nihongo.day/og.png","screenshot":"https://shadowing.nihongo.day/shots/hero-light.webp","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"downloadUrl":"https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg","publisher":{"@type":"Organization","name":"日语Day","url":"https://nihongo.day/"}}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@500;600&family=Noto+Serif+SC:wght@500;600;700&display=swap">
@@ -496,9 +496,9 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
 
   <main id="top">
     <section class="hero">
-      <a class="news" href="#plugins"><b>0.9 新增</b>插件，和 YouTube 导入<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+      <a class="news" href="#windows"><b>0.11 新增</b>Windows 版<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
       <h1><span class="ph">把你的声音，</span><span class="ph">放在母语者旁边听。</span></h1>
-      <p class="lede">Shadowing 是给 Mac 的跟读应用。拖进你手里的日语音频，它在本机转写成一句一句：循环这一句、放慢也不变调、听不懂就展开解释。然后跟着说，你的录音和原声上下对齐，慢了多少、晚了几秒，一眼就看出来。</p>
+      <p class="lede">Shadowing 是给 Mac 和 Windows 的跟读应用。拖进你手里的日语音频，它转写成一句一句（在 Mac 上直接在本机转写）：循环这一句、放慢也不变调、听不懂就展开解释。然后跟着说，你的录音和原声上下对齐，慢了多少、晚了几秒，一眼就看出来。</p>
       <div class="actions">
         <a class="btn btn-ink" data-os="mac" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">
           <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
@@ -567,7 +567,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
     <section class="chapter" id="listen" aria-labelledby="listen-title">
       <div class="head">
         <h2 id="listen-title"><span class="ph">你手里的录音，</span><span class="ph">就是跟读材料。</span></h2>
-        <p>选一个放音频的文件夹就能练。字幕可以直接导入；没有，就在这台 Mac 上转写，按停顿断句，分出谁在说话。</p>
+        <p>选一个放音频的文件夹就能练。字幕可以直接导入；没有，就在这台 Mac 上转写（Windows 版用云端服务），按停顿断句，分出谁在说话。</p>
       </div>
       <figure class="shot window listen-shot">
         <picture>
@@ -579,7 +579,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
       </figure>
       <div class="shelfrow" aria-label="适合的材料"><span>シャドーイング 教材 CD</span><span>JLPT 听力</span><span>有声书</span><span>播客</span><span>NHK ニュース</span><span>英语教材</span></div>
       <dl class="points">
-        <div><dt>本机转写</dt><dd>Whisper 在 Mac 上跑，Apple Silicon 用 Metal 加速，不联网、不花钱。第一次打开会看这台 Mac 的芯片、内存和空间，推荐一个合适的模型。想要更快也能选 Groq、OpenAI 等云端服务。</dd></div>
+        <div><dt>本机转写</dt><dd>Whisper 在 Mac 上跑，Apple Silicon 用 Metal 加速，不联网、不花钱。第一次打开会看这台 Mac 的芯片、内存和空间，推荐一个合适的模型。想要更快也能选 Groq、OpenAI 等云端服务；Windows 版只用云端服务。</dd></div>
         <div><dt>循环一句，放慢不变调</dt><dd>点一句就从这一句开始，<kbd>S</kbd> 循环，<kbd>[</kbd> <kbd>]</kbd> 换句，旁边记着听了几遍。速度 <strong>0.5× 到 2.0×</strong>，每次 0.05。没有字幕时用 <kbd>L</kbd> 设 A、B，一样能循环。</dd></div>
         <div><dt>对话段落</dt><dd>一个音频里有好几段对话（比如听力题一题一段），自动在长停顿或换了一组说话人的地方分段。小标题能改名、合并，点“循环这段”，<kbd>{</kbd> <kbd>}</kbd> 跳段。</dd></div>
         <div><dt>区分说话人</dt><dd><span class="spk">A</span><span class="spk">B</span> 对话里谁说了哪句分开标出，声纹也在本机算。</dd></div>
@@ -632,7 +632,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
             <dl class="points">
               <div><dt>整段录音</dt><dd>一整段或全文一口气读完。自己读时高亮跟着你走，句末停一下就跳到下一句；也能跟着原文读。读完按句子拆开，每句都能对比。</dd></div>
               <div><dt>像歌词一样</dt><dd>放到录过的句子，下面自动展开你的录音；点“一起听”，会一句接一句把整篇听完。</dd></div>
-              <div><dt>每次都留着</dt><dd>录音自动存在这台 Mac 上，可以翻看以前几次。设置里看得到占了多少空间，原音频删掉后能一键清理。</dd></div>
+              <div><dt>每次都留着</dt><dd>录音自动存在这台电脑上，可以翻看以前几次。设置里看得到占了多少空间，原音频删掉后能一键清理。</dd></div>
             </dl>
             <figure class="shot crop">
               <picture>
@@ -712,23 +712,25 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
 
     <section class="chapter" id="privacy" aria-labelledby="privacy-title">
       <div class="head">
-        <h2 id="privacy-title"><span class="ph">你的音频和录音，</span><span class="ph">留在你的 Mac 上。</span></h2>
-        <p>转写、区分说话人、去掉录进来的原声，都可以完全在本机完成。除了检查新版本，只有用到 AI 功能或插件时才联网。</p>
+        <h2 id="privacy-title"><span class="ph">你的音频和录音，</span><span class="ph">留在你的电脑上。</span></h2>
+        <p>区分说话人、去掉录进来的原声都在本机完成，Mac 上连转写也可以不联网。除了检查新版本，只有用到 AI 功能（包括 Windows 版的转写）或插件时才联网。</p>
       </div>
       <ul class="facts">
         <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span><b>只访问你选择的文件夹。</b>加上应用自带的示例，其他文件一概不碰。</span></li>
         <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l16 16"/><path d="M9.5 5.2A9 9 0 0 1 21 12a9 9 0 0 1-1.6 2.6M6.2 6.6A9 9 0 0 0 3 12a9 9 0 0 0 12.4 5.4"/></svg><span><b>没有遥测。</b>不收集任何使用数据；设置里每个 AI 功能都写明内容发到哪里。</span></li>
-        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg><span><b>Key 存在 macOS 钥匙串里。</b>应用自己的数据里只留 <code>sk-…abcd</code> 这样的提示。</span></li>
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg><span><b>Key 存在系统的密码库里</b>（macOS 钥匙串、Windows 凭据管理器）。应用自己的数据里只留 <code>sk-…abcd</code> 这样的提示。</span></li>
         <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span><b>本机模型第一次用到时才下载。</b>固定版本，并校验 SHA-256。</span></li>
       </ul>
     </section>
 
     <section class="chapter" id="updates" aria-labelledby="updates-title">
       <div class="head">
-        <h2 id="updates-title"><span class="ph">十天发了十一个版本，</span><span class="ph">还在快速长大。</span></h2>
+        <h2 id="updates-title"><span class="ph">十一天发了十三个版本，</span><span class="ph">还在快速长大。</span></h2>
         <p>新版本发布后，应用打开时会提示，点“更新并重新打开”就装好，设置、字幕和录音都保留。</p>
       </div>
       <ol class="log">
+        <li><span class="v">0.11</span><time datetime="2026-10-19">10 月 19 日</time><p><b>Windows 版。</b>64 位的 Windows 10 / 11 也能用了：播放、循环、跟读录音都和 Mac 版一样，快捷键用 Ctrl；转写用云端服务。</p></li>
+        <li><span class="v">0.10</span><time datetime="2026-10-18">10 月 18 日</time><p><b>英文界面。</b>跟着系统的语言，设置里随时切换中文和英文。</p></li>
         <li><span class="v">0.9</span><time datetime="2026-10-18">10 月 18 日</time><p><b>插件，和 YouTube 导入。</b>粘贴链接，把视频的音频和人工字幕导入文件夹；解释这一句按顺序拆开讲，还写出语气。</p></li>
         <li><span class="v">0.8.1</span><time datetime="2026-10-17">10 月 17 日</time><p>在应用里就能看每个版本的新功能。</p></li>
         <li><span class="v">0.8</span><time datetime="2026-10-17">10 月 17 日</time><p><b>自己断句、合并句子，一句连着录好几遍。</b>逐句跟读；播放键能暂停录音和回放。</p></li>

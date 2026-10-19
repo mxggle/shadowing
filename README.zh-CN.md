@@ -2,7 +2,7 @@
 
 **把你的声音，放在母语者旁边听。**
 
-用本地音频练跟读（shadowing）的 macOS 应用：循环一句，跟着说，看看你说的和原句差在哪。日语、英语或其他语言都适用。
+用本地音频练跟读（shadowing）的应用，有 macOS 版和 Windows 版：循环一句，跟着说，看看你说的和原句差在哪。日语、英语或其他语言都适用。
 
 [English](README.md)
 
@@ -32,7 +32,7 @@
 
 ## 字幕
 
-- 导入 SRT / VTT（音频旁的同名字幕自动读取），或者转写：本机 Whisper（Apple Silicon），或云端服务（Groq / OpenAI / 自建兼容服务）。句子边界对齐到真实停顿，对话里区分说话人，转写时没把握的字画虚线。
+- 导入 SRT / VTT（音频旁的同名字幕自动读取），或者转写：本机 Whisper（Apple Silicon），或云端服务（Groq / OpenAI / 自建兼容服务；Windows 版只用云端服务）。句子边界对齐到真实停顿，对话里区分说话人，转写时没把握的字画虚线。
 - 点一句从这一句播放，`[` `]` 换句，`{` `}` 换对话段落。
 - 修改字幕：改一句、断句和合并句子、查找和全部替换、AI 校对（只给建议，由你确认）。改动只存在应用自己的数据里，不改写音频旁的字幕文件。
 
@@ -47,7 +47,7 @@
 
 ## 安装
 
-目前只有 **Apple Silicon** 的 macOS 版。到 [Releases](../../releases) 下载 `.dmg`，双击打开后把 Shadowing 拖进“应用程序”。装好以后有新版本时应用里会提示，点一下就能更新。
+**macOS**（Apple Silicon，macOS 11 及以上）：到 [Releases](../../releases) 下载 `.dmg`，双击打开后把 Shadowing 拖进“应用程序”。装好以后有新版本时应用里会提示，点一下就能更新。
 
 这个版本没有 Apple 公证，浏览器下载的会被系统拦下，有时提示“已损坏”。在终端运行下面这一行，它会重新下载最新版、装进“应用程序”并打开（不改系统设置，脚本在 [site/install.sh](site/install.sh)）：
 
@@ -56,6 +56,8 @@ curl -fsSL https://shadowing.nihongo.day/install.sh | bash
 ```
 
 已经拖进“应用程序”的，也可以只去掉隔离标记：`xattr -dr com.apple.quarantine /Applications/Shadowing.app`。
+
+**Windows**（64 位的 Windows 10 / 11）：到 [Releases](../../releases) 下载 `Shadowing-windows-x64-setup.exe` 运行，装在当前用户下，不需要管理员权限，以后同样在应用里更新。安装包还没有代码签名，SmartScreen 会先拦一下：点“更多信息”，再点“仍要运行”。Windows 版转写用云端服务。
 
 ## 从源码构建
 
@@ -86,7 +88,7 @@ npm run smoke -- <文件夹>   # 构建调试版，在真实应用里跑自测�
   - **你设置的 AI**：转写会上传音频给你选的服务，解释和校对会把句子发给你选的模型；选本机模型（Whisper、Ollama、LM Studio）则不出这台电脑。设置里每个功能都写明内容发到哪里。请求都从 Rust 发出，不经过网页界面；
   - **下载模型**：本机转写和区分说话人的模型在第一次用到时从 Hugging Face 下载，固定版本并校验 SHA-256。
 - **你安装的插件**是独立的程序，自己联网。YouTube 导入插件会访问 YouTube，第一次用时从 GitHub 下载 yt-dlp 和 QuickJS（校验 SHA-256），之后每天最多查一次 yt-dlp 新版本。插件以你的用户权限运行，能读写你的文件，所以只安装你信任的插件。YouTube 导入插件只写自己的数据文件夹和一个暂存文件夹，应用检查过里面的文件才移进你的文件夹。
-- API Key 和登录 token 只存 macOS 钥匙串，应用自己的数据文件里只有 `sk-…abcd` 这样的提示。
+- API Key 和登录 token 只存系统的密码库（macOS 钥匙串、Windows 凭据管理器），应用自己的数据文件里只有 `sk-…abcd` 这样的提示。
 
 ## 第三方
 
