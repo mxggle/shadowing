@@ -2,7 +2,7 @@
 
 **Hear your voice right next to a native speaker's.**
 
-Shadowing is a macOS app for practicing shadowing with your own audio: loop a sentence, say it with the speaker,
+Shadowing is an app for macOS and Windows for practicing shadowing with your own audio: loop a sentence, say it with the speaker,
 and see how your take lines up with the original. It works for Japanese, English or any other language.
 
 [简体中文](README.zh-CN.md)
@@ -44,7 +44,7 @@ The interface is in English or Simplified Chinese: it follows your Mac's languag
 ## Subtitles
 
 - Import SRT / VTT (a subtitle file with the same name next to the audio is picked up automatically), or transcribe
-  on your Mac (Whisper, Apple Silicon) or with a cloud service (Groq, OpenAI, or any compatible server).
+  on your Mac (Whisper, Apple Silicon) or with a cloud service (Groq, OpenAI, or any compatible server; the only option on Windows).
   Sentence boundaries snap to real pauses, speakers in a dialog are told apart, and words the transcriber wasn't sure of are underlined.
 - Click a sentence to play from there; `[` `]` move between sentences, `{` `}` between dialog sections.
 - Fix the subtitles: edit a sentence, split or merge sentences, find and replace, or get AI proofreading suggestions
@@ -64,7 +64,7 @@ The interface is in English or Simplified Chinese: it follows your Mac's languag
 
 ## Install
 
-macOS on **Apple Silicon** only for now. Download the `.dmg` from [Releases](../../releases), open it and drag
+**macOS** (Apple Silicon, macOS 11 or later): download the `.dmg` from [Releases](../../releases), open it and drag
 Shadowing into Applications. After that, the app offers new versions itself and updates in one click.
 
 The app isn't notarized by Apple, so macOS blocks it when it's downloaded from a browser, sometimes saying it's "damaged".
@@ -77,6 +77,10 @@ curl -fsSL https://shadowing.nihongo.day/install.sh | bash
 
 If you already dragged it into Applications, removing the quarantine flag is enough:
 `xattr -dr com.apple.quarantine /Applications/Shadowing.app`.
+
+**Windows** (64-bit Windows 10 or 11): download `Shadowing-windows-x64-setup.exe` from [Releases](../../releases) and run it.
+It installs for your user, without admin rights, and updates itself the same way. The installer isn't code-signed yet, so
+SmartScreen stops it at first: click "More info", then "Run anyway". On Windows, transcription uses a cloud service.
 
 ## Build from source
 
@@ -115,7 +119,7 @@ and what's done and what's still unverified in [PROGRESS.md](PROGRESS.md). These
   Plugins run with your user account's permissions and could read and write your files, so only install plugins you trust.
   The YouTube plugin writes only to its own data folder and to a staging folder, and the app checks the files there
   before moving them into your folder.
-- API keys and sign-in tokens are stored only in the macOS Keychain. The app's own data file holds just a hint like `sk-…abcd`.
+- API keys and sign-in tokens are stored only in the system's credential store (the macOS Keychain, Windows Credential Manager). The app's own data file holds just a hint like `sk-…abcd`.
 
 ## Third-party
 
