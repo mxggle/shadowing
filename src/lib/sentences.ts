@@ -1,6 +1,7 @@
 // Pure rules for moving around a transcript; unit-tested in sentences.test.ts.
 import type { Loop } from "../audio/logic";
 import type { Sentence } from "./api";
+import type { TextPiece } from "./edits";
 
 /** Cue times tend to clip the first sound; start a sentence slightly early. */
 export const SENTENCE_LEAD = 0.1;
@@ -29,6 +30,40 @@ export function sentenceIndexAt(sentences: Sentence[], t: number): number {
     } else hi = mid - 1;
   }
   return found;
+}
+
+/** The time shown lags the sound by up to one update (it moves in 0.05 s steps): light that much early. */
+const LIGHT_AHEAD = 0.05;
+
+/**
+ * How much of a sentence has been said by `t`, to light it up as it plays: the
+ * string offset of the first character (word) not said yet, so punctuation goes
+ * with what's before it. Null when transcription didn't time its characters.
+ */
+export function saidUpTo(s: Sentence, t: number): number | null {
+  const times = s.times;
+  if (!times?.length) return null;
+  const next = times.findIndex(([, at]) => at > t + LIGHT_AHEAD);
+  if (next === 0) return 0;
+  return Math.min(next < 0 ? s.text.length : times[next][0], s.text.length);
+}
+
+/**
+ * `pieces` of a sentence's text cut where each timed character (word) starts,
+ * so each lights on its own, and marked said or not by `upTo` (saidUpTo).
+ */
+export function saidPieces(pieces: TextPiece[], times: [number, number][], upTo: number): TextPiece[] {
+  const out: TextPiece[] = [];
+  let at = 0;
+  for (const piece of pieces) {
+    const end = at + piece.text.length;
+    const cuts = [at, ...times.map(([o]) => o).filter((o) => o > at && o < end), end];
+    for (let i = 0; i + 1 < cuts.length; i++) {
+      out.push({ ...piece, text: piece.text.slice(cuts[i] - at, cuts[i + 1] - at), said: cuts[i] < upTo });
+    }
+    at = end;
+  }
+  return out;
 }
 
 /** The A–B loop that repeats one sentence. */

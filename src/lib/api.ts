@@ -36,6 +36,8 @@ export interface Settings {
   paragraphDrill: boolean;
   /** 逐句跟读: times each sentence is said before the next (1–20). */
   drillRounds: number;
+  /** Light the playing sentence up a character (a word) at a time, where transcription timed them. */
+  wordHighlight: boolean;
   /** Interface language chosen in settings ("" follows the Mac); see lib/i18n.ts. */
   uiLanguage: LangSetting;
 }
@@ -208,6 +210,12 @@ export interface Sentence {
   speaker?: number;
   /** Parts of the text the transcriber was unsure of: [start, end) string offsets. */
   unsure?: [number, number][];
+  /**
+   * When each character (each word, in languages written with spaces) is said:
+   * [string offset, seconds], in order. Only transcription knows them; they move
+   * with the text when it's corrected (src-tauri/src/timing.rs).
+   */
+  times?: [number, number][];
 }
 
 /** New text for one sentence (by its index in the transcript); times and speaker stay. */

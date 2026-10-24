@@ -16,6 +16,7 @@ mod smoke;
 mod speakers;
 mod store;
 mod subtitles;
+mod timing;
 mod transcribe;
 mod transcript;
 mod update;

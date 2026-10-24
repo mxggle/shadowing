@@ -36,15 +36,19 @@ const lines = [
 const turns = [0, 1, 1, 0, 1, 0, 0, 1, 0, 1];
 // What a transcription was unsure of, by sentence: 傘, 予報, ピクニック.
 const unsure: Record<number, [number, number][]> = { 3: [[0, 1]], 10: [[2, 4]], 20: [[8, 13]] };
-const mockTranscript = (origin: string, count: number, speakers = false): Transcript => ({
+// When each character is said, as a transcription times them: evenly through the sentence here.
+const charTimes = (text: string, start: number, end: number): [number, number][] => {
+  const letters = [...text.matchAll(/[\p{L}\p{N}]/gu)].map((m) => m.index);
+  return letters.map((o, k) => [o, Math.round((start + ((end - start - 0.4) * k) / letters.length) * 100) / 100]);
+};
+/** `transcribed`: voices told apart, unsure words and character times, as a transcription has. */
+const mockTranscript = (origin: string, count: number, transcribed = false): Transcript => ({
   source: "imported",
   origin,
-  sentences: Array.from({ length: count }, (_, i) => ({
-    start: 2 + i * 6,
-    end: 2 + i * 6 + 4.2,
-    text: lines[i % lines.length],
-    ...(speakers ? { speaker: turns[i % turns.length], unsure: unsure[i] } : {}),
-  })),
+  sentences: Array.from({ length: count }, (_, i) => {
+    const [start, end, text] = [2 + i * 6, 2 + i * 6 + 4.2, lines[i % lines.length]];
+    return { start, end, text, ...(transcribed ? { speaker: turns[i % turns.length], unsure: unsure[i], times: charTimes(text, start, end) } : {}) };
+  }),
 });
 const transcripts = new Map<string, Transcript>([
   [tracks[1].path, { ...mockTranscript("02 天気の話.srt", 32), source: "sidecar" }],
@@ -266,7 +270,7 @@ export function installMockBackend() {
     folder: fresh ? null : { root, name: "日本語ポッドキャスト", tracks },
     missingFolder: null,
     lastTrack: fresh ? null : tracks[1].path,
-    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, uiLanguage: "" },
+    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, uiLanguage: "" },
     progress: {
       [tracks[0].path]: { position: 178, duration: 180, updatedAt: 0 },
       [tracks[1].path]: { position: 64, duration: 200, updatedAt: 0 },
@@ -339,8 +343,9 @@ export function installMockBackend() {
           const t = transcripts.get(a.path);
           if (!t) throw "这个音频没有字幕";
           const sentences = [...t.sentences];
+          // Character times aren't moved with the text here (timing.rs does that): the sentence is lit whole.
           for (const e of a.edits as SentenceEdit[]) {
-            sentences[e.index] = { ...sentences[e.index], text: e.text.trim(), unsure: e.unsure?.length ? e.unsure : undefined };
+            sentences[e.index] = { ...sentences[e.index], text: e.text.trim(), unsure: e.unsure?.length ? e.unsure : undefined, times: undefined };
           }
           const edited: Transcript = { ...t, sentences, edited: true, source: t.source === "sidecar" ? "imported" : t.source };
           transcripts.set(a.path, edited);

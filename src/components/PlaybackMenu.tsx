@@ -60,6 +60,9 @@ export function PlaybackMenu() {
           <Row label={t("播放顺序")} hint={`${modeLabel} · R`}>
             <PlayModePicker />
           </Row>
+          <Row label={t("高亮")} hint={t("逐字只限转写的字幕")}>
+            <HighlightPicker />
+          </Row>
         </div>
       )}
     </div>
@@ -74,6 +77,37 @@ function Row({ label, hint, children }: { label: string; hint: string; children:
         <div className="mt-px text-[11px] text-faint">{hint}</div>
       </div>
       <div className="w-[124px] shrink-0">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * The sentence playing lights up a character (a word) at a time, or whole.
+ * Only transcription times the characters: other subtitles light whole either way.
+ */
+function HighlightPicker() {
+  const on = useApp((s) => s.settings.wordHighlight);
+  const setWordHighlight = useApp((s) => s.setWordHighlight);
+  const choices = [
+    { value: true, label: t("逐字"), hint: t("正在放的句子跟着声音一个字一个字亮起来（英文一个词一个词）") },
+    { value: false, label: t("整句"), hint: t("正在放的句子整句亮着") },
+  ];
+  return (
+    <div className="tint flex rounded-[10px] p-[3px]" role="radiogroup" aria-label={t("高亮")}>
+      {choices.map((c) => (
+        <button
+          key={c.label}
+          role="radio"
+          aria-checked={c.value === on}
+          title={c.hint}
+          onClick={() => setWordHighlight(c.value)}
+          className={`h-[26px] flex-1 rounded-[7px] text-[12px] transition-[background-color,color,box-shadow] duration-150 ${
+            c.value === on ? "bg-raised font-medium text-fg shadow-[0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
+          }`}
+        >
+          {c.label}
+        </button>
+      ))}
     </div>
   );
 }

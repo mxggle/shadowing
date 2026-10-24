@@ -1,9 +1,11 @@
 //! Where a sentence is cut in two: the text at the cursor, and the time
-//! guessed from how far through the words that is, moved onto a pause heard
-//! near there (as transcription moves sentence edges, see `transcribe::snap`).
+//! that word is said (or, without times, a guess from how far through the
+//! words it is), moved onto a pause heard near there (as transcription moves
+//! sentence edges, see `transcribe::snap`).
 
 use super::len16;
 use crate::audio::decode::Decoder;
+use crate::timing;
 use crate::transcribe::snap;
 use crate::transcript::Sentence;
 use std::path::Path;
@@ -38,8 +40,15 @@ pub(super) fn cut_text(text: &str, at: u32) -> Option<Cut> {
     })
 }
 
-/// How far through the words the cut is (spaces and punctuation aren't said).
-fn ratio(cut: &Cut) -> f64 {
+/// How far through the sentence the cut is: when the second part's first
+/// word is said, if transcription timed it; else how far through the words
+/// (spaces and punctuation aren't said).
+fn ratio(s: &Sentence, cut: &Cut) -> f64 {
+    let span = s.end - s.start;
+    let timed = s.times.iter().find(|&&(at, _)| at >= cut.second_from);
+    if let (Some(&(_, t)), true) = (timed, span > 0.0) {
+        return ((t - s.start) / span).clamp(0.0, 1.0);
+    }
     let said = |s: &str| s.chars().filter(|c| c.is_alphanumeric()).count() as f64;
     let (a, b) = (said(&cut.first), said(&cut.second));
     a / (a + b)
@@ -130,9 +139,9 @@ fn cut_times(t: f64, lo: f64, hi: f64, db: &[f32], from: f64) -> (f64, f64) {
 }
 
 /// Where the first part ends and the second begins, for `s` cut at `cut`:
-/// guessed from the words, then moved onto a pause heard in `audio` near there.
+/// from the words' times (or a guess), then moved onto a pause heard in `audio` near there.
 pub(super) fn times(s: &Sentence, cut: &Cut, audio: &Path) -> (f64, f64) {
-    let (guessed, lo, hi) = guess(s, ratio(cut));
+    let (guessed, lo, hi) = guess(s, ratio(s, cut));
     if hi - lo <= snap::MIN_PAUSE {
         return (guessed, guessed);
     }
@@ -195,12 +204,14 @@ pub(super) fn halves(s: &Sentence, cut: Cut, (end, start): (f64, f64)) -> [Sente
         Sentence {
             end,
             unsure: within(&s.unsure, 0, first_len),
+            times: timing::within(&s.times, 0, first_len),
             text: cut.first,
             ..s.clone()
         },
         Sentence {
             start,
             unsure: within(&s.unsure, cut.second_from, second_to),
+            times: timing::within(&s.times, cut.second_from, second_to),
             text: cut.second,
             ..s.clone()
         },

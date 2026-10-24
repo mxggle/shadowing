@@ -12,6 +12,7 @@ fn transcript(text: &str) -> Transcript {
             text: text.into(),
             speaker: None,
             unsure: Vec::new(),
+            times: Vec::new(),
         }],
         edited: false,
         sections: sections::whole(),
@@ -59,6 +60,25 @@ fn a_bad_edit_changes_nothing() {
     assert!(apply_edits(&mut t, &[edit(0, "b"), edit(5, "c")]).is_err());
     assert!(apply_edits(&mut t, &[edit(0, " \n ")]).is_err());
     assert_eq!((t.sentences[0].text.as_str(), t.edited), ("a", false));
+}
+
+#[test]
+fn character_times_move_with_an_edit_and_are_saved_as_pairs() {
+    let mut t = transcript("寝蔵アート");
+    assert!(!serde_json::to_string(&t).unwrap().contains("times"));
+    t.sentences[0].times = vec![(0, 1.0), (1, 1.25), (2, 1.5), (4, 1.75)];
+    apply_edits(&mut t, &[edit(0, "あ、寝相アート")]).unwrap();
+    assert_eq!(
+        t.sentences[0].times,
+        [(2, 1.0), (3, 1.25), (4, 1.5), (6, 1.75)]
+    );
+    let json = serde_json::to_string(&t.sentences[0]).unwrap();
+    assert!(
+        json.contains(r#""times":[[2,1.0],[3,1.25],[4,1.5],[6,1.75]]"#),
+        "{json}"
+    );
+    let back: Sentence = serde_json::from_str(&json).unwrap();
+    assert_eq!(back.times, t.sentences[0].times);
 }
 
 #[test]

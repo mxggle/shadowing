@@ -9,6 +9,7 @@ fn s(start: f64, end: f64, text: &str) -> Sentence {
         text: text.into(),
         speaker: None,
         unsure: Vec::new(),
+        times: Vec::new(),
     }
 }
 
@@ -47,10 +48,11 @@ fn cuts_where_the_cursor_is_and_trims_both_parts() {
 }
 
 #[test]
-fn a_cut_shares_out_the_underlines_by_where_they_are() {
+fn a_cut_shares_out_the_underlines_and_times_by_where_they_are() {
     let mut x = s(1.0, 4.0, "傘を持ってきましたか？");
     x.unsure = vec![[0, 1], [3, 6]];
     x.speaker = Some(2);
+    x.times = vec![(0, 1.0), (3, 1.8), (4, 2.3), (9, 3.5)];
     let [a, b] = halves(&x, cut_text(&x.text, 4).unwrap(), (2.0, 2.2));
     assert_eq!(
         (a.start, a.end, a.text.as_str(), a.unsure.as_slice()),
@@ -59,6 +61,10 @@ fn a_cut_shares_out_the_underlines_by_where_they_are() {
     assert_eq!(
         (b.start, b.end, b.text.as_str(), b.unsure.as_slice()),
         (2.2, 4.0, "てきましたか？", &[[0, 2]][..])
+    );
+    assert_eq!(
+        (a.times.as_slice(), b.times.as_slice()),
+        (&[(0, 1.0), (3, 1.8)][..], &[(0, 2.3), (5, 3.5)][..])
     );
     assert_eq!((a.speaker, b.speaker), (Some(2), Some(2)));
     // The space trimmed from the start of the second part shifts its underlines.
@@ -74,8 +80,19 @@ fn a_cut_shares_out_the_underlines_by_where_they_are() {
 
 #[test]
 fn the_cut_is_guessed_from_how_far_through_the_words_it_is() {
-    let cut = cut_text("おはよう。元気？", 5).unwrap();
-    assert!((ratio(&cut) - 4.0 / 6.0).abs() < 1e-9);
+    let mut x = s(10.0, 13.0, "おはよう。元気？");
+    let cut = cut_text(&x.text, 5).unwrap();
+    assert!((ratio(&x, &cut) - 4.0 / 6.0).abs() < 1e-9);
+    // Timed by transcription: when 元 is said.
+    x.times = vec![
+        (0, 10.0),
+        (1, 10.2),
+        (2, 10.4),
+        (3, 10.6),
+        (5, 12.4),
+        (6, 12.6),
+    ];
+    assert!((ratio(&x, &cut) - 0.8).abs() < 1e-9);
     // Six seconds: looked for up to 1.5 s either way (30% would be more).
     let (t, lo, hi) = guess(&s(10.0, 16.0, ""), 0.5);
     assert_eq!((t, round(lo), round(hi)), (13.0, 11.5, 14.5));

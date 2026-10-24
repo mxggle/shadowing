@@ -124,6 +124,7 @@ mod tests {
             text: text.into(),
             speaker: None,
             unsure: Vec::new(),
+            times: Vec::new(),
         }
     }
 

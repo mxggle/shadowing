@@ -3,10 +3,12 @@
 //! segment text and timed by lining their letters up with the words' letters.
 //! When the text comes back without punctuation (common for Japanese without a
 //! language hint), Whisper's own segment breaks — one per utterance — stand in for it.
+//! The words' times also time each character, to light it up as it's played.
 
 use super::doubt;
 use super::long::Long;
 use crate::subtitles::is_cjk;
+use crate::timing;
 use crate::transcript::Sentence;
 use serde::Deserialize;
 
@@ -87,6 +89,7 @@ pub fn build(pieces: Vec<(f64, Verbose)>, db: &[f32]) -> Vec<Sentence> {
     let text = join_segments(&segments);
     let mut clock = Clock::new(words.iter().map(|w| (w.word.as_str(), w.start, w.end)));
     let unsure = doubt::per_letter(&words);
+    let starts = letter_starts(&words);
     if clock.0.is_empty() {
         clock = Clock::new(segments.iter().map(|s| (s.text.as_str(), s.start, s.end)));
     }
@@ -116,7 +119,41 @@ pub fn build(pieces: Vec<(f64, Verbose)>, db: &[f32]) -> Vec<Sentence> {
         out[i].end = out[i].end.max(out[i].start + 0.05);
     }
     doubt::mark(&mut out, &unsure, scale);
+    time(&mut out, &starts, scale);
     out
+}
+
+/// A word's time can run on over the pause after it (whisper.cpp's last until
+/// the next one starts): its letters are no further apart than this.
+const MAX_LETTER_SECS: f64 = 0.3;
+
+/// When each letter starts, as `Clock` counts them: spread across its word.
+fn letter_starts(words: &[Word]) -> Vec<f64> {
+    words
+        .iter()
+        .flat_map(|w| {
+            let n = letters(&w.word);
+            let step = ((w.end - w.start) / n.max(1) as f64).min(MAX_LETTER_SECS);
+            (0..n).map(move |k| w.start + step * k as f64)
+        })
+        .collect()
+}
+
+/// Fills in `times` on sentences that follow each other letter by letter over
+/// `starts` (`scale`: its letters per sentence letter). Without word times
+/// there are none: spread over a whole segment, they'd only be a guess.
+fn time(sentences: &mut [Sentence], starts: &[f64], scale: f64) {
+    let Some(last) = starts.len().checked_sub(1) else {
+        return;
+    };
+    let mut letter = 0;
+    for s in sentences {
+        s.times = timing::for_letters(&s.text, || {
+            let i = ((letter as f64 * scale) as usize).min(last);
+            letter += 1;
+            starts[i]
+        });
+    }
 }
 
 pub(super) fn counts(c: char) -> bool {

@@ -36,6 +36,7 @@ impl Long<'_> {
             text: text.to_string(),
             speaker: None,
             unsure: Vec::new(),
+            times: Vec::new(),
         });
     }
 

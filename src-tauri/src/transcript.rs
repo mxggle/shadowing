@@ -21,6 +21,11 @@ pub struct Sentence {
     /// in UTF-16 units (as JavaScript counts them).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub unsure: Vec<[u32; 2]>,
+    /// When each character (each word, in languages written with spaces) is
+    /// said, to light the playing sentence up as it goes: [UTF-16 offset,
+    /// seconds]. Only transcription knows them (see `timing`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub times: crate::timing::Times,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -82,7 +87,8 @@ impl Transcript {
     }
 }
 
-/// New text for one sentence; its times and speaker stay as they are.
+/// New text for one sentence; its times and speaker stay as they are (the
+/// times of its characters move with them).
 #[derive(Debug, Deserialize)]
 pub struct Edit {
     pub index: usize,
@@ -247,6 +253,7 @@ fn apply_edits(transcript: &mut Transcript, edits: &[Edit]) -> Result<(), String
             .copied()
             .filter(|&[a, b]| a < b && b <= length)
             .collect();
+        sentence.times = crate::timing::follow(&sentence.text, &text, &sentence.times);
         sentence.text = text;
     }
     if !edits.is_empty() {

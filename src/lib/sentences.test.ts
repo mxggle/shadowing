@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Sentence } from "./api";
-import { sentenceIndexAt, sentenceLoop, speakerCount, speakerName, startsTurn, stepTarget } from "./sentences";
+import { textPieces } from "./edits";
+import { saidPieces, saidUpTo, sentenceIndexAt, sentenceLoop, speakerCount, speakerName, startsTurn, stepTarget } from "./sentences";
 
 const s = (start: number, end: number): Sentence => ({ start, end, text: "" });
 const list = [s(1, 3), s(4, 6), s(10, 12)];
@@ -68,5 +69,50 @@ describe("speakers", () => {
 
   it("names speakers A, B, C", () => {
     expect([0, 1, 2].map(speakerName)).toEqual(["A", "B", "C"]);
+  });
+});
+
+describe("saidUpTo", () => {
+  // Each character timed, punctuation not.
+  const timed: Sentence = { start: 10, end: 13, text: "「傘を、持ってきた？」", times: [[1, 10], [2, 10.3], [4, 11], [5, 11.2], [6, 11.4], [7, 11.6], [8, 11.8]] };
+
+  it("lights up to the first character not said yet, punctuation with what's before it", () => {
+    expect(saidUpTo(timed, 9.5)).toBe(0);
+    expect(saidUpTo(timed, 10)).toBe(2);
+    expect(saidUpTo(timed, 10.5)).toBe(4);
+    expect(saidUpTo(timed, 11.1)).toBe(5);
+    expect(saidUpTo(timed, 12)).toBe(timed.text.length);
+  });
+
+  it("lights a character a moment early, as the time shown lags the sound", () => {
+    expect(saidUpTo(timed, 10.27)).toBe(4);
+  });
+
+  it("is null without character times, and never past the text", () => {
+    expect(saidUpTo({ start: 0, end: 1, text: "はい" }, 0.5)).toBeNull();
+    expect(saidUpTo({ start: 0, end: 1, text: "はい", times: [] }, 0.5)).toBeNull();
+    expect(saidUpTo({ start: 0, end: 1, text: "は", times: [[0, 0], [5, 2]] }, 1)).toBe(1);
+  });
+});
+
+describe("saidPieces", () => {
+  const piece = (text: string, said: boolean, match = false, unsure = false) => ({ text, match, unsure, said });
+  const times: [number, number][] = [[0, 0], [1, 1], [3, 2], [4, 3]];
+
+  it("cuts the text where each timed character starts and marks what's been said", () => {
+    expect(saidPieces(textPieces("傘を、持って", ""), times, 3)).toEqual([piece("傘", true), piece("を、", true), piece("持", false), piece("って", false)]);
+  });
+
+  it("keeps the matches and underlines, cut too", () => {
+    expect(saidPieces(textPieces("傘を、持って", "を、持", [[0, 1]]), times, 1)).toEqual([
+      piece("傘", true, false, true),
+      piece("を、", false, true),
+      piece("持", false, true),
+      piece("って", false),
+    ]);
+  });
+
+  it("lights words whole in languages written with spaces", () => {
+    expect(saidPieces(textPieces("I see it.", ""), [[0, 0], [2, 1], [6, 2]], 6)).toEqual([piece("I ", true), piece("see ", true), piece("it.", false)]);
   });
 });
