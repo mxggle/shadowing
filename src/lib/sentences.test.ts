@@ -80,12 +80,12 @@ describe("saidUpTo", () => {
     expect(saidUpTo(timed, 9.5)).toBe(0);
     expect(saidUpTo(timed, 10)).toBe(2);
     expect(saidUpTo(timed, 10.5)).toBe(4);
-    expect(saidUpTo(timed, 11.1)).toBe(5);
+    expect(saidUpTo(timed, 11)).toBe(5);
     expect(saidUpTo(timed, 12)).toBe(timed.text.length);
   });
 
-  it("lights a character a moment early, as the time shown lags the sound", () => {
-    expect(saidUpTo(timed, 10.27)).toBe(4);
+  it("lights a character a moment early, as its time comes a little after the sound", () => {
+    expect(saidUpTo(timed, 10.2)).toBe(4);
   });
 
   it("is null without character times, and never past the text", () => {
