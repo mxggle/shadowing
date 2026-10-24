@@ -5,6 +5,8 @@
 
 ## [未发布]
 
+## [0.12.0] - 2026-10-24
+
 ### 新增
 - **逐字高亮**：转写出来的字幕，正在放的那句跟着声音一个字一个字亮起来（英文一个词一个词），还没读到的部分是灰的。暂停时停在读到的地方。
   - 只有转写的字幕知道每个字什么时候说。导入的 SRT / VTT、音频旁的字幕、YouTube 导入的字幕和自带示例照旧整句亮着；这个版本之前转写的字幕要重新转写一次才有。
@@ -199,7 +201,8 @@
 - 修改字幕、查找和全部替换、AI 校对、解释这一句（译文、生词、语法点，答案会保存）。
 - 第一次打开有示例练习和 AI 设置向导。
 
-[未发布]: https://github.com/mxggle/shadowing/compare/v0.11.0...HEAD
+[未发布]: https://github.com/mxggle/shadowing/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/mxggle/shadowing/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/mxggle/shadowing/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/mxggle/shadowing/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/mxggle/shadowing/compare/v0.9.0...v0.9.1
