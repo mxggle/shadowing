@@ -64,6 +64,8 @@ export interface AppState extends TranscriptState, CorrectState, ReshapeState, P
   setRate(rate: number): void;
   setPlayMode(mode: PlayMode): void;
   setSeekStep(seconds: number): void;
+  /** Light the playing sentence up a character at a time (true) or whole. */
+  setWordHighlight(on: boolean): void;
   setTranscribeLanguage(language: string): void;
   cycleLoop(): void;
   clearLoop(): void;
@@ -182,7 +184,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, uiLanguage: "" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, uiLanguage: "" },
     current: null,
     playing: false,
     time: 0,
@@ -366,6 +368,10 @@ export const useApp = create<AppState>((set, get) => {
     setSeekStep(seconds) {
       const seekStep = clampSeekStep(seconds);
       if (seekStep !== get().settings.seekStep) persistSettings({ seekStep });
+    },
+
+    setWordHighlight(wordHighlight) {
+      persistSettings({ wordHighlight });
     },
 
     setTranscribeLanguage(transcribeLanguage) {

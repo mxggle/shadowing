@@ -120,6 +120,8 @@ export interface TextPiece {
   match: boolean;
   /** The transcriber was unsure of it. */
   unsure: boolean;
+  /** In the sentence playing: said already (see saidPieces); left out elsewhere. */
+  said?: boolean;
 }
 
 /**

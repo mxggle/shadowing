@@ -1,6 +1,8 @@
+import type { Sentence } from "../lib/api";
 import { textPieces } from "../lib/edits";
 import { t, tk } from "../lib/i18n";
 import { shortcut } from "../lib/platform";
+import { saidPieces, saidUpTo } from "../lib/sentences";
 import { useApp } from "../store";
 
 const UNSURE_TITLE = tk("转写时没把握，可能听错了。按 E 改正；没错的话按 E 再按 {key}，虚线就会去掉");
@@ -8,29 +10,48 @@ const UNSURE_TITLE = tk("转写时没把握，可能听错了。按 E 改正；�
 /**
  * A sentence's text: what the replace bar looks for (and what an AI suggestion
  * would change, `fixes`) is highlighted, and what the transcriber was unsure of
- * has a dotted underline.
+ * has a dotted underline. In the sentence playing (`said`), what hasn't been
+ * said yet stays grey, a character (a word) at a time.
  */
-export function SentenceText({ text, find, unsure, fixes }: { text: string; find: string; unsure?: [number, number][]; fixes?: string[] }) {
-  if (!find && !unsure?.length && !fixes?.length) return text;
+export function SentenceText({ text, find, unsure, fixes, said }: {
+  text: string;
+  find: string;
+  unsure?: [number, number][];
+  fixes?: string[];
+  said?: { times: [number, number][]; upTo: number };
+}) {
+  if (!find && !unsure?.length && !fixes?.length && !said) return text;
   const fixed = (fixes ?? []).flatMap((from): [number, number][] => {
     const at = text.indexOf(from);
     return at < 0 ? [] : [[at, at + from.length]];
   });
-  return textPieces(text, find, unsure, fixed).map((piece, k) => {
-    if (!piece.match && !piece.unsure) return piece.text;
+  const pieces = textPieces(text, find, unsure, fixed);
+  let at = 0;
+  // Keyed by where they start, so a piece keeps its element (and fades) as it's said.
+  return (said ? saidPieces(pieces, said.times, said.upTo) : pieces).map((piece) => {
+    const key = at;
+    at += piece.text.length;
+    if (!piece.match && !piece.unsure && piece.said === undefined) return piece.text;
     const Tag = piece.match ? "mark" : "span";
     return (
       <Tag
-        key={k}
+        key={key}
         title={piece.unsure ? t(UNSURE_TITLE, { key: shortcut("↩") }) : undefined}
         className={`${piece.match ? "rounded-[3px] bg-press text-fg shadow-[0_0_0_2px_var(--press)]" : ""} ${
           piece.unsure ? "underline decoration-warn decoration-dotted decoration-2 underline-offset-[6px]" : ""
-        }`}
+        } ${piece.said === undefined ? "" : `transition-colors duration-150 ${piece.said || piece.match ? "" : "text-muted"}`}`}
       >
         {piece.text}
       </Tag>
     );
   });
+}
+
+/** The sentence playing, lit up to what has been said; lit whole when its characters aren't timed. */
+export function SaidText({ sentence, find, fixes }: { sentence: Sentence; find: string; fixes?: string[] }) {
+  const upTo = useApp((s) => saidUpTo(sentence, s.time));
+  const said = upTo === null || !sentence.times ? undefined : { times: sentence.times, upTo };
+  return <SentenceText text={sentence.text} find={find} unsure={sentence.unsure} fixes={fixes} said={said} />;
 }
 
 /** "· 3 处没把握" in the list header; each press plays the next underlined sentence. */

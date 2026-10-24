@@ -98,12 +98,15 @@ fn merge(a: &Sentence, b: &Sentence) -> Sentence {
     let offset = len16(&text) - len16(&b.text);
     let mut unsure = a.unsure.clone();
     unsure.extend(b.unsure.iter().map(|&[x, y]| [x + offset, y + offset]));
+    let mut times = a.times.clone();
+    times.extend(b.times.iter().map(|&(at, t)| (at + offset, t)));
     Sentence {
         start: a.start,
         end: a.end.max(b.end),
         text,
         speaker: a.speaker.or(b.speaker),
         unsure,
+        times,
     }
 }
 
@@ -147,6 +150,7 @@ fn restore(
     for s in &mut sentences {
         let length = len16(&s.text);
         s.unsure.retain(|&[a, b]| a < b && b <= length);
+        crate::timing::fitting(&mut s.times, length);
     }
     let change = replace(t, at, count, sentences);
     t.sections = sections::normalize(sections, t.sentences.len());

@@ -19,7 +19,7 @@ import { MicButton, RecorderCard } from "./Recorder";
 import { ReplaceBar } from "./ReplaceBar";
 import { SentenceEditor } from "./SentenceEditor";
 import { SectionHeading, SectionMenu } from "./Sections";
-import { SentenceText, UnsureCount } from "./SentenceText";
+import { SaidText, SentenceText, UnsureCount } from "./SentenceText";
 import { TakePeek } from "./TakePeek";
 import { IconButton } from "./ui";
 
@@ -79,6 +79,10 @@ export function SentenceList() {
   // (going through a paragraph, it follows you).
   const drilling = useApp((s) => !!s.drill);
   useFollow(list, active, !reading && !drilling && (editing !== null || !!find || recordAt !== null));
+  // A character at a time while the track itself plays there: not a take or a reading played back, nor reading on your own.
+  const lightUp = useApp(
+    (s) => s.settings.wordHighlight && !s.playingTake && !s.playingReading && !(s.live?.mode === "read" && s.live.phase === "reading"),
+  );
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
@@ -99,6 +103,7 @@ export function SentenceList() {
                   index={i}
                   sentence={sentence}
                   active={i === active}
+                  said={lightUp && i === active}
                   looping={i === loopSentence}
                   editing={i === editing}
                   find={find}
@@ -179,10 +184,12 @@ function Header({ scrolled }: { scrolled: boolean }) {
  * One sentence. With more than one voice (`voices`), a column names the
  * speaker where their turn starts (`turn`), like a script, and turns get a little air between them.
  */
-const Row = memo(function Row({ index, sentence, active, looping, editing, find, suggestions, explain, takes, recorder, peek, reading, voices, turn, opensSection, canSplit, last }: {
+const Row = memo(function Row({ index, sentence, active, said, looping, editing, find, suggestions, explain, takes, recorder, peek, reading, voices, turn, opensSection, canSplit, last }: {
   index: number;
   sentence: Sentence;
   active: boolean;
+  /** Light it up as it's said, where its characters are timed. */
+  said: boolean;
   looping: boolean;
   editing: boolean;
   /** Text to mark in the sentence (from the replace bar). */
@@ -259,7 +266,11 @@ const Row = memo(function Row({ index, sentence, active, looping, editing, find,
               lit ? "text-fg" : "text-muted"
             }`}
           >
-            <SentenceText text={sentence.text} find={find} unsure={sentence.unsure} fixes={suggestions?.map((s) => s.from)} />
+            {said ? (
+              <SaidText sentence={sentence} find={find} fixes={suggestions?.map((s) => s.from)} />
+            ) : (
+              <SentenceText text={sentence.text} find={find} unsure={sentence.unsure} fixes={suggestions?.map((s) => s.from)} />
+            )}
           </p>
         )}
         {suggestions?.map((s) => <SuggestionNote key={`${s.from}→${s.to}`} suggestion={s} />)}

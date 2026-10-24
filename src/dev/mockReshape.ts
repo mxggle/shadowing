@@ -10,12 +10,17 @@ const STALE = "字幕已经变了，请重新打开这个音频";
 const within = (unsure: [number, number][] = [], from: number, to: number) =>
   unsure.flatMap(([a, b]): [number, number][] => (Math.max(a, from) < Math.min(b, to) ? [[Math.max(a, from) - from, Math.min(b, to) - from]] : []));
 
+/** Character times in [from, to), counted from `from`. */
+const timesWithin = (times: [number, number][] = [], from: number, to: number) =>
+  times.flatMap(([o, t]): [number, number][] => (o >= from && o < to ? [[o - from, t]] : []));
+
 function split(s: Sentence, at: number): Sentence[] {
   const cut = cutText(s.text, at);
   if (!cut) throw "要在句子中间断开，两边都要有字";
   const t = s.start + (s.end - s.start) * cutRatio(cut.first, cut.second);
-  const first = { ...s, end: t, text: cut.first, unsure: within(s.unsure, 0, cut.first.length) };
-  const second = { ...s, start: t, text: cut.second, unsure: within(s.unsure, cut.secondFrom, cut.secondFrom + cut.second.length) };
+  const secondTo = cut.secondFrom + cut.second.length;
+  const first = { ...s, end: t, text: cut.first, unsure: within(s.unsure, 0, cut.first.length), times: timesWithin(s.times, 0, cut.first.length) };
+  const second = { ...s, start: t, text: cut.second, unsure: within(s.unsure, cut.secondFrom, secondTo), times: timesWithin(s.times, cut.secondFrom, secondTo) };
   return [first, second];
 }
 
@@ -23,7 +28,8 @@ function merge(a: Sentence, b: Sentence): Sentence {
   const text = joinText(a.text, b.text);
   const offset = text.length - b.text.length;
   const unsure = [...(a.unsure ?? []), ...(b.unsure ?? []).map(([x, y]): [number, number] => [x + offset, y + offset])];
-  return { ...a, end: Math.max(a.end, b.end), text, speaker: a.speaker ?? b.speaker, unsure };
+  const times = [...(a.times ?? []), ...(b.times ?? []).map(([o, t]): [number, number] => [o + offset, t])];
+  return { ...a, end: Math.max(a.end, b.end), text, speaker: a.speaker ?? b.speaker, unsure, times };
 }
 
 /** transcript_split / _merge / _restore: the transcript saved, with its kept explanations moved along. */

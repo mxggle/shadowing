@@ -36,6 +36,9 @@ pub struct Settings {
     pub paragraph_drill: bool,
     /// 逐句跟读: times each sentence is said before the next (the frontend keeps it to 1–20).
     pub drill_rounds: u32,
+    /// Light the playing sentence up a character (a word) at a time as it's
+    /// said, where transcription timed them; off lights it whole.
+    pub word_highlight: bool,
     /// Interface language: "" follows the Mac, "zh" or "en" (see i18n.rs). Settings saved
     /// before it existed stay Chinese, the only language those versions had.
     #[serde(default = "chinese")]
@@ -69,6 +72,7 @@ impl Default for Settings {
             paragraph_mode: crate::record::Mode::Read,
             paragraph_drill: false,
             drill_rounds: 3,
+            word_highlight: true,
             ui_language: String::new(),
         }
     }

@@ -11,6 +11,7 @@ fn sentences(n: usize) -> Vec<Sentence> {
             text: format!("line {i}"),
             speaker: None,
             unsure: Vec::new(),
+            times: Vec::new(),
         })
         .collect()
 }

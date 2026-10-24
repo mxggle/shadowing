@@ -128,6 +128,7 @@ mod tests {
                     text: "x".into(),
                     speaker,
                     unsure: vec![],
+                    times: vec![],
                 };
                 t += 1.0;
                 s

@@ -138,6 +138,7 @@ mod tests {
             text: String::new(),
             speaker: None,
             unsure: Vec::new(),
+            times: Vec::new(),
         }
     }
 

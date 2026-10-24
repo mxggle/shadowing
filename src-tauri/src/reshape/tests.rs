@@ -10,6 +10,7 @@ fn s(start: f64, end: f64, text: &str) -> Sentence {
         text: text.into(),
         speaker: None,
         unsure: Vec::new(),
+        times: Vec::new(),
     }
 }
 
@@ -84,11 +85,13 @@ fn joins_without_a_space_only_in_chinese_and_japanese() {
 }
 
 #[test]
-fn a_join_spans_both_and_keeps_both_sets_of_underlines() {
+fn a_join_spans_both_and_keeps_both_sets_of_underlines_and_times() {
     let mut a = s(1.0, 2.0, "傘を");
     a.unsure = vec![[0, 1]];
+    a.times = vec![(0, 1.0), (1, 1.4)];
     let mut b = s(2.3, 3.5, "持ってきた？");
     b.unsure = vec![[0, 2]];
+    b.times = vec![(0, 2.3), (4, 3.1)];
     b.speaker = Some(1);
     let m = merge(&a, &b);
     assert_eq!(
@@ -96,6 +99,7 @@ fn a_join_spans_both_and_keeps_both_sets_of_underlines() {
         (1.0, 3.5, "傘を持ってきた？")
     );
     assert_eq!(m.unsure, [[0, 1], [2, 4]]);
+    assert_eq!(m.times, [(0, 1.0), (1, 1.4), (2, 2.3), (6, 3.1)]);
     assert_eq!(
         m.speaker,
         Some(1),
@@ -253,9 +257,11 @@ fn undo_refuses_what_no_longer_fits() {
     assert!(back(&mut t, 1, 1, vec![s(5.0, 5.5, "x")]).is_err());
     assert!(back(&mut t, 1, 1, vec![s(2.0, 1.0, "x")]).is_err());
     assert_eq!(texts(&t), texts(&transcript()), "nothing changed");
-    // Underlines that don't fit the text are dropped.
+    // Underlines and times that don't fit the text are dropped.
     let mut x = s(2.0, 3.0, "二");
     x.unsure = vec![[0, 1], [0, 5]];
+    x.times = vec![(0, 2.1), (3, 2.5)];
     back(&mut t, 1, 1, vec![x]).unwrap();
     assert_eq!(t.sentences[1].unsure, [[0, 1]]);
+    assert_eq!(t.sentences[1].times, [(0, 2.1)]);
 }

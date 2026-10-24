@@ -51,14 +51,17 @@ fn english_sentences_take_their_words_times() {
             ("Fine", 4.2, 4.6),
         ]),
     };
+    let built = build(vec![(0.0, v)], &[]);
     assert_eq!(
-        summary(&build(vec![(0.0, v)], &[])),
+        summary(&built),
         [
             ("Hello there.".into(), 0.2, 1.1),
             ("How are you?".into(), 1.8, 3.4),
             ("Fine.".into(), 4.2, 4.6)
         ]
     );
+    // A word at a time.
+    assert_eq!(built[1].times, [(0, 1.8), (4, 2.0), (8, 3.1)]);
 }
 
 #[test]
@@ -79,13 +82,40 @@ fn japanese_without_spaces() {
             ("行きましょう", 4.1, 5.2),
         ]),
     };
+    let built = build(vec![(0.0, v)], &[]);
     assert_eq!(
-        summary(&build(vec![(0.0, v)], &[])),
+        summary(&built),
         [
             ("今日はいい天気ですね。".into(), 0.0, 2.2),
             ("散歩に行きましょう。".into(), 2.8, 5.2)
         ]
     );
+    // Each character is timed, spread across its word.
+    assert_eq!(
+        built[0].times,
+        [
+            (0, 0.0),
+            (1, 0.25),
+            (2, 0.5),
+            (3, 0.7),
+            (4, 0.85),
+            (5, 1.0),
+            (6, 1.25),
+            (7, 1.5),
+            (8, 1.73),
+            (9, 1.97)
+        ]
+    );
+    assert_eq!(built[1].times[2..5], [(2, 3.3), (3, 4.1), (4, 4.28)]);
+}
+
+#[test]
+fn letters_of_a_word_that_runs_on_over_a_pause_stay_together() {
+    let v = Verbose {
+        segments: vec![seg(0.0, 4.0, "はい。")],
+        words: words(&[("はい", 1.0, 4.0)]),
+    };
+    assert_eq!(build(vec![(0.0, v)], &[])[0].times, [(0, 1.0), (1, 1.3)]);
 }
 
 #[test]
@@ -117,9 +147,14 @@ fn without_words_times_are_spread_over_the_segment() {
         segments: vec![seg(0.0, 4.0, "Aa. Bb.")],
         words: vec![],
     };
+    let built = build(vec![(0.0, v)], &[]);
     assert_eq!(
-        summary(&build(vec![(0.0, v)], &[])),
+        summary(&built),
         [("Aa.".into(), 0.0, 2.0), ("Bb.".into(), 2.0, 4.0)]
+    );
+    assert!(
+        built.iter().all(|s| s.times.is_empty()),
+        "no character times"
     );
 }
 
