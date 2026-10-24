@@ -32,8 +32,12 @@ export function sentenceIndexAt(sentences: Sentence[], t: number): number {
   return found;
 }
 
-/** The time shown lags the sound by up to one update (it moves in 0.05 s steps): light that much early. */
-const LIGHT_AHEAD = 0.05;
+/**
+ * Characters light this much early: their times come 0.1–0.15 s after the sound starts on average
+ * (large-v3-turbo and small, on `say` and on the ごんぎつね sample), and the time shown lags the
+ * sound by up to one update (it moves in 0.05 s steps).
+ */
+const LIGHT_AHEAD = 0.15;
 
 /**
  * How much of a sentence has been said by `t`, to light it up as it plays: the
