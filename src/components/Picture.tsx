@@ -4,7 +4,7 @@ import { useStageWide } from "../hooks/useStageWide";
 import { mediaUrl, type PictureLayout } from "../lib/api";
 import { t, tk } from "../lib/i18n";
 import { layoutShown } from "../lib/picture";
-import { nextLead, syncPicture } from "../lib/videoSync";
+import { nextLead, soundJumped, syncPicture, type Playhead } from "../lib/videoSync";
 import { playhead, useApp } from "../store";
 import { PICTURE_MAX, PICTURE_MIN } from "../videoSlice";
 import { PictureMask } from "./PictureMask";
@@ -39,6 +39,7 @@ function Screen({ path, layout }: { path: string; layout: PictureLayout }) {
   const look = useApp((s) => s.pictureLook);
   const setLook = useApp((s) => s.setPictureLook);
   useFollow(video);
+  useNoSound(video);
 
   // "none": the file has only sound (an mp4 can), so it shows as audio does.
   if (look === "none") return null;
@@ -84,6 +85,35 @@ function Screen({ path, layout }: { path: string; layout: PictureLayout }) {
   );
 }
 
+/**
+ * WebKit keeps a muted video's own sound track running, and after every jump its
+ * picture froze for half a second to line up with it again (jumps took 0.1–0.35 s
+ * instead of 0.05). The engine plays the sound; the picture needs none of it.
+ * (WebView2 doesn't list audio tracks: nothing to do there.)
+ */
+function useNoSound(ref: RefObject<HTMLVideoElement | null>) {
+  useEffect(() => {
+    const tracks = (ref.current as (HTMLVideoElement & { audioTracks?: AudioTrackList }) | null)?.audioTracks;
+    if (!tracks) return;
+    // Tracks are listed as the file is read, after the element exists.
+    const off = () => {
+      for (let i = 0; i < tracks.length; i++) tracks[i].enabled = false;
+    };
+    off();
+    tracks.addEventListener("addtrack", off);
+    tracks.addEventListener("change", off);
+    return () => {
+      tracks.removeEventListener("addtrack", off);
+      tracks.removeEventListener("change", off);
+    };
+  }, [ref]);
+}
+
+interface AudioTrackList extends EventTarget {
+  length: number;
+  [i: number]: { enabled: boolean };
+}
+
 /** How often the picture is checked against the sound. */
 const FOLLOW_MS = 50;
 
@@ -98,7 +128,9 @@ function useFollow(ref: RefObject<HTMLVideoElement | null>) {
     let ahead = false;
     let check = false;
     let landedAt = -Infinity;
-    let nudgedAt: number | null = null;
+    // Where the sound was at the last check, to tell when it jumps (a seek, a loop going round).
+    let before: { head: Playhead; at: number } | null = null;
+    let moved = false;
     const landed = () => {
       askedAt = null;
       landedAt = performance.now();
@@ -119,6 +151,8 @@ function useFollow(ref: RefObject<HTMLVideoElement | null>) {
           if (head.playing) lead = nextLead(lead, head.time - video.currentTime);
           check = false;
         }
+        if (before && soundJumped(before.head, head, (now - before.at) / 1000)) moved = true;
+        before = { head, at: now };
         const since = (t: number | null) => (t === null ? 0 : (now - t) / 1000);
         const state = {
           time: video.currentTime,
@@ -128,16 +162,14 @@ function useFollow(ref: RefObject<HTMLVideoElement | null>) {
           duration: video.duration,
           settled: (now - landedAt) / 1000,
           seekingFor: video.seeking ? since(askedAt) : 0,
-          nudgedFor: since(nudgedAt),
+          soundMoved: moved,
         };
         const act = syncPicture(head, state, lead);
-        if (act.rate !== undefined) {
-          video.playbackRate = act.rate;
-          nudgedAt = act.rate === head.rate ? null : now;
-        }
+        if (act.rate !== undefined) video.playbackRate = act.rate;
         if (act.seek !== undefined) {
           askedAt = now;
           ahead = head.playing;
+          moved = false;
           video.currentTime = act.seek;
         }
         if (act.pause) video.pause();

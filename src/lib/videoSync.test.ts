@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextLead, syncPicture, type PictureState, type Playhead } from "./videoSync";
+import { nextLead, soundJumped, syncPicture, type PictureState, type Playhead } from "./videoSync";
 
 const head = (time: number, playing = true, rate = 1): Playhead => ({ time, playing, rate });
 const pic = (time: number, more: Partial<PictureState> = {}): PictureState => ({
@@ -10,13 +10,13 @@ const pic = (time: number, more: Partial<PictureState> = {}): PictureState => ({
   duration: 60,
   settled: Infinity,
   seekingFor: 0,
-  nudgedFor: 0,
+  soundMoved: false,
   ...more,
 });
 
 describe("syncPicture", () => {
   it("leaves a picture in step alone", () => {
-    expect(syncPicture(head(10), pic(10.02))).toEqual({});
+    expect(syncPicture(head(10), pic(10.05))).toEqual({});
     expect(syncPicture(head(10, false), pic(10.02, { paused: true }))).toEqual({});
   });
 
@@ -34,53 +34,30 @@ describe("syncPicture", () => {
     expect(syncPicture(head(30, true, 0.5), pic(10, { rate: 0.5 }), 0.2)).toEqual({ seek: 30.1 });
   });
 
-  it("catches up by running 10% faster or slower when a little off", () => {
-    expect(syncPicture(head(10.1), pic(10)).rate).toBeCloseTo(1.1);
-    expect(syncPicture(head(10), pic(10.1)).rate).toBeCloseTo(0.9);
-    expect(syncPicture(head(10.1, true, 0.8), pic(10, { rate: 0.8 })).rate).toBeCloseTo(0.88);
-    expect(syncPicture(head(10.05), pic(10))).toEqual({});
+  it("corrects only by jumping, never by changing its speed (WebKit stalls)", () => {
+    expect(syncPicture(head(10.2), pic(10))).toEqual({ seek: 10.2 });
+    expect(syncPicture(head(10), pic(10.2))).toEqual({ seek: 10 });
+    expect(syncPicture(head(10.1), pic(10))).toEqual({});
   });
 
-  it("keeps the same speed until caught up, then goes back: two changes per correction", () => {
-    expect(syncPicture(head(10.03), pic(10, { rate: 1.1, nudgedFor: 1 }))).toEqual({});
-    expect(syncPicture(head(10.005), pic(10, { rate: 1.1, nudgedFor: 1 }))).toEqual({ rate: 1 });
-    expect(syncPicture(head(9.98), pic(10, { rate: 1.1, nudgedFor: 1 }))).toEqual({ rate: 1 });
-    expect(syncPicture(head(9.97), pic(10, { rate: 0.9, nudgedFor: 1 }))).toEqual({});
-    expect(syncPicture(head(10), pic(10, { rate: 0.9, nudgedFor: 1 }))).toEqual({ rate: 1 });
+  it("lets a picture that just jumped get going, unless the sound moved", () => {
+    expect(syncPicture(head(10.3), pic(10, { settled: 0.4 }))).toEqual({});
+    expect(syncPicture(head(4.1), pic(9.6, { settled: 0.2, soundMoved: true }))).toEqual({ seek: 4.1 });
+    expect(syncPicture(head(10.3), pic(10, { settled: 1.2 }))).toEqual({ seek: 10.3 });
   });
 
-  it("jumps when catching up hasn't worked", () => {
-    const act = syncPicture(head(10.2), pic(10, { rate: 1.1, nudgedFor: 3.5 }), 0.1);
-    expect(act.seek).toBeCloseTo(10.3);
-    expect(act.rate).toBe(1);
-  });
-
-  it("lets a picture that just jumped settle instead of jumping again", () => {
-    expect(syncPicture(head(10.6), pic(10, { settled: 0.3 })).rate).toBeCloseTo(1.1);
-    expect(syncPicture(head(10.6), pic(10, { settled: 1.5 })).seek).toBeCloseTo(10.6);
-  });
-
-  it("jumps at once when the sound itself moved: a loop going back, a seek ahead", () => {
-    expect(syncPicture(head(4.1), pic(9.6, { settled: 0.2 }))).toEqual({ seek: 4.1 });
-    expect(syncPicture(head(15), pic(10, { settled: 0.2 }))).toEqual({ seek: 15 });
-  });
-
-  it("goes back to the sound's speed once in step, and follows it", () => {
-    expect(syncPicture(head(10), pic(10, { rate: 1.05 }))).toEqual({ rate: 1 });
-    expect(syncPicture(head(10, true, 0.75), pic(10))).toEqual({ rate: 0.75 });
+  it("takes a new speed together with a jump", () => {
+    expect(syncPicture(head(10, true, 0.75), pic(10), 0.2)).toEqual({ rate: 0.75, seek: 10.15 });
+    expect(syncPicture(head(10, false, 0.75), pic(10, { paused: true }))).toEqual({ rate: 0.75 });
   });
 
   it("asks nothing of a picture mid-jump but to play or pause", () => {
-    expect(syncPicture(head(30), pic(10, { seeking: true, rate: 1.1, seekingFor: 0.5 }))).toEqual({});
+    expect(syncPicture(head(30), pic(10, { seeking: true, seekingFor: 0.5 }))).toEqual({});
     expect(syncPicture(head(30), pic(10, { seeking: true, paused: true }))).toEqual({ play: true });
   });
 
   it("asks again for a jump that hasn't landed", () => {
     expect(syncPicture(head(30), pic(10, { seeking: true, seekingFor: 2.5 }), 0.2)).toEqual({ seek: 30.2 });
-  });
-
-  it("drops a speed-up when the sound's speed changes", () => {
-    expect(syncPicture(head(10, true, 0.75), pic(10, { rate: 1.1, nudgedFor: 1 }))).toEqual({ rate: 0.75 });
   });
 
   it("holds the last frame when the sound runs past the picture", () => {
@@ -102,5 +79,15 @@ describe("nextLead", () => {
     expect(nextLead(0.3, -0.19)).toBeCloseTo(0.167);
     expect(nextLead(0.05, -0.5)).toBe(0);
     expect(nextLead(0.5, 3)).toBe(0.6);
+  });
+});
+
+describe("soundJumped", () => {
+  it("tells a seek or a loop going round from playing on", () => {
+    expect(soundJumped(head(10), head(10.05), 0.05)).toBe(false);
+    expect(soundJumped(head(10, true, 0.75), head(10.0375, true, 0.75), 0.05)).toBe(false);
+    expect(soundJumped(head(4.28), head(3.08), 0.05)).toBe(true);
+    expect(soundJumped(head(10, false), head(15, false), 0.05)).toBe(true);
+    expect(soundJumped(head(10, false), head(10, true), 0.05)).toBe(false);
   });
 });

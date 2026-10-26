@@ -5,6 +5,7 @@
 import { mediaUrl, type Track } from "../lib/api";
 import { isWindows } from "../lib/platform";
 import { debugEngine, playhead, useApp } from "../store";
+import { api } from "../lib/api";
 
 interface Kit {
   check: (name: string, ok: boolean, detail?: string) => void;
@@ -15,6 +16,8 @@ interface Kit {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Whether other windows cover this one (WebKit reports the page hidden). */
 const covered = () => document.visibilityState === "hidden";
+/** Once settled: a few frames either way. */
+const SETTLED = 0.12;
 /** In step: the picture may trail a frame or two behind the 30 Hz status it chases. */
 const IN_STEP = 0.2;
 
@@ -24,6 +27,8 @@ export async function videoScenario({ check, waitFor, tracks }: Kit) {
   const video = tracks.find((t) => t.kind === "video");
   if (!video) return check("video fixture present", false, "run scripts/make-fixtures.sh again");
 
+  // In front, so the picture checks see one that shows (a covered window's only rests).
+  await api.smokeWindow(false);
   app().open(video, true);
   const picture = () => document.querySelector("video");
   const shown = await waitFor(() => (picture()?.readyState ?? 0) >= 2 && (picture()?.videoWidth ?? 0) > 0, 5000);
@@ -44,10 +49,11 @@ export async function videoScenario({ check, waitFor, tracks }: Kit) {
     const p = picture();
     const inner = (playhead()?.time ?? NaN) - (p?.currentTime ?? NaN);
     const state = `picture ${p?.currentTime.toFixed(2)} ${p?.paused ? "paused" : "playing"} rate ${p?.playbackRate.toFixed(3)}, as the app sees it ${inner.toFixed(3)}s, page ${document.visibilityState}`;
-    // Then where it settles once caught up (reported, not checked: a covered window corrects slowly).
+    // And it stays there: left alone at one speed the picture keeps within a frame or two.
     await sleep(1500);
     const settled = await off();
-    check(`picture in step ${label}`, Math.abs(d) < IN_STEP, `off ${d.toFixed(3)}s, ${settled.toFixed(3)}s 1.5 s later${extra} (${state})`);
+    const kept = Math.abs(d) < IN_STEP && Math.abs(settled) < SETTLED;
+    check(`picture in step ${label}`, kept, `off ${d.toFixed(3)}s, ${settled.toFixed(3)}s 1.5 s later${extra} (${state})`);
   };
   await sleep(1000);
   await inStep("while playing");
