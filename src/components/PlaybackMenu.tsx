@@ -5,6 +5,7 @@ import { useDismiss } from "../hooks/useDismiss";
 import { useFlash } from "../hooks/useFlash";
 import { t } from "../lib/i18n";
 import { useApp } from "../store";
+import { PictureMenu } from "./PictureMenu";
 import { PLAY_MODE_LOOK, PlayModePicker } from "./PlayMode";
 import { Stepper } from "./ui";
 
@@ -63,6 +64,7 @@ export function PlaybackMenu() {
           <Row label={t("高亮")} hint={t("逐字只限转写的字幕")}>
             <HighlightPicker />
           </Row>
+          <PictureMenu />
         </div>
       )}
     </div>

@@ -1,32 +1,43 @@
-import { AlertCircle } from "lucide-react";
+import { useStageWide } from "../hooks/useStageWide";
 import { t, tk } from "../lib/i18n";
-import { formatDuration } from "../lib/practice";
+import { layoutShown } from "../lib/picture";
 import { useApp } from "../store";
 import { PracticeCoach } from "./guide/PracticeCoach";
 import { LoopPanel } from "./Loop";
-import { Picture, Unsupported } from "./Picture";
+import { Picture } from "./Picture";
+import { TrackTitle } from "./TrackTitle";
 import { TranscribeCard } from "./TranscribeCard";
 import { SentenceList } from "./Transcript";
 import { Kbd } from "./ui";
+import { Unsupported } from "./Unsupported";
+import { SideBySide, Theater } from "./VideoStage";
 
 /**
  * Main area above the deck: what you're practising. With a transcript that's
- * the sentence list; without one it's the A–B loop.
+ * the sentence list; without one it's the A–B loop. A video's picture goes above
+ * them, beside them, or on its own (VideoStage.tsx).
  */
 export function Stage() {
   const hasTrack = useApp((s) => !!s.current);
   const unsupported = useApp((s) => s.current?.kind === "unsupported");
   const hasTranscript = useApp((s) => !!s.transcript?.sentences.length);
   const coaching = useApp((s) => s.practicing && !!s.current && s.current.path === s.sample?.path);
+  // A video whose picture shows (or is still loading: most are what they say).
+  const picture = useApp((s) => s.current?.kind === "video" && !s.settings.pictureHidden && (s.pictureLook === "loading" || s.pictureLook === "shown"));
+  const chosen = useApp((s) => s.settings.pictureLayout);
+  const wide = useStageWide();
+  const layout = picture ? layoutShown(chosen, wide) : "stack";
 
   if (!hasTrack) return <Empty />;
   if (unsupported) return <Unsupported />;
+  if (layout === "side") return <SideBySide hasTranscript={hasTranscript} />;
+  if (layout === "theater") return <Theater hasTranscript={hasTranscript} />;
 
   // One tree either way, so a video's picture isn't loaded again when its transcript arrives.
   return (
     <div className={`flex min-h-0 flex-1 flex-col ${hasTranscript ? "" : "scrollbar-none overflow-y-auto"}`}>
       <TrackTitle />
-      <Picture />
+      <Picture layout="stack" />
       {hasTranscript ? (
         <>
           {coaching && <PracticeCoach />}
@@ -72,40 +83,5 @@ function Empty() {
         </dl>
       </div>
     </div>
-  );
-}
-
-function TrackTitle() {
-  const current = useApp((s) => s.current)!;
-  const error = useApp((s) => s.error);
-  // A video's title keeps to one smaller line: the picture under it needs the room.
-  const size = current.kind === "video" ? "line-clamp-1 text-[22px] leading-[1.3]" : "line-clamp-2 text-[28px] leading-[1.22]";
-  return (
-    <div key={current.path} className="mx-auto w-full max-w-[760px] shrink-0 animate-fade-in px-10 pt-1">
-      <h1
-        className={`${size} font-script font-semibold tracking-[-0.012em] break-words text-balance`}
-        title={current.name}
-      >
-        {current.name}
-      </h1>
-      <TrackPractice />
-      {error && (
-        <p className="mt-3 flex w-fit max-w-full items-start gap-1.5 rounded-[8px] bg-danger-soft px-3 py-1.5 text-[13px] text-danger">
-          <AlertCircle size={15} className="mt-0.5 shrink-0" />
-          <span className="break-words">{error}</span>
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** How long this audio has been practised in all, once there's at least a minute. */
-function TrackPractice() {
-  const ms = useApp((s) => s.trackMs);
-  if (ms < 60_000) return null;
-  return (
-    <p className="mt-1 text-[12px] text-faint" title={t("练这段音频的时间（播放和中间的跟读），详见学习记录")}>
-      {t("已练")} <span className="tabular text-muted">{formatDuration(ms)}</span>
-    </p>
   );
 }

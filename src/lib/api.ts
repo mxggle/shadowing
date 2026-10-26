@@ -6,6 +6,9 @@ import type { Lang, LangSetting } from "./i18n";
 /** Audio; a video (the engine plays its sound, a `<video>` its picture); or a video the app can't play (WebM, MKV), listed to say why. */
 export type TrackKind = "audio" | "video" | "unsupported";
 
+/** Above the sentences, beside them, or large on its own. */
+export type PictureLayout = "stack" | "side" | "theater";
+
 export interface Track {
   path: string;
   name: string;
@@ -50,6 +53,14 @@ export interface Settings {
   wordHighlight: boolean;
   /** Height of a video's picture above the sentences, in CSS pixels. */
   pictureHeight: number;
+  /** How a video's picture is shown; "side" falls back to "stack" in a narrow window (lib/picture.ts). */
+  pictureLayout: PictureLayout;
+  /** A blurred band over subtitles burned into the picture, from `maskTop` to `maskBottom` (fractions of its height). */
+  pictureMask: boolean;
+  maskTop: number;
+  maskBottom: number;
+  /** Only listen: a video's picture isn't shown (or decoded). */
+  pictureHidden: boolean;
   /** Interface language chosen in settings ("" follows the Mac); see lib/i18n.ts. */
   uiLanguage: LangSetting;
 }

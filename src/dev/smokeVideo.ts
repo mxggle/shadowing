@@ -13,6 +13,8 @@ interface Kit {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Whether other windows cover this one (WebKit reports the page hidden). */
+const covered = () => document.visibilityState === "hidden";
 /** In step: the picture may trail a frame or two behind the 30 Hz status it chases. */
 const IN_STEP = 0.2;
 
@@ -31,13 +33,21 @@ export async function videoScenario({ check, waitFor, tracks }: Kit) {
 
   const off = async () => (await engine.statusNow()).time - (picture()?.currentTime ?? NaN);
   const inStep = async (label: string, extra = "") => {
+    // A covered window's picture rests (Picture.tsx); in step is for one that shows.
+    if (covered()) {
+      await sleep(300);
+      return check(`picture rests ${label} while the window is covered`, !!picture()?.paused);
+    }
     // Catching up runs 10% faster or slower: 0.25 s off takes 2.5 s.
     await waitFor(async () => Math.abs(await off()) < IN_STEP, 3000);
     const d = await off();
     const p = picture();
     const inner = (playhead()?.time ?? NaN) - (p?.currentTime ?? NaN);
     const state = `picture ${p?.currentTime.toFixed(2)} ${p?.paused ? "paused" : "playing"} rate ${p?.playbackRate.toFixed(3)}, as the app sees it ${inner.toFixed(3)}s, page ${document.visibilityState}`;
-    check(`picture in step ${label}`, Math.abs(d) < IN_STEP, `off ${d.toFixed(3)}s${extra} (${state})`);
+    // Then where it settles once caught up (reported, not checked: a covered window corrects slowly).
+    await sleep(1500);
+    const settled = await off();
+    check(`picture in step ${label}`, Math.abs(d) < IN_STEP, `off ${d.toFixed(3)}s, ${settled.toFixed(3)}s 1.5 s later${extra} (${state})`);
   };
   await sleep(1000);
   await inStep("while playing");
@@ -53,7 +63,9 @@ export async function videoScenario({ check, waitFor, tracks }: Kit) {
   app().toggle();
   const still = await waitFor(() => !!picture()?.paused, 1000);
   await sleep(300);
-  check("picture pauses with the sound", still && Math.abs(await off()) < 0.06, `off ${(await off()).toFixed(3)}s`);
+  // Paused, it shows the exact frame (a covered window's only rests: it isn't seen).
+  const exact = covered() || Math.abs(await off()) < 0.06;
+  check("picture pauses with the sound", still && exact, `off ${(await off()).toFixed(3)}s, page ${document.visibilityState}`);
   app().toggle();
 
   // An A–B loop: after going round, the picture is back near A, not running on.
@@ -66,10 +78,25 @@ export async function videoScenario({ check, waitFor, tracks }: Kit) {
   const round = await waitFor(() => app().repeats >= 1, (b - a) * 1000 + 2000);
   await sleep(200);
   const t = picture()?.currentTime ?? NaN;
-  check("picture loops with the sound", round && t >= a - 0.1 && t < b, `A ${a.toFixed(2)} B ${b.toFixed(2)} picture ${t.toFixed(2)}`);
+  if (covered()) check("picture rests during a loop while the window is covered", round && !!picture()?.paused);
+  else check("picture loops with the sound", round && t >= a - 0.1 && t < b, `A ${a.toFixed(2)} B ${b.toFixed(2)} picture ${t.toFixed(2)}`);
   app().clearLoop();
 
-  // Only videos inside the folder are served: not its audio, not a file elsewhere.
+  // Each layout shows the picture (a new <video> each time), in step; hidden, none plays.
+  for (const layout of ["theater", "side", "stack"] as const) {
+    const before = picture();
+    app().setPictureLayout(layout);
+    // A layout the window is too narrow for shows as another, with the same <video>.
+    const moved = await waitFor(() => picture() !== before, 1000);
+    const fine = await waitFor(() => (picture()?.readyState ?? 0) >= 2, 3000);
+    check(`picture shows in the ${layout} layout`, fine, `${moved ? "new" : "same"} <video>, ready ${picture()?.readyState}`);
+  }
+  app().setPictureHidden(true);
+  await sleep(300);
+  check("hiding the picture removes it, the sound plays on", !picture() && (await engine.statusNow()).playing);
+  app().setPictureHidden(false);
+
+    // Only videos inside the folder are served: not its audio, not a file elsewhere.
   const refused = (path: string) =>
     new Promise<boolean>((done) => {
       const v = document.createElement("video");

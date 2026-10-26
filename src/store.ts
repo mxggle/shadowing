@@ -193,7 +193,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, pictureHeight: 300, uiLanguage: "" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, uiLanguage: "" },
     current: null,
     playing: false,
     time: 0,
@@ -219,7 +219,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createReadingSlice(set, get, engine, persistSettings),
     ...createDrillSlice(set, get, engine, persistSettings),
     ...createImportSlice(set, get),
-    ...createVideoSlice(persistSettings),
+    ...createVideoSlice(set, get, persistSettings),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
@@ -314,6 +314,7 @@ export const useApp = create<AppState>((set, get) => {
         return;
       }
       const start = resumePosition(get().progress[track.path]);
+      set({ pictureLook: "loading", lineHidden: false });
       set({ rec: null, live: null, current: track, time: start, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, trackMs: 0 });
       void get().refreshToday();
       void get().loadTranscript(track.path);

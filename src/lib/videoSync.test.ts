@@ -96,10 +96,11 @@ describe("syncPicture", () => {
 });
 
 describe("nextLead", () => {
-  it("follows how long jumps take, within bounds", () => {
-    expect(nextLead(0.15, 0.15)).toBeCloseTo(0.15);
-    expect(nextLead(0.15, 0.4)).toBeCloseTo(0.25);
-    expect(nextLead(0.1, 0)).toBe(0.06);
-    expect(nextLead(0.6, 3)).toBe(0.6);
+  it("jumps further after landing behind, less after landing ahead, within bounds", () => {
+    expect(nextLead(0.15, 0)).toBeCloseTo(0.15);
+    expect(nextLead(0.15, 0.1)).toBeCloseTo(0.22);
+    expect(nextLead(0.3, -0.19)).toBeCloseTo(0.167);
+    expect(nextLead(0.05, -0.5)).toBe(0);
+    expect(nextLead(0.5, 3)).toBe(0.6);
   });
 });

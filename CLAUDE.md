@@ -38,10 +38,12 @@ src/                      前端
   lib/rounds.ts           连续录（一遍遍接着录）和逐句跟读（每句最多几遍）：空格留下哪一遍、遍数输入、卡片上的说法，有单元测试
   lib/imports.ts          从链接导入：默认带哪种字幕（说的语言，不带译文）、进度的说法、下载排队（一次一个）、
                           下载中的行放在哪个分组（和 Rust 一样整理文件夹名），有单元测试
+  lib/picture.ts          视频画面的布局（并排要主区 ≥ 1100px，V 轮换）、object-fit: contain 时画面在框里的位置、遮字幕带的拖动，有单元测试
   lib/videoSync.ts        视频画面跟着声音走：每 50 毫秒比一比引擎的位置和 <video> 的；差得多就往前多跳一点（跳转要的时间）再稳住，差一点就快慢 10% 追上（一次纠正只改两次速度），
                           声音比画面长时停在最后一帧，有单元测试
   lib/playKey.ts          播放条的播放 / 暂停键现在管谁（录音、整段录音、回放录音、整段回放，都没有时是主播放器）、暂停后继续时还要做什么，有单元测试
-  components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板；视频时上面多一块画面，Picture.tsx：静音的 <video>、拖动条，放不了的 WebM / MKV 的说明）、PlayerBar.tsx 底部播放条、
+  components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板；视频时多一块画面，Picture.tsx：静音的 <video>、拖动条、悬停时的布局按钮，PictureMask.tsx 遮字幕的模糊带，
+                          VideoStage.tsx 并排和影院，PictureMenu.tsx 播放设置里的「画面」「遮字幕」，Unsupported.tsx 放不了的 WebM / MKV 的说明；TrackTitle.tsx 音频的标题）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置；ui.tsx 共用的按键与表单件；
                           Transcript.tsx 句子列表，Sections.tsx 段落小标题和顶部的段落菜单，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
                           Explain.tsx 句子下的解释块、SentenceEditor.tsx 改一句（⇧↩ 断开、⌫ / ⌦ 合并）、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
