@@ -132,7 +132,11 @@ pub fn smoke_window(app: AppHandle, minimized: bool) {
         let _ = if minimized {
             w.minimize()
         } else {
+            // In front and staying there, so a video's picture shows (a covered
+            // window's only rests) and the checks see it follow the sound.
             w.unminimize()
+                .and_then(|_| w.set_always_on_top(true))
+                .and_then(|_| w.set_focus())
         };
     }
 }

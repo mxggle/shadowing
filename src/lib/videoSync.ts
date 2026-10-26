@@ -1,11 +1,12 @@
 // A video's picture follows the engine, which plays its sound (src-tauri/src/audio):
 // a muted <video> is told, many times a second, what to do to show what is being heard.
 //
-// Both ways of correcting it are costly in a webview, so each is used sparingly:
-// - a jump takes 30–250 ms before the picture moves again (WebKit reads each frame
-//   through media:// on its own), so it jumps ahead by about that, then is left to settle;
-// - a speed change restarts the player's clock, so speeds changing every frame cancel
-//   out: it runs 10% faster or slower until it's back, two changes per correction.
+// WebKit makes both ways of correcting it costly, so it's done only by jumping:
+// - a jump takes 0.25–0.35 s before the picture moves again, so it jumps ahead by
+//   about that (`lead`, learnt from where each one lands), then is left to settle;
+// - changing the speed while it plays makes it snap back to the last jump and freeze
+//   for half a second, so the speed changes only when yours does, and then together
+//   with a jump. Left alone at the same speed, the picture keeps within a frame or two.
 
 /** What the engine says is audible now. */
 export interface Playhead {
@@ -27,8 +28,8 @@ export interface PictureState {
   settled: number;
   /** Seconds since the jump under way was asked for (0 when none is). */
   seekingFor: number;
-  /** Seconds it has been running faster or slower to catch up (0 when it isn't). */
-  nudgedFor: number;
+  /** The sound itself moved (a seek, a loop going round) since the last jump was asked for. */
+  soundMoved: boolean;
 }
 
 export interface SyncAction {
@@ -38,27 +39,18 @@ export interface SyncAction {
   rate?: number;
 }
 
-/** Playing, further off than this: jump (once settled). */
-export const JUMP_OVER = 0.4;
-/** Playing, further off than this: start catching up by running a little faster or slower… */
-export const NUDGE_OVER = 0.06;
-/** …until this close (or past it). */
-const NUDGE_DONE = 0.01;
-const NUDGE = 0.1;
-/** Catching up that hasn't worked by then (a webview ignoring the speed): jump instead. */
-const NUDGE_GIVE_UP = 3;
+/** Playing, further off than this: jump. */
+export const JUMP_OVER = 0.1;
 /** Paused: further off than about a frame shows the wrong one. */
 export const STILL_OVER = 0.04;
-/** After a jump lands, the picture gets this long to catch up before another. */
+/** After a jump lands the picture takes a moment to get going: no other jump for this long, unless the sound moved. */
 export const SETTLE = 1;
 /** A jump that hasn't landed by then is asked for again. */
 const STUCK = 2;
-/** Further than this, or behind it: the sound itself moved (a seek, a loop), so jump now. */
-const MOVED = 1;
 /** The picture stops this short of its end: a video that ends restarts if told to play. */
 const END_MARGIN = 0.05;
 
-/** `lead`: how long a jump takes (seconds), so the picture lands where the sound will be. */
+/** `lead`: how far ahead to jump while playing (seconds), so the picture lands where the sound will be. */
 export function syncPicture(head: Playhead, pic: PictureState, lead = 0): SyncAction {
   const act: SyncAction = {};
   // Sound longer than the picture: hold its last frame.
@@ -75,23 +67,16 @@ export function syncPicture(head: Playhead, pic: PictureState, lead = 0): SyncAc
     if (pic.seekingFor > STUCK) act.seek = ahead;
     return act;
   }
-
-  let rate = head.rate;
-  const nudging = Math.abs(pic.rate / head.rate - 1 - NUDGE) < 1e-6 ? 1 : Math.abs(pic.rate / head.rate - 1 + NUDGE) < 1e-6 ? -1 : 0;
+  if (Math.abs(pic.rate - head.rate) > 1e-6) {
+    // A new speed: set it and jump at once, one stall instead of two.
+    act.rate = head.rate;
+    if (playing) act.seek = ahead;
+  }
   if (!playing) {
     if (Math.abs(off) > STILL_OVER) act.seek = target;
-  } else if (Math.abs(off) > JUMP_OVER && (pic.settled > SETTLE || off < 0 || off > MOVED)) {
+  } else if (Math.abs(off) > JUMP_OVER && (pic.settled > SETTLE || pic.soundMoved)) {
     act.seek = ahead;
-  } else if (nudging && pic.nudgedFor > NUDGE_GIVE_UP && Math.abs(off) > NUDGE_OVER) {
-    act.seek = ahead;
-  } else if (nudging === 1 && off > NUDGE_DONE) {
-    rate = pic.rate; // still behind: keep going faster
-  } else if (nudging === -1 && off < -NUDGE_DONE) {
-    rate = pic.rate; // still ahead: keep going slower
-  } else if (!nudging && Math.abs(off) > NUDGE_OVER) {
-    rate = head.rate * (off > 0 ? 1 + NUDGE : 1 - NUDGE);
   }
-  if (Math.abs(rate - pic.rate) > 1e-6) act.rate = rate;
   return act;
 }
 
@@ -103,4 +88,10 @@ export function syncPicture(head: Playhead, pic: PictureState, lead = 0): SyncAc
  */
 export function nextLead(lead: number, off: number): number {
   return Math.max(0, Math.min(0.6, lead + off * 0.7));
+}
+
+/** Whether the sound jumped (a seek, a loop going round): not where it was `secs` ago, run on at `rate`. */
+export function soundJumped(before: Playhead, now: Playhead, secs: number): boolean {
+  const expected = before.time + (before.playing ? secs * before.rate : 0);
+  return Math.abs(now.time - expected) > 0.25;
 }
