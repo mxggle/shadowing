@@ -265,7 +265,10 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 .imp-meta { margin-top: 3px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .imp-rows { display: grid; gap: 10px; margin-top: 16px; }
 .imp-row { display: flex; align-items: center; gap: 12px; }
-.imp-row > span:first-child { flex: none; width: 2.6em; color: var(--muted); }
+.imp-row > span:first-child { flex: none; width: 3.2em; color: var(--muted); }
+.imp .seg { flex: none; display: flex; padding: 3px; border-radius: 10px; background: var(--fill); }
+.imp .seg span { height: 26px; padding: 0 12px; border-radius: 7px; display: inline-grid; place-items: center; font-size: 12.5px; color: var(--muted); }
+.imp .seg .on { background: var(--paper); color: var(--fg); font-weight: 500; box-shadow: 0 0 0 1px var(--line); }
 .imp-row .folder { flex: none; color: var(--faint); font-size: 12.5px; }
 .imp-note { margin-top: 14px; font-size: 12px; line-height: 1.6; color: var(--faint); }
 .imp-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
@@ -670,7 +673,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
         <section class="chapter" aria-labelledby="plugins-title">
           <div class="head">
             <div><p class="new">0.9 版新增</p><h2 id="plugins-title"><span class="ph">应用做不到的，</span><span class="ph">交给插件。</span></h2></div>
-            <p>插件给 Shadowing 加上它本身不带的功能，谁都可以写。第一个插件「YouTube 导入」：在别处复制一个视频链接，回到应用按 <kbd>⌘V</kbd>，音频和人工字幕就进了你的文件夹。</p>
+            <p>插件给 Shadowing 加上它本身不带的功能，谁都可以写。第一个插件「YouTube 导入」：在别处复制一个视频链接，回到应用按 <kbd>⌘V</kbd>，音频和人工字幕就进了你的文件夹；想看着画面跟读，就连画面一起下。</p>
           </div>
           <div class="split flip">
             <figure class="shot imp">
@@ -682,21 +685,23 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
                   <p class="imp-meta">11:38 · YouTube</p>
                   <div class="imp-rows">
                     <div class="imp-row"><span>字幕</span><span class="field">日语（人工字幕）<svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span></div>
+                    <div class="imp-row"><span>内容</span><span class="seg"><span>只要声音</span><span class="on">声音 + 画面</span></span></div>
+                    <div class="imp-row"><span>清晰度</span><span class="field"><span>720p · 约 96 MB</span><svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span></div>
                     <div class="imp-row"><span>存到</span><span class="folder">日语听力 /</span><span class="field">YouTube</span></div>
                   </div>
-                  <p class="imp-note">下载原始的 m4a 音轨，不转码。字幕断句不好时，可以移除后改用转写。只下载你有权使用的内容。</p>
+                  <p class="imp-note">下载 mp4 画面（H.264）和原始的 m4a 音轨，合成一个视频，不转码。字幕断句不好时，可以移除后改用转写。只下载你有权使用的内容。</p>
                   <div class="imp-btns"><span class="mini">取消</span><span class="mini ink">下载</span></div>
                 </div>
               </div>
               <div class="dl-list" aria-hidden="true">
                 <b>YouTube</b>
-                <div class="dl"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="var(--track)"/><circle cx="8" cy="8" r="6.5" stroke="var(--fg)" stroke-linecap="round" stroke-dasharray="15.9 40.8" transform="rotate(-90 8 8)"/></svg><div><p>カフェで注文してみよう｜日本語の会話</p><small>下载音频 4.2 / 10.8 MB</small></div></div>
+                <div class="dl"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="var(--track)"/><circle cx="8" cy="8" r="6.5" stroke="var(--fg)" stroke-linecap="round" stroke-dasharray="15.9 40.8" transform="rotate(-90 8 8)"/></svg><div><p>カフェで注文してみよう｜日本語の会話</p><small>下载画面 31.4 / 85.2 MB</small></div></div>
                 <div class="dl q"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="var(--track)" stroke-dasharray="2.5 2.5"/></svg><div><p>駅で道を聞く｜日本語の会話</p><small>等前一个下载完</small></div></div>
               </div>
-              <figcaption>按 <kbd>⌘V</kbd> 先看到是什么、有没有人工字幕，再下载。要下载的音频马上出现在列表里它要去的文件夹下，一个接一个下载。</figcaption>
+              <figcaption>按 <kbd>⌘V</kbd> 先看到是什么、有没有人工字幕，选只要声音还是连画面一起，再下载。要下载的音频马上出现在列表里它要去的文件夹下，一个接一个下载。</figcaption>
             </figure>
             <dl class="points">
-              <div><dt>粘贴链接就导入</dt><dd>先看标题、时长和有没有人工字幕，选好放在哪个子文件夹再下载。下载时照常练别的，下好就是列表里普通的一行。音频是原始的 m4a 音轨，不转码。</dd></div>
+              <div><dt>粘贴链接就导入</dt><dd>先看标题、时长和有没有人工字幕，选好放在哪个子文件夹再下载。下载时照常练别的，下好就是列表里普通的一行。音频是原始的 m4a 音轨；要画面时下载 H.264 的画面，和声音合成一个 mp4，都不转码，也不用装 ffmpeg。</dd></div>
               <div><dt>谁都能写</dt><dd>插件是一个程序加一个 manifest.json，在标准输入输出上说 JSON-RPC，和 LSP、MCP 一样，用什么语言写都行。崩了、卡了也不影响播放。</dd></div>
               <div><dt>装之前看清楚</dt><dd>应用不把你的文件夹交给插件：它只往暂存文件夹写，应用检查过再放进你的文件夹。安装前列出它会联网到哪里、会下载运行什么；插件目录里的都先审过源代码。</dd></div>
             </dl>
