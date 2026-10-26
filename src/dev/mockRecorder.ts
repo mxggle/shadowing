@@ -45,6 +45,9 @@ function makeTake(meta: RecordMeta, created: number, slower = 1.1): Take {
     mine: [0.1 + lag - 0.15, 0.1 + lag + o + 0.3],
     lagMs: Math.round(lag * 1000),
     peaks: { original: voice(o, 0.1, 0.9), mine: voice(o, 0.1 + lag, 0.75) },
+    // The original begins at the sentence's start: a video's picture follows the take from there.
+    originalAt: meta.start,
+    ...(meta.dub ? { dub: true } : {}),
   };
 }
 

@@ -12,6 +12,9 @@ pub struct Mark {
     pub at: u64,
     pub frames: u32,
     pub rate: u32,
+    /// Where in the track (seconds) its first frame is; NaN when the track wasn't
+    /// playing (a take of a video is mapped back onto the picture with it).
+    pub src: f64,
 }
 
 pub struct Tap {
@@ -39,8 +42,9 @@ pub fn tap(secs: f64) -> (Tap, TapRx) {
 }
 
 impl Tap {
-    /// Mono copy of `out` (interleaved, `ch` channels), heard from host time `at` on.
-    pub fn push(&mut self, out: &[f32], ch: usize, rate: u32, at: u64) {
+    /// Mono copy of `out` (interleaved, `ch` channels), heard from host time `at` on,
+    /// starting at `src` seconds into the track (NaN: not the track).
+    pub fn push(&mut self, out: &[f32], ch: usize, rate: u32, at: u64, src: f64) {
         let frames = out.len() / ch.max(1);
         if frames == 0 || self.samples.slots() < frames || self.marks.slots() == 0 {
             return;
@@ -57,6 +61,7 @@ impl Tap {
             at,
             frames: frames as u32,
             rate,
+            src,
         });
     }
 }

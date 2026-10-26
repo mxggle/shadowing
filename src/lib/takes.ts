@@ -96,6 +96,18 @@ export function playheadAt(parts: ClipPart[], secs: number): { original: number 
   return { ...none, [part.lane]: at };
 }
 
+/**
+ * Where in the track a video's picture is while a take plays back: said along, the
+ * original and you share the file's time, and `originalAt` places it in the track.
+ * Null for takes in turns, or kept before that was.
+ */
+export function takeTrackTime(take: Pick<Take, "mode" | "original" | "originalAt" | "rate">, parts: ClipPart[], secs: number): number | null {
+  if (inTurns(take) || take.originalAt === undefined) return null;
+  const at = playheadAt(parts, secs);
+  const file = at.original ?? at.mine;
+  return file === null ? null : take.originalAt + (file - take.original[0]) * take.rate;
+}
+
 /** Your voice's own length: the stored stretch keeps 0.15 s before and 0.3 s after it (record/take.rs). */
 export const mineSecs = (take: Take) => Math.max(0, take.mine[1] - take.mine[0] - 0.45);
 
@@ -122,10 +134,13 @@ export function paceNote(take: Take): string {
 export const BLUETOOTH_LAG = tk("戴蓝牙耳机时测不准晚多少");
 
 /** 边听边说: how far behind the original you were. */
-export function lagNote(ms: number | null, bluetooth = false): string {
+/** `dub`: said to the picture (配音), so against the speaker's mouth. */
+export function lagNote(ms: number | null, bluetooth = false, dub = false): string {
   if (ms === null) return "";
   if (bluetooth) return t(BLUETOOTH_LAG);
-  return ms < 80 ? t("几乎和原声同步") : t("比原声晚 {secs} 秒", { secs: (ms / 1000).toFixed(2) });
+  const secs = (ms / 1000).toFixed(2);
+  if (dub) return ms < 80 ? t("几乎和口型同步") : t("比口型晚 {secs} 秒", { secs });
+  return ms < 80 ? t("几乎和原声同步") : t("比原声晚 {secs} 秒", { secs });
 }
 
 /** "刚刚", "3 分钟前", "今天 14:05", "10月12日" */

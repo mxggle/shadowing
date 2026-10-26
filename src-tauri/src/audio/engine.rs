@@ -43,6 +43,9 @@ pub enum Cmd {
     Hold(bool),
     /// Pause (true) or go on with the clip playing.
     HoldClip(bool),
+    /// Silence the device but not the tap (配音: the picture plays, the original is
+    /// recorded as heard, nothing comes out of the speakers).
+    Mute(bool),
 }
 
 #[allow(dead_code)]
@@ -114,6 +117,7 @@ pub struct Engine {
     last_time: f64,
     tap: Option<Box<Tap>>,
     clip: Option<Box<Clip>>,
+    muted: bool,
 }
 
 impl Engine {
@@ -142,6 +146,7 @@ impl Engine {
             last_time: 0.0,
             tap: None,
             clip: None,
+            muted: false,
         }
     }
 
@@ -252,6 +257,7 @@ impl Engine {
                 }
             }
             Cmd::Volume(v) => self.vol_target = v.clamp(0.0, 1.0),
+            Cmd::Mute(on) => self.muted = on,
             Cmd::Loop(ab, id) => {
                 if let Some(s) = self.session.as_mut() {
                     s.reader.set_loop(ab, id);
@@ -327,11 +333,29 @@ impl Engine {
         self.bin(Trash::Clip(c));
     }
 
-    /// Hands what was just rendered to the recorder's tap, if one is set.
+    /// Hands what was just rendered to the recorder's tap, if one is set, with
+    /// where in the track its first frame is.
     pub fn tap(&mut self, out: &[f32], dev_ch: usize, at: u64) {
-        if let Some(t) = self.tap.as_mut() {
-            t.push(out, dev_ch, self.dev_sr, at);
+        if self.tap.is_none() {
+            return;
         }
+        let frames = out.len() / dev_ch.max(1);
+        let src = match self.session.as_deref() {
+            // Just rendered: its first frame is `frames` behind the newest output.
+            Some(s) if self.playing => s
+                .heard(frames)
+                .1
+                .map_or(f64::NAN, |p| p as f64 / s.sr as f64),
+            _ => f64::NAN,
+        };
+        if let Some(t) = self.tap.as_mut() {
+            t.push(out, dev_ch, self.dev_sr, at, src);
+        }
+    }
+
+    /// Whether the device gets silence instead (after the tap has its copy).
+    pub fn muted(&self) -> bool {
+        self.muted
     }
 
     fn play(&mut self) {

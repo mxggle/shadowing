@@ -50,6 +50,8 @@ export interface Rec {
   secs: number;
   /** The microphone recording (the Mac's own when the default is a Bluetooth headset). */
   mic: string;
+  /** 配音: said along with the picture, the speakers silent. */
+  dub: boolean;
 }
 
 export interface RecordState extends TakePlayback {
@@ -83,6 +85,8 @@ export interface RecordState extends TakePlayback {
   deleteTake(id: string): Promise<void>;
   showTake(id: string): void;
   setRecordMode(mode: RecordMode): void;
+  /** 配音 (on a video) instead of the other two ways. */
+  setRecordDub(on: boolean): void;
   setRecordReplay(on: boolean): void;
   /** The track paused (a range played to its end, or anything else). */
   playbackStopped(): void;
@@ -239,17 +243,18 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
       get().stopReadingPlayback();
       blurField();
       const mode = s.settings.recordMode;
+      const dub = mode === "shadow" && s.settings.recordDub && s.current.kind === "video";
       const again = how?.again ?? recordsAgain(where, s.loopSentence, isLoopActive(s.loop));
       const mine = ++starts;
       set({
         recordAt: where,
         shownTake: null,
         recError: null,
-        rec: { at: where, ...target, mode, again, n: 1, max: how?.max ?? null, phase: "starting", along: false, tail: false, paused: false, levels: [], secs: 0, mic: "" },
+        rec: { at: where, ...target, mode, again, n: 1, max: how?.max ?? null, phase: "starting", along: false, tail: false, paused: false, levels: [], secs: 0, mic: "", dub },
       });
       let mic: string;
       try {
-        mic = await api.record.begin({ audio: s.current.path, ...target, mode, rate: s.settings.rate });
+        mic = await api.record.begin({ audio: s.current.path, ...target, mode, rate: s.settings.rate, dub });
       } catch (e) {
         if (mine !== starts) return;
         set({ rec: null, recError: String(e) });
@@ -354,6 +359,10 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
     showTake(id) {
       get().stopTake();
       set({ shownTake: id });
+    },
+
+    setRecordDub(recordDub) {
+      persistSettings({ recordDub });
     },
 
     setRecordMode(recordMode) {

@@ -24,17 +24,17 @@ impl Recorder {
     /// aside before stays). Fails once the take has stopped (too long, an error).
     pub fn round(&self) -> Result<bool, String> {
         let (tx, rx) = mpsc::channel();
-        let (mode, id) = {
+        let (mode, dub, id) = {
             let session = self.lock();
             let s = session.as_ref().ok_or(stopped())?;
             s.tx.send(Msg::Round(tx)).map_err(|_| stopped())?;
-            (s.meta.mode, s.id)
+            (s.meta.mode, s.meta.dub, s.id)
         };
         let raw = rx
             .recv_timeout(Duration::from_secs(2))
             .map_err(|_| stopped())?;
         // Removing the echo takes a moment: the lock isn't held meanwhile.
-        let Ok(built) = take::build(&raw, mode) else {
+        let Ok(built) = take::build_heard(&raw, mode, !dub) else {
             return Ok(false);
         };
         if let Some(s) = self.lock().as_mut().filter(|s| s.id == id) {
@@ -73,6 +73,7 @@ mod tests {
             original_span: (0.0, 1.0),
             mine_span: (0.0, secs),
             lag_ms: None,
+            original_at: None,
         }
     }
     fn nothing() -> Result<Built, &'static str> {
