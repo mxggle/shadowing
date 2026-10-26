@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { AudioEngine } from "./audio/engine";
 import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, trackAfter, type Loop, type PlayMode } from "./audio/logic";
 import { listen } from "@tauri-apps/api/event";
-import { api, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
+import { api, setMediaBase, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
 import { setLang, type Lang, type LangSetting } from "./lib/i18n";
 import { playKey } from "./lib/playKey";
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
@@ -17,8 +17,9 @@ import { createRecordSlice, micOpen, type RecordState } from "./recordSlice";
 import { createReshapeSlice, type ReshapeState } from "./reshapeSlice";
 import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./transcriptSlice";
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
+import { createVideoSlice, type VideoState } from "./videoSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState {
+export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -81,6 +82,9 @@ function loadShelfOpen(): boolean {
   }
 }
 
+/** Audio or a video: something the engine can play (not a WebM or MKV listed only to say why it can't). */
+export const playable = (track: Track) => track.kind !== "unsupported";
+
 /** What the deck's play key does now (lib/playKey.ts). */
 export const playKeyOf = ({ rec, live, drill, playingTake, playingReading, playing, current, folder }: AppState) =>
   playKey({
@@ -90,7 +94,7 @@ export const playKeyOf = ({ rec, live, drill, playingTake, playingReading, playi
     playingTake,
     playingReading,
     playing,
-    hasTracks: !!current || !!folder?.tracks.length,
+    hasTracks: current ? playable(current) : !!folder?.tracks.some(playable),
   });
 
 const SAVE_EVERY_MS = 2000;
@@ -98,6 +102,10 @@ const SAVE_EVERY_MS = 2000;
 const SETTINGS_SETTLE_MS = 400;
 /** Exposed for the debug smoke test only. */
 export let debugEngine: AudioEngine | null = null;
+let theEngine: AudioEngine | null = null;
+
+/** Where the engine is now (between its status events too): what a video's picture follows. */
+export const playhead = () => theEngine && { time: theEngine.time, playing: !theEngine.paused, rate: theEngine.speed };
 let lastSaved = { path: "", position: -1 };
 
 export const useApp = create<AppState>((set, get) => {
@@ -124,6 +132,7 @@ export const useApp = create<AppState>((set, get) => {
     onError: (error) => set({ error, playing: false }),
   });
   debugEngine = engine;
+  theEngine = engine;
 
   void listen<DownloadStatus>("local:download", ({ payload }) => {
     set({ download: payload });
@@ -184,7 +193,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, uiLanguage: "" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, pictureHeight: 300, uiLanguage: "" },
     current: null,
     playing: false,
     time: 0,
@@ -210,10 +219,12 @@ export const useApp = create<AppState>((set, get) => {
     ...createReadingSlice(set, get, engine, persistSettings),
     ...createDrillSlice(set, get, engine, persistSettings),
     ...createImportSlice(set, get),
+    ...createVideoSlice(persistSettings),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
       setLang(snap.uiLang);
+      setMediaBase(snap.mediaBase);
       set({
         ready: true,
         lang: snap.uiLang,
@@ -230,7 +241,7 @@ export const useApp = create<AppState>((set, get) => {
       void get().restoreJob();
       get().watchImports();
       void get().refreshToday();
-      const last = snap.folder?.tracks.find((t) => t.path === snap.lastTrack);
+      const last = snap.folder?.tracks.find((t) => t.path === snap.lastTrack && playable(t));
       if (last) get().open(last, false);
     },
 
@@ -296,6 +307,12 @@ export const useApp = create<AppState>((set, get) => {
       get().stopReadingPlayback();
       // Picking one of your own tracks ends the practice on the sample.
       if (get().practicing && track.path !== get().sample?.path) set({ practicing: false });
+      if (!playable(track)) {
+        // Shown with why it can't play (Stage); nothing to load, nothing to resume next time.
+        engine.unload();
+        set({ rec: null, live: null, current: track, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, trackMs: 0, takes: [], readings: [] });
+        return;
+      }
       const start = resumePosition(get().progress[track.path]);
       set({ rec: null, live: null, current: track, time: start, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, trackMs: 0 });
       void get().refreshToday();
@@ -321,11 +338,11 @@ export const useApp = create<AppState>((set, get) => {
       if (micOpen(get())) return;
       const { current, folder } = get();
       if (!current) {
-        const first = folder?.tracks[0];
+        const first = folder?.tracks.find(playable);
         if (first) get().open(first);
         return;
       }
-      engine.toggle();
+      if (playable(current)) engine.toggle();
     },
 
     seek(t) {
@@ -345,7 +362,8 @@ export const useApp = create<AppState>((set, get) => {
     step(direction, ended = false) {
       const { folder, current, settings } = get();
       if (!current || micOpen(get())) return;
-      const tracks = folder?.tracks ?? [];
+      // Over what can play; from a file that can't, on to its neighbours.
+      const tracks = (folder?.tracks ?? []).filter((t) => playable(t) || t.path === current.path);
       // -1 for the sample clip, which isn't part of the folder.
       const i = tracks.findIndex((t) => t.path === current.path);
       const next = trackAfter(settings.playMode, i, tracks.length, direction, ended);

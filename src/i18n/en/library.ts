@@ -21,6 +21,7 @@ export const library: Record<string, Entry> = {
   正在播放: "Playing",
   已听完: "Listened to the end",
   "已听 {percent}%": "{percent}% listened",
+  视频: "Video",
 
   // Adding audio
   添加音频: "Add audio",

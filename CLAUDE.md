@@ -19,7 +19,7 @@ src/                      前端
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，改字幕在 correctSlice.ts，拆句 / 合并句在 reshapeSlice.ts，
                           AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts，
                           学习记录与每日目标在 practiceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts，逐句跟读在 drillSlice.ts，
-                          插件和从链接导入在 importSlice.ts）
+                          插件和从链接导入在 importSlice.ts，视频画面的设置在 videoSlice.ts）
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句、正在放的句子逐字亮到哪），有单元测试
   lib/sections.ts         对话段落规则（分段、合并、改名、整段循环、{ } 换段），有单元测试
   lib/edits.ts            改字幕的规则（改动取整词、查找匹配、全部替换），有单元测试
@@ -38,8 +38,10 @@ src/                      前端
   lib/rounds.ts           连续录（一遍遍接着录）和逐句跟读（每句最多几遍）：空格留下哪一遍、遍数输入、卡片上的说法，有单元测试
   lib/imports.ts          从链接导入：默认带哪种字幕（说的语言，不带译文）、进度的说法、下载排队（一次一个）、
                           下载中的行放在哪个分组（和 Rust 一样整理文件夹名），有单元测试
+  lib/videoSync.ts        视频画面跟着声音走：每 50 毫秒比一比引擎的位置和 <video> 的；差得多就往前多跳一点（跳转要的时间）再稳住，差一点就快慢 10% 追上（一次纠正只改两次速度），
+                          声音比画面长时停在最后一帧，有单元测试
   lib/playKey.ts          播放条的播放 / 暂停键现在管谁（录音、整段录音、回放录音、整段回放，都没有时是主播放器）、暂停后继续时还要做什么，有单元测试
-  components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板）、PlayerBar.tsx 底部播放条、
+  components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板；视频时上面多一块画面，Picture.tsx：静音的 <video>、拖动条，放不了的 WebM / MKV 的说明）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置；ui.tsx 共用的按键与表单件；
                           Transcript.tsx 句子列表，Sections.tsx 段落小标题和顶部的段落菜单，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
                           Explain.tsx 句子下的解释块、SentenceEditor.tsx 改一句（⇧↩ 断开、⌫ / ⌦ 合并）、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
@@ -54,7 +56,9 @@ src/                      前端
 src-tauri/src/
   lib.rs                  AppState + 命令注册
   i18n.rs                 界面语言：设置里选的，或跟随 Mac（系统首选语言是中文才用中文）；tr! / pick 给 Rust 里的提示选中文或英文
-  library.rs              扫描文件夹、路径校验（resolve_inside；路径用 dunce 规范化，Windows 上没有 `\\?\` 前缀，盘符和共享名不分大小写）
+  library.rs              扫描文件夹（音频、视频 mp4 / m4v / mov、列出但放不了的 webm / mkv）、路径校验（resolve_inside；路径用 dunce 规范化，Windows 上没有 `\\?\` 前缀，盘符和共享名不分大小写）
+  media.rs                视频的画面：应用里只给自己用的 HTTP 服务（只听 127.0.0.1、随机端口、每次启动新的口令、核对 Host），把打开的文件夹里的视频按 Range 边读边交给 <video>；
+                          不用自定义协议：WebKit 经自定义协议一帧一个请求，放不到实时（见 docs/video-plan.md）
   guide.rs                引导状态（state.json 的 guide）、打包的示例音频（samples/，见 samples/README.md 的出处）
   store.rs                state.json 读写、原子写入
   transcript.rs           每个音频的字幕：app data 里的 transcripts/，或音频旁的同名 .srt/.vtt

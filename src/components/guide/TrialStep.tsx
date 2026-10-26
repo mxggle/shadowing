@@ -53,7 +53,7 @@ export function TrialStep() {
       await api.transcribe.start(path, language, false);
     } catch (e) {
       // Shown through the same job state as a failure reported by Rust.
-      if (!path) setSample({ path, name: "", relDir: "", size: 0 });
+      if (!path) setSample({ path, name: "", relDir: "", size: 0, kind: "audio" });
       useApp.setState({ job: { state: "failed", path, message: String(e) } });
     }
   }

@@ -39,6 +39,8 @@ pub struct Settings {
     /// Light the playing sentence up a character (a word) at a time as it's
     /// said, where transcription timed them; off lights it whole.
     pub word_highlight: bool,
+    /// Height of a video's picture above the sentences, in CSS pixels (dragged by the bar under it).
+    pub picture_height: f64,
     /// Interface language: "" follows the Mac, "zh" or "en" (see i18n.rs). Settings saved
     /// before it existed stay Chinese, the only language those versions had.
     #[serde(default = "chinese")]
@@ -73,6 +75,7 @@ impl Default for Settings {
             paragraph_drill: false,
             drill_rounds: 3,
             word_highlight: true,
+            picture_height: 300.0,
             ui_language: String::new(),
         }
     }

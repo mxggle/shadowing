@@ -87,6 +87,18 @@ export const player: Record<string, Entry> = {
     "Time spent practicing this track (playing it and shadowing in between). More in the Practice log",
   已练: "Practiced",
 
+  // A video's picture; a video that can't play
+  "这个视频的画面放不了，只放声音。": "This video's picture can't be shown; only its sound plays.",
+  视频画面: "Video picture",
+  画面高度: "Picture height",
+  拖动调整画面大小: "Drag to resize the picture",
+  "{format} 视频": "{format} video",
+  这个视频放不了: "This video can't play",
+  "这种视频里的声音多半是 Opus 格式，应用的播放器还解不了。能放的视频是 mp4、m4v、mov（画面 H.264，声音 AAC）。":
+    "The sound in videos like this is usually Opus, which the player can't decode yet. Videos that play are mp4, m4v and mov (H.264 picture, AAC sound).",
+  "从 YouTube 下载的：可以用「从链接导入」重新下载它的声音。": "Downloaded from YouTube? Use Import from link to download its sound again.",
+  "或者用 HandBrake 之类的工具转成 mp4，放进这个文件夹再打开。": "Or convert it to mp4 with a tool like HandBrake, put it in this folder and open it.",
+
   // Sentence list
   "[ ] 换句，S 循环本句 · {origin}": "[ ] previous / next sentence, S loops it · {origin}",
   句: noun("sentence"),

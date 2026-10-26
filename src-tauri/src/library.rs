@@ -1,16 +1,32 @@
-//! Folder scanning: finds playable audio files under an approved root.
+//! Folder scanning: finds audio and video files under an approved root.
 
 use serde::Serialize;
 use std::cmp::Ordering;
 use std::path::{Component, Path, PathBuf, Prefix};
 use walkdir::WalkDir;
 
-/// Formats WKWebView can play natively on macOS.
+/// Formats the engine decodes (src/audio).
 pub const AUDIO_EXTENSIONS: &[&str] = &[
     "mp3", "m4a", "m4b", "aac", "wav", "flac", "aif", "aiff", "caf",
 ];
 
+/// Videos: the engine plays their sound (AAC in an mp4 / QuickTime file), the
+/// webview shows their picture (src/media.rs serves it).
+pub const VIDEO_EXTENSIONS: &[&str] = &["mp4", "m4v", "mov"];
+
+/// Videos people often have that can't play (Opus sound, a container the webview
+/// can't read): listed all the same, so the app can say why instead of hiding them.
+pub const UNSUPPORTED_EXTENSIONS: &[&str] = &["webm", "mkv"];
+
 const MAX_DEPTH: usize = 8;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Kind {
+    Audio,
+    Video,
+    Unsupported,
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,6 +38,7 @@ pub struct Track {
     /// Directory relative to the folder root ("" for top level), parts joined by "/".
     pub rel_dir: String,
     pub size: u64,
+    pub kind: Kind,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -32,11 +49,32 @@ pub struct FolderListing {
     pub tracks: Vec<Track>,
 }
 
+/// What a file is, by its extension; None for anything the app doesn't list.
+pub fn kind_of(path: &Path) -> Option<Kind> {
+    let ext = path.extension()?.to_str()?.to_ascii_lowercase();
+    let ext = ext.as_str();
+    if AUDIO_EXTENSIONS.contains(&ext) {
+        Some(Kind::Audio)
+    } else if VIDEO_EXTENSIONS.contains(&ext) {
+        Some(Kind::Video)
+    } else if UNSUPPORTED_EXTENSIONS.contains(&ext) {
+        Some(Kind::Unsupported)
+    } else {
+        None
+    }
+}
+
 pub fn is_audio(path: &Path) -> bool {
-    path.extension()
-        .and_then(|e| e.to_str())
-        .map(|e| AUDIO_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
-        .unwrap_or(false)
+    kind_of(path) == Some(Kind::Audio)
+}
+
+pub fn is_video(path: &Path) -> bool {
+    kind_of(path) == Some(Kind::Video)
+}
+
+/// Audio, or a video whose sound the engine plays.
+pub fn is_playable(path: &Path) -> bool {
+    matches!(kind_of(path), Some(Kind::Audio | Kind::Video))
 }
 
 fn is_hidden(name: &str) -> bool {
@@ -51,8 +89,9 @@ pub fn scan(root: &Path) -> std::io::Result<FolderListing> {
         .into_iter()
         .filter_entry(|e| e.depth() == 0 || !is_hidden(&e.file_name().to_string_lossy()))
         .filter_map(Result::ok)
-        .filter(|e| e.file_type().is_file() && is_audio(e.path()))
-        .map(|e| {
+        .filter(|e| e.file_type().is_file())
+        .filter_map(|e| Some((kind_of(e.path())?, e)))
+        .map(|(kind, e)| {
             let path = e.path().to_path_buf();
             let rel_dir = path
                 .parent()
@@ -67,6 +106,7 @@ pub fn scan(root: &Path) -> std::io::Result<FolderListing> {
                 size: e.metadata().map(|m| m.len()).unwrap_or(0),
                 path: path.to_string_lossy().into_owned(),
                 rel_dir,
+                kind,
             }
         })
         .collect();
@@ -205,16 +245,43 @@ mod tests {
             "Unit 2/a.wav",
             "Unit 2/Part 1/b.flac",
             ".hidden/x.mp3",
+            "Video/c.MP4",
+            "Video/d.webm",
+            "Video/e.avi",
         ] {
+            fs::create_dir_all(root.join(f).parent().unwrap()).unwrap();
             fs::write(root.join(f), b"x").unwrap();
         }
         let listing = scan(root).unwrap();
         let names: Vec<_> = listing
             .tracks
             .iter()
-            .map(|t| format!("{}/{}", t.rel_dir, t.name))
+            .map(|t| format!("{}/{} {:?}", t.rel_dir, t.name, t.kind))
             .collect();
-        assert_eq!(names, ["/2", "/10", "Unit 2/a", "Unit 2/Part 1/b"]);
+        assert_eq!(
+            names,
+            [
+                "/2 Audio",
+                "/10 Audio",
+                "Unit 2/a Audio",
+                "Unit 2/Part 1/b Audio",
+                "Video/c Video",
+                "Video/d Unsupported"
+            ]
+        );
+    }
+
+    #[test]
+    fn kinds_by_extension() {
+        let kind = |p: &str| kind_of(Path::new(p));
+        assert_eq!(kind("a.m4a"), Some(Kind::Audio));
+        assert_eq!(kind("a.mov"), Some(Kind::Video));
+        assert_eq!(kind("a.M4V"), Some(Kind::Video));
+        assert_eq!(kind("a.mkv"), Some(Kind::Unsupported));
+        assert_eq!(kind("a.srt"), None);
+        assert_eq!(kind("mp4"), None);
+        assert!(is_playable(Path::new("a.mp4")) && !is_audio(Path::new("a.mp4")));
+        assert!(!is_playable(Path::new("a.webm")));
     }
 
     #[test]

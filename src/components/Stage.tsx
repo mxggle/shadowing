@@ -4,6 +4,7 @@ import { formatDuration } from "../lib/practice";
 import { useApp } from "../store";
 import { PracticeCoach } from "./guide/PracticeCoach";
 import { LoopPanel } from "./Loop";
+import { Picture, Unsupported } from "./Picture";
 import { TranscribeCard } from "./TranscribeCard";
 import { SentenceList } from "./Transcript";
 import { Kbd } from "./ui";
@@ -14,28 +15,29 @@ import { Kbd } from "./ui";
  */
 export function Stage() {
   const hasTrack = useApp((s) => !!s.current);
+  const unsupported = useApp((s) => s.current?.kind === "unsupported");
   const hasTranscript = useApp((s) => !!s.transcript?.sentences.length);
   const coaching = useApp((s) => s.practicing && !!s.current && s.current.path === s.sample?.path);
 
   if (!hasTrack) return <Empty />;
+  if (unsupported) return <Unsupported />;
 
-  if (hasTranscript) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <TrackTitle />
-        {coaching && <PracticeCoach />}
-        <SentenceList />
-      </div>
-    );
-  }
-
+  // One tree either way, so a video's picture isn't loaded again when its transcript arrives.
   return (
-    <div className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto">
+    <div className={`flex min-h-0 flex-1 flex-col ${hasTranscript ? "" : "scrollbar-none overflow-y-auto"}`}>
       <TrackTitle />
-      <div className="mx-auto flex w-full max-w-[760px] flex-col px-10 pt-9 pb-10">
-        <LoopPanel />
-        <TranscribeCard />
-      </div>
+      <Picture />
+      {hasTranscript ? (
+        <>
+          {coaching && <PracticeCoach />}
+          <SentenceList />
+        </>
+      ) : (
+        <div className="mx-auto flex w-full max-w-[760px] flex-col px-10 pt-9 pb-10">
+          <LoopPanel />
+          <TranscribeCard />
+        </div>
+      )}
     </div>
   );
 }
@@ -76,10 +78,12 @@ function Empty() {
 function TrackTitle() {
   const current = useApp((s) => s.current)!;
   const error = useApp((s) => s.error);
+  // A video's title keeps to one smaller line: the picture under it needs the room.
+  const size = current.kind === "video" ? "line-clamp-1 text-[22px] leading-[1.3]" : "line-clamp-2 text-[28px] leading-[1.22]";
   return (
     <div key={current.path} className="mx-auto w-full max-w-[760px] shrink-0 animate-fade-in px-10 pt-1">
       <h1
-        className="line-clamp-2 font-script text-[28px] leading-[1.22] font-semibold tracking-[-0.012em] break-words text-balance"
+        className={`${size} font-script font-semibold tracking-[-0.012em] break-words text-balance`}
         title={current.name}
       >
         {current.name}

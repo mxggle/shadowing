@@ -5,6 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import { api, devLog, type ImportStatus } from "../lib/api";
 import { debugEngine, useApp } from "../store";
 import { aiScenario } from "./smokeAi";
+import { videoScenario } from "./smokeVideo";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -41,10 +42,11 @@ async function scenario() {
   engine.setVolume(0.05);
   const tracks = app().folder?.tracks ?? [];
   devLog(`smoke: ${tracks.length} tracks: ${tracks.map((t) => `${t.relDir}/${t.name}`).join(" | ")}`);
-  check("scan finds 6 audio files, skips .txt", tracks.length === 6);
+  const kinds = tracks.map((t) => t.kind).join(",");
+  check("scan finds 6 audio files, a video and a WebM, skips .txt", tracks.length === 8 && kinds.split("audio").length === 7, kinds);
 
-  // 1. Every format loads and plays.
-  for (const t of tracks) {
+  // 1. Every format loads and plays (a WebM is listed, never played: see smokeVideo.ts).
+  for (const t of tracks.filter((t) => t.kind !== "unsupported")) {
     app().open(t, true);
     const started = await waitFor(async () => (await rust()) > 0.4 || !!app().error, 5000);
     check(`plays ${t.name}`, started && !app().error, app().error ?? `t=${(await rust()).toFixed(2)} d=${engine.duration.toFixed(1)}`);
@@ -120,7 +122,7 @@ async function scenario() {
 
   await loopCase("VBR mp3 (long)", 100, 102.5, 10);
   await loopCase("VBR mp3 at 0.75×", 100, 102.5, 10, 0.75);
-  for (const t of tracks.filter((t) => !t.name.includes("Long"))) {
+  for (const t of tracks.filter((t) => t.kind !== "unsupported" && !t.name.includes("Long"))) {
     app().open(t, true);
     await waitFor(async () => (await rust()) > 0.2, 5000);
     await loopCase(t.name, 1, 3, 7);
@@ -279,6 +281,9 @@ async function scenario() {
 
   // 9–11. AI settings, transcription and proofreading against the fake server (smokeAi.ts).
   await aiScenario({ check, waitFor, tracks });
+
+  // Videos: the picture follows the sound; the local server gives out only videos in the folder (smokeVideo.ts).
+  await videoScenario({ check, waitFor, tracks });
 
   // 12. The bundled practice clip plays from inside the app with its subtitles; a trial run isn't saved.
   const sample = await api.sampleTrack("ja");

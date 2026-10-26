@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronRight, ChevronsDownUp, ChevronsUpDown, FolderOpen, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
+import { AlertCircle, Check, ChevronRight, ChevronsDownUp, ChevronsUpDown, Film, FolderOpen, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
 import { isFinished } from "../audio/logic";
 import type { FolderListing, Progress, Track } from "../lib/api";
 import { t } from "../lib/i18n";
@@ -175,9 +175,34 @@ function TrackRow({ track }: { track: Track }) {
         active ? "bg-press font-medium text-fg" : "text-fg/80 hover:bg-hover hover:text-fg active:bg-press"
       }`}
     >
-      <span className="min-w-0 flex-1 truncate">{track.name}</span>
-      {active ? <NowPlayingBars paused={!playing} /> : <ProgressMark progress={progress} />}
+      <TrackName track={track} />
+      {track.kind === "video" && (
+        <span title={t("视频")} className="shrink-0 text-faint">
+          <Film size={13} strokeWidth={1.75} aria-label={t("视频")} />
+        </span>
+      )}
+      {track.kind === "unsupported" ? (
+        <span title={t("这个视频放不了")} className="shrink-0 text-faint">
+          <AlertCircle size={13} strokeWidth={2} aria-label={t("这个视频放不了")} />
+        </span>
+      ) : active ? (
+        <NowPlayingBars paused={!playing} />
+      ) : (
+        <ProgressMark progress={progress} />
+      )}
     </button>
+  );
+}
+
+/** A video that can't play shows its extension too (a folder may hold the same video as mp4 and webm). */
+function TrackName({ track }: { track: Track }) {
+  if (track.kind !== "unsupported") return <span className="min-w-0 flex-1 truncate">{track.name}</span>;
+  const ext = track.path.slice(track.path.lastIndexOf("."));
+  return (
+    <span className="min-w-0 flex-1 truncate text-faint">
+      {track.name}
+      {ext}
+    </span>
   );
 }
 

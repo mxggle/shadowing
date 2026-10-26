@@ -126,6 +126,11 @@ export class AudioEngine {
     return this.status.duration;
   }
 
+  /** The speed set: a video's picture runs at it too. */
+  get speed() {
+    return this.rate;
+  }
+
   /** Plays `a`..`b` once and pauses at `b` (loops don't apply). */
   playRange(a: number, b: number) {
     this.status = { ...this.status, time: a };
