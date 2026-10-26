@@ -1,10 +1,11 @@
 //! `import/resolve` and `import/run` with yt-dlp. Audio is YouTube's own AAC
 //! track (m4a, itag 140): no re-encoding and no ffmpeg; the app plays the
-//! DASH m4a yt-dlp writes without ffmpeg. Subtitles: only the ones people wrote.
+//! DASH m4a yt-dlp writes without ffmpeg. With the picture too, an H.264 mp4 is
+//! downloaded beside it and the two merged (video.rs). Subtitles: only the ones people wrote.
 
 use crate::run::run;
 use crate::tools::{self, Tools};
-use crate::{progress, Ctx};
+use crate::{progress, video, Ctx};
 use serde_json::{json, Value};
 use std::path::Path;
 use std::process::Command;
@@ -77,12 +78,15 @@ fn describe(info: &Value) -> Result<Value, String> {
         .as_str()
         .or(info["channel"].as_str())
         .map(str::trim);
+    let (videos, audio_size) = video::choices(info);
     Ok(json!({
         "title": info["title"].as_str().unwrap_or("未命名"),
         "duration": info["duration"].as_f64(),
         "uploader": uploader,
         "language": info["language"].as_str(),
         "subtitles": subtitles,
+        "videos": videos,
+        "audioSize": audio_size,
     }))
 }
 
@@ -93,43 +97,68 @@ fn plain_lang(lang: &str) -> bool {
         && lang.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
 }
 
-/// `SHPROG <done> <total> <estimate>` from `--progress-template` → (done, total).
-fn parse_progress(line: &str) -> Option<(u64, u64)> {
+/// `SHPROG <done> <total> <estimate> <vcodec>` from `--progress-template` → (done, total,
+/// whether it's a picture: with the picture too, the picture and the sound come one after the other).
+fn parse_progress(line: &str) -> Option<(u64, u64, bool)> {
     let mut parts = line.strip_prefix("SHPROG ")?.split(' ');
     let n = |s: Option<&str>| s.and_then(|s| s.parse::<f64>().ok()).map(|f| f as u64);
     let done = n(parts.next())?;
-    let total = n(parts.next()).or(n(parts.next())).unwrap_or(0);
-    Some((done, total))
+    let (total, estimate) = (parts.next(), parts.next());
+    let total = n(total).or(n(estimate)).unwrap_or(0);
+    let picture = parts.next().is_some_and(|v| v != "none" && v != "NA");
+    Some((done, total, picture))
 }
 
+/// `height`: the picture too, at most this tall (`None`: only the sound).
 pub fn download(
     ctx: &Ctx,
     url: &str,
     out: &Path,
     subtitles: Option<&str>,
+    height: Option<u64>,
 ) -> Result<Value, String> {
     let tools = tools::ensure(ctx)?;
     progress("开始下载", 0, 0);
     let mut c = command(ctx, &tools);
-    c.args(["-f", AUDIO, "--newline", "--progress-template"]);
-    c.arg("download:SHPROG %(progress.downloaded_bytes)s %(progress.total_bytes)s %(progress.total_bytes_estimate)s");
-    c.arg("-o").arg(out.join("audio.%(ext)s"));
+    let wanted = height.map_or(AUDIO.to_string(), video::formats);
+    c.args(["-f", &wanted, "--newline", "--progress-template"]);
+    c.arg("download:SHPROG %(progress.downloaded_bytes)s %(progress.total_bytes)s %(progress.total_bytes_estimate)s %(info.vcodec)s");
+    match height {
+        // Two files: named apart by format, merged afterwards; subtitles named as without the picture.
+        Some(_) => {
+            c.arg("-o").arg(out.join("part.%(format_id)s.%(ext)s"));
+            c.arg("-o")
+                .arg(format!("subtitle:{}", out.join("audio.%(ext)s").display()));
+        }
+        None => {
+            c.arg("-o").arg(out.join("audio.%(ext)s"));
+        }
+    }
     let lang = subtitles.filter(|l| plain_lang(l));
     if let Some(lang) = lang {
         c.args(["--write-subs", "--sub-format", "vtt", "--sub-langs", lang]);
     }
     c.args(["--", url]);
     ytdlp(ctx, c, &mut |l| {
-        if let Some((done, total)) = parse_progress(l) {
-            progress("下载音频", done, total);
+        if let Some((done, total, picture)) = parse_progress(l) {
+            let what = match (height, picture) {
+                (None, _) => "下载音频",
+                (Some(_), true) => "下载画面",
+                (Some(_), false) => "下载声音",
+            };
+            progress(what, done, total);
         }
     })?;
 
-    let audio = out.join("audio.m4a");
-    if !audio.is_file() {
-        return Err(NO_M4A.into());
-    }
-    let mut files = vec![json!({ "path": "audio.m4a", "kind": "audio" })];
+    let mut files = match height {
+        Some(_) => vec![json!({ "path": video::merge(ctx, out)?, "kind": "video" })],
+        None => {
+            if !out.join("audio.m4a").is_file() {
+                return Err(NO_M4A.into());
+            }
+            vec![json!({ "path": "audio.m4a", "kind": "audio" })]
+        }
+    };
     if let Some(lang) = lang {
         let name = format!("audio.{lang}.vtt");
         if out.join(&name).is_file() {
@@ -235,11 +264,14 @@ mod tests {
     #[test]
     fn progress_lines() {
         assert_eq!(
-            parse_progress("SHPROG 1024 11299164 NA"),
-            Some((1024, 11299164))
+            parse_progress("SHPROG 1024 11299164 NA none"),
+            Some((1024, 11299164, false))
         );
-        assert_eq!(parse_progress("SHPROG 1024 NA 2048.5"), Some((1024, 2048)));
-        assert_eq!(parse_progress("SHPROG 1024 NA NA"), Some((1024, 0)));
+        assert_eq!(
+            parse_progress("SHPROG 1024 NA 2048.5 avc1.4d401f"),
+            Some((1024, 2048, true))
+        );
+        assert_eq!(parse_progress("SHPROG 1024 NA NA"), Some((1024, 0, false)));
         assert_eq!(parse_progress("[download] 50%"), None);
     }
 

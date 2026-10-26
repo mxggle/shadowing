@@ -2,7 +2,7 @@ import { AlertCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Resolved } from "../lib/api";
 import { t } from "../lib/i18n";
-import { downloadLine, languageName, percent, pickSubtitle, progressText, type Download } from "../lib/imports";
+import { aboutSize, downloadLine, languageName, percent, pickHeight, pickSubtitle, progressText, type Download } from "../lib/imports";
 import { formatTime } from "../lib/time";
 import { useApp } from "../store";
 import { Button, fieldClass, fillNodes, IconButton, Kbd, TextLink } from "./ui";
@@ -196,6 +196,9 @@ function Confirm({ resolved }: { resolved: Resolved }) {
   const chooseFolder = useApp((s) => s.chooseFolder);
   const [subtitles, setSubtitles] = useState(() => pickSubtitle(resolved.subtitles, resolved.language, learning) ?? "");
   const [sub, setSub] = useState(resolved.via);
+  const videos = resolved.videos ?? [];
+  // 0: only the sound; else the picture too, at most this tall (as last time).
+  const [video, setVideo] = useState(() => pickHeight(videos, useApp.getState().settings.importVideo));
   const meta = [resolved.uploader, resolved.duration ? formatTime(resolved.duration) : null, resolved.via].filter(Boolean);
 
 
@@ -227,6 +230,43 @@ function Confirm({ resolved }: { resolved: Resolved }) {
             <span className="text-[12px] leading-relaxed text-muted">{t("没有人工字幕，导入后可以用转写生成。")}</span>
           )}
         </label>
+        {videos.length > 0 && (
+          <div className="flex items-center gap-3">
+            <span className="w-12 shrink-0 text-muted">{t("内容")}</span>
+            <div className="tint flex rounded-[10px] p-[3px]" role="radiogroup" aria-label={t("内容")}>
+              {[
+                { on: video === 0, label: t("只要声音"), pick: () => setVideo(0) },
+                { on: video > 0, label: t("声音 + 画面"), pick: () => setVideo(video || pickHeight(videos, 720)) },
+              ].map((c) => (
+                <button
+                  key={c.label}
+                  type="button"
+                  role="radio"
+                  aria-checked={c.on}
+                  onClick={c.pick}
+                  className={`h-[26px] rounded-[7px] px-3 text-[12px] transition-[background-color,color,box-shadow] duration-150 ${
+                    c.on ? "bg-raised font-medium text-fg shadow-[0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            {video === 0 && <span className="text-[12px] text-faint">{aboutSize(resolved.audioSize)}</span>}
+          </div>
+        )}
+        {video > 0 && (
+          <label className="flex items-center gap-3">
+            <span className="w-12 shrink-0 text-muted">{t("清晰度")}</span>
+            <select className={fieldClass} value={video} onChange={(e) => setVideo(Number(e.target.value))}>
+              {videos.map((v) => (
+                <option key={v.height} value={v.height}>
+                  {[`${v.height}p`, aboutSize(v.size)].filter(Boolean).join(" · ")}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {folder && (
           <label className="flex items-center gap-3">
             <span className="w-12 shrink-0 text-muted">{t("存到")}</span>
@@ -239,12 +279,14 @@ function Confirm({ resolved }: { resolved: Resolved }) {
       </div>
 
       <p className="mt-4 text-[11px] leading-relaxed text-faint">
-        {t("下载原始的 m4a 音轨，不转码。字幕断句不好时，可以移除后改用转写。只下载你有权使用的内容。")}
+        {video > 0
+          ? t("下载 mp4 画面（H.264）和原始的 m4a 音轨，合成一个视频，不转码。字幕断句不好时，可以移除后改用转写。只下载你有权使用的内容。")
+          : t("下载原始的 m4a 音轨，不转码。字幕断句不好时，可以移除后改用转写。只下载你有权使用的内容。")}
       </p>
       <div className="mt-4 flex justify-end gap-2">
         <Button onClick={() => useApp.getState().closeImport()}>{t("取消")}</Button>
         {folder ? (
-          <Button primary onClick={() => start(subtitles || null, sub)}>
+          <Button primary onClick={() => start(subtitles || null, sub, video || null)}>
             {t("下载")}
           </Button>
         ) : (

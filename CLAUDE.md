@@ -108,14 +108,15 @@ src-tauri/src/
                           Windows 上要的那几个见 os.rs：环境、不弹控制台窗口、取消时连子进程一起结束），
                           stdin/stdout 上每行一条 JSON-RPC 2.0，取消时先发 $/cancel、2 秒后结束进程；
                           import.rs 从链接导入（import/resolve → import/run，一次一个，进度发 import:status；clipboard.rs 读剪贴板）；
-                          accept.rs 插件只写暂存文件夹，应用检查文件（不收链接出去的、不是音频的）后自己移进打开的文件夹，
+                          accept.rs 插件只写暂存文件夹，应用检查文件（不收链接出去的、不是音频或视频的；有视频时用视频）后自己移进打开的文件夹，
                           字幕存成可移除的导入字幕（不放在音频旁边）；names.rs 用标题起文件名（Windows 不允许的字符和 CON、NUL 这类名字也处理，和 src/lib/imports.ts 一样）
   update.rs               应用内更新（tauri-plugin-updater）：读最新 Release 的 latest.json、下载签名过的 .app.tar.gz、
                           原地替换后重启；菜单里的「检查更新…」和「新功能…」（Windows 没有应用菜单，用设置里的）
   smoke.rs                调试构建专用自测入口（也装一个假的导入插件：shell 脚本，Windows 上是 .cmd + PowerShell）
 plugins/youtube/          「YouTube 导入」插件：单独的小 Rust 程序（不进应用的构建），说插件协议；
                           第一次用时下载 yt-dlp 文件夹版和 QuickJS-ng（校验 SHA-256；platform.rs 选 macOS / Windows 的文件，fetch.rs 用系统的 curl 下载），
-                          每天最多查一次 yt-dlp 新版本；只取 m4a 音轨（不用 ffmpeg）和人工字幕。
+                          每天最多查一次 yt-dlp 新版本；取 m4a 音轨（不用 ffmpeg）和人工字幕；要画面时另取 H.264 的 mp4 画面（video.rs），
+                          mux/ 把两个分片的 DASH 文件合成一个普通 mp4（不转码，`moov` 在前，约半秒交错一次）。
                           scripts/build-plugin.sh youtube [Rust target] 生成可安装的文件夹（带 target 时在 dist/<平台>/ 下）
 src-tauri/tauri.windows.conf.json   只在 Windows 上叠加到 tauri.conf.json 的配置（JSON Merge Patch，数组整个替换）：
                           没有 Mac 的标题栏设置的窗口、NSIS 安装包（当前用户、简体中文和英文）、WebView2 下载式引导、含 icon.ico 的图标列表、

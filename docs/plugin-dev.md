@@ -105,6 +105,8 @@ Rust、Go、Swift 编译出来的程序，或者用系统自带解释器的脚�
 | `uploader` | | 作者、频道 |
 | `language` | | 说的语言（`ja`、`en`…），应用用它选默认的字幕 |
 | `subtitles` | | 人工字幕：`[{ "lang": "ja", "name": "日本語" }]`。没有就是 `[]` |
+| `videos` | | 也能带画面时：有哪些高度、每种连声音大约多大（字节），从低到高：`[{ "height": 720, "size": 96000000 }]`。不写或 `[]` 就只给声音（应用 0.13 起） |
+| `audioSize` | | 只要声音时大约多大（字节） |
 
 要快（一两秒），用户在等。
 
@@ -118,7 +120,8 @@ Rust、Go、Swift 编译出来的程序，或者用系统自带解释器的脚�
 
 - `outDir` 是这次下载的暂存文件夹。**只往这里写**。
 - `subtitles` 是用户选的字幕语言，或者 `null`（不要字幕）。
-- 回答里的 `files`：`path` 是相对 `outDir` 的路径（或者 `outDir` 里的绝对路径），`kind` 是 `"audio"` 或 `"subtitle"`，字幕可以带 `lang`。
+- `video` 是用户要的画面高度（resolve 时 `videos` 里的一个），或者 `null` / 没有（只要声音）。旧版本的应用不发这一项。
+- 回答里的 `files`：`path` 是相对 `outDir` 的路径（或者 `outDir` 里的绝对路径），`kind` 是 `"audio"`、`"video"`（要了画面时：一个 mp4 / m4v / mov，画面 H.264，声音 AAC）或 `"subtitle"`，字幕可以带 `lang`。
   `title` 可以不写（就用 resolve 时的标题）。
 
 ### progress 和 log

@@ -5,9 +5,6 @@
 //! `mdat` with the samples copied as they are, interleaved about every half second.
 //! See "合成 mp4 的原型（结论）" in docs/video-plan.md.
 
-// Not called by the import yet (a prototype for the video plan's step 3).
-#![allow(dead_code)]
-
 mod bytes;
 mod read;
 mod samples;

@@ -31,10 +31,6 @@ impl<'a> Cur<'a> {
         self.take(n).map(|_| ())
     }
 
-    pub fn u8(&mut self) -> Result<u8, String> {
-        Ok(self.take(1)?[0])
-    }
-
     pub fn u16(&mut self) -> Result<u16, String> {
         Ok(u16::from_be_bytes(self.take(2)?.try_into().unwrap()))
     }

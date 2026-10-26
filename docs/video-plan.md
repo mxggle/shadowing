@@ -1,6 +1,6 @@
 # 视频：方案
 
-_2026-10-26 的设计稿；第 1 步（能放）、第 2 步（看得舒服）和第 4 步（配音）同一天实现了，见 [PROGRESS.md](../PROGRESS.md)。实现时有变化就改这里。界面稿在[设计画布](https://claude.ai/artifact/BNySHo46KNT4uv1j2oQXke)上
+_2026-10-26 的设计稿；四步都在同一天实现了，见 [PROGRESS.md](../PROGRESS.md)。实现时有变化就改这里。界面稿在[设计画布](https://claude.ai/artifact/BNySHo46KNT4uv1j2oQXke)上
 （8 个界面，私有，要在页面的 Share 里共享后别人才能打开）。_
 
 ## 要解决什么
@@ -132,12 +132,14 @@ _2026-10-26 的设计稿；第 1 步（能放）、第 2 步（看得舒服）�
 
 ### YouTube 插件
 
-- 插件协议：`files` 里的 `kind` 多一个 `"video"`；`plugins/accept.rs` 现在只收 `"audio"`，改成也收 `"video"`（同样检查文件，按扩展名和 `Decoder::open` 能不能打开）。[plugin-dev.md](plugin-dev.md) 跟着改。
-- 确认框多两行：内容（只要声音 / 声音 + 画面，默认只要声音，记住上次的选择）、清晰度（480p / 720p / 1080p，默认 720p），旁边写大约多大（yt-dlp 给的 `filesize` / `filesize_approx`）。
-- 下载：分别下画面 `bestvideo[ext=mp4][vcodec^=avc1][height<=720]` 和现在的 `bestaudio[ext=m4a]`，**在插件里合成一个 mp4**：两个 ISO-BMFF 的样本表合进一个 `moov`、数据放进一个 `mdat`，不转码。合成出来的是普通 mp4，在访达里也能直接看。
-- 这是最大的未知，先单独做一个原型。可能用 `mp4` crate（读写都有），YouTube 的 DASH 文件是分片的（`moof`），要看它读不读得了。走不通时的退路：
-  - 第一次选“声音 + 画面”时下载 ffmpeg（像 yt-dlp 一样固定版本 + SHA-256），让 yt-dlp 自己合。但 macOS arm64 没有官方的静态版本，来源不好定。
-  - 用 360p 的合成格式（itag 18，自带声音）。画质低，YouTube 也可能不再提供。
+（2026-10-26 已实现，插件 0.3.0。）
+- 插件协议（[plugin-dev.md](plugin-dev.md)）：`import/resolve` 可以多给 `videos`（高度和大约多大，连声音）和 `audioSize`；`import/run` 多一个 `video`（要的高度，没有就是只要声音）；
+  回答的 `files` 里 `kind` 可以是 `"video"`。都是可选的：旧插件不给 `videos`，确认框就没有“声音 + 画面”；旧应用不发 `video`，插件照旧只下声音。
+- 应用：`plugins/accept.rs` 也收 `"video"`（mp4 / m4v / mov，最大 16 GB），有视频时用视频；`import_start` 多一个 `video`，带给插件。
+- 确认框（有 `videos` 时）多两行：内容（只要声音 / 声音 + 画面，记住上次选的高度，`settings.importVideo`，0 是只要声音）、清晰度（`720p · 约 96 MB`）；只要声音时旁边写声音多大。
+- 插件（`video.rs`）：只给 360p–1080p 的 H.264 mp4 画面（`protocol=https`，也就是试过的 DASH 文件），每个高度按 yt-dlp 会选的那个（码率最高）估大小；
+  一次 yt-dlp：`-f "bestvideo[ext=mp4][vcodec^=avc1][height<=H][protocol=https],bestaudio[ext=m4a]"`（逗号：各存一个文件，`part.<格式>.<扩展名>`；字幕另给模板，名字和以前一样），
+  进度分“下载画面”“下载声音”，然后 `mux::merge` 合成 `video.mp4`（进度“合成视频”，可以取消），删掉两个原文件。不用 ffmpeg，所以原型里说的两条退路都不需要。
 
 ### Windows
 

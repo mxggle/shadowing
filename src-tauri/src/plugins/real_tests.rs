@@ -6,7 +6,8 @@
 //! SHADOWING_URL=https://youtu.be/FFMoTdeD1aM cargo test --manifest-path src-tauri/Cargo.toml real_plugin -- --ignored --nocapture
 //!
 //! `SHADOWING_PLUGIN` is the built plugin folder (default plugins/youtube/dist/youtube);
-//! `SHADOWING_PLUGIN_DATA` keeps the plugin's downloads (yt-dlp) between runs.
+//! `SHADOWING_PLUGIN_DATA` keeps the plugin's downloads (yt-dlp) between runs;
+//! `SHADOWING_VIDEO=<height>` brings the picture too (merged into one mp4).
 
 use super::accept::{self, Made};
 use super::manifest::Manifest;
@@ -77,8 +78,10 @@ fn real_plugin_import() {
     let staging = tmp.path().join("job");
     std::fs::create_dir_all(&staging).unwrap();
     let started = Instant::now();
-    let run =
-        json!({ "url": url, "importer": importer.id, "outDir": staging, "subtitles": subtitles });
+    let video = std::env::var("SHADOWING_VIDEO")
+        .ok()
+        .and_then(|h| h.parse::<u32>().ok());
+    let run = json!({ "url": url, "importer": importer.id, "outDir": staging, "subtitles": subtitles, "video": video });
     let result = process.call("import/run", run, &never, &mut print).unwrap();
     println!("downloaded in {:.1?}: {result}", started.elapsed());
 
@@ -86,7 +89,7 @@ fn real_plugin_import() {
     let picked = accept::pick(&staging, &made).unwrap();
     let root = tmp.path().join("library");
     std::fs::create_dir_all(&root).unwrap();
-    let dest = accept::place(&picked.audio, &root, "YouTube", &title).unwrap();
+    let dest = accept::place(&picked.media, &root, "YouTube", &title).unwrap();
     println!("placed at {}", dest.strip_prefix(&root).unwrap().display());
 
     let mut decoder = Decoder::open(&dest).unwrap();

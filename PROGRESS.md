@@ -2,6 +2,22 @@
 
 _最后更新：2026-10-26_
 
+## 视频，第 3 步：YouTube 导入带画面（2026-10-26，已实现）
+- 来由：YouTube 上下的视频最常见；插件以前只下 m4a 音轨。方案见 [docs/video-plan.md](docs/video-plan.md) 的“YouTube 插件”。
+- 已实现：
+  - 合成 mp4 的原型（另一个会话做的，`plugins/youtube/src/mux/`，结论在 video-plan.md 的“合成 mp4 的原型（结论）”）拿过来用：不用 ffmpeg、不转码，把分片的 DASH 画面和声音合成一个普通 mp4。
+    去掉了原型的 `allow(dead_code)`（顺带删了一个没用到的读字节函数）。
+  - 插件 0.3.0（`video.rs`）：resolve 多给 `videos`（360p–1080p 的 H.264 mp4，每个高度连声音大约多大）和 `audioSize`；run 收到 `video`（高度）时一次 yt-dlp 下画面和声音两个文件，
+    进度“下载画面 / 下载声音 / 合成视频”，合成 `video.mp4`，回答 `kind: "video"`。没有 H.264 画面时不给 `videos`。
+  - 应用：`accept.rs` 收视频（有视频时用视频，最大 16 GB）；`import_start` 多一个 `video`；确认框多“内容”（只要声音 / 声音 + 画面）和“清晰度”，记住上次选的（`settings.importVideo`）。
+  - 协议的新东西都是可选的：旧插件、旧应用照旧只有声音。`docs/plugin-dev.md` 写了。`site/plugins.json` 还是 0.2.0，等发布时再换成 0.3.0 的包。
+  - 放不了的 WebM 的说明改成“可以用「从链接导入」重新下载，选「声音 + 画面」就存成 mp4”。
+- 已验证（自动）：插件：`video.rs`（每个高度选码率最高的画面、连声音的大小、没有 H.264 时不给、yt-dlp 的格式）、进度行带画面 / 声音，原型的合成测试；
+  应用：有视频时用视频、不在暂存文件夹里的或不是视频的不收；TS：`pickHeight`、`aboutSize`。
+  真实网络（`real_plugin`，`SHADOWING_VIDEO=240`，“Me at the zoo”，19 秒 240p）：resolve 11 秒（这段没有 360p 以上，所以 `videos` 是空的），下载 + 合成 3.9 秒，进度“下载画面 → 下载声音 → 合成视频”，
+  放进文件夹的是 `YouTube/Me at the zoo.mp4`，应用的解码器读得出声音。用的是你装好的插件里的 yt-dlp（复制到临时文件夹，没动你的插件数据）。
+- 待验证（需要你用）：在应用里装 0.3.0（`scripts/build-plugin.sh youtube`，设置 → 插件 → 从文件夹安装），导一个 720p 的视频，看画面和声音、清晰度列表和大小估计；Windows 上的插件。
+
 ## 视频：画面跟着声音，改成只靠跳（2026-10-26）
 - 来由：窗口露着时（smoke 把窗口放到最前面）量到画面跟不上：跳完越来越偏，循环跳回后画面还在往后放。在真实应用里每 50 毫秒记一次（声音在哪、画面在哪、做了什么）才看清楚：
   - WebKit 在播放中改 `playbackRate`，画面先跳回上一次跳转的位置、再停半秒。所以按 ±10% 追只会越追越乱。

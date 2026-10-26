@@ -207,7 +207,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, uiLanguage: "" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, uiLanguage: "" },
     current: null,
     playing: false,
     time: 0,
@@ -232,7 +232,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createRecordSlice(set, get, engine, persistSettings),
     ...createReadingSlice(set, get, engine, persistSettings),
     ...createDrillSlice(set, get, engine, persistSettings),
-    ...createImportSlice(set, get),
+    ...createImportSlice(set, get, persistSettings),
     ...createVideoSlice(set, get, persistSettings),
 
     async init() {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { PluginInfo, Track } from "./api";
 import { setLang } from "./i18n";
-import { downloadLine, folderName, languageName, linkSites, nextDownload, percent, pickSubtitle, placeDownloads, progressText, type Download } from "./imports";
+import { aboutSize, downloadLine, folderName, languageName, linkSites, nextDownload, percent, pickHeight, pickSubtitle, placeDownloads, progressText, type Download } from "./imports";
 
 const subs = (...langs: string[]) => langs.map((lang) => ({ lang, name: lang }));
 
@@ -48,6 +48,7 @@ const download = (id: number, state: Download["state"], folder = "YouTube"): Dow
   url: `https://youtu.be/${id}`,
   title: `t${id}`,
   subtitles: null,
+  video: null,
   folder,
   state,
   message: "",
@@ -150,5 +151,24 @@ describe("in English", () => {
     expect(languageName("ja", "x")).toBe("Japanese");
     expect(downloadLine(download(1, "queued"))).toBe("Waiting for the one before");
     expect(folderName("../..")).toBe("Untitled");
+  });
+});
+
+describe("pickHeight", () => {
+  const videos = [360, 480, 720, 1080].map((height) => ({ height }));
+  it("offers what was picked last time, or the nearest below it", () => {
+    expect(pickHeight(videos, 720)).toBe(720);
+    expect(pickHeight(videos, 1000)).toBe(720);
+    expect(pickHeight(videos, 240)).toBe(360);
+    expect(pickHeight(videos, 0)).toBe(0);
+    expect(pickHeight([], 720)).toBe(0);
+  });
+});
+
+describe("aboutSize", () => {
+  it("rounds an estimate", () => {
+    expect(aboutSize(96_400_000)).toBe("约 96 MB");
+    expect(aboutSize(8_250_000)).toBe("约 8.3 MB");
+    expect(aboutSize(null)).toBe("");
   });
 });

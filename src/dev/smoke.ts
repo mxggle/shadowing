@@ -314,9 +314,9 @@ async function scenario() {
   await app().openImport("https://smoke.example/watch?v=1");
   const resolved = app().linkImport?.resolved;
   check("link resolves through the plugin", resolved?.title === "Smoke import" && resolved.via === "Smoke", app().linkImport?.error ?? "");
-  app().startImport("en", "smoke-import");
+  app().startImport("en", "smoke-import", null);
   await app().openImport("https://smoke.example/watch?v=2");
-  app().startImport(null, "smoke-import");
+  app().startImport(null, "smoke-import", null);
   // Rust takes one download at a time: had the queue not waited, the second would fail.
   await waitFor(() => app().downloads.length === 0, 15000);
   const done = outcomes.filter((o) => o.state === "done");

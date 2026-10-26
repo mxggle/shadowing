@@ -46,6 +46,13 @@ export const library: Record<string, Entry> = {
   "没有人工字幕，导入后可以用转写生成。": "No human-made subtitles. You can transcribe it after importing.",
   存到: "Save to",
   直接放在文件夹里: "Right in the folder",
+  内容: "Get",
+  只要声音: "Sound only",
+  "声音 + 画面": "Sound + picture",
+  清晰度: "Quality",
+  "约 {size} MB": "about {size} MB",
+  "下载 mp4 画面（H.264）和原始的 m4a 音轨，合成一个视频，不转码。字幕断句不好时，可以移除后改用转写。只下载你有权使用的内容。":
+    "Downloads the mp4 picture (H.264) and the original m4a sound and puts them in one video, without re-encoding. If the subtitles split sentences badly, remove them and transcribe instead. Only download what you have the right to use.",
   "下载原始的 m4a 音轨，不转码。字幕断句不好时，可以移除后改用转写。只下载你有权使用的内容。":
     "Downloads the original m4a track, not converted. If the subtitles split sentences badly, remove them and transcribe instead. Only download what you have the right to use.",
   取消: "Cancel",

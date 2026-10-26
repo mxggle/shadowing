@@ -1,5 +1,5 @@
 //! One download (`import/run`): the plugin writes into a staging folder, then
-//! the audio is moved into the open folder and the subtitles kept (accept.rs).
+//! the audio (or the video) is moved into the open folder and the subtitles kept (accept.rs).
 
 use super::accept::{self, Made};
 use super::import::{open, progress_of, Status};
@@ -28,6 +28,8 @@ pub struct Job {
     pub url: String,
     pub title: String,
     pub subtitles: Option<String>,
+    /// The picture too, at most this tall.
+    pub video: Option<u32>,
     /// The open folder, and the subfolder of it the audio goes in.
     pub root: PathBuf,
     pub folder: String,
@@ -72,6 +74,7 @@ impl Job {
             "importer": self.importer.id,
             "outDir": self.staging,
             "subtitles": self.subtitles,
+            "video": self.video,
         });
         let answer = process.call("import/run", params, &self.cancel, &mut notify)?;
         let result: RunResult = serde_json::from_value(answer).map_err(|e| {
@@ -90,7 +93,7 @@ impl Job {
     /// unlike a file next to the audio, so the learner can transcribe instead).
     fn keep(&self, app: &AppHandle, title: &str, picked: accept::Picked) -> Result<Status, String> {
         let state = app.state::<AppState>();
-        let dest = accept::place(&picked.audio, &self.root, &self.folder, title)?;
+        let dest = accept::place(&picked.media, &self.root, &self.folder, title)?;
         let audio = state.audio(&dest.to_string_lossy())?;
         let key = audio.to_string_lossy().into_owned();
         let mut subtitles = false;
