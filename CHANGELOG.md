@@ -5,6 +5,8 @@
 
 ## [未发布]
 
+## [0.13.0] - 2026-10-27
+
 ### 新增
 - **视频**：mp4、m4v、mov 视频和音频一起出现在列表里（名字后面有个小胶片图标），打开后画面在上、句子在下。
   - 声音照旧由播放器放：变速、A–B 循环、循环一句、跟读录音、转写都和音频一样。画面跟着声音走，放慢、跳转、循环时一起动。
@@ -212,7 +214,8 @@
 - 修改字幕、查找和全部替换、AI 校对、解释这一句（译文、生词、语法点，答案会保存）。
 - 第一次打开有示例练习和 AI 设置向导。
 
-[未发布]: https://github.com/mxggle/shadowing/compare/v0.12.0...HEAD
+[未发布]: https://github.com/mxggle/shadowing/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/mxggle/shadowing/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/mxggle/shadowing/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/mxggle/shadowing/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/mxggle/shadowing/compare/v0.9.1...v0.10.0
