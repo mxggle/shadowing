@@ -228,7 +228,8 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
   `SHADOWING_OUTPUT_DEVICE="MacBook Pro Speakers" cargo test --manifest-path src-tauri/Cargo.toml --release real_record -- --ignored --nocapture`
   （`SHADOWING_OUT=<文件夹>` 留下录音；`SHADOWING_INPUT_DEVICE` 指定麦克风）。
 - 插件手动测试（真实网络，先 `scripts/build-plugin.sh youtube`；`SHADOWING_PLUGIN_DATA=<文件夹>` 保留插件下载的 yt-dlp）：
-  `SHADOWING_URL=<YouTube 链接> cargo test --manifest-path src-tauri/Cargo.toml real_plugin -- --ignored --nocapture`。
+  `SHADOWING_URL=<YouTube 链接> cargo test --manifest-path src-tauri/Cargo.toml real_plugin -- --ignored --nocapture`
+  （`SHADOWING_VIDEO=720` 连画面一起下，`SHADOWING_OUT=<文件夹>` 留下下载的文件）。
 - 钥匙串手动测试：`cargo test --manifest-path src-tauri/Cargo.toml keychain_round_trip -- --ignored`。
 - Rust 引擎另有手动测试：`cargo test --manifest-path src-tauri/Cargo.toml plays_tone -- --ignored`（真实声卡播放测试音）。
 - 音质、循环边界听感、跟读节奏无法自动验证，需要用户试听反馈。汇报时区分“已实现 / 已验证 / 待验证”。
