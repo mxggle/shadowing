@@ -3,6 +3,7 @@
 //! does the work with yt-dlp, which it downloads and keeps up to date itself.
 
 mod fetch;
+mod mux;
 mod platform;
 mod run;
 mod tools;
