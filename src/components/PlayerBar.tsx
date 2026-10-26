@@ -5,7 +5,7 @@ import { t } from "../lib/i18n";
 import { formatTime } from "../lib/time";
 import { playKeyTitle } from "../lib/playKey";
 import { sectionName, sectionsOf } from "../lib/sections";
-import { playKeyOf, useApp } from "../store";
+import { playable, playKeyOf, useApp } from "../store";
 import { LoopStrip, useLoopPhase } from "./Loop";
 import { PlaybackMenu } from "./PlaybackMenu";
 import { Scrubber } from "./Scrubber";
@@ -64,7 +64,7 @@ function LoopKey() {
   const phase = useLoopPhase();
   const loopSentence = useApp((s) => s.loopSentence);
   const loopSection = useApp((s) => (s.loopSection === null ? null : sectionName(sectionsOf(s.transcript), s.loopSection)));
-  const hasTrack = useApp((s) => !!s.current);
+  const hasTrack = useApp((s) => !!s.current && playable(s.current));
   const flashing = useFlash("loop");
   const look = {
     idle: { label: t("A–B 循环"), short: "A–B", title: t("听到句首按一下设起点 A (L)") },
@@ -111,7 +111,7 @@ function Dot({ phase }: { phase: "idle" | "armed" | "active" }) {
 }
 
 function Transport() {
-  const hasTrack = useApp((s) => !!s.current);
+  const hasTrack = useApp((s) => !!s.current && playable(s.current));
   // Whatever is going on: a recording or a playback, else the track.
   const running = useApp((s) => playKeyOf(s).running);
   const enabled = useApp((s) => playKeyOf(s).enabled);

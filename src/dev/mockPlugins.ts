@@ -83,7 +83,7 @@ export async function mockPlugins(cmd: string, a: Record<string, never>, folder:
         const name = a.title as string;
         const relDir = (a.folder as string).trim();
         const path = `${folder.root}/${relDir ? relDir + "/" : ""}${name}.m4a`;
-        if (!folder.tracks.some((t) => t.path === path)) folder.tracks.push({ path, name, relDir, size: total });
+        if (!folder.tracks.some((t) => t.path === path)) folder.tracks.push({ path, name, relDir, size: total, kind: "audio" });
         status({ state: "done", title: name, path, subtitles: !!a.subtitles });
       })();
       return null;

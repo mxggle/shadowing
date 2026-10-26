@@ -8,15 +8,28 @@ import { mockRecord, seedTakes, stopClip } from "./mockRecorder";
 import { mockPlugins } from "./mockPlugins";
 import { mockReshape } from "./mockReshape";
 import { isWindows } from "../lib/platform";
+// A 60-second test pattern with a running clock (checks the picture follows the mock player).
+import mockVideo from "./mockVideo.mp4?url";
 
 const root = "/Mock/日本語ポッドキャスト";
-const tracks: Track[] = [
-  ["", "01 自己紹介"],
-  ["", "02 天気の話"],
-  ["", "03 A very long episode title about shadowing practice and pronunciation"],
-  ["Unit 2", "04 駅で"],
-  ["Unit 2", "05 カフェで"],
-].map(([relDir, name], i) => ({ path: `${root}/${relDir}/${name}.mp3`, name, relDir, size: 1e6 * (i + 1) }));
+const tracks: Track[] = (
+  [
+    ["", "01 自己紹介", "mp3"],
+    ["", "02 天気の話", "mp3"],
+    ["", "03 A very long episode title about shadowing practice and pronunciation", "mp3"],
+    ["Unit 2", "04 駅で", "mp3"],
+    ["Unit 2", "05 カフェで", "mp3"],
+    ["YouTube", "06 休日の朝ルーティン", "mp4"],
+    ["YouTube", "07 街頭インタビュー", "webm"],
+  ] as const
+).map(([relDir, name, ext], i) => ({
+  path: `${root}/${relDir}/${name}.${ext}`,
+  name,
+  relDir,
+  size: 1e6 * (i + 1),
+  kind: ext === "mp4" ? "video" : ext === "webm" ? "unsupported" : "audio",
+}));
+const VIDEO_SECS = 60;
 
 const lines = [
   "おはようございます。今日もよろしくお願いします。",
@@ -52,6 +65,8 @@ const mockTranscript = (origin: string, count: number, transcribed = false): Tra
 });
 const transcripts = new Map<string, Transcript>([
   [tracks[1].path, { ...mockTranscript("02 天気の話.srt", 32), source: "sidecar" }],
+  // The video: a transcription's sentences, lit a character at a time under the picture.
+  [tracks[5].path, mockTranscript("本机 · large-v3-turbo-q8_0", 9, true)],
   // Transcribed earlier, with two voices told apart, in three sections (one named).
   [
     tracks[3].path,
@@ -65,7 +80,8 @@ const transcripts = new Map<string, Transcript>([
 
 for (const [path, t] of sampleTranscripts) transcripts.set(path, t);
 if (!fresh) seedTakes(tracks[1].path, transcripts.get(tracks[1].path)!.sentences[2]);
-const durationOf = (path: string) => (path.startsWith("/App/samples/") ? 32.7 : 180 + tracks.findIndex((t) => t.path === path) * 20);
+const durationOf = (path: string) =>
+  path.startsWith("/App/samples/") ? 32.7 : path.endsWith(".mp4") ? VIDEO_SECS : 180 + tracks.findIndex((t) => t.path === path) * 20;
 
 // AI settings: a trimmed copy of the Rust presets; "bad" as a key fails the test, LM Studio is "not running".
 const cloud: Omit<Preset, "id" | "name" | "baseUrl"> = { api: "openAi", local: false, key: "required", keyUrl: "https://example.com", features: ["chat"], transcribeModel: null, transcribePrices: [], chatModel: null, note: "" };
@@ -270,7 +286,7 @@ export function installMockBackend() {
     folder: fresh ? null : { root, name: "日本語ポッドキャスト", tracks },
     missingFolder: null,
     lastTrack: fresh ? null : tracks[1].path,
-    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, uiLanguage: "" },
+    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, pictureHeight: 300, uiLanguage: "" },
     progress: {
       [tracks[0].path]: { position: 178, duration: 180, updatedAt: 0 },
       [tracks[1].path]: { position: 64, duration: 200, updatedAt: 0 },
@@ -278,6 +294,8 @@ export function installMockBackend() {
     guide: { welcomed: !fresh, language: fresh ? "" : "ja", practiced: !fresh, tips: [], seenVersion: "" },
     // ?en shows the interface in English.
     uiLang: new URLSearchParams(location.search).has("en") ? "en" : "zh",
+    // Every video is the test pattern here: the path after "#" is a fragment, which loading ignores.
+    mediaBase: `${mockVideo}#`,
   };
   mockIPC(
     (cmd, args) => {

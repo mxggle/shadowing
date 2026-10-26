@@ -3,12 +3,22 @@ import { invoke } from "@tauri-apps/api/core";
 import type { PlayMode } from "../audio/logic";
 import type { Lang, LangSetting } from "./i18n";
 
+/** Audio; a video (the engine plays its sound, a `<video>` its picture); or a video the app can't play (WebM, MKV), listed to say why. */
+export type TrackKind = "audio" | "video" | "unsupported";
+
 export interface Track {
   path: string;
   name: string;
   relDir: string;
   size: number;
+  kind: TrackKind;
 }
+
+let mediaBase = "";
+/** The app's local server for videos (src-tauri/src/media.rs), from the snapshot; the browser mock sets its own. */
+export const setMediaBase = (base: string) => void (mediaBase = base);
+/** Where a video's `<video>` loads it from: only videos in the open folder are served. */
+export const mediaUrl = (path: string) => `${mediaBase}/${encodeURIComponent(path)}`;
 
 export interface FolderListing {
   root: string;
@@ -38,6 +48,8 @@ export interface Settings {
   drillRounds: number;
   /** Light the playing sentence up a character (a word) at a time, where transcription timed them. */
   wordHighlight: boolean;
+  /** Height of a video's picture above the sentences, in CSS pixels. */
+  pictureHeight: number;
   /** Interface language chosen in settings ("" follows the Mac); see lib/i18n.ts. */
   uiLanguage: LangSetting;
 }
@@ -190,6 +202,8 @@ export interface Snapshot {
   guide: Guide;
   /** The interface language in use, resolved by Rust from `settings.uiLanguage`. */
   uiLang: Lang;
+  /** Where videos' pictures are served from (see `mediaUrl`). */
+  mediaBase: string;
 }
 
 /** A stretch of practice on one audio (see src-tauri/src/practice/clock.rs). */

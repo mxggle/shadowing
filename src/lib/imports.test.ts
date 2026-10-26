@@ -108,7 +108,7 @@ describe("downloads", () => {
   });
 
   it("puts each download in the group it lands in, making new groups in name order", () => {
-    const track = (relDir: string): Track => ({ path: `/f/${relDir}/x.mp3`, name: "x", relDir, size: 1 });
+    const track = (relDir: string): Track => ({ path: `/f/${relDir}/x.mp3`, name: "x", relDir, size: 1, kind: "audio" });
     const groups: [string, Track[]][] = [
       ["", [track("")]],
       ["Unit 2", [track("Unit 2")]],

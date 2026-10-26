@@ -6,6 +6,7 @@ mod explain;
 mod guide;
 mod library;
 mod local;
+mod media;
 mod plugins;
 mod practice;
 mod proofread;
@@ -66,10 +67,11 @@ impl AppState {
             .find_map(|root| library::resolve_inside(&root, path))
     }
 
-    /// An audio file the webview may use (play, transcribe, attach subtitles to).
+    /// A file whose sound the webview may use (play, transcribe, attach subtitles to):
+    /// audio, or a video (its picture goes through `media://` instead, src/media.rs).
     pub fn audio(&self, path: &str) -> Result<PathBuf, String> {
         self.allowed(Path::new(path))
-            .filter(|p| library::is_audio(p))
+            .filter(|p| library::is_playable(p))
             .ok_or_else(|| i18n::pick("无法访问此文件", "Can't access this file").into())
     }
 
@@ -134,6 +136,8 @@ struct Snapshot {
     guide: guide::Guide,
     /// The interface language in use ("zh" or "en"), resolved from `settings.ui_language`.
     ui_lang: &'static str,
+    /// Where videos' pictures are served from (src/media.rs).
+    media_base: String,
 }
 
 fn now_secs() -> u64 {
@@ -145,7 +149,7 @@ fn now_secs() -> u64 {
 
 // `async`: scanning a large or network folder must not freeze the window.
 #[tauri::command(async)]
-fn get_snapshot(state: State<AppState>) -> Snapshot {
+fn get_snapshot(state: State<AppState>, media: State<media::Server>) -> Snapshot {
     let data = state.data.lock().unwrap().clone();
     let (folder, missing_folder) = match &data.folder {
         Some(root) => match library::scan(root) {
@@ -162,6 +166,7 @@ fn get_snapshot(state: State<AppState>) -> Snapshot {
         progress: data.progress,
         guide: data.guide,
         ui_lang: i18n::current(),
+        media_base: media.base.clone(),
     }
 }
 
@@ -346,6 +351,14 @@ pub fn run() {
             });
             app.manage(audio::Player::new(sink));
             app.manage(record::Recorder::default());
+            // Videos' pictures for the webview: only videos it may play (src/media.rs).
+            let handle = app.handle().clone();
+            app.manage(media::start(move |path| {
+                handle
+                    .state::<AppState>()
+                    .allowed(path)
+                    .filter(|file| library::is_video(file))
+            })?);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

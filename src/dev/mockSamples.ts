@@ -4,8 +4,8 @@ import type { Track, Transcript } from "../lib/api";
 // Bundled practice clips; `?fresh` in the URL starts like a first launch (no folder, welcome screen).
 export const fresh = new URLSearchParams(location.search).has("fresh");
 export const samples: Record<string, Track> = {
-  ja: { path: "/App/samples/ja/ごんぎつね.mp3", name: "ごんぎつね", relDir: "", size: 262313 },
-  en: { path: "/App/samples/en/The Tale of Peter Rabbit.mp3", name: "The Tale of Peter Rabbit", relDir: "", size: 219890 },
+  ja: { path: "/App/samples/ja/ごんぎつね.mp3", name: "ごんぎつね", relDir: "", size: 262313, kind: "audio" },
+  en: { path: "/App/samples/en/The Tale of Peter Rabbit.mp3", name: "The Tale of Peter Rabbit", relDir: "", size: 219890, kind: "audio" },
 };
 const sampleLines: Record<string, [number, number, string][]> = {
   ja: [
