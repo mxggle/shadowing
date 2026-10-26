@@ -71,7 +71,7 @@ function ModeSwitch({ disabled }: { disabled: boolean }) {
               setRecordMode(m.mode);
               setRecordDub(m.dub);
             }}
-            className={`rounded-[6px] px-2.5 text-[12px] font-medium transition-[background-color,color] duration-150 disabled:opacity-50 ${
+            className={`rounded-[6px] px-2.5 text-[12px] font-medium whitespace-nowrap transition-[background-color,color] duration-150 disabled:opacity-50 ${
               on ? "bg-raised text-fg shadow-[inset_0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
             }`}
           >

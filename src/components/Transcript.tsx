@@ -275,8 +275,6 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
         )}
         {suggestions?.map((s) => <SuggestionNote key={`${s.from}→${s.to}`} suggestion={s} />)}
         {takes > 0 && !recorder && !editing && <TakePeek sentence={sentence} open={peek} />}
-        {explain?.open && <ExplainNote index={index} entry={explain} />}
-        {recorder && <RecorderCard at={index} />}
       </div>
       <span className="flex h-[30px] items-center">
         <button
@@ -321,6 +319,13 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
         </button>
         <MicButton at={index} count={takes} />
       </span>
+      {/* Under the row's actions too: in a narrow column (the picture beside it) they still have room. */}
+      {(explain?.open || recorder) && (
+        <div className={`min-w-0 ${voices ? "col-[3/-1]" : "col-[2/-1]"}`}>
+          {explain?.open && <ExplainNote index={index} entry={explain} />}
+          {recorder && <RecorderCard at={index} />}
+        </div>
+      )}
     </div>
   );
 });
