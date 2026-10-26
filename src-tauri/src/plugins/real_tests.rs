@@ -91,6 +91,12 @@ fn real_plugin_import() {
     std::fs::create_dir_all(&root).unwrap();
     let dest = accept::place(&picked.media, &root, "YouTube", &title).unwrap();
     println!("placed at {}", dest.strip_prefix(&root).unwrap().display());
+    if let Some(out) = std::env::var_os("SHADOWING_OUT") {
+        // Keep what was downloaded (e.g. to look at a merged video).
+        let kept = Path::new(&out).join(dest.file_name().unwrap());
+        std::fs::copy(&dest, &kept).unwrap();
+        println!("kept at {}", kept.display());
+    }
 
     let mut decoder = Decoder::open(&dest).unwrap();
     let mut buf = vec![0f32; 4096 * decoder.channels];
