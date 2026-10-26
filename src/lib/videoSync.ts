@@ -95,7 +95,12 @@ export function syncPicture(head: Playhead, pic: PictureState, lead = 0): SyncAc
   return act;
 }
 
-/** How long jumps take, from the last few: what `syncPicture` adds as `lead`. */
-export function nextLead(lead: number, took: number): number {
-  return Math.max(0.05, Math.min(0.6, lead * 0.6 + took * 0.4));
+/**
+ * How far ahead to jump next time, from how far off the last jump landed (`off`:
+ * the sound's time less the picture's, just after it landed; > 0, it came down
+ * behind). Timing the jump itself overestimated it: the webview says it has landed
+ * a while after the picture is moving again.
+ */
+export function nextLead(lead: number, off: number): number {
+  return Math.max(0, Math.min(0.6, lead + off * 0.7));
 }

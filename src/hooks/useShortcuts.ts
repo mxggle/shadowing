@@ -90,6 +90,8 @@ export function useShortcuts() {
         M: [() => void (e.shiftKey ? s.startReading() : s.startTake())],
         p: [() => s.replayTake()],
         P: [() => s.replayTake()],
+        v: [s.cyclePictureLayout],
+        V: [s.cyclePictureLayout],
         r: [() => s.setPlayMode(nextPlayMode(s.settings.playMode)), "playMode"],
         R: [() => s.setPlayMode(nextPlayMode(s.settings.playMode)), "playMode"],
         "-": [() => s.setRate(s.settings.rate - RATE_STEP), "slower"],

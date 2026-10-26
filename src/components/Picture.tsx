@@ -1,40 +1,50 @@
-import { AlertCircle } from "lucide-react";
-import { useEffect, useRef, useState, type RefObject } from "react";
-import { mediaUrl } from "../lib/api";
-import { t } from "../lib/i18n";
+import { AlertCircle, Columns2, Maximize2, Rows2 } from "lucide-react";
+import { useEffect, useRef, type RefObject } from "react";
+import { useStageWide } from "../hooks/useStageWide";
+import { mediaUrl, type PictureLayout } from "../lib/api";
+import { t, tk } from "../lib/i18n";
+import { layoutShown } from "../lib/picture";
 import { nextLead, syncPicture } from "../lib/videoSync";
 import { playhead, useApp } from "../store";
 import { PICTURE_MAX, PICTURE_MIN } from "../videoSlice";
-import { Button } from "./ui";
+import { PictureMask } from "./PictureMask";
 
-/** The picture never takes more than this much of the window, so the sentences keep room. */
+/** Above the sentences, the picture never takes more than this much of the window, so they keep room. */
 const MOST_OF_WINDOW = "50vh";
 const KEY_STEP = 20;
 /** A guess at how long a jump takes, until the first one is timed. */
 const FIRST_LEAD = 0.15;
 
+/** How the box around the picture and the picture itself are sized in each layout. */
+const FRAME: Record<PictureLayout, { wrap: string; video: string }> = {
+  stack: { wrap: "h-full w-fit max-w-full", video: "h-full max-w-full" },
+  side: { wrap: "w-full", video: "block max-h-[60vh] w-full" },
+  theater: { wrap: "h-full w-fit max-w-full", video: "h-full max-w-full" },
+};
+
 /**
- * A video's picture, above the sentences. The engine plays the sound (speed, loops,
- * recording all happen there); this muted <video> follows it, checked 20 times a
- * second (lib/videoSync.ts). It has no controls of its own: the deck has them all.
+ * A video's picture. The engine plays the sound (speed, loops, recording all happen
+ * there); this muted <video> follows it, checked 20 times a second (lib/videoSync.ts).
+ * It has no controls of its own: the deck has them all, and a click plays or pauses.
  */
-export function Picture() {
-  const path = useApp((s) => (s.current?.kind === "video" ? s.current.path : null));
-  return path ? <Screen key={path} path={path} /> : null;
+export function Picture({ layout }: { layout: PictureLayout }) {
+  const path = useApp((s) => (s.current?.kind === "video" && !s.settings.pictureHidden ? s.current.path : null));
+  return path ? <Screen key={path} path={path} layout={layout} /> : null;
 }
 
-function Screen({ path }: { path: string }) {
+function Screen({ path, layout }: { path: string; layout: PictureLayout }) {
   const video = useRef<HTMLVideoElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const height = useApp((s) => s.settings.pictureHeight);
-  // "none": the file has only sound (an mp4 can), so it shows as audio does.
-  const [look, setLook] = useState<"loading" | "shown" | "none" | "failed">("loading");
+  const look = useApp((s) => s.pictureLook);
+  const setLook = useApp((s) => s.setPictureLook);
   useFollow(video);
 
+  // "none": the file has only sound (an mp4 can), so it shows as audio does.
   if (look === "none") return null;
   if (look === "failed") {
     return (
-      <div className="mx-auto w-full max-w-[760px] shrink-0 px-10 pt-3">
+      <div className={layout === "stack" ? "mx-auto w-full max-w-[760px] shrink-0 px-10 pt-3" : "w-full shrink-0 pt-3"}>
         <p className="tint flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-[12px] text-muted">
           <AlertCircle size={14} className="shrink-0" />
           {t("这个视频的画面放不了，只放声音。")}
@@ -42,31 +52,39 @@ function Screen({ path }: { path: string }) {
       </div>
     );
   }
+  const frame = (
+    <div className={`group relative ${FRAME[layout].wrap}`}>
+      <video
+        ref={video}
+        src={mediaUrl(path)}
+        muted
+        playsInline
+        preload="auto"
+        disablePictureInPicture
+        aria-label={t("视频画面")}
+        title={t("播放 / 暂停 (空格)")}
+        onClick={() => useApp.getState().toggle()}
+        onLoadedMetadata={(e) => setLook(e.currentTarget.videoWidth > 0 ? "shown" : "none")}
+        onError={() => setLook("failed")}
+        className={`${FRAME[layout].video} rounded-[12px] bg-black object-contain transition-opacity duration-200 ${look === "shown" ? "opacity-100" : "opacity-0"}`}
+      />
+      <PictureMask video={video} />
+      <LayoutButtons />
+    </div>
+  );
+  if (layout === "side") return <div className="w-full shrink-0 pt-3">{frame}</div>;
+  if (layout === "theater") return <div className="flex h-full min-h-0 w-full justify-center">{frame}</div>;
   return (
     <div className="mx-auto w-full max-w-[760px] shrink-0 px-10 pt-3">
       <div ref={box} className="flex justify-center" style={{ height: `min(${height}px, ${MOST_OF_WINDOW})` }}>
-        <video
-          ref={video}
-          src={mediaUrl(path)}
-          muted
-          playsInline
-          preload="auto"
-          disablePictureInPicture
-          aria-label={t("视频画面")}
-          title={t("播放 / 暂停 (空格)")}
-          onClick={() => useApp.getState().toggle()}
-          onLoadedMetadata={(e) => setLook(e.currentTarget.videoWidth > 0 ? "shown" : "none")}
-          onError={() => setLook("failed")}
-          className={`h-full max-w-full rounded-[12px] bg-black object-contain transition-opacity duration-200 ${look === "shown" ? "opacity-100" : "opacity-0"}`}
-        />
+        {frame}
       </div>
       <Resizer box={box} />
     </div>
   );
 }
 
-/** How often the picture is checked against the sound. A timer, not animation frames:
- * those stop while the window is covered, and the picture should be in step when it shows again. */
+/** How often the picture is checked against the sound. */
 const FOLLOW_MS = 50;
 
 /** Show what the engine is playing (or holding still). */
@@ -74,22 +92,33 @@ function useFollow(ref: RefObject<HTMLVideoElement | null>) {
   useEffect(() => {
     const video = ref.current;
     if (!video) return;
-    // How long jumps take here, learnt from each one (lib/videoSync.ts).
+    // How far ahead to jump while playing, learnt from where each jump lands (lib/videoSync.ts).
     let lead = FIRST_LEAD;
     let askedAt: number | null = null;
+    let ahead = false;
+    let check = false;
     let landedAt = -Infinity;
     let nudgedAt: number | null = null;
     const landed = () => {
-      const now = performance.now();
-      if (askedAt !== null) lead = nextLead(lead, (now - askedAt) / 1000);
       askedAt = null;
-      landedAt = now;
+      landedAt = performance.now();
+      check = ahead;
     };
     video.addEventListener("seeked", landed);
     const tick = () => {
+      // Nobody sees a covered window's picture: it rests (no decoding while only listening)
+      // and catches up the moment it shows again.
+      if (document.visibilityState === "hidden") {
+        if (!video.paused) video.pause();
+        return;
+      }
       const head = playhead();
       if (head && video.readyState >= HTMLMediaElement.HAVE_METADATA) {
         const now = performance.now();
+        if (check && !video.seeking) {
+          if (head.playing) lead = nextLead(lead, head.time - video.currentTime);
+          check = false;
+        }
         const since = (t: number | null) => (t === null ? 0 : (now - t) / 1000);
         const state = {
           time: video.currentTime,
@@ -108,6 +137,7 @@ function useFollow(ref: RefObject<HTMLVideoElement | null>) {
         }
         if (act.seek !== undefined) {
           askedAt = now;
+          ahead = head.playing;
           video.currentTime = act.seek;
         }
         if (act.pause) video.pause();
@@ -115,11 +145,53 @@ function useFollow(ref: RefObject<HTMLVideoElement | null>) {
       }
     };
     const timer = window.setInterval(tick, FOLLOW_MS);
+    document.addEventListener("visibilitychange", tick);
     return () => {
       window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
       video.removeEventListener("seeked", landed);
     };
   }, [ref]);
+}
+
+const LAYOUTS: { value: PictureLayout; icon: typeof Rows2; label: string }[] = [
+  { value: "stack", icon: Rows2, label: tk("画面在上") },
+  { value: "side", icon: Columns2, label: tk("并排") },
+  { value: "theater", icon: Maximize2, label: tk("影院") },
+];
+
+/** Over the picture's corner while the pointer is on it: the three layouts (V goes round them too). */
+function LayoutButtons() {
+  const wide = useStageWide();
+  const shown = useApp((s) => layoutShown(s.settings.pictureLayout, wide));
+  const setLayout = useApp((s) => s.setPictureLayout);
+  return (
+    <div
+      role="radiogroup"
+      aria-label={t("画面布局")}
+      className="absolute top-2.5 right-2.5 flex gap-0.5 rounded-[10px] bg-black/55 p-[3px] text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100"
+    >
+      {LAYOUTS.map(({ value, icon: Icon, label }) => {
+        const narrow = value === "side" && !wide;
+        return (
+          <button
+            key={value}
+            role="radio"
+            aria-checked={shown === value}
+            aria-label={t(label)}
+            disabled={narrow}
+            title={narrow ? t("{label}（窗口太窄）", { label: t(label) }) : t("{label} (V)", { label: t(label) })}
+            onClick={() => setLayout(value)}
+            className={`grid h-[26px] w-7 place-items-center rounded-[7px] transition-colors duration-150 disabled:opacity-35 ${
+              shown === value ? "bg-white/25" : "hover:bg-white/15"
+            }`}
+          >
+            <Icon size={15} strokeWidth={1.75} />
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 /** The bar under the picture: drag it (or ↑ ↓ once it has focus) to make the picture taller or shorter. */
@@ -156,36 +228,6 @@ function Resizer({ box }: { box: RefObject<HTMLDivElement | null> }) {
       className="group flex h-4 cursor-row-resize touch-none items-center justify-center rounded-full"
     >
       <span className="h-1 w-9 rounded-full bg-track transition-colors duration-150 group-hover:bg-line-strong" />
-    </div>
-  );
-}
-
-/** A WebM or MKV from the list: why it can't play, and what to do instead. */
-export function Unsupported() {
-  const track = useApp((s) => s.current)!;
-  const format = (track.path.split(".").pop() ?? "").toUpperCase();
-  return (
-    <div className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div key={track.path} className="mx-auto w-full max-w-[760px] animate-fade-in px-10 pt-1 pb-10">
-        <h1 className="line-clamp-2 font-script text-[28px] leading-[1.22] font-semibold tracking-[-0.012em] break-words text-balance">{track.name}</h1>
-        <p className="mt-1 text-[12px] text-faint">{t("{format} 视频", { format })}</p>
-        <section className="mt-8 flex max-w-[520px] flex-col gap-3 rounded-[12px] px-5 py-4 ring-1 ring-line">
-          <h2 className="flex items-center gap-2 font-heading text-[17px] font-semibold">
-            <AlertCircle size={17} className="shrink-0 text-warn" />
-            {t("这个视频放不了")}
-          </h2>
-          <p className="text-[14px] leading-relaxed text-muted">
-            {t("这种视频里的声音多半是 Opus 格式，应用的播放器还解不了。能放的视频是 mp4、m4v、mov（画面 H.264，声音 AAC）。")}
-          </p>
-          <ul className="list-disc pl-[18px] text-[13px] leading-[1.8] text-muted">
-            <li>{t("从 YouTube 下载的：可以用「从链接导入」重新下载它的声音。")}</li>
-            <li>{t("或者用 HandBrake 之类的工具转成 mp4，放进这个文件夹再打开。")}</li>
-          </ul>
-          <div>
-            <Button onClick={() => void useApp.getState().openImport()}>{t("从链接导入…")}</Button>
-          </div>
-        </section>
-      </div>
     </div>
   );
 }

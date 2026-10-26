@@ -41,6 +41,15 @@ pub struct Settings {
     pub word_highlight: bool,
     /// Height of a video's picture above the sentences, in CSS pixels (dragged by the bar under it).
     pub picture_height: f64,
+    /// "stack" (above the sentences), "side" (beside them, where the window is wide enough) or
+    /// "theater". A string, not an enum: a version that doesn't know a value still reads the file.
+    pub picture_layout: String,
+    /// A blurred band over subtitles burned into the picture, between these fractions of its height.
+    pub picture_mask: bool,
+    pub mask_top: f64,
+    pub mask_bottom: f64,
+    /// Only listen: a video's picture isn't shown.
+    pub picture_hidden: bool,
     /// Interface language: "" follows the Mac, "zh" or "en" (see i18n.rs). Settings saved
     /// before it existed stay Chinese, the only language those versions had.
     #[serde(default = "chinese")]
@@ -76,6 +85,11 @@ impl Default for Settings {
             drill_rounds: 3,
             word_highlight: true,
             picture_height: 300.0,
+            picture_layout: "side".into(),
+            picture_mask: false,
+            mask_top: 0.74,
+            mask_bottom: 0.96,
+            picture_hidden: false,
             ui_language: String::new(),
         }
     }
