@@ -15,6 +15,9 @@ sha2 = "0.10"
 
 [dev-dependencies]
 tempfile = "3"
+# Only the tests: they open a merged mp4 the way the app does (src-tauri's decoder,
+# same version and features).
+symphonia = { version = "0.5.5", default-features = false, features = ["isomp4", "aac"] }
 
 [profile.release]
 opt-level = "s"

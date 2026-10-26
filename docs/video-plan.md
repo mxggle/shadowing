@@ -170,3 +170,31 @@ _2026-10-26 的设计稿；第 1 步（能放）、第 2 步（看得舒服）�
 - YouTube 的默认清晰度（建议 720p：一集 10 分钟约 100 MB）。
 - WebM：以后加 Opus 解码（libopus，是 C 依赖），WebM 的声音就能放；画面 VP9 两种 WebView 都能放。MKV 不打算支持。
 - 蓝牙耳机的延迟要不要单独处理（见“画面跟着声音”）。
+
+## 合成 mp4 的原型（结论）
+
+2026-10-26，代码在 `plugins/youtube/src/mux/`（还没接进导入）。**能做到**：插件里不用 ffmpeg、不转码，把分别下载的画面和声音合成一个普通 mp4，上面的两条退路都不需要。
+
+- 下下来的是什么：两个文件都是分片的 DASH（`moov` 里样本表是空的、带 `mvex`，后面是 `sidx` 和一串 `moof` + `mdat`；画面约 5 秒一片，声音约 10 秒一片）。
+  画面有一条编辑表（`elst` 的 media_time 512 或 1024，跳过 B 帧的延迟），声音没有。
+  电脑上装了 ffmpeg 时 yt-dlp 会自己把 m4a 改成普通 mp4（FixupM4a），所以试的时候要把 ffmpeg 从 PATH 里拿掉，和应用里跑插件时一样。
+- 做法：自己读写盒子，不加依赖（`mp4` crate 把 `moov` 写在文件末尾、不写编辑表、会重写 `stsd`，不合用）。
+  读：分片的和普通的都认；每个 track 的 `hdlr`、`vmhd` / `smhd`、`dinf`、`stsd`（含解码设置）原样复制，样本变成一张表（位置、大小、时长、合成时间偏移、是不是关键帧）。
+  写：`ftyp`、一个 `moov`（画面是 track 1，声音是 track 2；`stts` / `ctts` / `stss` / `stsc` / `stsz` / `stco`，超过 4 GB 用 `co64`），然后一个 `mdat`，样本按播放时间约半秒交错。
+  编辑表保留（时长换成新的 1000 时间刻度）；片与片之间有空档时前一个样本补长；第一片不从 0 开始时补一个空编辑。
+- 试了 3 个真实视频（19 秒 240p、3.5 分钟 720p、11.6 分钟 720p）：
+  - 每个包的时间、时长、大小、关键帧都和 ffmpeg 自己 `-c copy` 合成的一样，包的内容（md5）也一样。
+  - AVFoundation（QuickTime Player 用的）：能放，所有画面帧和声音都解得出来，按帧精确跳到开头、中间、末尾都对。
+  - WKWebView（Safari 的引擎）的 `<video>`：能放，跳到中间、末尾、开头后接着放；用 Web Audio 量到了声音；截图画面正常。
+  - 应用的解码器（symphonia 0.5、`isomp4` + `aac`，和 `audio/decode.rs` 一样取第一个有采样率的 track）：跳过画面、打开声音，解出的帧数和单独的 m4a 一样，跳转正常。
+  - 没有在 QuickTime Player、Safari 里人工看和听；画面和声音对不对得上没有用耳朵确认（只确认了时间和 ffmpeg 合成的一致）。
+- 快、省内存：11.6 分钟 720p（画面 90.5 MB + 声音 11.3 MB → 101.6 MB）合成 45–80 ms（文件在磁盘缓存里）；整个测试进程（合成，再把声音解两遍）峰值内存约 6 MB。
+  样本一块一块复制，内存里只有样本表（这个视频约 5 万个样本，`moov` 290 KB）。合成时磁盘上要暂时多一份。
+- 限制：
+  - 每个文件只取第一个画面 / 声音 track 和一个 `stsd` 条目；加密的（`encv` / `enca`）不管。YouTube 的文件都不是这些情况。
+  - 声音的 AAC 前置延迟和以前一样不裁剪（ffmpeg 合成的也不裁：声音的编辑表从 0 开始）。AVFoundation 自己去掉 2112 个样本（约 48 ms），symphonia 不去，
+    所以在应用里画面跟着引擎走时，画面可能比声音早 23–48 ms。比人能察觉的声音落后（约 125 ms）小，做“画面跟着声音”时可以考虑减掉。
+- 接进导入时：一次 yt-dlp 用 `-f "bestvideo[ext=mp4][vcodec^=avc1][height<=720][protocol=https],bestaudio[ext=m4a]"`（逗号：两个格式各存一个文件；
+  `protocol=https` 保证是试过的 DASH 文件，不是 m3u8），然后 `mux::merge` 合成 `video.mp4`、删掉两个原文件；进度用它的回调，取消时回调返回“已取消”，写了一半的文件会删掉。
+- 测试：`cargo test`（在 `plugins/youtube`）里有不联网的单元测试（照 YouTube 的样子造的小 DASH 文件，加 `fixtures/` 里 ffmpeg 生成的两个小文件，用 symphonia 打开）；
+  真实视频：`SHADOWING_URL=<链接> cargo test --release real_mux -- --ignored --nocapture`（说明在 `src/mux/real_tests.rs` 开头）。
