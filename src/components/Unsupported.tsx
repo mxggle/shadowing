@@ -21,7 +21,7 @@ export function Unsupported() {
             {t("这种视频里的声音多半是 Opus 格式，应用的播放器还解不了。能放的视频是 mp4、m4v、mov（画面 H.264，声音 AAC）。")}
           </p>
           <ul className="list-disc pl-[18px] text-[13px] leading-[1.8] text-muted">
-            <li>{t("从 YouTube 下载的：可以用「从链接导入」重新下载它的声音。")}</li>
+            <li>{t("从 YouTube 下载的：可以用「从链接导入」重新下载，选「声音 + 画面」就存成 mp4。")}</li>
             <li>{t("或者用 HandBrake 之类的工具转成 mp4，放进这个文件夹再打开。")}</li>
           </ul>
           <div>

@@ -10,6 +10,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 const MAX_AUDIO: u64 = 4 << 30;
+const MAX_VIDEO: u64 = 16 << 30;
 const MAX_SUBTITLE: u64 = 20 << 20;
 
 /// One file in the plugin's answer to `import/run`.
@@ -17,14 +18,15 @@ const MAX_SUBTITLE: u64 = 20 << 20;
 pub struct Made {
     /// Relative to the staging folder (or absolute inside it).
     pub path: String,
-    /// "audio" or "subtitle".
+    /// "audio", "video" or "subtitle".
     pub kind: String,
     #[serde(default)]
     pub lang: Option<String>,
 }
 
 pub struct Picked {
-    pub audio: PathBuf,
+    /// The audio, or the video when the picture was asked for.
+    pub media: PathBuf,
     /// A subtitle file (still in staging) and its language.
     pub subtitle: Option<(PathBuf, String)>,
 }
@@ -54,20 +56,26 @@ fn has_extension(path: &Path, allowed: &[&str]) -> bool {
 }
 
 pub fn pick(staging: &Path, made: &[Made]) -> Result<Picked, String> {
-    let audio = made
+    let video = made
         .iter()
-        .filter(|m| m.kind == "audio")
-        .filter_map(|m| inside(staging, &m.path, MAX_AUDIO))
-        .find(|p| library::is_audio(p))
-        .ok_or(crate::i18n::pick(
-            "插件没有下载到能播放的音频",
-            "The plugin didn't download any playable audio",
-        ))?;
+        .filter(|m| m.kind == "video")
+        .filter_map(|m| inside(staging, &m.path, MAX_VIDEO))
+        .find(|p| library::is_video(p));
+    let audio = || {
+        made.iter()
+            .filter(|m| m.kind == "audio")
+            .filter_map(|m| inside(staging, &m.path, MAX_AUDIO))
+            .find(|p| library::is_audio(p))
+    };
+    let media = video.or_else(audio).ok_or(crate::i18n::pick(
+        "插件没有下载到能播放的音频或视频",
+        "The plugin didn't download any playable audio or video",
+    ))?;
     let subtitle = made.iter().filter(|m| m.kind == "subtitle").find_map(|m| {
         let path = inside(staging, &m.path, MAX_SUBTITLE)?;
         has_extension(&path, &["srt", "vtt"]).then(|| (path, m.lang.clone().unwrap_or_default()))
     });
-    Ok(Picked { audio, subtitle })
+    Ok(Picked { media, subtitle })
 }
 
 /// `dir/stem.ext`, or `dir/stem (2).ext` and so on when that is taken.
@@ -174,10 +182,29 @@ mod tests {
             made("audio.m4a", "audio"),
         ];
         let picked = pick(&staging, &ok).unwrap();
-        assert!(picked.audio.ends_with("audio.m4a"));
+        assert!(picked.media.ends_with("audio.m4a"));
         let (sub, lang) = picked.subtitle.unwrap();
         assert!(sub.ends_with("audio.ja.vtt"));
         assert_eq!(lang, "ja");
+    }
+
+    #[test]
+    fn takes_the_video_when_the_picture_came_too() {
+        let tmp = tempfile::tempdir().unwrap();
+        let staging = tmp.path().join("job");
+        fs::create_dir_all(&staging).unwrap();
+        fs::write(staging.join("video.mp4"), "mp4").unwrap();
+        fs::write(staging.join("audio.m4a"), "aac").unwrap();
+        fs::write(tmp.path().join("out.mp4"), "outside").unwrap();
+        let picked = pick(
+            &staging,
+            &[made("audio.m4a", "audio"), made("video.mp4", "video")],
+        )
+        .unwrap();
+        assert!(picked.media.ends_with("video.mp4"));
+        // Only a video file counts as one, and only inside staging.
+        let wrong = [made("audio.m4a", "video"), made("../out.mp4", "video")];
+        assert!(pick(&staging, &wrong).is_err());
     }
 
     #[test]

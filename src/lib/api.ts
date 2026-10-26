@@ -53,6 +53,8 @@ export interface Settings {
   wordHighlight: boolean;
   /** 配音 picked for videos: said along (`recordMode` "shadow"), the original silent, the picture showing. */
   recordDub: boolean;
+  /** 从链接导入 last brought the picture this tall (0: only the sound). */
+  importVideo: number;
   /** Height of a video's picture above the sentences, in CSS pixels. */
   pictureHeight: number;
   /** How a video's picture is shown; "side" falls back to "stack" in a narrow window (lib/picture.ts). */
@@ -463,6 +465,10 @@ export interface Resolved {
   /** The plugin's name, and what it imports from (“YouTube”). */
   plugin: string;
   via: string;
+  /** With the picture too: the heights it comes in (low to high) and about how big each download is, sound included. */
+  videos?: { height: number; size: number | null }[];
+  /** About how big the sound alone is. */
+  audioSize?: number | null;
 }
 
 /** `import:status` events while resolving or downloading a link, and how it ended. */
@@ -608,8 +614,9 @@ export const api = {
     clipboard: () => invoke<string | null>("import_clipboard"),
     resolve: (url: string) => invoke<Resolved>("import_resolve", { url }),
     /** `folder`: subfolder of the open folder ("" = the folder itself). Ends with an `import:status`. */
-    start: (url: string, title: string, subtitles: string | null, folder: string) =>
-      invoke<void>("import_start", { url, title, subtitles, folder }),
+    /** `video`: bring the picture too, at most this tall (null: only the sound). */
+    start: (url: string, title: string, subtitles: string | null, folder: string, video: number | null) =>
+      invoke<void>("import_start", { url, title, subtitles, folder, video }),
     /** Stops reading the link in the sheet, or the running download. */
     cancel: (what: "resolve" | "download") => invoke<void>("import_cancel", { what }),
   },

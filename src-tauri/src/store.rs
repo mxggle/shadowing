@@ -42,6 +42,8 @@ pub struct Settings {
     /// 配音 picked for videos: said along (`record_mode` Shadow), the original silent. A field
     /// of its own like `paragraph_drill`, so an older version still reads the file.
     pub record_dub: bool,
+    /// 从链接导入: the picture's height picked last time (0 = only the sound).
+    pub import_video: u32,
     /// Height of a video's picture above the sentences, in CSS pixels (dragged by the bar under it).
     pub picture_height: f64,
     /// "stack" (above the sentences), "side" (beside them, where the window is wide enough) or
@@ -88,6 +90,7 @@ impl Default for Settings {
             drill_rounds: 3,
             word_highlight: true,
             record_dub: false,
+            import_video: 0,
             picture_height: 300.0,
             picture_layout: "side".into(),
             picture_mask: false,

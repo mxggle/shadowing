@@ -88,6 +88,14 @@ pub struct SubtitleTrack {
     pub name: String,
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VideoChoice {
+    pub height: u32,
+    #[serde(default)]
+    pub size: Option<u64>,
+}
+
 /// What a link is, for the confirmation before downloading.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -103,6 +111,12 @@ pub struct Resolved {
     /// Subtitles people wrote (not automatic captions).
     #[serde(default)]
     pub subtitles: Vec<SubtitleTrack>,
+    /// With the picture too: the heights it comes in, and about how big each download is.
+    #[serde(default)]
+    pub videos: Vec<VideoChoice>,
+    /// About how big the sound alone is.
+    #[serde(default)]
+    pub audio_size: Option<u64>,
     /// Filled in by the app: the plugin's name and the importer's title.
     #[serde(default)]
     pub plugin: String,
@@ -210,8 +224,10 @@ pub fn import_resolve(
 
 /// Downloads in the background; the outcome arrives as `import:status`.
 /// `subtitles`: language of the subtitles to bring along, if any.
+/// `video`: the picture too, at most this tall (a plugin that offered it in `videos`).
 /// `folder`: subfolder of the open folder to put the audio in ("" = the folder itself).
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // a command: the webview names each one
 pub fn import_start(
     app: AppHandle,
     state: State<AppState>,
@@ -220,6 +236,7 @@ pub fn import_start(
     title: String,
     subtitles: Option<String>,
     folder: String,
+    video: Option<u32>,
 ) -> Result<(), String> {
     let root = state.root().ok_or(crate::i18n::pick(
         "请先打开一个文件夹，导入的音频会放在里面",
@@ -242,6 +259,7 @@ pub fn import_start(
         url,
         title,
         subtitles,
+        video,
         root,
         folder,
         staging,

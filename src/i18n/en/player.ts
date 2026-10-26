@@ -96,7 +96,7 @@ export const player: Record<string, Entry> = {
   这个视频放不了: "This video can't play",
   "这种视频里的声音多半是 Opus 格式，应用的播放器还解不了。能放的视频是 mp4、m4v、mov（画面 H.264，声音 AAC）。":
     "The sound in videos like this is usually Opus, which the player can't decode yet. Videos that play are mp4, m4v and mov (H.264 picture, AAC sound).",
-  "从 YouTube 下载的：可以用「从链接导入」重新下载它的声音。": "Downloaded from YouTube? Use Import from link to download its sound again.",
+  "从 YouTube 下载的：可以用「从链接导入」重新下载，选「声音 + 画面」就存成 mp4。": "Downloaded from YouTube? Download it again with Import from link and pick Sound + picture: it's saved as an mp4.",
   "或者用 HandBrake 之类的工具转成 mp4，放进这个文件夹再打开。": "Or convert it to mp4 with a tool like HandBrake, put it in this folder and open it.",
   画面在上: "Picture above",
   并排: "Side by side",

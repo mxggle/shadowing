@@ -9,6 +9,8 @@ export interface Download {
   url: string;
   title: string;
   subtitles: string | null;
+  /** The picture too, at most this tall (null: only the sound). */
+  video: number | null;
   /** Subfolder of the open folder, as typed ("" = the folder itself). */
   folder: string;
   /** `finishing`: in the folder, until the list shows it as a track. */
@@ -147,4 +149,21 @@ export function placeDownloads(groups: [string, Track[]][], downloads: Download[
     group.downloads.push(d);
   }
   return placed;
+}
+
+/**
+ * The picture's height to offer first: as tall as last time (`wanted`, 0 = only the
+ * sound) or the nearest below it; the lowest when all are taller.
+ */
+export function pickHeight(videos: { height: number }[], wanted: number): number {
+  if (wanted <= 0 || !videos.length) return 0;
+  const fits = videos.filter((v) => v.height <= wanted).map((v) => v.height);
+  return fits.length ? Math.max(...fits) : Math.min(...videos.map((v) => v.height));
+}
+
+/** "约 96 MB" (sizes are estimates), or "" when unknown. */
+export function aboutSize(bytes: number | null | undefined): string {
+  if (!bytes) return "";
+  const mb = bytes / 1e6;
+  return t("约 {size} MB", { size: mb < 10 ? mb.toFixed(1) : Math.round(mb) });
 }

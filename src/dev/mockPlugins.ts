@@ -28,6 +28,13 @@ const resolved: Resolved = {
   ],
   plugin: "YouTube 导入",
   via: "YouTube",
+  videos: [
+    { height: 360, size: 27_400_000 },
+    { height: 480, size: 41_800_000 },
+    { height: 720, size: 92_600_000 },
+    { height: 1080, size: 176_300_000 },
+  ],
+  audioSize: 11_299_164,
 };
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -77,13 +84,15 @@ export async function mockPlugins(cmd: string, a: Record<string, never>, folder:
         }
         for (let done = 0; done <= total; done += 700_000) {
           if (cancelled) return status({ state: "cancelled", title: a.title });
-          status({ state: "downloading", title: a.title, message: "下载音频", done, total });
+          status({ state: "downloading", title: a.title, message: a.video ? "下载画面和声音" : "下载音频", done, total });
           await wait(300);
         }
         const name = a.title as string;
         const relDir = (a.folder as string).trim();
-        const path = `${folder.root}/${relDir ? relDir + "/" : ""}${name}.m4a`;
-        if (!folder.tracks.some((t) => t.path === path)) folder.tracks.push({ path, name, relDir, size: total, kind: "audio" });
+        // With the picture (`video`: its height), an mp4 the mock plays as its test pattern.
+        const kind = a.video ? "video" : "audio";
+        const path = `${folder.root}/${relDir ? relDir + "/" : ""}${name}.${a.video ? "mp4" : "m4a"}`;
+        if (!folder.tracks.some((t) => t.path === path)) folder.tracks.push({ path, name, relDir, size: total, kind });
         status({ state: "done", title: name, path, subtitles: !!a.subtitles });
       })();
       return null;

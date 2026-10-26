@@ -1,11 +1,11 @@
 {
   "id": "youtube",
   "name": "YouTube 导入",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "protocol": 1,
   "minAppVersion": "0.9.0",
   "author": "Shadowing",
-  "description": "粘贴 YouTube 链接，把视频的音频（m4a，不转码）和人工字幕导入到打开的文件夹。只下载你有权使用的内容。",
+  "description": "粘贴 YouTube 链接，把视频的音频（m4a，不转码）和人工字幕导入到打开的文件夹；也可以连画面一起（H.264 的 mp4，和声音合成一个视频，不转码）。只下载你有权使用的内容。",
   "main": {
     "darwin-arm64": "bin/shadowing-youtube",
     "windows-x86_64": "bin/shadowing-youtube.exe"
@@ -26,6 +26,6 @@
   },
   "permissions": {
     "network": ["youtube.com", "googlevideo.com", "github.com"],
-    "runs": "第一次使用时从 GitHub 下载 yt-dlp（Mac 上约 51 MB，解压后 124 MB；Windows 上约 18 MB）和 QuickJS（约 1–2 MB），用它们下载音频"
+    "runs": "第一次使用时从 GitHub 下载 yt-dlp（Mac 上约 51 MB，解压后 124 MB；Windows 上约 18 MB）和 QuickJS（约 1–2 MB），用它们下载音频（和画面）"
   }
 }

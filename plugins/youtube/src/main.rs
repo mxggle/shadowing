@@ -7,6 +7,7 @@ mod mux;
 mod platform;
 mod run;
 mod tools;
+mod video;
 mod ytdlp;
 
 use serde_json::{json, Value};
@@ -70,7 +71,9 @@ fn handle(
         "import/run" => {
             let out = params["outDir"].as_str().ok_or("没有给下载到哪里")?;
             let subtitles = params["subtitles"].as_str();
-            ytdlp::download(ctx, url, &PathBuf::from(out), subtitles)
+            // The picture too, at most this tall (apps before it never ask).
+            let video = params["video"].as_u64();
+            ytdlp::download(ctx, url, &PathBuf::from(out), subtitles, video)
         }
         other => Err(format!("这个插件不认识 “{other}”")),
     }

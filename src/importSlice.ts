@@ -3,7 +3,7 @@
 // here and run one at a time; each shows as a row in the folder group it lands in
 // (lib/imports.ts, Library.tsx), and becomes a normal track when it's done.
 import { listen } from "@tauri-apps/api/event";
-import { api, type ImportStatus, type PluginInfo, type Resolved } from "./lib/api";
+import { api, type ImportStatus, type PluginInfo, type Resolved, type Settings } from "./lib/api";
 import { nextDownload, type Download } from "./lib/imports";
 import type { AppState } from "./store";
 
@@ -29,8 +29,11 @@ export interface ImportState {
   /** Opens the sheet; with a link (or one on the clipboard) it is read at once. */
   openImport(url?: string): Promise<void>;
   resolveImport(url: string): Promise<void>;
-  /** Queues the link the sheet read. `folder`: subfolder of the open folder ("" = the folder itself). */
-  startImport(subtitles: string | null, folder: string): void;
+  /**
+   * Queues the link the sheet read. `folder`: subfolder of the open folder ("" = the folder itself);
+   * `video`: the picture too, at most this tall (null: only the sound), remembered for next time.
+   */
+  startImport(subtitles: string | null, folder: string, video: number | null): void;
   closeImport(): void;
   /** Stops a running download, or drops a waiting or failed one. */
   dropDownload(id: number): void;
@@ -47,7 +50,7 @@ type Set = (patch: Partial<AppState>) => void;
 
 let lastId = 0;
 
-export function createImportSlice(set: Set, get: Get): ImportState {
+export function createImportSlice(set: Set, get: Get, persistSettings: (patch: Partial<Settings>) => void): ImportState {
   const patch = (change: Partial<LinkImport>) => {
     const current = get().linkImport;
     if (current) set({ linkImport: { ...current, ...change } });
@@ -62,7 +65,7 @@ export function createImportSlice(set: Set, get: Get): ImportState {
     const next = nextDownload(get().downloads);
     if (!next) return;
     update(next.id, { state: "downloading", message: "", done: 0, total: 0 });
-    api.imports.start(next.url, next.title, next.subtitles, next.folder).catch((e) => {
+    api.imports.start(next.url, next.title, next.subtitles, next.folder, next.video).catch((e) => {
       update(next.id, { state: "failed", message: String(e) });
       pump();
     });
@@ -105,14 +108,16 @@ export function createImportSlice(set: Set, get: Get): ImportState {
       }
     },
 
-    startImport(subtitles, folder) {
+    startImport(subtitles, folder, video) {
       const link = get().linkImport;
       if (!link?.resolved) return;
+      if (link.resolved.videos?.length) persistSettings({ importVideo: video ?? 0 });
       const download: Download = {
         id: ++lastId,
         url: link.url,
         title: link.resolved.title,
         subtitles,
+        video,
         folder,
         state: "queued",
         message: "",
