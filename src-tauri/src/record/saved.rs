@@ -49,6 +49,13 @@ pub struct Take {
     /// Heard through Bluetooth earphones: `lag_ms` is too large by their unknown delay.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub bluetooth: bool,
+    /// Where in the track (seconds) the original in the file begins (at `original.0`): a
+    /// video's picture follows a take played back with it. None for older takes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_at: Option<f64>,
+    /// 配音: said along with the picture, the original silent.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub dub: bool,
 }
 
 /// Where a take's audio is in a reading's file: `duration` seconds from `from`

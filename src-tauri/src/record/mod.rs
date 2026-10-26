@@ -72,6 +72,10 @@ pub struct Meta {
     /// Set at `begin`: the original plays through Bluetooth earphones.
     #[serde(skip)]
     pub bluetooth: bool,
+    /// 配音 (a video): said along (`Mode::Shadow`) with the original silent and the picture
+    /// showing: the speakers are muted for the take, the recorder still gets the original.
+    #[serde(default)]
+    pub dub: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -183,6 +187,9 @@ impl Recorder {
             }
         };
         player.set_tap(Some(tap))?;
+        if meta.dub {
+            player.set_muted(true)?;
+        }
         *self.lock() = Some(Session {
             id: self.next_id(),
             meta,
@@ -219,6 +226,7 @@ impl Recorder {
                 Err(crate::i18n::pick("录音没有结束", "The recording didn't finish").into())
             });
         let _ = player.set_tap(None);
+        let _ = player.set_muted(false);
         if s.held {
             let _ = player.pause(); // the original held for it won't go on: as if it was paused
         }
@@ -261,8 +269,10 @@ impl Recorder {
                 reading: Some(built.reading),
             });
         }
-        let now =
-            || take::build(raw.as_ref().map_err(Clone::clone)?, meta.mode).map_err(String::from);
+        let now = || {
+            take::build_heard(raw.as_ref().map_err(Clone::clone)?, meta.mode, !meta.dub)
+                .map_err(String::from)
+        };
         let built = rounds::pick(now, kept, previous)?;
         let t = Take {
             id: created.to_string(),
@@ -283,6 +293,8 @@ impl Recorder {
             group: None,
             source: None,
             bluetooth: meta.bluetooth,
+            original_at: built.original_at,
+            dub: meta.dub,
         };
         saved::add(root, &meta.audio, t.clone(), &built.original, &built.mine)?;
         Ok(Finished {

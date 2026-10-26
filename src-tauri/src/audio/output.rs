@@ -200,6 +200,9 @@ where
                     let buf = &mut scratch[..part.len()];
                     e.render(buf, ch, pending);
                     e.tap(buf, ch, heard_at + done * 1_000_000_000 / sr as u64);
+                    if e.muted() {
+                        buf.fill(0.0);
+                    }
                     for (d, s) in part.iter_mut().zip(buf.iter()) {
                         *d = T::from_sample(*s);
                     }

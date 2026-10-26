@@ -291,6 +291,7 @@ fn real_record_takes() {
             mode,
             rate: 1.0,
             bluetooth: false,
+            dub: false,
             sentences: vec![],
         };
         let mic = recorder
@@ -384,6 +385,7 @@ fn real_record_rounds() {
             mode,
             rate: 1.0,
             bluetooth: false,
+            dub: false,
             sentences: vec![],
         };
         recorder
@@ -523,6 +525,7 @@ fn real_record_paragraph() {
             mode,
             rate: 1.0,
             bluetooth: false,
+            dub: false,
             sentences: sentences.clone(),
         };
         let mic = recorder
@@ -670,6 +673,7 @@ fn real_record_pause() {
         mode,
         rate: 1.0,
         bluetooth: false,
+        dub: false,
         sentences: vec![],
     };
     let secs = |since: Instant| since.elapsed().as_secs_f64();

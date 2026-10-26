@@ -19,6 +19,8 @@ export interface PlayingTake {
   parts: ClipPart[];
   duration: number;
   secs: number;
+  /** When `secs` was reported (performance.now()): a video's picture runs on from it. */
+  secsAt: number;
   /** Paused where it is (the deck's play key). */
   paused: boolean;
 }
@@ -38,7 +40,7 @@ export function createTakePlayback(set: Set, get: Get, engine: AudioEngine): Tak
   void listen<{ clip: number; secs: number; playing: boolean; ended: boolean }>("recorder:clip", ({ payload }) => {
     const p = get().playingTake;
     if (!p || p.clip !== payload.clip) return;
-    set({ playingTake: payload.playing ? { ...p, secs: payload.secs } : null });
+    set({ playingTake: payload.playing ? { ...p, secs: payload.secs, secsAt: performance.now() } : null });
     // Only a take that played to its end goes on; playing the track stops it short.
     if (payload.ended && p.chain) playOn(p);
   });
@@ -79,7 +81,7 @@ export function createTakePlayback(set: Set, get: Get, engine: AudioEngine): Tak
       const mine = ++playing;
       // Playing from now (clip −1 until it starts): the list moves to its sentence
       // without a gap, and the end of the clip it replaces isn't one to go on from.
-      set({ playingTake: { id, what, chain, clip: -1, parts: [], duration: 0, secs: 0, paused: false }, shownTake: id, recError: null });
+      set({ playingTake: { id, what, chain, clip: -1, parts: [], duration: 0, secs: 0, secsAt: performance.now(), paused: false }, shownTake: id, recError: null });
       try {
         const p = await api.record.play(path, id, what);
         if (mine !== playing) {
@@ -87,7 +89,7 @@ export function createTakePlayback(set: Set, get: Get, engine: AudioEngine): Tak
           return;
         }
         // Paused while it started: the pause reached Rust after it, and holds it.
-        set((s) => ({ playingTake: { id, what, chain, ...p, secs: 0, paused: s.playingTake?.paused ?? false } }));
+        set((s) => ({ playingTake: { id, what, chain, ...p, secs: 0, secsAt: performance.now(), paused: s.playingTake?.paused ?? false } }));
       } catch (e) {
         if (mine !== playing) return;
         set({ playingTake: null });

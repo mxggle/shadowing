@@ -25,6 +25,7 @@ fn tap(samples: &[f32], start_ns: u64) -> (Vec<Mark>, Vec<f32>) {
             at: start_ns + (i as u64 * 512 * 1_000_000_000) / MIC as u64 + (i as u64 % 3) * 9_000,
             frames: c.len() as u32,
             rate: MIC,
+            src: f64::NAN,
         })
         .collect();
     (marks, samples.to_vec())
@@ -126,6 +127,32 @@ fn shadow_take_removes_the_original_and_measures_the_lag() {
         followed: None,
     };
     let b = build(&raw, Mode::Shadow).expect("a take");
+    let lag_ms = b.lag_ms.expect("lag");
+    assert!((lag_ms - 400).abs() <= 30, "lag {lag_ms}");
+}
+
+#[test]
+fn a_dub_keeps_your_voice_and_measures_the_lag() {
+    // 配音: the speakers were silent, so the mic heard only you, 400 ms behind the picture.
+    let original = speech("ja/ごんぎつね.mp3", 4.0, MIC);
+    let mic_at = 1_000_000_000u64;
+    let start = MIC as usize / 2;
+    let (marks, played) = tap(&original, mic_at + 500_000_000);
+    let lag = MIC as usize * 4 / 10;
+    let mut mic = vec![0.0f32; MIC as usize * 6];
+    for (i, v) in original.iter().enumerate() {
+        mic[start + lag + i] += v * 0.25;
+    }
+    let raw = Raw {
+        mic,
+        mic_rate: MIC,
+        mic_at,
+        marks,
+        played,
+        turn: start + original.len(),
+        followed: None,
+    };
+    let b = build_heard(&raw, Mode::Shadow, false).expect("a take");
     let lag_ms = b.lag_ms.expect("lag");
     assert!((lag_ms - 400).abs() <= 30, "lag {lag_ms}");
 }
@@ -241,4 +268,37 @@ fn peaks_outline_the_loudness() {
     assert_eq!(p.len(), 50);
     assert_eq!(p[25], 128);
     assert_eq!(p[0], 0);
+}
+
+#[test]
+fn track_time_from_the_outputs_marks() {
+    let ns = 1_000_000_000u64;
+    let mic_at = 5 * ns;
+    // Blocks of 10 ms; the track plays at 0.8× from 12 s on, half a second after the mic opened.
+    let marks: Vec<Mark> = (0..100u64)
+        .map(|i| {
+            let t = i as f64 / 100.0;
+            Mark {
+                at: mic_at + i * ns / 100,
+                frames: 480,
+                rate: 48_000,
+                src: if t < 0.5 {
+                    f64::NAN
+                } else {
+                    12.0 + (t - 0.5) * 0.8
+                },
+            }
+        })
+        .collect();
+    let near = |x: f64, want: f64| {
+        assert!(
+            (track_at(&marks, mic_at, x).unwrap() - want).abs() < 1e-6,
+            "{x}"
+        )
+    };
+    near(0.6, 12.08);
+    near(0.605, 12.084);
+    near(0.5, 12.0);
+    assert_eq!(track_at(&marks, mic_at, 0.2), None, "not playing yet");
+    assert_eq!(track_at(&[], mic_at, 0.6), None);
 }

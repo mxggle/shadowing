@@ -5,6 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import { api, setMediaBase, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
 import { setLang, type Lang, type LangSetting } from "./lib/i18n";
 import { playKey } from "./lib/playKey";
+import { takeTrackTime } from "./lib/takes";
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createDrillSlice, type DrillState } from "./drillSlice";
 import { createExplainSlice, type ExplainState } from "./explainSlice";
@@ -104,8 +105,21 @@ const SETTINGS_SETTLE_MS = 400;
 export let debugEngine: AudioEngine | null = null;
 let theEngine: AudioEngine | null = null;
 
-/** Where the engine is now (between its status events too): what a video's picture follows. */
-export const playhead = () => theEngine && { time: theEngine.time, playing: !theEngine.paused, rate: theEngine.speed };
+/**
+ * What a video's picture follows: where the engine is now (between its status events
+ * too), or, while a take said along plays back, the moment of the track it recorded.
+ */
+export function playhead() {
+  if (!theEngine) return null;
+  const { playingTake: p, takes } = useApp.getState();
+  const take = p && takes.find((x) => x.id === p.id);
+  if (p && take) {
+    const secs = p.secs + (p.paused ? 0 : (performance.now() - p.secsAt) / 1000);
+    const time = takeTrackTime(take, p.parts, secs);
+    if (time !== null) return { time, playing: !p.paused, rate: take.rate };
+  }
+  return { time: theEngine.time, playing: !theEngine.paused, rate: theEngine.speed };
+}
 let lastSaved = { path: "", position: -1 };
 
 export const useApp = create<AppState>((set, get) => {
@@ -193,7 +207,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, uiLanguage: "" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, uiLanguage: "" },
     current: null,
     playing: false,
     time: 0,

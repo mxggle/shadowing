@@ -32,6 +32,7 @@ fn meta(mode: Mode, sentences: &[(f64, f64)]) -> Meta {
         mode,
         rate: 1.0,
         bluetooth: false,
+        dub: false,
         sentences: sentences
             .iter()
             .map(|&(start, end)| Sentence {
@@ -174,6 +175,7 @@ fn shadowing_a_paragraph_follows_the_original() {
             at: mic_at + 500_000_000 + i as u64 * 512 * 1_000_000_000 / MIC as u64,
             frames: c.len() as u32,
             rate: MIC,
+            src: f64::NAN,
         })
         .collect();
     let lag = MIC as usize * 4 / 10;

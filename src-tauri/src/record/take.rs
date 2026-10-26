@@ -63,6 +63,8 @@ pub struct Built {
     pub mine_span: (f64, f64),
     /// How far behind the original you were (shadowing).
     pub lag_ms: Option<i32>,
+    /// Where in the track the original's first sound is (`original_span.0` in the file).
+    pub original_at: Option<f64>,
 }
 
 pub const NOTHING: &str = "没听到你的声音，再试一次？";
@@ -91,7 +93,16 @@ fn not_played() -> &'static str {
 const EARLY_SECS: f64 = 0.3;
 
 /// Fails when the original never sounded, or there's no voice of yours.
+#[cfg(test)]
 pub fn build(raw: &Raw, mode: Mode) -> Result<Built, &'static str> {
+    build_heard(raw, mode, true)
+}
+
+/// Fails when the original never sounded, or there's no voice of yours.
+/// `heard`: the original came out of the speakers, so the mic picked it up too. Not in
+/// 配音 (the speakers were silent): there's no echo to take out, and taking it out
+/// would turn your voice down where the original had sound.
+pub fn build_heard(raw: &Raw, mode: Mode, heard: bool) -> Result<Built, &'static str> {
     let mic = convert(&raw.mic, raw.mic_rate, RATE);
     let played = place(
         &raw.marks,
@@ -100,11 +111,12 @@ pub fn build(raw: &Raw, mode: Mode) -> Result<Built, &'static str> {
         raw.mic.len() as f64 / raw.mic_rate as f64,
     );
     let original_span = span(&played, &active(&played)).ok_or(not_played())?;
+    let original_at = track_at(&raw.marks, raw.mic_at, original_span.0);
     // The room as the mic heard it: removing the echo also turns the room
     // down wherever the original played, so the cleaned take's own quietest
     // moments are well below it.
     let room = vad::floor(&levels(&mic));
-    let mut mine = if played.iter().any(|v| v.abs() > 1e-4) {
+    let mut mine = if heard && played.iter().any(|v| v.abs() > 1e-4) {
         echo::cancel(&mic, &played, RATE)
     } else {
         mic
@@ -136,6 +148,7 @@ pub fn build(raw: &Raw, mode: Mode) -> Result<Built, &'static str> {
             original_span,
             mine_span,
             lag_ms: None,
+            original_at,
         });
     }
     let start = (original_span.0.min(mine_span.0) - MARGIN_SECS).max(0.0);
@@ -154,6 +167,7 @@ pub fn build(raw: &Raw, mode: Mode) -> Result<Built, &'static str> {
         original_span,
         mine_span,
         lag_ms,
+        original_at,
     })
 }
 
@@ -239,6 +253,26 @@ pub fn place(marks: &[Mark], played: &[f32], mic_at: u64, secs: f64) -> Vec<f32>
     let mut out = convert(&line, rate, RATE);
     out.resize(at(secs), 0.0);
     out
+}
+
+/// Where in the track (seconds) the moment `x` seconds after `mic_at` was, from the
+/// output's marks (`Mark::src`); None when the track wasn't playing then.
+pub fn track_at(marks: &[Mark], mic_at: u64, x: f64) -> Option<f64> {
+    let secs = |m: &Mark| (m.at as i128 - mic_at as i128) as f64 / 1e9;
+    let (i, m) = marks
+        .iter()
+        .enumerate()
+        .filter(|(_, m)| m.src.is_finite())
+        .min_by(|(_, a), (_, b)| (secs(a) - x).abs().total_cmp(&(secs(b) - x).abs()))?;
+    if (secs(m) - x).abs() > 0.1 {
+        return None;
+    }
+    // How fast the track went by then: a take records at the speed set.
+    let speed = marks
+        .get(i + 1)
+        .filter(|n| n.src.is_finite() && secs(n) > secs(m))
+        .map_or(1.0, |n| (n.src - m.src) / (secs(n) - secs(m)));
+    Some(m.src + (x - secs(m)) * speed)
 }
 
 pub fn levels(x: &[f32]) -> Vec<f32> {

@@ -201,6 +201,8 @@ pub fn build(raw: &Raw, meta: &Meta, file: &Path, id: &str, created: u64) -> Res
             group: Some(id.to_string()),
             source,
             bluetooth: meta.bluetooth,
+            original_at: None,
+            dub: false,
         };
         takes.push((take, sound));
         parts.push(ReadPart {

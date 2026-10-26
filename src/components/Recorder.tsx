@@ -44,30 +44,41 @@ export function RecorderCard({ at }: { at: RecordAt }) {
   );
 }
 
-const MODES: { mode: RecordMode; label: string; title: string }[] = [
-  { mode: "listen", label: tk("听完再说"), title: tk("先听一遍原句，轮到你时再说") },
-  { mode: "shadow", label: tk("边听边说"), title: tk("跟着原句一起说（不戴耳机也可以：录完会自动去掉录进来的原声）") },
+/** `dub`: 配音, offered on a video: said along (as 边听边说) with the picture and without the original's sound. */
+const MODES: { mode: RecordMode; dub: boolean; label: string; title: string }[] = [
+  { mode: "listen", dub: false, label: tk("听完再说"), title: tk("先听一遍原句，轮到你时再说") },
+  { mode: "shadow", dub: false, label: tk("边听边说"), title: tk("跟着原句一起说（不戴耳机也可以：录完会自动去掉录进来的原声）") },
+  { mode: "shadow", dub: true, label: tk("配音"), title: tk("画面照放、原声不放，看着口型说，像给这段配音") },
 ];
 
 function ModeSwitch({ disabled }: { disabled: boolean }) {
   const mode = useApp((s) => s.settings.recordMode);
+  const video = useApp((s) => s.current?.kind === "video");
+  const dub = useApp((s) => s.settings.recordDub) && video;
+  const { setRecordMode, setRecordDub } = useApp.getState();
   return (
     <div className="tint flex h-7 rounded-[8px] p-0.5" role="radiogroup" aria-label={t("跟读方式")}>
-      {MODES.map((m) => (
-        <button
-          key={m.mode}
-          role="radio"
-          aria-checked={mode === m.mode}
-          title={t(m.title)}
-          disabled={disabled}
-          onClick={() => useApp.getState().setRecordMode(m.mode)}
-          className={`rounded-[6px] px-2.5 text-[12px] font-medium transition-[background-color,color] duration-150 disabled:opacity-50 ${
-            mode === m.mode ? "bg-raised text-fg shadow-[inset_0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
-          }`}
-        >
-          {t(m.label)}
-        </button>
-      ))}
+      {MODES.filter((m) => video || !m.dub).map((m) => {
+        const on = mode === m.mode && dub === m.dub;
+        return (
+          <button
+            key={m.label}
+            role="radio"
+            aria-checked={on}
+            title={t(m.title)}
+            disabled={disabled}
+            onClick={() => {
+              setRecordMode(m.mode);
+              setRecordDub(m.dub);
+            }}
+            className={`rounded-[6px] px-2.5 text-[12px] font-medium transition-[background-color,color] duration-150 disabled:opacity-50 ${
+              on ? "bg-raised text-fg shadow-[inset_0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
+            }`}
+          >
+            {t(m.label)}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -92,7 +103,9 @@ function History({ takes, take }: { takes: Take[]; take: Take }) {
 }
 
 function Ready({ at, looping }: { at: RecordAt; looping: boolean }) {
-  const note = useApp((s) => readyNote(s.settings.recordMode));
+  const note = useApp((s) =>
+    s.settings.recordMode === "shadow" && s.settings.recordDub && s.current?.kind === "video" ? t("原声不放、画面照放：看着口型说") : readyNote(s.settings.recordMode),
+  );
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
       <RecordButtons at={at} looping={looping} />
@@ -128,7 +141,7 @@ function Live({ rec }: { rec: Rec }) {
     return (
       <p className="flex h-[52px] items-center gap-2">
         <LoaderCircle size={14} className="shrink-0 animate-spin" />
-        {rec.phase === "starting" ? t("正在打开麦克风…") : rec.mode === "shadow" ? t("正在去掉录进来的原声…") : t("正在整理录音…")}
+        {rec.phase === "starting" ? t("正在打开麦克风…") : rec.mode === "shadow" && !rec.dub ? t("正在去掉录进来的原声…") : t("正在整理录音…")}
       </p>
     );
   }
@@ -153,7 +166,7 @@ function Live({ rec }: { rec: Rec }) {
               <span className="absolute size-2.5 rounded-full bg-danger/25" />
               <span className="size-2 rounded-full bg-danger" />
             </span>
-            {rec.along ? t("跟着说") : t("轮到你了")}
+            {rec.along ? (rec.dub ? t("跟着画面说") : t("跟着说")) : t("轮到你了")}
           </span>
         )}
         {count && <span className="tabular -ml-1 text-[12px] whitespace-nowrap text-muted">{count}</span>}
@@ -221,7 +234,7 @@ function Result({ take, at, looping }: { take: Take; at: RecordAt; looping: bool
   const turns = inTurns(take);
   const both: TakePart = comparePart(take);
   const toggle = (what: TakePart) => (playing?.what !== what ? void playTake(take.id, what) : playing.paused ? pausePlayingTake(false) : stopTake());
-  const note = turns ? paceNote(take) : lagNote(take.lagMs, take.bluetooth);
+  const note = turns ? paceNote(take) : lagNote(take.lagMs, take.bluetooth, take.dub);
   return (
     <div className="flex flex-col gap-2.5">
       <div>
@@ -232,6 +245,11 @@ function Result({ take, at, looping }: { take: Take; at: RecordAt; looping: bool
         <PlayButton active={playing?.what === both} paused={playing?.paused} onClick={() => toggle(both)} title={turns ? t("从这句听下去：每句先放原句，再放你的 (P)") : t("从这句听下去：原句和你的一起放，听合不合拍 (P)")}>
           {turns ? t("对比") : t("一起听")}
         </PlayButton>
+        {take.dub && (
+          <PlayButton active={playing?.what === "mine"} paused={playing?.paused} onClick={() => toggle("mine")} title={t("画面配上你的声音（原声不放）")}>
+            {t("看配音")}
+          </PlayButton>
+        )}
         {playing?.paused && <span className="text-[12px] text-faint">{t("已暂停")}</span>}
         <span className="ml-auto flex items-center gap-1">
           <IconButton title={t("删除这次录音")} onClick={() => void deleteTake(take.id)}>

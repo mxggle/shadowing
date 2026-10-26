@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { Take } from "./api";
 import { setLang } from "./i18n";
-import { formatSecs, lagNote, lanes, nextTake, paceNote, peekTake, playheadAt, sentenceOf, takeCounts, takesFor, whenRecorded } from "./takes";
+import { formatSecs, lagNote, lanes, nextTake, paceNote, peekTake, playheadAt, sentenceOf, takeCounts, takesFor, takeTrackTime, whenRecorded } from "./takes";
 
 afterEach(() => setLang("zh"));
 
@@ -146,6 +146,8 @@ describe("notes", () => {
     expect(lagNote(40)).toBe("几乎和原声同步");
     expect(lagNote(420)).toBe("比原声晚 0.42 秒");
     expect(lagNote(420, true)).toBe("戴蓝牙耳机时测不准晚多少");
+    expect(lagNote(420, false, true)).toBe("比口型晚 0.42 秒");
+    expect(lagNote(40, false, true)).toBe("几乎和口型同步");
   });
 
   it("when", () => {
@@ -166,5 +168,22 @@ describe("notes", () => {
     expect(whenRecorded(now - 5 * 60_000, now)).toBe("5 min ago");
     expect(whenRecorded(new Date(2026, 9, 14, 9, 5).getTime(), now)).toBe("Today, 09:05");
     expect(whenRecorded(new Date(2026, 9, 12, 21, 0).getTime(), now)).toBe("Oct 12, 21:00");
+  });
+});
+
+describe("takeTrackTime", () => {
+  const along = take({ mode: "shadow", original: [0.4, 2.4], mine: [0.6, 2.9], originalAt: 10.05, rate: 0.8 });
+  const both = [{ lane: "both" as const, from: 0, to: 3, clipAt: 0 }];
+
+  it("places a take said along in the track, at the speed it was recorded", () => {
+    expect(takeTrackTime(along, both, 0.4)).toBeCloseTo(10.05);
+    expect(takeTrackTime(along, both, 1.4)).toBeCloseTo(10.85);
+    expect(takeTrackTime(along, [{ lane: "mine", from: 0.6, to: 2.9, clipAt: 0 }], 1)).toBeCloseTo(11.01);
+  });
+
+  it("has nothing for takes in turns, older takes, or past the end", () => {
+    expect(takeTrackTime(take({ originalAt: 10 }), both, 1)).toBeNull();
+    expect(takeTrackTime({ ...along, originalAt: undefined }, both, 1)).toBeNull();
+    expect(takeTrackTime(along, both, 3.5)).toBeNull();
   });
 });

@@ -21,6 +21,8 @@ fn take(id: &str) -> Take {
         group: None,
         source: None,
         bluetooth: false,
+        original_at: None,
+        dub: false,
     }
 }
 

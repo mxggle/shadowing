@@ -51,6 +51,8 @@ export interface Settings {
   drillRounds: number;
   /** Light the playing sentence up a character (a word) at a time, where transcription timed them. */
   wordHighlight: boolean;
+  /** 配音 picked for videos: said along (`recordMode` "shadow"), the original silent, the picture showing. */
+  recordDub: boolean;
   /** Height of a video's picture above the sentences, in CSS pixels. */
   pictureHeight: number;
   /** How a video's picture is shown; "side" falls back to "stack" in a narrow window (lib/picture.ts). */
@@ -93,6 +95,10 @@ export interface Take {
   group?: string | null;
   /** Heard through Bluetooth earphones: `lagMs` is too large by their delay. */
   bluetooth?: boolean;
+  /** Where in the track the original in the file begins (at `original[0]`): a video's picture follows the take with it. */
+  originalAt?: number;
+  /** 配音: said along with the picture, the original silent. */
+  dub?: boolean;
 }
 
 /** A paragraph read in one go (src-tauri/src/record/saved.rs); each sentence is also a take. */
@@ -175,6 +181,8 @@ export interface RecordMeta {
   rate: number;
   /** A paragraph's sentences, in order. */
   sentences?: { start: number; end: number; text: string }[];
+  /** 配音 (a video): said along, the speakers silent, the picture showing. */
+  dub?: boolean;
 }
 
 export interface GoalChange {

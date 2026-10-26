@@ -8,6 +8,7 @@ fn mark(at: u64, frames: u32) -> Mark {
         at,
         frames,
         rate: RATE,
+        src: f64::NAN,
     }
 }
 

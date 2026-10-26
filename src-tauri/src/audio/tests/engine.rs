@@ -220,3 +220,39 @@ fn loop_starting_past_the_real_end_plays_to_the_end() {
         "silent after the end"
     );
 }
+
+/// Each block the recorder's tap gets says where in the track its first frame is
+/// (a take of a video is mapped back onto the picture with it); nothing while paused.
+#[test]
+fn tap_marks_carry_the_track_position() {
+    let dir = tempfile::tempdir().unwrap();
+    let (path, n) = ramp_wav(dir.path(), SR, 6.0);
+    let mut rig = Rig::new(&path, SR, 1.0, 48_000);
+    let (tap, mut rx) = crate::audio::tap::tap(4.0);
+    rig.send(Cmd::Tap(Some(Box::new(tap))));
+    let mut firsts = Vec::new();
+    for k in 0..20u64 {
+        let mut block = vec![0.0f32; 512 * 2];
+        rig.engine.render(&mut block, 2, 0);
+        rig.engine.tap(&block, 2, k * 1_000_000);
+        firsts.push(index_of(&block[..2], n));
+    }
+    rig.send(Cmd::Pause);
+    for _ in 0..8 {
+        let mut block = vec![0.0f32; 512 * 2];
+        rig.engine.render(&mut block, 2, 0);
+        rig.engine.tap(&block, 2, 0);
+    }
+    let marks: Vec<_> = std::iter::from_fn(|| rx.marks.pop().ok()).collect();
+    assert_eq!(marks.len(), 28);
+    // Past the first blocks (the start fades in), each mark's place is its first frame's.
+    for (m, first) in marks.iter().zip(&firsts).skip(2) {
+        assert!(
+            (m.src * SR as f64 - first).abs() < 2.0,
+            "mark at {} for frame {first}",
+            m.src * SR as f64
+        );
+    }
+    // Paused (once the fade-out is over): no place in the track.
+    assert!(marks[24..].iter().all(|m| m.src.is_nan()));
+}

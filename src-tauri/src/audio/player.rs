@@ -223,6 +223,11 @@ impl Player {
         self.cmd.send(Cmd::Volume(v as f32))
     }
 
+    /// Silences the speakers but not the recorder's copy of the output (配音).
+    pub fn set_muted(&self, muted: bool) -> Result<(), String> {
+        self.cmd.send(Cmd::Mute(muted))
+    }
+
     /// Plays `a`..`b` once (ignoring any loop) and pauses at `b`.
     pub fn play_range(&self, a: f64, b: f64) -> Result<(), String> {
         if !(a.is_finite() && b.is_finite() && b > a) {
