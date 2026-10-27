@@ -6,7 +6,7 @@
 - `shots/`：页面上的应用截图，浅色和深色各一套（`*-light.webp` / `*-dark.webp`，无损 WebP，2× 像素），`*-crop-*` 是手机宽度用的裁切版。这些是真实界面，取自宣传视频工程（本地 `video/`）的舞台画面：去掉字幕层、相机复位、2× 渲染后导出。界面改版后要重新导出一套，文件名不变就不用改页面。
 - `og.png`：分享到社交平台时的预览图（1200×630），用浅色首屏截图拼的。
 - 「更新」一节的版本列表和标题里的天数、版本数由 `scripts/site-sync.mjs changelog` 从 `CHANGELOG.md` 生成（`scripts/bump-version.sh` 会运行它，
-  `scripts/check-version.sh` 检查没落下）：每个版本一行，用 CHANGELOG 里这个版本第一条的粗体标题和第一句话。旧的几行是手写的，改了也不会被覆盖。
+  `scripts/check-version.sh` 检查没落下）。首屏顶上的小标签（「0.14 新增 插件标注」）也是它生成的：最新的、有「新增」的版本，第一条的粗体标题。「更新」列表每个版本一行，用 CHANGELOG 里这个版本第一条的粗体标题和第一句话。旧的几行是手写的，改了也不会被覆盖。
 - 下载按钮指向 `releases/latest/download/Shadowing-macos-arm64.dmg` 和 `…/Shadowing-windows-x64-setup.exe`，发布流程每次都会上传这两个固定名字的安装包，
   所以发版后不用改页面（Windows 的要仓库变量 `WINDOWS_RELEASE` 开着，见 CLAUDE.md 的“发布”）。在 Windows 电脑上打开时，页面末尾的脚本把 Windows 版的按钮放到前面、
   导航的“下载”换成安装包。

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Keeps the landing page (site/) in step with releases, so nobody has to remember to:
 //   changelog          — site/index.html's 更新 list gets a line for every CHANGELOG version newer than its top one
-//                        (the first bullet's bold title and its first sentence), and the headline counts days and
-//                        versions again. Run by scripts/bump-version.sh; scripts/check-version.sh checks it was.
+//                        (the first bullet's bold title and its first sentence), the headline counts days and
+//                        versions again, and the badge at the top names the newest version with something new. Run by scripts/bump-version.sh; scripts/check-version.sh checks it was.
 //   release <file>     — after a release is published (<file>: `gh release view vX.Y.Z --json tagName,assets`):
 //                        the download size shown on the page, and site/plugins.json's entry for each plugin zip in the
 //                        release whose version isn't listed yet (new plugins get an entry from their manifest).
@@ -30,16 +30,29 @@ const escape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/
 /** `code` and plain text: the list shows prose, not markdown. */
 const prose = (s) => escape(s.replace(/`([^`]*)`/g, "$1").replace(/\*\*([^*]*)\*\*/g, "$1"));
 
-/** One line of the 更新 list: "0.14" (patches in full), the date, the first bullet's title and first sentence. */
-export function updateLine({ version, date, body }) {
+/** The first bullet of a version: its bold title (may be empty) and the rest. */
+function firstBullet(body) {
   const bullet = body.split("\n").find((l) => l.startsWith("- "))?.slice(2).trim() ?? "";
   const titled = bullet.match(/^\*\*([^*]+)\*\*[：:]\s*(.*)$/);
-  const [title, rest] = titled ? [titled[1], titled[2]] : ["", bullet];
+  return titled ? { title: titled[1], rest: titled[2] } : { title: "", rest: bullet };
+}
+
+const label = (version) => (version.endsWith(".0") ? version.slice(0, -2) : version);
+
+/** The badge at the top of the page: the newest version with a 新增 section and a titled first bullet, linking to the 更新 list. */
+export function newsBadge(all) {
+  const v = all.find((x) => /^### 新增/m.test(x.body) && firstBullet(x.body).title);
+  if (!v) return null;
+  return `<a class="news" href="#updates"><b>${label(v.version)} 新增</b>${prose(firstBullet(v.body).title)}<svg`;
+}
+
+/** One line of the 更新 list: "0.14" (patches in full), the date, the first bullet's title and first sentence. */
+export function updateLine({ version, date, body }) {
+  const { title, rest } = firstBullet(body);
   const sentence = rest.match(/^.*?[。！？](?=\s|$|[^）」』])/)?.[0] ?? rest;
-  const label = version.endsWith(".0") ? version.slice(0, -2) : version;
   const [, m, d] = date.split("-").map(Number);
   const text = `${title ? `<b>${prose(title)}。</b>` : ""}${prose(sentence)}`;
-  return `<li><span class="v">${label}</span><time datetime="${date}">${m} 月 ${d} 日</time><p>${text}</p></li>`;
+  return `<li><span class="v">${label(version)}</span><time datetime="${date}">${m} 月 ${d} 日</time><p>${text}</p></li>`;
 }
 
 const CHINESE_NUMBERS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
@@ -62,6 +75,8 @@ export function syncChangelog(html, changelog) {
     const lines = newer.map((v) => `        ${updateLine(v)}\n`).join("");
     out = out.replace(/(<ol class="log">\n)/, `$1${lines}`);
   }
+  const badge = newsBadge(all);
+  if (badge) out = out.replace(/<a class="news" href="[^"]*"><b>[^<]*<\/b>[^<]*<svg/, badge);
   const days = Math.round((Date.parse(all[0].date) - Date.parse(all[all.length - 1].date)) / 86_400_000) + 1;
   return out.replace(
     /(<h2 id="updates-title"><span class="ph">)[^<]*(，<\/span>)/,

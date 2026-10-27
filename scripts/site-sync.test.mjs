@@ -25,7 +25,8 @@ const changelog = `# 更新日志
 - 第一个公开版本。
 `;
 
-const html = `<h2 id="updates-title"><span class="ph">十九天发了十六个版本，</span><span class="ph">还在快速长大。</span></h2>
+const html = `<a class="news" href="#windows"><b>0.11 新增</b>Windows 版<svg class="i"></svg></a>
+<h2 id="updates-title"><span class="ph">十九天发了十六个版本，</span><span class="ph">还在快速长大。</span></h2>
       <ol class="log">
         <li><span class="v">0.13</span><time datetime="2026-10-27">10 月 27 日</time><p><b>视频。</b>能放视频了。</p></li>
       </ol>
@@ -49,6 +50,7 @@ describe("site-sync", () => {
     const out = syncChangelog(html, changelog);
     expect(out.match(/class="v">([^<]+)/g)).toEqual(['class="v">0.14', 'class="v">0.13.1', 'class="v">0.13']);
     expect(out).toContain("二十天发了四个版本，");
+    expect(out).toContain('<a class="news" href="#updates"><b>0.14 新增</b>插件标注<svg class="i">');
     expect(changelogInSync(out, changelog)).toBe(true);
     expect(changelogInSync(html, changelog)).toBe(false);
   });
