@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Waits for the Windows build of <ref> (.github/workflows/release-windows.yml, on Actions: 15–25 minutes) and
-# downloads its files into <dir>: Shadowing-X.Y.Z-windows-x64-setup.exe, its .sig and the YouTube plugin zip.
+# downloads its files into <dir>: Shadowing-X.Y.Z-windows-x64-setup.exe, its .sig and the plugin zips (scripts/release-plugins.sh).
 # <ref> is the release's tag, or a feat/windows* branch for a dry run; the run must be of the commit checked out
 # here. scripts/release-assets.sh then adds the files to the Mac ones.
 # Used by scripts/release-local.sh and .github/workflows/release.yml (needs gh, logged in or with GH_TOKEN).

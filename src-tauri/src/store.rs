@@ -55,8 +55,8 @@ pub struct Settings {
     pub mask_bottom: f64,
     /// Only listen: a video's picture isn't shown.
     pub picture_hidden: bool,
-    /// 注音 from a plugin over the sentences (when one is installed for their language).
-    pub ruby: bool,
+    /// Plugins' marks on the sentences (标注: readings over words, a line under…).
+    pub annotations: bool,
     /// Interface language: "" follows the Mac, "zh" or "en" (see i18n.rs). Settings saved
     /// before it existed stay Chinese, the only language those versions had.
     #[serde(default = "chinese")]
@@ -99,7 +99,7 @@ impl Default for Settings {
             mask_top: 0.74,
             mask_bottom: 0.96,
             picture_hidden: false,
-            ruby: true,
+            annotations: true,
             ui_language: String::new(),
         }
     }
@@ -144,7 +144,7 @@ pub struct Persisted {
 #[serde(rename_all = "camelCase", default)]
 pub struct PluginState {
     /// The plugin's own settings (manifest `contributes.settings`): key → value picked.
-    pub settings: HashMap<String, String>,
+    pub settings: HashMap<String, serde_json::Value>,
 }
 
 impl Persisted {

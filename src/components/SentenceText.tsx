@@ -1,28 +1,28 @@
 import { Fragment } from "react";
-import type { RubyPiece, Sentence } from "../lib/api";
+import type { Annotation, Sentence } from "../lib/api";
+import { markedGroups } from "../lib/annotations";
 import { textPieces, type TextPiece } from "../lib/edits";
 import { t, tk } from "../lib/i18n";
 import { shortcut } from "../lib/platform";
-import { rubyGroups } from "../lib/ruby";
 import { saidPieces, saidUpTo } from "../lib/sentences";
 import { useApp } from "../store";
 
 const UNSURE_TITLE = tk("转写时没把握，可能听错了。按 E 改正；没错的话按 E 再按 {key}，虚线就会去掉");
 
-/** The readings shown over this text (注音), when a plugin gave them and they're on. */
-export function useRuby(text: string): RubyPiece[] | undefined {
-  return useApp((s) => (s.settings.ruby && s.ruby.key ? s.ruby.byText[text] : undefined));
+/** What the plugins mark on this text (标注), when they did and it's shown. */
+export function useAnnotation(text: string): Annotation | undefined {
+  return useApp((s) => (s.settings.annotations && s.annotations.key ? s.annotations.byText[text] : undefined));
 }
 
-/** Whether `ruby` puts any reading over the text (the line needs room for it). */
-export const hasRuby = (ruby: RubyPiece[] | undefined) => !!ruby?.some((r) => r.ruby);
+/** Whether a reading sits over the text (the line needs room for it). */
+export const hasRuby = (a: Annotation | undefined) => !!a?.pieces?.some((p) => p.ruby);
 
 /**
  * A sentence's text: what the replace bar looks for (and what an AI suggestion
  * would change, `fixes`) is highlighted, and what the transcriber was unsure of
  * has a dotted underline. In the sentence playing (`said`), what hasn't been
- * said yet stays grey, a character (a word) at a time. Readings from a plugin
- * (注音) sit over their words.
+ * said yet stays grey, a character (a word) at a time. Plugins' marks (标注):
+ * readings over their words, notes on hover, underlined or bold pieces.
  */
 export function SentenceText({ text, find, unsure, fixes, said }: {
   text: string;
@@ -31,8 +31,8 @@ export function SentenceText({ text, find, unsure, fixes, said }: {
   fixes?: string[];
   said?: { times: [number, number][]; upTo: number };
 }) {
-  const ruby = useRuby(text);
-  if (!find && !unsure?.length && !fixes?.length && !said && !hasRuby(ruby)) return text;
+  const plugin = useAnnotation(text)?.pieces;
+  if (!find && !unsure?.length && !fixes?.length && !said && !plugin?.length) return text;
   const fixed = (fixes ?? []).flatMap((from): [number, number][] => {
     const at = text.indexOf(from);
     return at < 0 ? [] : [[at, at + from.length]];
@@ -58,14 +58,29 @@ export function SentenceText({ text, find, unsure, fixes, said }: {
     );
   };
   const pieces = said ? saidPieces(marked, said.times, said.upTo) : marked;
-  return rubyGroups(pieces, ruby).map((group) => {
+  return markedGroups(pieces, plugin).map(({ mark, pieces }) => {
     const key = at;
-    const inner = group.pieces.map(shown);
-    if (!group.ruby) return <Fragment key={`t${key}`}>{inner}</Fragment>;
+    const inner = pieces.map(shown);
+    if (!mark) return <Fragment key={`t${key}`}>{inner}</Fragment>;
+    const styled =
+      mark.note || mark.mark ? (
+        <span
+          key={`m${key}`}
+          title={mark.note}
+          className={`${mark.mark === "underline" ? "underline decoration-line-strong decoration-1 underline-offset-[5px]" : ""} ${
+            mark.mark === "bold" ? "font-semibold" : ""
+          } ${mark.note ? "cursor-help" : ""}`}
+        >
+          {inner}
+        </span>
+      ) : (
+        inner
+      );
+    if (!mark.ruby) return <Fragment key={`t${key}`}>{styled}</Fragment>;
     return (
       <ruby key={`r${key}`}>
-        {inner}
-        <rt className="font-sans text-[11px] font-normal text-faint select-none">{group.ruby}</rt>
+        {styled}
+        <rt className="font-sans text-[11px] font-normal text-faint select-none">{mark.ruby}</rt>
       </ruby>
     );
   });

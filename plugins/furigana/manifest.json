@@ -11,7 +11,7 @@
     "windows-x86_64": "bin/shadowing-furigana.exe"
   },
   "contributes": {
-    "readings": [{ "id": "ja", "title": "日语注音", "languages": ["ja"] }],
+    "annotators": [{ "id": "readings", "title": "日语注音" }],
     "settings": [
       {
         "key": "style",

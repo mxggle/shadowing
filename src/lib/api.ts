@@ -65,8 +65,8 @@ export interface Settings {
   maskBottom: number;
   /** Only listen: a video's picture isn't shown (or decoded). */
   pictureHidden: boolean;
-  /** 注音 from a plugin over the sentences, where one reads their language. */
-  ruby: boolean;
+  /** Plugins' marks on the sentences (标注: readings over words, a line under…). */
+  annotations: boolean;
   /** Interface language chosen in settings ("" follows the Mac); see lib/i18n.ts. */
   uiLanguage: LangSetting;
 }
@@ -437,8 +437,8 @@ export interface PluginInfo {
   description: string;
   /** What it imports links from (“YouTube”). */
   importers: string[];
-  /** Languages it shows readings for (“ja”). */
-  readings: string[];
+  /** How it marks up sentences (标注), e.g. “日语注音”. */
+  annotators: string[];
   /** Its own options, drawn in 设置 → 插件, with the value in use. */
   settings: PluginSetting[];
   permissions: { network: string[]; runs: string };
@@ -448,17 +448,30 @@ export interface PluginInfo {
   problem: string | null;
 }
 
+/** One of a plugin's own options; types this app doesn't know aren't listed. */
 export interface PluginSetting {
   key: string;
+  kind: "select" | "toggle" | "text";
   label: string;
+  /** For "select". */
   options: { value: string; label: string }[];
-  value: string;
+  value: string | boolean;
 }
 
-/** A piece of a sentence and the reading shown over it (注音, from a plugin); the pieces join into the sentence. */
-export interface RubyPiece {
+/** A piece of a sentence and how a plugin marks it (标注); the pieces join into the sentence. */
+export interface AnnotationPiece {
   text: string;
+  /** Shown over the piece (a reading). */
   ruby?: string;
+  /** Shown on hover. */
+  note?: string;
+  mark?: "underline" | "bold";
+}
+
+/** One sentence's marks from the plugins: the pieces (from the first that marks it) and lines shown under it. */
+export interface Annotation {
+  pieces?: AnnotationPiece[];
+  below?: string[];
 }
 
 /** A plugin folder picked in 从文件夹安装…, shown before 安装. */
@@ -627,9 +640,9 @@ export const api = {
     /** Installs the folder `pick` offered. */
     install: () => invoke<PluginInfo[]>("plugins_install"),
     remove: (id: string) => invoke<PluginInfo[]>("plugins_remove", { id }),
-    setSetting: (id: string, key: string, value: string) => invoke<PluginInfo[]>("plugins_set_setting", { id, key, value }),
-    /** Each sentence in pieces with readings, from the plugin that reads `language`; null when none does. */
-    readings: (language: string, texts: string[]) => invoke<RubyPiece[][] | null>("plugins_readings", { language, texts }),
+    setSetting: (id: string, key: string, value: string | boolean) => invoke<PluginInfo[]>("plugins_set_setting", { id, key, value }),
+    /** What the annotating plugins mark on each sentence (empty when none does). */
+    annotate: (texts: string[]) => invoke<Annotation[]>("plugins_annotate", { texts }),
   },
   imports: {
     /** The clipboard, when it holds one web link. */

@@ -1,7 +1,8 @@
 //! Shadowing plugin: 日语注音. Speaks the app's plugin protocol (JSON-RPC 2.0,
-//! one message per line on stdin / stdout; see docs/plugin-dev.md): for each
-//! sentence the app sends, which kanji are read how. The dictionary (IPADIC)
-//! is built into the program, so nothing is downloaded.
+//! one message per line on stdin / stdout; see docs/plugin-dev.md): an
+//! annotator (`annotate/run`) that puts each kanji's reading over it, for the
+//! sentences that are Japanese. The dictionary (IPADIC) is built into the
+//! program, so nothing is downloaded.
 
 mod ruby;
 
@@ -64,20 +65,43 @@ fn push(pieces: &mut Vec<Piece>, piece: Piece) {
     }
 }
 
-fn readings(segmenter: &Segmenter, params: &Value) -> Result<Value, String> {
+fn has_kana(text: &str) -> bool {
+    text.chars()
+        .any(|c| matches!(c, '\u{3041}'..='\u{3096}' | '\u{30A1}'..='\u{30FA}' | 'ー'))
+}
+
+/// Which sentences are Japanese: those with kana, and all of them when at
+/// least a fifth of three or more have kana (a Japanese sentence all in kanji
+/// is rare; Chinese, which would get wrong readings, has no kana).
+fn japanese(texts: &[&str]) -> Vec<bool> {
+    let with_kana = texts.iter().filter(|t| has_kana(t)).count();
+    let all = texts.len() >= 3 && with_kana > 0 && with_kana * 5 >= texts.len();
+    texts.iter().map(|t| all || has_kana(t)).collect()
+}
+
+fn annotate(segmenter: &Segmenter, params: &Value) -> Result<Value, String> {
     let style = Style::parse(params["settings"]["style"].as_str());
-    let texts = params["texts"].as_array().ok_or("没有给句子")?;
+    let texts: Vec<&str> = params["texts"]
+        .as_array()
+        .ok_or("没有给句子")?
+        .iter()
+        .map(|t| t.as_str().unwrap_or_default())
+        .collect();
     let results = texts
         .iter()
-        .map(|t| {
-            let pieces = sentence(segmenter, t.as_str().unwrap_or_default(), style)?;
-            Ok(pieces
+        .zip(japanese(&texts))
+        .map(|(text, japanese)| {
+            if !japanese {
+                return Ok(Value::Null);
+            }
+            let pieces: Vec<Value> = sentence(segmenter, text, style)?
                 .into_iter()
                 .map(|p| match p.ruby {
                     Some(r) => json!({ "text": p.text, "ruby": r }),
                     None => json!({ "text": p.text }),
                 })
-                .collect::<Vec<_>>())
+                .collect();
+            Ok(json!({ "pieces": pieces }))
         })
         .collect::<Result<Vec<_>, String>>()?;
     Ok(json!({ "results": results }))
@@ -104,7 +128,7 @@ fn main() {
         let method = msg["method"].as_str().unwrap_or_default();
         let result = match method {
             "initialize" => Ok(json!({ "name": "日语注音", "version": env!("CARGO_PKG_VERSION") })),
-            "readings/run" => readings(&segmenter, &msg["params"]),
+            "annotate/run" => annotate(&segmenter, &msg["params"]),
             other => Err(format!("这个插件不认识 “{other}”")),
         };
         let reply = match result {
@@ -152,6 +176,34 @@ mod tests {
         assert_eq!(
             shown("写真を撮る", Style::Romaji),
             "写真(shashin)を撮(to)る"
+        );
+    }
+
+    #[test]
+    fn reads_only_japanese() {
+        assert_eq!(
+            japanese(&["今日は", "東京", "日本語能力試験"]),
+            [true, true, true]
+        );
+        assert_eq!(
+            japanese(&["他说了「すごい」", "一", "二", "三", "四", "五"]),
+            [true, false, false, false, false, false]
+        );
+        assert_eq!(japanese(&["我们走吧"]), [false]);
+        let segmenter = Segmenter::new(
+            Mode::Normal,
+            load_dictionary("embedded://ipadic").unwrap(),
+            None,
+        );
+        let answer = annotate(
+            &segmenter,
+            &json!({ "texts": ["我们走吧", "東京へ"], "settings": { "style": "katakana" } }),
+        )
+        .unwrap();
+        assert_eq!(answer["results"][0], Value::Null);
+        assert_eq!(
+            answer["results"][1]["pieces"][0],
+            json!({ "text": "東京", "ruby": "トウキョウ" })
         );
     }
 

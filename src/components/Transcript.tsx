@@ -19,7 +19,7 @@ import { MicButton, RecorderCard } from "./Recorder";
 import { ReplaceBar } from "./ReplaceBar";
 import { SentenceEditor } from "./SentenceEditor";
 import { SectionHeading, SectionMenu } from "./Sections";
-import { hasRuby, SaidText, SentenceText, UnsureCount, useRuby } from "./SentenceText";
+import { hasRuby, SaidText, SentenceText, UnsureCount, useAnnotation } from "./SentenceText";
 import { TakePeek } from "./TakePeek";
 import { IconButton } from "./ui";
 
@@ -32,9 +32,9 @@ import { IconButton } from "./ui";
 export function SentenceList() {
   const sentences = useApp((s) => s.transcript?.sentences ?? []);
   // 注音 for sentences not read yet (a new transcript, an edit, another plugin or setting).
-  const rubyOn = useApp((s) => s.settings.ruby);
+  const marksOn = useApp((s) => s.settings.annotations);
   const plugins = useApp((s) => s.plugins);
-  useEffect(() => void useApp.getState().loadRuby(), [sentences, rubyOn, plugins]);
+  useEffect(() => void useApp.getState().loadAnnotations(), [sentences, marksOn, plugins]);
   const active = useApp((s) => {
     if (!s.transcript) return -1;
     // Reading on your own: the sentence you're on; playing a reading or a take back: the one playing.
@@ -219,7 +219,8 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
   last: boolean;
 }) {
   const { playSentence, toggleSentenceLoop, editSentence, toggleExplain, splitSection, mergeSentence } = useApp.getState();
-  const ruby = hasRuby(useRuby(sentence.text));
+  const annotation = useAnnotation(sentence.text);
+  const ruby = hasRuby(annotation);
   const explaining = !!explain?.open;
   const tone = reading ? "bg-danger-soft" : looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";
   const lit = active || looping || recorder;
@@ -278,6 +279,12 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
             )}
           </p>
         )}
+        {!editing &&
+          annotation?.below?.map((line, i) => (
+            <p key={i} className="mt-0.5 mb-1 text-[13px] leading-relaxed break-words text-faint select-text">
+              {line}
+            </p>
+          ))}
         {suggestions?.map((s) => <SuggestionNote key={`${s.from}→${s.to}`} suggestion={s} />)}
         {takes > 0 && !recorder && !editing && <TakePeek sentence={sentence} open={peek} />}
       </div>

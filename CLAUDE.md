@@ -19,7 +19,7 @@ src/                      前端
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，改字幕在 correctSlice.ts，拆句 / 合并句在 reshapeSlice.ts，
                           AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts，
                           学习记录与每日目标在 practiceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts，逐句跟读在 drillSlice.ts，
-                          插件和从链接导入在 importSlice.ts，视频画面的设置在 videoSlice.ts）
+                          插件和从链接导入在 importSlice.ts，插件在句子上的标注在 annotateSlice.ts，视频画面的设置在 videoSlice.ts）
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句、正在放的句子逐字亮到哪），有单元测试
   lib/sections.ts         对话段落规则（分段、合并、改名、整段循环、{ } 换段），有单元测试
   lib/edits.ts            改字幕的规则（改动取整词、查找匹配、全部替换），有单元测试
@@ -41,6 +41,7 @@ src/                      前端
   lib/picture.ts          视频画面的布局（并排要主区 ≥ 1100px，V 轮换）、object-fit: contain 时画面在框里的位置、遮字幕带的拖动，有单元测试
   lib/videoSync.ts        视频画面跟着声音走：每 50 毫秒比一比引擎的位置和 <video> 的；差得多就往前多跳一点（跳转要的时间，按每次落下的位置校准）再稳住；只靠跳来纠正，不改速度（WebKit 改速度会卡住半秒），速度只在你改的时候跟着一次跳转改，
                           声音比画面长时停在最后一帧，有单元测试
+  lib/annotations.ts      插件标注：标注随哪些插件和选项变、插件切的段和应用自己的分段（查找、没把握、逐字高亮）怎么合在一起，有单元测试
   lib/playKey.ts          播放条的播放 / 暂停键现在管谁（录音、整段录音、回放录音、整段回放，都没有时是主播放器）、暂停后继续时还要做什么，有单元测试
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板；视频时多一块画面，Picture.tsx：静音的 <video>、拖动条、悬停时的布局按钮，PictureMask.tsx 遮字幕的模糊带，
                           VideoStage.tsx 并排和影院，PictureMenu.tsx 播放设置里的「画面」「遮字幕」，Unsupported.tsx 放不了的 WebM / MKV 的说明；TrackTitle.tsx 音频的标题）、PlayerBar.tsx 底部播放条、
@@ -109,7 +110,8 @@ src-tauri/src/
                           stdin/stdout 上每行一条 JSON-RPC 2.0，取消时先发 $/cancel、2 秒后结束进程；
                           import.rs 从链接导入（import/resolve → import/run，一次一个，进度发 import:status；clipboard.rs 读剪贴板）；
                           accept.rs 插件只写暂存文件夹，应用检查文件（不收链接出去的、不是音频或视频的；有视频时用视频）后自己移进打开的文件夹，
-                          字幕存成可移除的导入字幕（不放在音频旁边）；names.rs 用标题起文件名（Windows 不允许的字符和 CON、NUL 这类名字也处理，和 src/lib/imports.ts 一样）
+                          字幕存成可移除的导入字幕（不放在音频旁边）；annotate.rs 标注（插件说要在句子上画什么：字上方的小字、悬停说明、下划线 / 加粗、句子下面一行；
+                          不认识的都跳过）；options.rs 插件自己的选项（select / toggle / text，存在 state.json 的 plugins）；names.rs 用标题起文件名（Windows 不允许的字符和 CON、NUL 这类名字也处理，和 src/lib/imports.ts 一样）
   update.rs               应用内更新（tauri-plugin-updater）：读最新 Release 的 latest.json、下载签名过的 .app.tar.gz、
                           原地替换后重启；菜单里的「检查更新…」和「新功能…」（Windows 没有应用菜单，用设置里的）
   smoke.rs                调试构建专用自测入口（也装一个假的导入插件：shell 脚本，Windows 上是 .cmd + PowerShell）
@@ -118,6 +120,8 @@ plugins/youtube/          「YouTube 导入」插件：单独的小 Rust 程序�
                           每天最多查一次 yt-dlp 新版本；取 m4a 音轨（不用 ffmpeg）和人工字幕；要画面时另取 H.264 的 mp4 画面（video.rs），
                           mux/ 把两个分片的 DASH 文件合成一个普通 mp4（不转码，`moov` 在前，约半秒交错一次）。
                           scripts/build-plugin.sh youtube [Rust target] 生成可安装的文件夹（带 target 时在 dist/<平台>/ 下）
+plugins/furigana/         「日语注音」插件：标注插件，lindera + 内嵌的 IPADIC（构建时从 Lindera.dev 下载词典），ruby.rs 把整词读音拆到各个汉字上、罗马音；
+                          只标有假名的字幕。随每个版本发布的插件列在 scripts/release-plugins.sh
 src-tauri/tauri.windows.conf.json   只在 Windows 上叠加到 tauri.conf.json 的配置（JSON Merge Patch，数组整个替换）：
                           没有 Mac 的标题栏设置的窗口、NSIS 安装包（当前用户、简体中文和英文）、WebView2 下载式引导、含 icon.ico 的图标列表、
                           更新包（createUpdaterArtifacts：安装包本身就是更新，tauri build 用更新私钥签出 .sig）
@@ -244,12 +248,16 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
 
 1. 从 `main` 开 `release/vX.Y.Z` 分支：把 CHANGELOG 的「未发布」改成版本号和日期，用 `scripts/bump-version.sh X.Y.Z` 改版本号
    （`package.json`、`package-lock.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`src-tauri/tauri.conf.json`，
-   还有落地页 `site/index.html` 上显示的版本；`scripts/check-version.sh` 检查它们一致，CI 也会查），提交 `chore(release): vX.Y.Z`，开 PR，本地检查过就合并，不等 GitHub 的检查（rebase，保留每个小提交）。
+   还有落地页 `site/index.html` 上显示的版本和「更新」列表：`scripts/site-sync.mjs changelog` 从 CHANGELOG 加一行、重新数天数和版本数；
+   `scripts/check-version.sh` 检查它们一致，CI 也会查）。CHANGELOG 每个版本的第一条写成 `- **标题**：一句话。…`，落地页用的就是它，提交 `chore(release): vX.Y.Z`，开 PR，本地检查过就合并，不等 GitHub 的检查（rebase，保留每个小提交）。
 2. **打包在 Mac 上做**：在合并后的 `main` 上打附注标签 `vX.Y.Z` 并推送，然后在本机运行 `scripts/release-local.sh vX.Y.Z`（只有 Mac 时 5 分钟左右）。
    它会停掉这个标签在 Actions 上的 Mac 构建（`release.yml`），在本机用 `~/.tauri` 里的证书和更新私钥打包、签名，检查过就直接发布（加 `--draft` 只建草稿）：
    `Shadowing-X.Y.Z-macos-arm64.dmg`（给人下载的安装包）和 `.zip`，固定名字的 `Shadowing-macos-arm64.dmg` / `.zip`
    （网站的下载按钮链接 `releases/latest/download/Shadowing-macos-arm64.dmg`），应用内更新用的 `Shadowing-X.Y.Z-macos-arm64.app.tar.gz`、`.sig` 和 `latest.json`，
    说明由 `scripts/release-notes.sh` 从 CHANGELOG 生成（含安装步骤和 SHA-256）。
+   **发布以后它自己更新落地页**（`scripts/site-after-release.sh`）：下载大小和 `site/plugins.json` 里这个版本带的插件（新插件按 manifest 加一条，
+   版本变了的换成这个 Release 的 zip 和 SHA-256），提交到 `main` 并推送，Vercel 自动上线。不用再手动改落地页。
+   插件随每个版本打包（Mac 和 Windows 的 zip），列表在 `scripts/release-plugins.sh`。
    Mac 不在手边时，标签在 Actions 上的构建（`.github/workflows/release.yml`）会做同样的事并建草稿，但要 20 分钟左右；两边的文件都由 `scripts/release-assets.sh` 生成，名字和内容一样。
    **Windows**（仓库变量 `WINDOWS_RELEASE` 是 `true` 时才有；没设就和以前一样只发 Mac）：Windows 的文件只能在 Actions 上构建。推标签时
    `.github/workflows/release-windows.yml` 在 windows-latest 上打 NSIS 安装包和它的 `.sig`（Actions secrets 里的更新私钥）、Windows 版 YouTube 插件
@@ -263,7 +271,8 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
    里的公钥验过（`scripts/update-sig.mjs`，和应用里一样）、DMG / 两种工具解压的 zip / 更新包里的应用都过得了 `site/install.sh` 的签名检查、版本号对；
    有 Windows 时还查安装包是这个版本的 NSIS 安装包、插件 zip 里是 Windows 程序，`latest.json` 里正好是这次有文件的系统），不用再手动下载检查；没过就停下，不上传。**发布的那一刻**，已装的应用
    下次打开就会提示更新（它们只读最新的已发布 Release 的 `latest.json`，草稿不影响）。Actions 建的草稿：
-   `gh release download vX.Y.Z -D <空文件夹>` 后同样用 `scripts/verify-release.sh X.Y.Z <文件夹>` 检查，再 `gh release edit vX.Y.Z --draft=false --latest` 发布。
+   `gh release download vX.Y.Z -D <空文件夹>` 后同样用 `scripts/verify-release.sh X.Y.Z <文件夹>` 检查，再 `gh release edit vX.Y.Z --draft=false --latest` 发布，
+   然后运行 `scripts/site-after-release.sh vX.Y.Z` 更新落地页。
 
 ### 更新签名密钥
 

@@ -2,11 +2,11 @@
 # Signs a release build and turns it into the files a GitHub Release carries, in <out dir>:
 #   Shadowing-X.Y.Z-macos-arm64.dmg / .zip, the same under fixed names (Shadowing-macos-arm64.dmg / .zip, for
 #   releases/latest/download/... links), the in-app update Shadowing-X.Y.Z-macos-arm64.app.tar.gz + .sig and
-#   latest.json, the YouTube plugin's folder zipped (Shadowing-YouTube-plugin-X.Y.Z-macos-arm64.zip, its own version;
-#   installed from 设置 → 插件 → 从文件夹安装…), and notes.md (release notes with the DMG's SHA-256; not uploaded as a file).
+#   latest.json, each plugin's folder zipped (scripts/release-plugins.sh: Shadowing-YouTube-plugin-X.Y.Z-macos-arm64.zip…,
+#   each its own version; installed from 设置 → 插件 → 从文件夹安装…), and notes.md (release notes with the DMG's SHA-256; not uploaded as a file).
 # With the Windows build's files (4th argument: the folder scripts/windows-files.sh downloaded them to) it adds
 #   Shadowing-X.Y.Z-windows-x64-setup.exe + .sig, the same installer as Shadowing-windows-x64-setup.exe (fixed name),
-#   the Windows plugin zip, latest.json's windows-x86_64 entry and the Windows steps in notes.md.
+#   the Windows plugin zips, latest.json's windows-x86_64 entry and the Windows steps in notes.md.
 #
 # Code signing: the app is signed with our own certificate ("Shadowing Code Signing", self-signed, no Apple account).
 # It doesn't stop Gatekeeper's first-launch warning, but every version then has the same signature identity, so
@@ -20,6 +20,7 @@
 # Usage: scripts/release-assets.sh <X.Y.Z> <tauri bundle dir, e.g. src-tauri/target/release/bundle> <out dir> [<Windows files>]
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/release-plugins.sh
 version="${1:?usage: scripts/release-assets.sh <X.Y.Z> <bundle dir> <out dir> [<Windows files dir>]}"
 bundle="${2:?missing bundle dir}"
 out="${3:?missing out dir}"
@@ -92,7 +93,7 @@ if [ -n "$windows" ]; then
   [ -s "$windows/$setup" ] || { echo "no $setup in $windows" >&2; exit 1; }
   cp "$windows/$setup" "$out/$setup"
   cp "$out/$setup" "$out/Shadowing-windows-x64-setup.exe"
-  cp "$windows"/Shadowing-YouTube-plugin-*-windows-x86_64.zip "$out/"
+  for entry in "${release_plugins[@]}"; do cp "$windows/$(plugin_zip "${entry%%:*}" windows-x86_64)" "$out/"; done
   if [ "${SHADOWING_UNSIGNED:-}" != 1 ]; then
     [ -s "$windows/$setup.sig" ] || { echo "no $setup.sig: the Windows build had no updater key" >&2; exit 1; }
     cp "$windows/$setup.sig" "$out/$setup.sig"
@@ -113,12 +114,14 @@ with tarfile.open(sys.argv[1], "w:gz") as t: t.add(sys.argv[2], arcname="Shadowi
   scripts/update-manifest.sh "$version" "${platforms[@]}" > "$out/latest.json"
 fi
 
-# The YouTube plugin: its folder (manifest.json + bin/), zipped. The app clears the quarantine mark a browser
-# download leaves when it installs a plugin, so the plugin's ad-hoc signature is enough.
-plugin=$(scripts/build-plugin.sh youtube | tail -1)
-plugin_version=$(node -p 'require("./plugins/youtube/manifest.json").version')
-lipo -archs "$plugin/bin/shadowing-youtube"
-ditto -c -k --norsrc --noextattr --keepParent "$plugin" "$out/Shadowing-YouTube-plugin-$plugin_version-macos-arm64.zip"
+# The plugins (scripts/release-plugins.sh): each folder (manifest.json + bin/), zipped. The app clears the quarantine
+# mark a browser download leaves when it installs a plugin, so the plugin's ad-hoc signature is enough.
+for entry in "${release_plugins[@]}"; do
+  folder="${entry%%:*}"
+  plugin=$(scripts/build-plugin.sh "$folder" | tail -1)
+  lipo -archs "$plugin/bin/shadowing-$folder"
+  ditto -c -k --norsrc --noextattr --keepParent "$plugin" "$out/$(plugin_zip "$folder" macos-arm64)"
+done
 
 sha256() { shasum -a 256 "$1" | cut -d' ' -f1; }
 if [ -n "$windows" ]; then

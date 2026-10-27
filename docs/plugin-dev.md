@@ -25,7 +25,8 @@ Rust、Go、Swift 编译出来的程序，或者用系统自带解释器的脚�
 现在有两个扩展点：
 
 - **从链接导入**：用户粘贴一个链接，你的插件把音频（和字幕）下载下来，应用放进用户的文件夹。
-- **注音**（应用 0.14 起）：应用把字幕的句子交给你的插件，插件说每个词怎么读，应用把读音显示在字的上方（`<ruby>`）。
+- **标注**（应用 0.14 起）：应用把字幕的句子交给你的插件，插件说要在哪里画什么：字上方的小字（注音、拼音、音标）、
+  悬停时的说明（词义）、下划线或加粗（语法点、生词）、句子下面一行（翻译）。应用照自己的样子画出来。
 
 导出（比如导出到 Anki）、查词典这些扩展点在计划中。
 
@@ -63,7 +64,7 @@ Rust、Go、Swift 编译出来的程序，或者用系统自带解释器的脚�
 | `author`、`description` | | 安装前和设置里显示 |
 | `main` | 是 | 平台 → 插件文件夹里的程序路径。平台是 `darwin-arm64`（Apple Silicon）、`darwin-x86_64`（Intel Mac）、`windows-x86_64`、`windows-arm64`。Windows on Arm 上没有 `windows-arm64` 时用 `windows-x86_64` 的程序（Windows 11 会模拟运行）；Mac 不这样回退。路径用 `/` 分隔，不能出插件文件夹，也不能有 `:`；Windows 的程序要写全文件名（`bin/podcast.exe`） |
 | `contributes.importers` | | 能导入哪些链接，见下面 |
-| `contributes.readings` | | 给哪些语言注音，见[注音](#注音) |
+| `contributes.annotators` | | 标注句子，见[标注](#标注annotators) |
 | `contributes.settings` | | 插件自己的选项，应用画在 设置 → 插件 里，见[选项](#选项) |
 | `permissions.network` | | 会联网到哪些域名 |
 | `permissions.runs` | | 一句话：会下载或运行什么程序（例如“第一次使用时从 GitHub 下载 yt-dlp（约 51 MB）”） |
@@ -81,14 +82,14 @@ Rust、Go、Swift 编译出来的程序，或者用系统自带解释器的脚�
 
 `importers` 里每一项还有 `id`（发给插件，用来区分同一个插件的几种导入）和 `title`（显示给用户，例如“YouTube”）。
 
-### 注音（`readings`）
+### 标注（`annotators`）
 
 ```json
-"readings": [{ "id": "ja", "title": "日语注音", "languages": ["ja"] }]
+"annotators": [{ "id": "readings", "title": "日语注音" }]
 ```
 
-`languages` 是 ISO-639-1 的语言代码。字幕没有记下语言，应用自己判断：现在只认得日语（至少五分之一的句子里有假名），
-所以 `languages` 里只有 `ja` 有用。装了好几个能读同一种语言的插件时，用第一个（按插件 id 排）。
+`title` 显示在设置里（“标注句子：日语注音”）。不用写语言：应用把每份字幕都交给你，**你自己判断**哪些句子要标（日语注音插件只标有假名的字幕），
+不标的句子回答 `null`。
 
 ### 选项（`settings`）
 
@@ -101,9 +102,16 @@ Rust、Go、Swift 编译出来的程序，或者用系统自带解释器的脚�
 ]
 ```
 
-应用在 设置 → 插件 里这个插件的一行下面画出来（一组按钮），记下用户选的，每次请求时放在 `settings` 里发给插件
-（`{"style":"romaji"}`；没选过就是 `default`）。现在只有 `select` 一种（应用 0.14 起）；写了应用不认识的类型，这个版本的应用会拒绝安装。
-`label` 和选项的 `label` 照原样显示，不翻译。
+应用在 设置 → 插件 里这个插件的一行下面画出来，记下用户选的，每次请求时放在 `settings` 里发给插件
+（`{"style":"romaji"}`；没选过就是 `default`）。类型（应用 0.14 起）：
+
+| `type` | 画成 | `default` |
+| --- | --- | --- |
+| `select` | 一组按钮，`options` 里的每一项 | 一个选项的 `value` |
+| `toggle` | 开 / 关 | `true` 或 `false` |
+| `text` | 一个输入框（最多 200 个字） | 一句话 |
+
+应用不认识的类型（以后的版本才有的）不显示、不发送，插件照常安装运行，用它自己的默认值。`label` 和选项的 `label` 照原样显示，不翻译。
 
 ## 协议
 
@@ -155,18 +163,34 @@ Rust、Go、Swift 编译出来的程序，或者用系统自带解释器的脚�
 - 回答里的 `files`：`path` 是相对 `outDir` 的路径（或者 `outDir` 里的绝对路径），`kind` 是 `"audio"`、`"video"`（要了画面时：一个 mp4 / m4v / mov，画面 H.264，声音 AAC）或 `"subtitle"`，字幕可以带 `lang`。
   `title` 可以不写（就用 resolve 时的标题）。
 
-### readings/run：注音
+### annotate/run：标注
 
-一次发这个字幕里还没读过的所有句子（应用记住读过的，改了一句只发这一句；换了选项全部重新发）：
+打开一份字幕时，应用把还没问过的句子一次发给每个标注插件（应用记住答过的，改了一句只发这一句；换了选项全部重新发）：
 
 ```json
-→ {"jsonrpc":"2.0","id":2,"method":"readings/run","params":{"reading":"ja","language":"ja","texts":["東京へ行く","はい"],"settings":{"style":"hiragana"}}}
-← {"jsonrpc":"2.0","id":2,"result":{"results":[[{"text":"東京","ruby":"とうきょう"},{"text":"へ"},{"text":"行","ruby":"い"},{"text":"く"}],[{"text":"はい"}]]}}
+→ {"jsonrpc":"2.0","id":2,"method":"annotate/run","params":{"annotator":"readings","texts":["東京へ行く","Hello"],"settings":{"style":"hiragana"}}}
+← {"jsonrpc":"2.0","id":2,"result":{"results":[{"pieces":[{"text":"東京","ruby":"とうきょう"},{"text":"へ"},{"text":"行","ruby":"い"},{"text":"く"}],"below":"去东京"},null]}}
 ```
 
-- `results` 和 `texts` 一一对应。每句切成几段，**按顺序连起来必须正好是原句**（空格、标点都不能少），不然这一句就不显示注音。
-- `ruby` 是显示在这一段上面的字，没有就不标。超过 40 个字的会被截断。
-- 不发 `progress`，要快：几百句应该在一秒内回答完。30 秒还没回答，应用就取消。
+- `results` 和 `texts` 一一对应；没什么要标的句子写 `null`。
+- `pieces`：把句子切成几段，**按顺序连起来必须正好是原句**（空格、标点都不能少），不然这一句的 `pieces` 就不画。每段可以带：
+  - `ruby`：显示在这一段上方的小字（最多 40 个字）
+  - `note`：鼠标停在这一段上时显示（最多 300 个字）
+  - `mark`：`"underline"`（下划线）或 `"bold"`（加粗）
+- `below`：句子下面的一行小字（最多 300 个字），例如翻译。
+- 装了好几个标注插件时：每句的 `pieces` 用第一个（按插件 id 排）标了这一句的插件的，`below` 每个插件一行。
+- 不发 `progress`，要快：几百句应该在一秒内答完。30 秒还没答完，应用就取消，句子照常显示、不带标注。
+
+### 新旧版本怎么兼容
+
+插件不用等应用发版。规则是：
+
+- **应用不认识的东西都跳过，不报错**：manifest 里新的扩展点和字段、回答里新的字段、`mark` 的新取值、设置的新类型。
+  所以给新版应用写的插件，装在旧版应用上也能用它认识的部分。
+- `initialize` 的参数里有 `capabilities`，写着这个应用会画哪些标注：`{"annotate":["ruby","note","underline","bold","below"]}`。
+  想用新画法的插件先看一眼，没有就换一种或者不画。旧版应用没有 `capabilities` 这一项。
+- `minAppVersion` 只在**整个扩展点**旧版应用都没有时才写（例如标注插件写 `0.14.0`）；用的东西旧版也有，就不要写。
+- 开发版（`npm run app`，调试构建）不看 `minAppVersion`，下一版才有的东西可以先在开发版里试。
 
 ### progress 和 log
 

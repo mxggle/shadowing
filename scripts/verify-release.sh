@@ -9,13 +9,15 @@
 #   - the zip has no ._ or __MACOSX entries and its app's signature holds whether Archive Utility (ditto) or unzip
 #     unpacks it (other unzipping apps leave ._ files inside, and macOS then calls the app damaged);
 #   - the update's app keeps its signature once unpacked the way the updater does (decomposed file names break it);
-#   - with Windows: the installer is an NSIS installer of this version, and the Windows plugin zip holds the
-#     youtube folder with a Windows program and a manifest for windows-x86_64 only.
+#   - every plugin in scripts/release-plugins.sh has its zip, holding its folder with this computer's program;
+#   - with Windows: the installer is an NSIS installer of this version, and each Windows plugin zip holds the
+#     plugin's folder with a Windows program and a manifest for windows-x86_64 only, of the plugin's version.
 # The Windows files are all there or all missing (a Mac-only release).
 # Used by scripts/release-local.sh.
 # Usage: scripts/verify-release.sh <X.Y.Z> <out dir>
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/release-plugins.sh
 version="${1:?usage: scripts/verify-release.sh <X.Y.Z> <out dir>}"
 out="${2:?missing out dir}"
 repo="${GITHUB_REPOSITORY:-mxggle/shadowing}"
@@ -38,18 +40,48 @@ for f in "$base.dmg" "$base.zip" Shadowing-macos-arm64.dmg Shadowing-macos-arm64
   "$base.app.tar.gz" "$base.app.tar.gz.sig" latest.json; do
   [ -s "$out/$f" ] || fail "missing $f"
 done
-compgen -G "$out/Shadowing-YouTube-plugin-*-macos-arm64.zip" > /dev/null || fail "missing the YouTube plugin zip"
+# plugin_check <zip> <folder> <program inside it> <main key>: the plugin's folder, its program and a manifest for that
+# platform only, of the plugin's version.
+plugin_check() {
+  local zip="$1" folder="$2" program="$3" platform="$4" id entries
+  id=$(node -p "require('./plugins/$folder/manifest.json').id")
+  entries=$(unzip -Z1 "$out/$zip")
+  for f in "$id/manifest.json" "$id/$program"; do
+    grep -qx "$f" <<< "$entries" || fail "$zip has no $f"
+  done
+  unzip -p "$out/$zip" "$id/manifest.json" | node -e '
+  let s = "";
+  process.stdin.on("data", (d) => (s += d)).on("end", () => {
+    const [zip, platform, program, version] = process.argv.slice(1);
+    const m = JSON.parse(s);
+    const want = JSON.stringify({ [platform]: program });
+    if (JSON.stringify(m.main) !== want) {
+      console.error(`verify-release: ${zip}: the manifest has main ${JSON.stringify(m.main)}`);
+      process.exit(1);
+    }
+    if (m.version !== version) {
+      console.error(`verify-release: ${zip} is ${m.version}, not ${version}`);
+      process.exit(1);
+    }
+  });' "$zip" "$platform" "$program" "$(node -p "require('./plugins/$folder/manifest.json').version")"
+}
+for entry in "${release_plugins[@]}"; do
+  folder="${entry%%:*}"
+  zip=$(plugin_zip "$folder" macos-arm64)
+  [ -s "$out/$zip" ] || fail "missing $zip"
+  plugin_check "$zip" "$folder" "bin/shadowing-$folder" darwin-arm64
+done
 cmp -s "$out/$base.dmg" "$out/Shadowing-macos-arm64.dmg" || fail "Shadowing-macos-arm64.dmg differs from $base.dmg"
 cmp -s "$out/$base.zip" "$out/Shadowing-macos-arm64.zip" || fail "Shadowing-macos-arm64.zip differs from $base.zip"
 
-plugin_version=$(node -p 'require("./plugins/youtube/manifest.json").version')
-win_plugin="Shadowing-YouTube-plugin-$plugin_version-windows-x86_64.zip"
+win_files=("$setup" "$setup.sig" Shadowing-windows-x64-setup.exe)
+for entry in "${release_plugins[@]}"; do win_files+=("$(plugin_zip "${entry%%:*}" windows-x86_64)"); done
 windows=0
-for f in "$setup" "$setup.sig" Shadowing-windows-x64-setup.exe "$win_plugin"; do
+for f in "${win_files[@]}"; do
   if [ -e "$out/$f" ]; then windows=1; fi
 done
 if [ $windows = 1 ]; then
-  for f in "$setup" "$setup.sig" Shadowing-windows-x64-setup.exe "$win_plugin"; do
+  for f in "${win_files[@]}"; do
     [ -s "$out/$f" ] || fail "missing $f (the other Windows files are there)"
   done
   cmp -s "$out/$setup" "$out/Shadowing-windows-x64-setup.exe" || fail "Shadowing-windows-x64-setup.exe differs from $setup"
@@ -124,26 +156,14 @@ if [ $windows = 1 ]; then
   if (built !== version) fail(`the installer is ${built}, not ${version}`);
   ' "$out/$setup" "$version"
 
-  entries=$(unzip -Z1 "$out/$win_plugin")
-  for f in youtube/manifest.json youtube/bin/shadowing-youtube.exe; do
-    grep -qx "$f" <<< "$entries" || fail "$win_plugin has no $f"
+  for entry in "${release_plugins[@]}"; do
+    folder="${entry%%:*}"
+    zip=$(plugin_zip "$folder" windows-x86_64)
+    plugin_check "$zip" "$folder" "bin/shadowing-$folder.exe" windows-x86_64
+    id=$(node -p "require('./plugins/$folder/manifest.json').id")
+    [ "$(unzip -p "$out/$zip" "$id/bin/shadowing-$folder.exe" | head -c 2)" = MZ ] ||
+      fail "$zip: shadowing-$folder.exe isn't a Windows program"
   done
-  [ "$(unzip -p "$out/$win_plugin" youtube/bin/shadowing-youtube.exe | head -c 2)" = MZ ] ||
-    fail "$win_plugin: shadowing-youtube.exe isn't a Windows program"
-  unzip -p "$out/$win_plugin" youtube/manifest.json | node -e '
-  let s = "";
-  process.stdin.on("data", (d) => (s += d)).on("end", () => {
-    const m = JSON.parse(s);
-    const want = JSON.stringify({ "windows-x86_64": "bin/shadowing-youtube.exe" });
-    if (JSON.stringify(m.main) !== want) {
-      console.error(`verify-release: the Windows plugin manifest has main ${JSON.stringify(m.main)}`);
-      process.exit(1);
-    }
-    if (m.version !== process.argv[1]) {
-      console.error(`verify-release: the Windows plugin is ${m.version}, not ${process.argv[1]}`);
-      process.exit(1);
-    }
-  });' "$plugin_version"
 fi
 
 echo "verify-release: $version OK$([ $windows = 1 ] && echo " (macOS and Windows)")"

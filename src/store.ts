@@ -6,6 +6,7 @@ import { api, setMediaBase, type AiConfig, type AiOverview, type DownloadStatus,
 import { setLang, type Lang, type LangSetting } from "./lib/i18n";
 import { playKey } from "./lib/playKey";
 import { takeTrackTime } from "./lib/takes";
+import { createAnnotateSlice, type AnnotateState } from "./annotateSlice";
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createDrillSlice, type DrillState } from "./drillSlice";
 import { createExplainSlice, type ExplainState } from "./explainSlice";
@@ -16,12 +17,11 @@ import { createProofreadSlice, type ProofreadState } from "./proofreadSlice";
 import { createReadingSlice, type ReadingState } from "./readingSlice";
 import { createRecordSlice, micOpen, type RecordState } from "./recordSlice";
 import { createReshapeSlice, type ReshapeState } from "./reshapeSlice";
-import { createRubySlice, type RubyState } from "./rubySlice";
 import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./transcriptSlice";
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 import { createVideoSlice, type VideoState } from "./videoSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, RubyState {
+export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -69,8 +69,8 @@ export interface AppState extends TranscriptState, CorrectState, ReshapeState, P
   setSeekStep(seconds: number): void;
   /** Light the playing sentence up a character at a time (true) or whole. */
   setWordHighlight(on: boolean): void;
-  /** Shows or hides 注音 over the sentences. */
-  setRuby(on: boolean): void;
+  /** Shows or hides the plugins' marks on the sentences (标注). */
+  setAnnotations(on: boolean): void;
   setTranscribeLanguage(language: string): void;
   cycleLoop(): void;
   clearLoop(): void;
@@ -210,7 +210,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, ruby: true, uiLanguage: "" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, uiLanguage: "" },
     current: null,
     playing: false,
     time: 0,
@@ -237,7 +237,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createDrillSlice(set, get, engine, persistSettings),
     ...createImportSlice(set, get, persistSettings),
     ...createVideoSlice(set, get, persistSettings),
-    ...createRubySlice(set, get),
+    ...createAnnotateSlice(set, get),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
@@ -411,9 +411,9 @@ export const useApp = create<AppState>((set, get) => {
       persistSettings({ wordHighlight });
     },
 
-    setRuby(ruby) {
-      persistSettings({ ruby });
-      void get().loadRuby();
+    setAnnotations(annotations) {
+      persistSettings({ annotations });
+      void get().loadAnnotations();
     },
 
     setTranscribeLanguage(transcribeLanguage) {

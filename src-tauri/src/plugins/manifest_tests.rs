@@ -140,7 +140,7 @@ fn a_windows_program_is_an_exe_inside_the_folder() {
 }
 
 #[test]
-fn checks_settings_and_readings() {
+fn checks_annotators_and_settings() {
     let with = |contributes: &str| {
         manifest(&format!(
             r#"{{"id":"furigana","name":"日语注音","version":"0.1.0","protocol":1,
@@ -152,18 +152,20 @@ fn checks_settings_and_readings() {
     let style = r#"{"key":"style","type":"select","label":"注音用","default":"hiragana",
         "options":[{"value":"hiragana","label":"平假名"},{"value":"romaji","label":"罗马音"}]}"#;
     assert!(with(&format!(
-        r#"{{"readings":[{{"id":"ja","title":"日语注音","languages":["ja"]}}],"settings":[{style}]}}"#
+        r#"{{"annotators":[{{"id":"ja","title":"日语注音"}}],"settings":[{style}]}}"#
     ))
     .is_ok());
+    // A type a newer app draws is left out here, not refused.
     assert!(with(&format!(
         r#"{{"settings":[{}]}}"#,
-        style.replace("\"select\"", "\"toggle\"")
+        style.replace("\"select\"", "\"slider\"")
     ))
-    .is_err());
+    .is_ok());
     assert!(with(&format!(
         r#"{{"settings":[{}]}}"#,
         style.replace("\"default\":\"hiragana\"", "\"default\":\"kanji\"")
     ))
     .is_err());
-    assert!(with(r#"{"readings":[{"id":"ja","title":"日语注音","languages":[]}]}"#).is_err());
+    // Something a newer app contributes is ignored.
+    assert!(with(r#"{"exporters":[{"id":"anki"}]}"#).is_ok());
 }

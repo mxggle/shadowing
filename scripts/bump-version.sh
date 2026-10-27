@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Sets the app version everywhere it is written (checked by scripts/check-version.sh): package.json,
 # package-lock.json, src-tauri/tauri.conf.json, src-tauri/Cargo.toml, src-tauri/Cargo.lock and the version shown
-# on the landing page (site/index.html).
+# on the landing page (site/index.html), and the landing page's 更新 list from CHANGELOG.md (scripts/site-sync.mjs;
+# rename CHANGELOG's 「未发布」 to the version first).
 # Usage: scripts/bump-version.sh <X.Y.Z>
 set -euo pipefail
 cd "$(dirname "$0")/.."
 new="${1:?usage: scripts/bump-version.sh <X.Y.Z>}"
 [[ "$new" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "not a version: $new" >&2; exit 1; }
-old=$(scripts/check-version.sh)
+old=$(node -p "require('./package.json').version")
 
 NEW="$new" node -e '
   const fs = require("fs");
@@ -21,4 +22,5 @@ NEW="$new" node -e '
   edit("src-tauri/Cargo.lock", (s) => s.replace(/(name = "shadowing"\nversion = )"[^"]*"/, `$1"${v}"`));
   edit("site/index.html", (s) => s.replace(/(<span data-app-version>v)[0-9.]+/, `$1${v}`));
 '
+node scripts/site-sync.mjs changelog
 echo "$old → $(scripts/check-version.sh)"

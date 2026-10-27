@@ -149,6 +149,8 @@ pub(super) fn open(
         "protocol": super::manifest::PROTOCOL,
         "appVersion": app.package_info().version.to_string(),
         "dataDir": data,
+        // What this app can do with a plugin's answers; plugins check before using newer things.
+        "capabilities": { "annotate": super::annotate::MARKS },
     });
     process.call("initialize", params, cancel, &mut |_, _| {})?;
     Ok(process)

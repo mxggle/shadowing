@@ -131,7 +131,9 @@ export const settings: Record<string, Entry> = {
     "A plugin is a program that runs on this PC and can read and write your files. Only install plugins you trust.",
   安装: "Install",
   "可以导入：{kinds}": "Imports: {kinds}",
-  "给这些语言注音：{languages}": "Readings for: {languages}",
+  "标注句子：{kinds}": "Marks sentences: {kinds}",
+  开: "On",
+  关: "Off",
   占用: "Uses",
 
   // Transcribing

@@ -1,22 +1,24 @@
 //! Plugins (docs/plugin-plan.md): folders in app data, each with a
 //! `manifest.json` and a program the app runs as a child process (rpc.rs).
-//! Extension points: 从链接导入 (import.rs, accept.rs) and 注音 (readings.rs).
+//! Extension points: 从链接导入 (import.rs, accept.rs) and 标注 (annotate.rs);
+//! a plugin's own options are in options.rs.
 //! A plugin's own lasting files go in its `data/` folder, kept across updates.
 //! Installing: the native folder picker, then 安装 in settings (plugins_pick, plugins_install).
 
 pub mod accept;
+pub mod annotate;
 mod clipboard;
 pub mod import;
 pub mod install;
 mod job;
 pub mod manifest;
 mod names;
+pub mod options;
 mod os;
-pub mod readings;
 pub mod rpc;
 
 use crate::AppState;
-use manifest::{Choice, Importer, Manifest, Permissions};
+use manifest::{Importer, Manifest, Permissions};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -100,10 +102,10 @@ pub struct PluginInfo {
     description: String,
     /// What it can import from (“YouTube”).
     importers: Vec<String>,
-    /// Languages it shows readings for (“ja”).
-    readings: Vec<String>,
+    /// How it marks up sentences (标注: “日语注音”).
+    annotators: Vec<String>,
     /// Its own settings, with the value in use.
-    settings: Vec<SettingInfo>,
+    settings: Vec<options::SettingInfo>,
     permissions: Permissions,
     /// Disk used, its downloaded tools included.
     bytes: u64,
@@ -111,27 +113,13 @@ pub struct PluginInfo {
     problem: Option<String>,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SettingInfo {
-    key: String,
-    label: String,
-    options: Vec<Choice>,
-    value: String,
-}
-
-fn settings(state: &AppState, m: &Manifest) -> Vec<SettingInfo> {
-    let values = state.read(|s| readings::values(m, s.plugins.get(&m.id).map(|p| &p.settings)));
-    m.contributes
-        .settings
-        .iter()
-        .map(|s| SettingInfo {
-            key: s.key.clone(),
-            label: s.label.clone(),
-            options: s.options.clone(),
-            value: values.get(&s.key).cloned().unwrap_or_default(),
-        })
-        .collect()
+fn settings(state: &AppState, m: &Manifest) -> Vec<options::SettingInfo> {
+    state.read(|s| {
+        options::shown(
+            &m.contributes.settings,
+            s.plugins.get(&m.id).map(|p| &p.settings),
+        )
+    })
 }
 
 fn size(dir: &Path) -> u64 {
@@ -158,11 +146,11 @@ pub(super) fn list(state: &AppState) -> Vec<PluginInfo> {
                         .iter()
                         .map(|i| i.title.clone())
                         .collect(),
-                    readings: m
+                    annotators: m
                         .contributes
-                        .readings
+                        .annotators
                         .iter()
-                        .flat_map(|r| r.languages.clone())
+                        .map(|a| a.title.clone())
                         .collect(),
                     settings: settings(state, &m),
                     name: m.name,
@@ -180,7 +168,7 @@ pub(super) fn list(state: &AppState) -> Vec<PluginInfo> {
                     author: String::new(),
                     description: String::new(),
                     importers: Vec::new(),
-                    readings: Vec::new(),
+                    annotators: Vec::new(),
                     settings: Vec::new(),
                     permissions: Permissions::default(),
                     bytes,

@@ -15,6 +15,7 @@ sha="${2:-}"
 win_sha="${3:-}"
 repo="${GITHUB_REPOSITORY:-mxggle/shadowing}"
 plugin_version=$(node -p 'require("./plugins/youtube/manifest.json").version')
+furigana_version=$(node -p 'require("./plugins/furigana/manifest.json").version')
 
 # Everything under "## [X.Y.Z] - date" up to the next version heading or the link list at the end.
 section=$(awk -v v="$version" '
@@ -73,6 +74,11 @@ if [ -n "$win_sha" ]; then
 3. 复制一个 YouTube 链接，回到 Shadowing 按 ⌘V（Windows 上是 Ctrl+V；或者点左侧列表顶上的 ＋ →「从链接导入…」）。
 
 第一次导入时，插件会从 GitHub 下载 yt-dlp（Mac 上约 51 MB，Windows 上约 18 MB）。插件是运行在你电脑上的程序，只安装你信任的插件；只下载你有权使用的内容。
+
+## 日语注音插件
+在日语字幕的汉字上方标出读音：平假名、片假名或罗马音（设置 → 插件 里选）。词典在插件里，不联网。
+1. 下载插件：Mac 是 \`Shadowing-Furigana-plugin-$furigana_version-macos-arm64.zip\`，Windows 是 \`Shadowing-Furigana-plugin-$furigana_version-windows-x86_64.zip\`，解压出 \`furigana\` 文件夹。
+2. 设置 → 插件 → 从文件夹安装…，选这个文件夹，点「安装」。打开一份日语字幕就能看到；播放设置里「插件标注」可以隐藏。
 EOF
 else
   cat <<EOF
@@ -85,6 +91,11 @@ else
 3. 复制一个 YouTube 链接，回到 Shadowing 按 ⌘V（或者点左侧列表顶上的 ＋ →「从链接导入…」）。
 
 第一次导入时，插件会从 GitHub 下载 yt-dlp（约 51 MB）。插件是运行在你 Mac 上的程序，只安装你信任的插件；只下载你有权使用的内容。
+
+## 日语注音插件
+在日语字幕的汉字上方标出读音：平假名、片假名或罗马音（设置 → 插件 里选）。词典在插件里，不联网。
+1. 下载 \`Shadowing-Furigana-plugin-$furigana_version-macos-arm64.zip\`，双击解压出 \`furigana\` 文件夹。
+2. 设置 → 插件 → 从文件夹安装…，选这个文件夹，点「安装」。打开一份日语字幕就能看到；播放设置里「插件标注」可以隐藏。
 EOF
 fi
 if [ -n "$win_sha" ]; then

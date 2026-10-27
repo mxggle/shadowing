@@ -1,5 +1,5 @@
 # Builds the Windows files of a release on windows-latest: the NSIS installer (x64, for the current user), its .sig
-# for the in-app updater, and the YouTube plugin for Windows (scripts/release-assets-windows.sh). It never touches a
+# for the in-app updater, and the plugins for Windows (scripts/release-assets-windows.sh). It never touches a
 # GitHub Release: they're kept as the run's artifact Shadowing-X.Y.Z-windows-x64 (14 days), and the Mac side picks
 # them up (scripts/windows-files.sh, from scripts/release-local.sh or release.yml), so a release goes out once,
 # with both systems' files and both entries in latest.json, checked by scripts/verify-release.sh first.
@@ -54,6 +54,7 @@ jobs:
           workspaces: |
             src-tauri
             plugins/youtube
+            plugins/furigana
           key: installer
 
       - name: Version

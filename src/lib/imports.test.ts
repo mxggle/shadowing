@@ -134,7 +134,7 @@ describe("downloads", () => {
       author: "",
       description: "",
       importers,
-      readings: [],
+      annotators: [],
       settings: [],
       permissions: { network: [], runs: "" },
       bytes: 0,

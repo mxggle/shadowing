@@ -1,7 +1,7 @@
 // Plugins and 从链接导入 in the browser mock: the YouTube plugin is installed,
 // a link resolves after a moment, and a download adds a track to the folder.
 import { emit } from "@tauri-apps/api/event";
-import type { FolderListing, ImportStatus, PluginInfo, Resolved, RubyPiece } from "../lib/api";
+import type { Annotation, FolderListing, ImportStatus, PluginInfo, Resolved } from "../lib/api";
 
 let plugins: PluginInfo[] = [
   {
@@ -11,7 +11,7 @@ let plugins: PluginInfo[] = [
     author: "Shadowing",
     description: "粘贴 YouTube 链接，把视频的音频（m4a，不转码）和人工字幕导入到打开的文件夹。只下载你有权使用的内容。",
     importers: ["YouTube"],
-    readings: [],
+    annotators: [],
     settings: [],
     permissions: { network: ["youtube.com", "googlevideo.com", "github.com"], runs: "第一次使用时下载 yt-dlp" },
     bytes: 126_400_000,
@@ -24,10 +24,11 @@ let plugins: PluginInfo[] = [
     author: "Shadowing",
     description: "在日语句子的汉字上方标出读音：平假名、片假名或罗马音。词典（IPADIC）在插件里，不联网。",
     importers: [],
-    readings: ["ja"],
+    annotators: ["日语注音"],
     settings: [
       {
         key: "style",
+        kind: "select",
         label: "注音用",
         value: "hiragana",
         options: [
@@ -53,12 +54,12 @@ const WORDS: Record<string, [string, string]> = {
 };
 
 /** What the 日语注音 plugin would answer, from WORDS. */
-function readings(texts: string[]): RubyPiece[][] {
+function annotate(texts: string[]): Annotation[] {
   const style = plugins.find((p) => p.id === "furigana")?.settings[0]?.value;
   const shown = ([kana, romaji]: [string, string]) =>
     style === "romaji" ? romaji : style === "katakana" ? kana.replace(/[\u3041-\u3096]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60)) : kana;
   return texts.map((text) => {
-    const pieces: RubyPiece[] = [];
+    const pieces: { text: string; ruby?: string }[] = [];
     for (let i = 0; i < text.length; ) {
       const word = [2, 1].map((n) => text.slice(i, i + n)).find((w) => WORDS[w]);
       if (word) pieces.push({ text: word, ruby: shown(WORDS[word]) });
@@ -66,7 +67,7 @@ function readings(texts: string[]): RubyPiece[][] {
       else pieces.push({ text: text[i] });
       i += word?.length ?? 1;
     }
-    return pieces;
+    return { pieces };
   });
 }
 
@@ -109,10 +110,9 @@ export async function mockPlugins(cmd: string, a: Record<string, never>, folder:
       };
     case "plugins_install":
       return plugins;
-    case "plugins_readings":
-      if (!plugins.some((p) => p.readings.includes(a.language))) return null;
+    case "plugins_annotate":
       await wait(300);
-      return readings(a.texts);
+      return plugins.some((p) => p.id === "furigana") ? annotate(a.texts) : (a.texts as string[]).map(() => ({}));
     case "plugins_set_setting":
       plugins = plugins.map((p) =>
         p.id === a.id ? { ...p, settings: p.settings.map((s) => (s.key === a.key ? { ...s, value: a.value } : s)) } : p,

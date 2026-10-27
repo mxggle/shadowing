@@ -80,4 +80,6 @@ if [ $draft = 1 ]; then
   echo "Draft created; publish it on GitHub."
 else
   gh release create "$tag" "${files[@]}" -R "$repo" --verify-tag --latest --title "Shadowing $version" --notes-file "$out/notes.md"
+  # The landing page's download size and plugin list, now that the files are there.
+  scripts/site-after-release.sh "$tag"
 fi

@@ -4,7 +4,6 @@ import { formatRate, RATE_PRESETS, RATE_STEP, SEEK_STEP_MAX, SEEK_STEP_MIN } fro
 import { useDismiss } from "../hooks/useDismiss";
 import { useFlash } from "../hooks/useFlash";
 import { t } from "../lib/i18n";
-import { rubyKey, transcriptLanguage } from "../lib/ruby";
 import { useApp } from "../store";
 import { PictureMenu } from "./PictureMenu";
 import { PLAY_MODE_LOOK, PlayModePicker } from "./PlayMode";
@@ -65,7 +64,7 @@ export function PlaybackMenu() {
           <Row label={t("高亮")} hint={t("逐字只限转写的字幕")}>
             <HighlightPicker />
           </Row>
-          <RubyRow />
+          <AnnotationsRow />
           <PictureMenu />
         </div>
       )}
@@ -116,25 +115,25 @@ function HighlightPicker() {
   );
 }
 
-/** 注音 on or off, when a plugin reads the open transcript's language (how it reads: 设置 → 插件). */
-function RubyRow() {
-  const reads = useApp((s) => !!rubyKey(s.plugins, transcriptLanguage(s.transcript?.sentences.map((x) => x.text) ?? [])));
-  const on = useApp((s) => s.settings.ruby);
-  const setRuby = useApp((s) => s.setRuby);
-  if (!reads) return null;
+/** The plugins' marks on the sentences (标注) shown or hidden, when a plugin makes them (how: 设置 → 插件). */
+function AnnotationsRow() {
+  const any = useApp((s) => s.plugins.some((p) => !p.problem && p.annotators.length > 0));
+  const on = useApp((s) => s.settings.annotations);
+  const setAnnotations = useApp((s) => s.setAnnotations);
+  if (!any) return null;
   const choices = [
     { value: true, label: t("显示") },
     { value: false, label: t("隐藏") },
   ];
   return (
-    <Row label={t("注音")} hint={t("写法在设置的插件里")}>
-      <div className="tint flex rounded-[10px] p-[3px]" role="radiogroup" aria-label={t("注音")}>
+    <Row label={t("插件标注")} hint={t("例如注音，选项在设置的插件里")}>
+      <div className="tint flex rounded-[10px] p-[3px]" role="radiogroup" aria-label={t("插件标注")}>
         {choices.map((c) => (
           <button
             key={c.label}
             role="radio"
             aria-checked={c.value === on}
-            onClick={() => setRuby(c.value)}
+            onClick={() => setAnnotations(c.value)}
             className={`h-[26px] flex-1 rounded-[7px] text-[12px] transition-[background-color,color,box-shadow] duration-150 ${
               c.value === on ? "bg-raised font-medium text-fg shadow-[0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
             }`}

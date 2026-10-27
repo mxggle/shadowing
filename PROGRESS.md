@@ -2,20 +2,22 @@
 
 _最后更新：2026-10-27_
 
-## 日语注音插件（2026-10-27，已实现）
-- 来由：你要一个插件，在日语内容的汉字上方显示读音，可以选罗马音或假名。商量的结果：平假名 / 片假名 / 罗马音三选一（默认平假名），三种都只标汉字。
+## 插件标注 + 日语注音插件 + 落地页随发布更新（2026-10-27，已实现）
+- 来由：你要一个插件在日语汉字上方显示读音（平假名 / 片假名 / 罗马音，只标汉字）。第一版把扩展点做成了“注音”专用，你指出以后每个插件都要等应用更新就没意义了，
+  所以改成通用的“标注”扩展点；你也指出落地页老是不跟着发布更新。
 - 已实现：
-  - 插件 `plugins/furigana/`（Rust，lindera 6.2 + 内嵌的 IPADIC，构建时 lindera 从 Lindera.dev 下载词典）：`readings/run` 把每句切成段，汉字段带读音。
-    `ruby.rs` 把词典给的整词读音按词里的假名拆到各个汉字段上（食べ物 → 食 た / べ / 物 もの），拆不开就整词标；罗马音按假名拼写的 Hepburn。程序 48 MB，zip 约 11 MB，读词典约 1 毫秒。
-  - 应用：manifest 新增 `contributes.readings`（给哪些语言注音）和 `contributes.settings`（插件自己的选项，只有 `select`），
-    state.json 的 `plugins.<id>.settings` 记下选的值；`plugins/readings.rs` 的 `plugins_readings`（每段连起来必须正好是原句，不然这句不标；读音截到 40 个字；30 秒超时）和 `plugins_set_setting`。
-  - 界面：`lib/ruby.ts`（至少五分之一的句子有假名才算日语；读音和查找 / 没把握 / 逐字高亮的分段怎么合在一起），`rubySlice.ts` 按句子文字记住读过的，改一句只问这一句、换选项全部重问；
-    `SentenceText` 用 `<ruby>` 显示（有注音的句子行高 40px），视频下面的那句也有；设置 → 插件 里插件下面一组按钮；播放设置里「注音：显示 / 隐藏」（`settings.ruby`），只在有插件能读这份字幕时出现。
-  - `npm run check` 也查这个插件；文档：`docs/plugin-dev.md`（注音、选项、`readings/run`）、`docs/plugin-plan.md` 的扩展点表。
-- 已验证（自动）：插件的拆分、罗马音、整句不丢字；应用的分段检查、默认选项、manifest 检查；TS 的语言判断、分组。浏览器 mock 里看了平假名、罗马音、隐藏。
-  终端里直接喂消息给构建好的插件，回答正确。
-- 待验证（需要你用）：`scripts/build-plugin.sh furigana`，设置 → 插件 → 从文件夹安装，打开日语字幕看读音准不准、长句子多的字幕要等多久；Windows 版插件（还没在 Windows 上构建过）。
-  还没做：插件目录 `site/plugins.json` 和发布流程里打包这个插件（等决定随哪个版本发布）。
+  - 扩展点 `annotators` + `annotate/run`（`src-tauri/src/plugins/annotate.rs`）：插件回答每句的段（连起来必须是原句）带 `ruby` / `note` / `mark`（underline、bold），和 `below`（句子下面一行）。
+    几个插件时 pieces 用第一个、below 每个一行。插件自己判断标哪些句子（不再由应用判断语言）。
+  - 插件选项（`options.rs`）：`select` / `toggle` / `text`；应用不认识的类型跳过、不拒绝安装。值存在 state.json 的 `plugins.<id>.settings`。
+  - 兼容：`initialize` 带 `capabilities: { annotate: [...] }`；manifest 和回答里不认识的东西都跳过；调试构建不看 `minAppVersion`（开发版能装下一版的插件）。
+  - 界面：`lib/annotations.ts`、`annotateSlice.ts`（按句子文字记住答过的），`SentenceText` 画 ruby / 下划线 / 加粗 / 悬停说明，句子行下面画 below；
+    设置 → 插件 里画选项；播放设置「插件标注：显示 / 隐藏」（`settings.annotations`），装了标注插件才有。
+  - 插件 `plugins/furigana/`（lindera 6.2 + 内嵌 IPADIC）：拆读音到各个汉字、罗马音（按假名拼写的 Hepburn），只标有假名的字幕（三句以上的一批里五分之一有假名就全标，否则只标有假名的句子）。程序 48 MB，zip 约 11 MB。
+  - 发布：插件列表 `scripts/release-plugins.sh`（YouTube、日语注音），Mac / Windows 的打包、verify-release、发布说明都按它走。
+  - 落地页：`scripts/site-sync.mjs`。`bump-version.sh` 从 CHANGELOG 给「更新」加一行、重新数天数和版本数（`check-version.sh` 检查）；
+    `release-local.sh` 发布以后运行 `scripts/site-after-release.sh`：下载大小、`plugins.json`（新插件加一条、新版本换 zip 和 SHA-256），提交并推送到 main。
+- 已验证（自动）：插件、Rust、TS、site-sync 的测试；Windows 版插件在 Mac 上交叉编译（gnu）通过；浏览器 mock 里看了注音。
+- 待验证：在真的应用里看注音（这次开发版在这里启动不起来）；下划线 / 悬停说明 / 句子下面一行还没有插件用到，只有单元测试。
 
 ## 视频，第 3 步：YouTube 导入带画面（2026-10-26，已实现）
 - 来由：YouTube 上下的视频最常见；插件以前只下 m4a 音轨。方案见 [docs/video-plan.md](docs/video-plan.md) 的“YouTube 插件”。
