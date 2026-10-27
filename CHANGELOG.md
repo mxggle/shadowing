@@ -5,6 +5,8 @@
 
 ## [未发布]
 
+## [0.14.0] - 2026-10-27
+
 ### 新增
 - **插件标注**：插件能在字幕的句子上标注了，第一个是「日语注音」插件，在日语字幕的汉字上方标出读音。
   - 「日语注音」插件：在 设置 → 插件 里选读音写成平假名、片假名还是罗马音（罗马音按假名拼写，例如 東京 写 toukyou）。分词和读音都在这台电脑上做（插件里带着 IPADIC 词典），不联网。读音来自词典，个别词（连浊、人名）可能读错。
@@ -222,7 +224,8 @@
 - 修改字幕、查找和全部替换、AI 校对、解释这一句（译文、生词、语法点，答案会保存）。
 - 第一次打开有示例练习和 AI 设置向导。
 
-[未发布]: https://github.com/mxggle/shadowing/compare/v0.13.0...HEAD
+[未发布]: https://github.com/mxggle/shadowing/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/mxggle/shadowing/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/mxggle/shadowing/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/mxggle/shadowing/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/mxggle/shadowing/compare/v0.10.0...v0.11.0
