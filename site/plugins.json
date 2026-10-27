@@ -7,13 +7,19 @@
       "author": "Shadowing",
       "official": true,
       "description": "粘贴 YouTube 链接，把视频的音频（m4a，不转码）和人工字幕导入到打开的文件夹；也可以连画面一起（H.264 的 mp4，和声音合成一个视频，不转码）。只下载你有权使用的内容。",
-      "imports": ["YouTube"],
+      "imports": [
+        "YouTube"
+      ],
       "source": "https://github.com/mxggle/shadowing/tree/main/plugins/youtube",
       "version": "0.3.0",
       "minAppVersion": "0.9.0",
       "released": "2026-10-27",
       "permissions": {
-        "network": ["youtube.com", "googlevideo.com", "github.com"],
+        "network": [
+          "youtube.com",
+          "googlevideo.com",
+          "github.com"
+        ],
         "runs": "第一次使用时从 GitHub 下载 yt-dlp（Mac 上约 51 MB，解压后 124 MB；Windows 上约 18 MB）和 QuickJS（约 1–2 MB），用它们下载音频（和画面）"
       },
       "packages": {
@@ -26,6 +32,33 @@
           "url": "https://github.com/mxggle/shadowing/releases/download/v0.13.0/Shadowing-YouTube-plugin-0.3.0-windows-x86_64.zip",
           "sha256": "984bce6ed8b78b88df45dbfa4538710ffbd0975413aaf8872518f78f0bf1e6e2",
           "size": 260041
+        }
+      }
+    },
+    {
+      "id": "furigana",
+      "name": "日语注音",
+      "author": "Shadowing",
+      "official": true,
+      "description": "在日语句子的汉字上方标出读音：平假名、片假名或罗马音。词典（IPADIC）在插件里，不联网。",
+      "source": "https://github.com/mxggle/shadowing/tree/main/plugins/furigana",
+      "version": "0.1.0",
+      "minAppVersion": "0.14.0",
+      "released": "2026-10-27",
+      "permissions": {
+        "network": [],
+        "runs": "只在这台电脑上分词、查读音，不下载、不运行别的程序"
+      },
+      "packages": {
+        "darwin-arm64": {
+          "url": "https://github.com/mxggle/shadowing/releases/download/v0.14.0/Shadowing-Furigana-plugin-0.1.0-macos-arm64.zip",
+          "sha256": "6caaa3abf8d0454ec990d7f636a7d5d267b9c76f9c0ffbb99cd051fa88da32f7",
+          "size": 11216007
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/mxggle/shadowing/releases/download/v0.14.0/Shadowing-Furigana-plugin-0.1.0-windows-x86_64.zip",
+          "sha256": "cc55f38aa002f26079c4826b03bd9560563376082df6c7bf72173979912880ab",
+          "size": 10780249
         }
       }
     }
