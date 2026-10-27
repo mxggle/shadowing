@@ -20,7 +20,9 @@ NEW="$new" node -e '
   edit("src-tauri/tauri.conf.json", (s) => s.replace(/"version": "[^"]*"/, `"version": "${v}"`));
   edit("src-tauri/Cargo.toml", (s) => s.replace(/^version = "[^"]*"/m, `version = "${v}"`));
   edit("src-tauri/Cargo.lock", (s) => s.replace(/(name = "shadowing"\nversion = )"[^"]*"/, `$1"${v}"`));
-  edit("site/index.html", (s) => s.replace(/(<span data-app-version>v)[0-9.]+/, `$1${v}`));
+  for (const f of ["site/index.html", "site/en.html", "site/ja.html", "site/zh-tw.html"]) {
+    if (fs.existsSync(f)) edit(f, (s) => s.replace(/(<span data-app-version>v)[0-9.]+/, `$1${v}`));
+  }
 '
 node scripts/site-sync.mjs changelog
 echo "$old → $(scripts/check-version.sh)"

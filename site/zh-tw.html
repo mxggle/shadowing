@@ -1,0 +1,1372 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Shadowing 跟讀：把你的聲音，放在母語者身旁聽</title>
+<meta name="description" content="Shadowing：專為 Mac 和 Windows 設計的跟讀軟體。將音訊轉寫成逐句字幕，循環練習、放慢不變調、即時看解釋，再錄下自己的聲音與原聲對比。免費開源。">
+<link rel="canonical" href="https://shadowing.nihongo.day/zh-tw">
+<link rel="alternate" hreflang="zh-CN" href="https://shadowing.nihongo.day/">
+<link rel="alternate" hreflang="zh-TW" href="https://shadowing.nihongo.day/zh-tw">
+<link rel="alternate" hreflang="en" href="https://shadowing.nihongo.day/en">
+<link rel="alternate" hreflang="ja" href="https://shadowing.nihongo.day/ja">
+<link rel="alternate" hreflang="x-default" href="https://shadowing.nihongo.day/">
+<meta name="theme-color" content="#f5f4f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b1b1a" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Shadowing · nihongo.day">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:url" content="https://shadowing.nihongo.day/zh-tw">
+<meta property="og:title" content="Shadowing 跟讀：把你的聲音，放在母語者身旁聽">
+<meta property="og:description" content="將音訊轉寫成逐句字幕，循環練習、放慢、看解釋，再錄下自己的聲音與原聲對比。免費開源，提供 macOS 與 Windows 版。">
+<meta property="og:image" content="https://shadowing.nihongo.day/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Shadowing 應用程式視窗：日語句子下方，原句與我的兩條波形上下對齊。">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://shadowing.nihongo.day/og.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Shadowing","alternateName":"Shadowing 跟讀","url":"https://shadowing.nihongo.day/zh-tw","description":"專為 Mac 和 Windows 設計的跟讀應用程式：將音訊轉寫成逐句字幕，循環練習、放慢不變調、即時看解釋，再錄下自己的聲音與原聲對比。","applicationCategory":"EducationalApplication","operatingSystem":"macOS, Windows","inLanguage":"zh-TW","image":"https://shadowing.nihongo.day/og.png","screenshot":"https://shadowing.nihongo.day/shots/hero-light.webp","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"downloadUrl":"https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg","publisher":{"@type":"Organization","name":"日語Day","url":"https://nihongo.day/"}}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@500;600&family=Noto+Serif+TC:wght@500;600;700&display=swap">
+<link rel="preload" as="image" href="shots/hero-light.webp" media="(prefers-color-scheme: light) and (min-width: 641px)" fetchpriority="high">
+<style>
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+/*
+ * Layout: "script and deck", taken from the app itself (src/index.css). The
+ * page is a shelf; the sheets of paper on it hold real scripts. Screenshots
+ * are the real app, rendered from the promo video's stage. Orange means "this
+ * is repeating" and is used for nothing else; red only marks the mic while it
+ * is recording, as in the app.
+ */
+:root {
+  --shelf: oklch(96.7% 0.003 95);
+  --paper: oklch(98.9% 0.002 95);
+  --deck: oklch(97.4% 0.002 95);
+  --fg: oklch(21% 0.004 95);
+  --muted: oklch(45% 0.004 95);
+  --faint: oklch(53% 0.004 95);
+  --line: oklch(21% 0.004 95 / 0.09);
+  --line-strong: oklch(21% 0.004 95 / 0.16);
+  --fill: oklch(21% 0.004 95 / 0.055);
+  --hover: oklch(21% 0.004 95 / 0.05);
+  --press: oklch(21% 0.004 95 / 0.09);
+  --track: oklch(21% 0.004 95 / 0.11);
+  --ink: oklch(21% 0.004 95);
+  --on-ink: oklch(99% 0.001 95);
+  --focus: oklch(21% 0.004 95 / 0.5);
+  --selection: oklch(63.5% 0.19 38 / 0.18);
+  --loop: oklch(63.5% 0.19 38);
+  --loop-text: oklch(52% 0.165 38);
+  --loop-soft: oklch(63.5% 0.19 38 / 0.09);
+  --loop-line: oklch(63.5% 0.19 38 / 0.38);
+  --ok: oklch(53% 0.13 150);
+  --danger: oklch(54% 0.2 27);
+  --danger-soft: oklch(54% 0.2 27 / 0.12);
+  --window: 0 0 0 0.5px oklch(21% 0.004 95 / 0.14), 0 2px 6px -1px oklch(21% 0.004 95 / 0.08), 0 28px 56px -18px oklch(21% 0.004 95 / 0.28), 0 70px 120px -50px oklch(21% 0.004 95 / 0.3);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang TC", "Hiragino Sans", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  --font-head: "Songti TC", "Noto Serif TC", ui-serif, Georgia, serif;
+  --font-script: "Hiragino Mincho ProN", "Noto Serif JP", "Songti TC", "Noto Serif TC", ui-serif, serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --measure: 34em;
+  --wrap: 1160px;
+  --gutter: clamp(16px, 4vw, 32px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --shelf: oklch(16.8% 0.004 95);
+    --paper: oklch(19.5% 0.004 95);
+    --deck: oklch(21% 0.004 95);
+    --fg: oklch(93.5% 0.003 95);
+    --muted: oklch(73% 0.003 95);
+    --faint: oklch(63% 0.003 95);
+    --line: oklch(100% 0 0 / 0.075);
+    --line-strong: oklch(100% 0 0 / 0.14);
+    --fill: oklch(100% 0 0 / 0.065);
+    --hover: oklch(100% 0 0 / 0.055);
+    --press: oklch(100% 0 0 / 0.1);
+    --track: oklch(100% 0 0 / 0.11);
+    --ink: oklch(93.5% 0.003 95);
+    --on-ink: oklch(19.5% 0.004 95);
+    --focus: oklch(100% 0 0 / 0.5);
+    --selection: oklch(70% 0.17 42 / 0.28);
+    --loop: oklch(70% 0.17 42);
+    --loop-text: oklch(78% 0.125 45);
+    --loop-soft: oklch(70% 0.17 42 / 0.13);
+    --loop-line: oklch(70% 0.17 42 / 0.42);
+    --ok: oklch(74% 0.15 150);
+    --danger: oklch(70% 0.17 25);
+    --danger-soft: oklch(70% 0.17 25 / 0.16);
+    --window: 0 0 0 0.5px oklch(100% 0 0 / 0.16), 0 2px 6px -1px oklch(0% 0 0 / 0.4), 0 28px 56px -18px oklch(0% 0 0 / 0.6), 0 70px 120px -50px oklch(0% 0 0 / 0.7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --shelf: oklch(16.8% 0.004 95);
+  --paper: oklch(19.5% 0.004 95);
+  --deck: oklch(21% 0.004 95);
+  --fg: oklch(93.5% 0.003 95);
+  --muted: oklch(73% 0.003 95);
+  --faint: oklch(63% 0.003 95);
+  --line: oklch(100% 0 0 / 0.075);
+  --line-strong: oklch(100% 0 0 / 0.14);
+  --fill: oklch(100% 0 0 / 0.065);
+  --hover: oklch(100% 0 0 / 0.055);
+  --press: oklch(100% 0 0 / 0.1);
+  --track: oklch(100% 0 0 / 0.11);
+  --ink: oklch(93.5% 0.003 95);
+  --on-ink: oklch(19.5% 0.004 95);
+  --focus: oklch(100% 0 0 / 0.5);
+  --selection: oklch(70% 0.17 42 / 0.28);
+  --loop: oklch(70% 0.17 42);
+  --loop-text: oklch(78% 0.125 45);
+  --loop-soft: oklch(70% 0.17 42 / 0.13);
+  --loop-line: oklch(70% 0.17 42 / 0.42);
+  --ok: oklch(74% 0.15 150);
+  --danger: oklch(70% 0.17 25);
+  --danger-soft: oklch(70% 0.17 25 / 0.16);
+  --window: 0 0 0 0.5px oklch(100% 0 0 / 0.16), 0 2px 6px -1px oklch(0% 0 0 / 0.4), 0 28px 56px -18px oklch(0% 0 0 / 0.6), 0 70px 120px -50px oklch(0% 0 0 / 0.7);
+  color-scheme: dark;
+}
+
+/* Base */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 16px; scrollbar-color: var(--line-strong) transparent; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--shelf);
+  color: var(--fg);
+  font: 400 16px/1.75 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--loop);
+  padding-inline: var(--gutter);
+  margin: 0;
+  overflow-x: clip;
+}
+::selection { background: var(--selection); color: var(--fg); }
+a { color: inherit; text-underline-offset: 0.22em; text-decoration-thickness: 1px; text-decoration-color: var(--line-strong); transition: text-decoration-color 150ms; }
+a:hover { text-decoration-color: currentColor; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+h1, h2, h3 { font-family: var(--font-head); font-weight: 600; text-wrap: balance; word-break: auto-phrase; margin: 0; letter-spacing: 0; }
+p { margin: 0; text-wrap: pretty; }
+.ph { display: inline-block; }
+kbd {
+  display: inline-grid; place-items: center; min-width: 1.6em; height: 1.6em; padding: 0 0.4em;
+  font: 500 0.78em/1 var(--font-mono); color: var(--muted);
+  background: var(--paper); border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 5px;
+  vertical-align: 0.08em;
+}
+.wrap { max-width: var(--wrap); margin-inline: auto; }
+svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 0 22px;
+  border-radius: 12px; border: 0; font: 600 16px/1.2 var(--font-sans); text-decoration: none; cursor: pointer;
+  transition: background-color 150ms, transform 150ms var(--ease), box-shadow 150ms;
+}
+.btn:active { transform: scale(0.97); }
+.btn-ink { background: var(--ink); color: var(--on-ink); box-shadow: 0 1px 2px oklch(0% 0 0 / 0.12), 0 6px 16px -6px oklch(0% 0 0 / 0.3); }
+.btn-ink:hover { box-shadow: 0 1px 2px oklch(0% 0 0 / 0.12), 0 10px 24px -8px oklch(0% 0 0 / 0.38); transform: translateY(-1px); }
+.btn-ink small, .btn-quiet small { font-weight: 400; opacity: 0.72; font-size: 14px; }
+.btn-quiet { background: var(--fill); color: var(--fg); }
+.btn-quiet:hover { background: var(--press); }
+
+/* Nav */
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 20px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 600 17px/1 var(--font-sans); letter-spacing: -0.01em; }
+.brand svg { width: 30px; height: 30px; }
+.nav-links { display: flex; align-items: center; gap: 2px; }
+.nav-links a { text-decoration: none; color: var(--muted); font-size: 15px; padding: 8px 12px; border-radius: 8px; transition: background-color 150ms, color 150ms; }
+.nav-links a:hover { background: var(--hover); color: var(--fg); }
+.nav-links .nav-dl { color: var(--fg); background: var(--fill); font-weight: 600; margin-left: 6px; }
+.lang-picker { position: relative; display: inline-flex; align-items: center; margin-left: 4px; }
+.lang-btn {
+  display: inline-flex; align-items: center; gap: 5px; height: 35px; padding: 0 10px;
+  border-radius: 8px; border: 1px solid var(--line); background: var(--fill);
+  color: var(--muted); font: 500 13.5px/1 var(--font-sans); cursor: pointer;
+  transition: background-color 150ms, color 150ms, border-color 150ms;
+}
+.lang-btn:hover, .lang-btn[aria-expanded="true"] { background: var(--press); color: var(--fg); border-color: var(--line-strong); }
+.lang-btn svg.i { width: 14px; height: 14px; }
+.lang-btn .arrow { width: 10px; height: 10px; transition: transform 150ms; }
+.lang-btn[aria-expanded="true"] .arrow { transform: rotate(180deg); }
+.lang-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; min-width: 120px;
+  padding: 5px; background: var(--paper); border: 1px solid var(--line-strong);
+  border-radius: 10px; box-shadow: 0 10px 24px -6px oklch(0% 0 0 / 0.2);
+  display: none; flex-direction: column; gap: 2px; z-index: 100;
+}
+.lang-picker.open .lang-menu { display: flex; }
+.lang-menu a {
+  display: block; padding: 7px 10px; border-radius: 6px; color: var(--muted);
+  font: 500 13px/1 var(--font-sans); text-decoration: none; white-space: nowrap;
+  transition: background-color 120ms, color 120ms;
+}
+.lang-menu a:hover { background: var(--hover); color: var(--fg); }
+.lang-menu a.active { color: var(--fg); font-weight: 600; background: var(--fill); }
+.lang-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; width: 100%; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--faint); }
+.lang-foot a { color: var(--muted); text-decoration: none; }
+.lang-foot a:hover, .lang-foot a.active { color: var(--fg); font-weight: 600; }
+@media (max-width: 860px) { .nav-links a:not(.nav-dl) { display: none; } }
+
+/* Hero */
+.hero { padding-block: clamp(36px, 6vw, 84px) clamp(36px, 4.5vw, 60px); display: grid; gap: 26px; }
+.hero h1 { font-size: clamp(36px, 5.7vw, 68px); line-height: 1.14; max-width: 12em; }
+.lede { font-size: clamp(17px, 1.55vw, 19px); line-height: 1.8; color: var(--muted); max-width: 35em; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 4px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--faint); font-size: 14px; }
+.meta span { display: inline-flex; align-items: center; gap: 7px; }
+.meta .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px dashed var(--faint); }
+@media (max-width: 480px) { .actions .btn { width: 100%; } }
+.win-note { font-size: 14px; color: var(--faint); margin-top: -12px; }
+
+/* Screenshots of the real app */
+.shot { margin: 0; }
+.shot img { display: block; width: 100%; height: auto; }
+.shot.window img { border-radius: 12px; box-shadow: var(--window); }
+.shot.crop img { border-radius: 14px; box-shadow: 0 0 0 1px var(--line); }
+.shot figcaption { margin-top: 14px; font-size: 13.5px; color: var(--faint); max-width: 40em; }
+.hero-shot { margin-inline: calc(-1 * min(var(--gutter), 16px)); }
+@media (max-width: 640px) { .hero-shot { margin-inline: 0; } .hero-shot img, .listen-shot img { border-radius: 14px; box-shadow: 0 0 0 1px var(--line), 0 18px 40px -24px oklch(0% 0 0 / 0.35); } }
+@media (prefers-reduced-motion: no-preference) {
+  .hero-shot img { animation: settle 1000ms var(--ease) both; }
+  @keyframes settle { from { transform: translateY(18px); opacity: 0.001; } to { transform: none; opacity: 1; } }
+}
+
+/* Chapters: the four things the app does, in the order you do them */
+.chapter { padding-block: clamp(96px, 13vw, 168px) 0; }
+.head { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 18px clamp(32px, 6vw, 96px); align-items: end; margin-bottom: clamp(32px, 4.5vw, 56px); }
+.head h2 { font-size: clamp(30px, 3.9vw, 46px); line-height: 1.2; max-width: 13em; }
+.head p { color: var(--muted); max-width: 27em; }
+.head .new { margin-bottom: 10px; font: 500 14px/1.4 var(--font-sans); }
+@media (max-width: 860px) { .head { grid-template-columns: minmax(0, 1fr); } }
+
+.points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 clamp(24px, 3.4vw, 48px); margin: clamp(36px, 4.5vw, 56px) 0 0; }
+.points > div { padding-block: 20px 6px; border-top: 1px solid var(--line); min-width: 0; }
+.points dt { font: 600 17px/1.5 var(--font-sans); }
+.points dd { margin: 6px 0 0; color: var(--muted); font-size: 15px; line-height: 1.75; }
+.points dd strong { color: var(--fg); font-weight: 600; }
+.points.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 860px) { .points, .points.two { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .points, .points.two { grid-template-columns: minmax(0, 1fr); } }
+.doubt { font-family: var(--font-script); color: var(--fg); text-decoration: underline dotted var(--faint); text-decoration-thickness: 1.5px; text-underline-offset: 0.3em; }
+.spk { font: 600 12px/1 var(--font-sans); color: var(--muted); background: var(--fill); border-radius: 5px; padding: 3px 6px; margin-right: 2px; vertical-align: 0.1em; }
+
+.split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 40px clamp(32px, 6vw, 96px); align-items: center; }
+.split.flip { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+.split.flip > .shot { order: -1; }
+.split .head { grid-template-columns: minmax(0, 1fr); margin-bottom: 0; }
+.split .points { grid-template-columns: minmax(0, 1fr); margin-top: 28px; }
+.split .points > div { padding-block: 16px 4px; }
+@media (max-width: 860px) { .split, .split.flip { grid-template-columns: minmax(0, 1fr); } .split.flip > .shot { order: 0; } }
+
+.shelfrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.shelfrow span { font: 500 14.5px/1 var(--font-script); padding: 10px 13px; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--fg); background: var(--paper); }
+
+/* 說 and 外掛: the two big parts each get their own sheet of paper across the page */
+.band { margin-inline: calc(50% - 50vw); margin-top: clamp(96px, 13vw, 168px); padding: clamp(72px, 10vw, 128px) var(--gutter); background: var(--paper); border-block: 1px solid var(--line); }
+.band .chapter { padding-top: 0; }
+.band .split + .split { margin-top: clamp(56px, 8vw, 104px); }
+.split > .points { margin-top: 0; }
+.split.start { align-items: start; }
+
+/* Plugins: the import sheet and the list's download rows, drawn like the app (ImportLink.tsx) */
+.news { justify-self: start; display: inline-flex; align-items: center; gap: 10px; max-width: 100%; padding: 5px 12px 5px 5px; border-radius: 999px; background: var(--fill); color: var(--muted); font-size: 14px; line-height: 1.4; text-decoration: none; transition: background-color 150ms, color 150ms; }
+.news:hover { background: var(--press); color: var(--fg); }
+.news b { flex: none; font: 600 12.5px/1 var(--font-sans); color: var(--fg); background: var(--paper); border-radius: 999px; padding: 5px 9px; box-shadow: 0 0 0 1px var(--line); }
+.news svg.i { width: 15px; height: 15px; }
+.imp { display: grid; }
+.imp-win { width: 100%; max-width: 520px; justify-self: center; background: var(--paper); border-radius: 16px; box-shadow: var(--window); overflow: hidden; font-size: 13.5px; line-height: 1.5; }
+.imp-bar { display: flex; align-items: center; justify-content: space-between; height: 46px; padding: 0 16px 0 22px; border-bottom: 1px solid var(--line); }
+.imp-bar b { font-weight: 600; font-size: 14px; }
+.imp-bar svg.i { width: 15px; height: 15px; color: var(--faint); }
+.imp-body { padding: 18px 22px 22px; }
+.imp .field { flex: 1; min-width: 0; height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 11px; border-radius: 8px; background: var(--fill); color: var(--fg); white-space: nowrap; overflow: hidden; font-size: 13px; }
+.imp .field svg.i { width: 14px; height: 14px; color: var(--faint); }
+.imp .mini { flex: none; height: 32px; padding: 0 13px; border-radius: 8px; display: inline-grid; place-items: center; background: var(--fill); font: 500 13px/1 var(--font-sans); color: var(--fg); }
+.imp .mini.ink { background: var(--ink); color: var(--on-ink); }
+.imp-url { display: flex; gap: 8px; }
+.imp-url .field { color: var(--muted); font: 400 12.5px/1 var(--font-mono); }
+.imp-title { margin-top: 18px; font: 500 17px/1.45 var(--font-script); letter-spacing: 0.02em; }
+.imp-meta { margin-top: 3px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.imp-rows { display: grid; gap: 10px; margin-top: 16px; }
+.imp-row { display: flex; align-items: center; gap: 12px; }
+.imp-row > span:first-child { flex: none; width: 3.2em; color: var(--muted); }
+.imp .seg { flex: none; display: flex; padding: 3px; border-radius: 10px; background: var(--fill); }
+.imp .seg span { height: 26px; padding: 0 12px; border-radius: 7px; display: inline-grid; place-items: center; font-size: 12.5px; color: var(--muted); }
+.imp .seg .on { background: var(--paper); color: var(--fg); font-weight: 500; box-shadow: 0 0 0 1px var(--line); }
+.imp-row .folder { flex: none; color: var(--faint); font-size: 12.5px; }
+.imp-note { margin-top: 14px; font-size: 12px; line-height: 1.6; color: var(--faint); }
+.imp-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.dl-list { position: relative; width: min(330px, 86%); margin: -34px auto 0 3%; padding: 10px 8px; border-radius: 14px; background: var(--deck); box-shadow: 0 0 0 1px var(--line), 0 18px 40px -24px oklch(0% 0 0 / 0.35); }
+.dl-list > b { display: block; padding: 4px 10px 6px; font: 500 12px/1.4 var(--font-sans); color: var(--faint); }
+.dl { display: flex; align-items: flex-start; gap: 9px; padding: 6px 10px; font-size: 13px; }
+.dl svg { flex: none; width: 16px; height: 16px; margin-top: 1px; fill: none; stroke-width: 2; }
+.dl div { min-width: 0; }
+.dl p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 18px; }
+.dl small { display: block; font: 400 11.5px/16px var(--font-mono); color: var(--faint); font-variant-numeric: tabular-nums; }
+.dl.q p { color: color-mix(in oklch, var(--fg) 80%, transparent); }
+.dl.q small { font-family: var(--font-sans); }
+.imp figcaption { margin-top: 20px; }
+.plug-more { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: clamp(40px, 5vw, 60px); }
+.plug-more p { margin-left: auto; color: var(--faint); font-size: 14.5px; max-width: 26em; }
+@media (max-width: 720px) { .plug-more p { margin-left: 0; } }
+@media (max-width: 560px) { .dl-list { width: 100%; margin: 12px 0 0; } .imp-body { padding: 16px 16px 18px; } .plug-more .btn { width: 100%; } }
+
+/* Practice record */
+.ring { width: 18px; height: 18px; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 3; }
+.ring .bg { stroke: var(--track); }
+.ring .fg { stroke: var(--fg); stroke-linecap: round; transition: stroke-dashoffset 300ms var(--ease), stroke 200ms; }
+.goal { display: inline-flex; align-items: center; gap: 8px; font: 500 13px/1 var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.goal.done .ring .fg { stroke: var(--ok); }
+
+/* Privacy */
+.facts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 clamp(24px, 3.4vw, 48px); }
+.facts li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 14px; padding-block: 18px; border-top: 1px solid var(--line); color: var(--muted); }
+.facts svg.i { margin-top: 0.3em; color: var(--fg); }
+.facts b { color: var(--fg); font-weight: 600; }
+.facts code { font: 400 0.9em var(--font-mono); }
+@media (max-width: 720px) { .facts { grid-template-columns: minmax(0, 1fr); } }
+
+/* Updates: a ruled log, newest first */
+.log { list-style: none; margin: 0; padding: 0; }
+.log li { display: grid; grid-template-columns: 4.5em 7.5em minmax(0, 1fr); gap: 4px 20px; padding-block: 16px; border-top: 1px solid var(--line); align-items: baseline; }
+.log li:last-child { border-bottom: 1px solid var(--line); }
+.log .v { font: 500 15px/1.6 var(--font-mono); color: var(--fg); font-variant-numeric: tabular-nums; }
+.log time { font-size: 14px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.log p { color: var(--muted); }
+.log b { color: var(--fg); font-weight: 600; }
+.log-more { margin-top: 18px; font-size: 15px; color: var(--muted); }
+@media (max-width: 640px) { .log li { grid-template-columns: 4em minmax(0, 1fr); } .log p { grid-column: 1 / -1; } }
+
+/* Install: a real sequence, so it is numbered */
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; display: grid; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 2.4em minmax(0, 1fr); gap: 4px 12px; padding-block: 20px; border-top: 1px solid var(--line); }
+.steps li:last-child { border-bottom: 1px solid var(--line); }
+.steps li::before { content: counter(s); font: 600 22px/1.4 var(--font-head); color: var(--faint); }
+.steps h3 { font: 600 17px/1.6 var(--font-sans); }
+.steps p { color: var(--muted); grid-column: 2; }
+.os { font: 600 15px/1.6 var(--font-sans); color: var(--faint); margin-bottom: 4px; }
+.steps + .os { margin-top: 36px; }
+.cmd { grid-column: 2; margin-top: 10px; display: flex; align-items: center; gap: 8px; min-width: 0; background: var(--deck); border: 1px solid var(--line); border-radius: 10px; padding: 6px 6px 6px 14px; }
+.cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font: 400 13.5px/1.6 var(--font-mono); color: var(--fg); scrollbar-width: thin; }
+.cmd button { flex: none; height: 32px; padding: 0 12px; border: 0; border-radius: 7px; background: var(--fill); color: var(--fg); font: 500 13px/1 var(--font-sans); cursor: pointer; transition: background-color 150ms; }
+.cmd button:hover { background: var(--press); }
+
+/* Close */
+.close { margin-top: clamp(96px, 12vw, 152px); padding: clamp(36px, 6vw, 72px) clamp(24px, 5vw, 64px); background: var(--paper); border: 1px solid var(--line); border-radius: 22px; display: grid; gap: 24px; justify-items: start; }
+.close h2 { font-size: clamp(30px, 4vw, 48px); line-height: 1.2; max-width: 14em; }
+.close p { color: var(--muted); max-width: var(--measure); }
+footer { padding-block: 40px 56px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px 32px; color: var(--faint); font-size: 14px; }
+footer p { max-width: 40em; }
+footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+
+/* ── The sheet: a working player you can shadow with ── */
+.demo { padding-top: clamp(96px, 12vw, 152px); }
+.try { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 8px 24px; margin-bottom: 10px; color: var(--muted); font-size: 15px; }
+.try .keys { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--faint); }
+.sheet {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 18px; overflow: hidden;
+  box-shadow: 0 1px 2px oklch(0% 0 0 / 0.04), 0 24px 60px -36px oklch(0% 0 0 / 0.2);
+}
+.sheet:focus-visible { outline-offset: 4px; border-radius: 18px; }
+.sheet-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px clamp(18px, 3vw, 36px) 0; color: var(--faint); font-size: 13px; }
+.sheet-head b { font: 600 15px/1.4 var(--font-script); color: var(--muted); letter-spacing: 0.02em; }
+.script { list-style: none; margin: 0; padding: 6px clamp(10px, 2vw, 24px) 12px; }
+.line {
+  display: grid; grid-template-columns: 4.6em minmax(0, 1fr); gap: 4px 14px; align-items: baseline;
+  padding: 6px clamp(8px, 1.4vw, 12px); border-radius: 12px; cursor: pointer;
+  transition: background-color 200ms;
+}
+.line:hover { background: var(--hover); }
+.t { font: 400 12.5px/1 var(--font-mono); color: var(--faint); font-variant-numeric: tabular-nums; padding-top: 0.55em; display: flex; flex-direction: column; gap: 7px; }
+.count { color: var(--loop-text); font-weight: 600; visibility: hidden; }
+.say {
+  font-family: var(--font-script); font-weight: 500; color: var(--muted);
+  font-size: clamp(16px, 1.5vw, 18px); line-height: 1.7; letter-spacing: 0.02em;
+  transition: font-size 360ms var(--ease), color 200ms;
+}
+.bar { grid-column: 2; height: 3px; border-radius: 3px; background: var(--track); overflow: hidden; opacity: 0; transition: opacity 200ms; }
+.bar i { display: block; height: 100%; width: 100%; transform-origin: left; transform: scaleX(0); background: var(--muted); border-radius: inherit; }
+.line.on { background: transparent; cursor: default; }
+.line.on .say { color: var(--fg); font-size: clamp(20px, 2.3vw, 28px); line-height: 1.55; }
+.line.on .bar { opacity: 1; }
+.looping .line.on .bar { background: var(--loop-soft); }
+.looping .line.on .bar i { background: var(--loop); }
+.looping .line.on .count { visibility: visible; }
+.looping .line.on .t { color: var(--loop-text); }
+
+/* Explanation under the current sentence, same shape as in the app */
+.note, .take { grid-column: 2; margin-top: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; font-size: 14px; line-height: 1.6; color: var(--muted); cursor: default; }
+.note { display: grid; gap: 8px; }
+.note .tr { color: var(--fg); font-size: 15.5px; line-height: 1.6; }
+.note .run { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0; }
+.note .run > div { display: inline-flex; align-items: baseline; gap: 6px; }
+.note dt, .note .run b { font-family: var(--font-script); color: var(--fg); font-weight: 600; }
+.note dt span { font: 400 12.5px var(--font-sans); color: var(--faint); margin-left: 4px; }
+.note dd { margin: 0; }
+.note .pts { padding-top: 8px; border-top: 1px solid var(--line); }
+.note .src { font-size: 12px; color: var(--faint); margin-left: auto; align-self: end; }
+
+/* 跟讀 under the current sentence: the app's recorder card */
+.take { display: grid; gap: 10px; padding: 12px 14px; }
+.take-row { display: flex; align-items: center; gap: 12px; min-height: 36px; }
+.take-state { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; color: var(--fg); white-space: nowrap; }
+.take-state svg.i { width: 15px; height: 15px; }
+.rdot { position: relative; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 4px var(--danger-soft); flex: none; }
+.prog { flex: 1; min-width: 0; height: 4px; border-radius: 4px; background: var(--track); overflow: hidden; }
+.prog i { display: block; height: 100%; background: color-mix(in oklch, var(--fg) 70%, transparent); transform-origin: left; transform: scaleX(0); }
+.meter { flex: 1; min-width: 0; height: 28px; display: flex; align-items: center; gap: 2px; }
+.meter i { flex: 1; min-width: 0; border-radius: 4px; background: color-mix(in oklch, var(--fg) 75%, transparent); height: 8%; opacity: 0.25; }
+.secs { font: 500 12px/1 var(--font-mono); color: var(--fg); font-variant-numeric: tabular-nums; width: 3em; text-align: right; }
+.take-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.take-tools .hint { margin-left: auto; font-size: 12px; color: var(--faint); }
+.tb {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border: 0; border-radius: 8px;
+  background: var(--fill); color: var(--fg); font: 500 13px/1 var(--font-sans); cursor: pointer;
+  transition: background-color 150ms, transform 150ms var(--ease);
+}
+.tb:hover, .tb[aria-pressed="true"] { background: var(--press); }
+.tb:active { transform: scale(0.96); }
+.tb svg { width: 9px; height: 9px; fill: currentColor; }
+.tb .rdot { width: 8px; height: 8px; box-shadow: none; }
+.tl { border: 0; background: none; padding: 4px 2px; color: var(--faint); font: 400 12px/1 var(--font-sans); cursor: pointer; }
+.tl:hover { color: var(--fg); }
+.waves { display: grid; grid-template-columns: 30px minmax(0, 1fr) 50px; align-items: center; gap: 4px 8px; }
+.waves > span { font-size: 11.5px; color: var(--faint); }
+.waves > span:last-child, .waves .len { text-align: right; font: 400 11.5px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.lane { position: relative; height: 36px; border: 0; padding: 0; border-radius: 6px; background: none; cursor: pointer; transition: background-color 150ms; }
+.lane:hover { background: var(--hover); }
+.lane svg { display: block; width: 100%; height: 100%; }
+.lane.o { color: color-mix(in oklch, var(--fg) 35%, transparent); }
+.lane.m { color: color-mix(in oklch, var(--fg) 80%, transparent); }
+.lane .head { position: absolute; top: 0; bottom: 0; width: 1.5px; border-radius: 1px; background: var(--fg); pointer-events: none; }
+.pace { padding-left: 38px; font-size: 12.5px; color: var(--faint); margin-top: 2px; }
+.take .err { color: var(--danger); }
+.take .more { font-size: 12.5px; color: var(--faint); border-top: 1px solid var(--line); padding-top: 9px; }
+
+@media (max-width: 560px) {
+  .try .keys { display: none; }
+  .line { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .t { flex-direction: row; gap: 10px; padding-top: 0; }
+  .bar, .note, .take { grid-column: 1; }
+  .line:not(.on) .say { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .note .pts { display: none; }
+  .take-tools .hint { display: none; }
+}
+
+/* Deck */
+.deck {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+  padding: 10px clamp(14px, 2.4vw, 28px); background: var(--deck); border-top: 1px solid var(--line);
+}
+.grp { display: flex; align-items: center; gap: 4px; }
+.ib {
+  display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; border: 0;
+  background: transparent; color: var(--fg); cursor: pointer; transition: background-color 150ms, transform 150ms var(--ease);
+}
+.ib:hover { background: var(--hover); }
+.ib:active { transform: scale(0.94); }
+.play { width: 48px; height: 48px; border-radius: 50%; background: var(--ink); color: var(--on-ink); }
+.play:hover { background: var(--ink); filter: brightness(1.12); }
+.play svg.i { width: 20px; height: 20px; fill: currentColor; stroke-width: 0; }
+.tog {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 10px;
+  border: 1px solid var(--line-strong); background: transparent; color: var(--fg); font: 500 14.5px/1 var(--font-sans); cursor: pointer;
+  transition: background-color 150ms, color 150ms, border-color 150ms;
+}
+.tog:hover { background: var(--hover); }
+.tog kbd { height: 1.45em; font-size: 0.74em; }
+.tog.loop[aria-pressed="true"] { background: var(--loop-soft); border-color: var(--loop-line); color: var(--loop-text); }
+.tog.loop[aria-pressed="true"] kbd { color: var(--loop-text); border-color: var(--loop-line); background: transparent; }
+.tog.exp[aria-pressed="true"], .tog.rec[aria-pressed="true"] { background: var(--fill); }
+.tog.rec svg.i { width: 16px; height: 16px; }
+.tog.rec.live { color: var(--danger); }
+.speeds { display: flex; background: var(--fill); border-radius: 10px; padding: 3px; }
+.speeds button {
+  height: 34px; min-width: 52px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted);
+  font: 500 13.5px/1 var(--font-mono); font-variant-numeric: tabular-nums; cursor: pointer; transition: background-color 150ms, color 150ms;
+}
+.speeds button:hover { color: var(--fg); }
+.speeds button[aria-pressed="true"] { background: var(--paper); color: var(--fg); box-shadow: 0 1px 2px oklch(0% 0 0 / 0.1), 0 0 0 1px var(--line); }
+.clock { margin-left: auto; font: 400 13px/1 var(--font-mono); color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.clock b { color: var(--fg); font-weight: 500; }
+@media (max-width: 860px) { .clock { display: none; } }
+@media (max-width: 720px) { .deck { gap: 10px; } .tog { padding: 0 11px; } .tog kbd { display: none; } }
+@media (max-width: 560px) { .deck { gap: 10px 8px; padding-inline: 12px; } .deck .grp { order: 1; } #loop { order: 2; } #rec { order: 3; } .speeds { order: 4; } #exp { order: 5; } .speeds button { min-width: 44px; } }
+.caption { margin-top: 12px; font-size: 13px; color: var(--faint); }
+</style>
+<script>
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+
+<div class="wrap">
+  <nav class="nav" aria-label="主導覽">
+    <a class="brand" href="#top" aria-label="Shadowing 首頁">
+      <svg viewBox="64 64 896 896" aria-hidden="true"><rect x="64" y="64" width="896" height="896" rx="208" fill="#252927"/><path d="M 648 326 A 238 238 0 1 0 748 513" fill="none" stroke="#F7F5EE" stroke-width="55" stroke-linecap="round"/><path d="M 748 447 L 803 541 L 693 541 Z" fill="#F7F5EE"/><g fill="#EFA477"><rect x="389" y="455" width="53" height="114" rx="26.5"/><rect x="486" y="393" width="53" height="238" rx="26.5"/><rect x="583" y="432" width="53" height="160" rx="26.5"/></g></svg>
+      Shadowing
+    </a>
+    <div class="nav-links">
+      <a href="#try">試一句</a>
+      <a href="#listen">功能</a>
+      <a href="#speak">跟讀錄音</a>
+      <a href="#practice">學習記錄</a>
+      <a href="#plugins">外掛模組</a>
+      <a href="#updates">更新紀錄</a>
+      <a href="#install">安裝說明</a>
+      <a href="https://github.com/mxggle/shadowing" target="_blank" rel="noopener">GitHub</a>
+      <div class="lang-picker">
+        <button class="lang-btn" type="button" aria-expanded="false" aria-label="選擇語言">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span>繁體中文</span>
+          <svg class="arrow" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="lang-menu" role="menu">
+          <a href="/" role="menuitem" lang="zh-CN">简体中文</a>
+          <a href="/zh-tw" role="menuitem" class="active" lang="zh-TW">繁體中文</a>
+          <a href="/en" role="menuitem" lang="en">English</a>
+          <a href="/ja" role="menuitem" lang="ja">日本語</a>
+        </div>
+      </div>
+      <a class="nav-dl" data-os="mac" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">下載</a>
+    </div>
+  </nav>
+
+  <main id="top">
+    <section class="hero">
+      <a class="news" href="#updates"><b>0.14 新增</b>外掛標註<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+      <h1><span class="ph">把你的聲音，</span><span class="ph">放在母語者身旁聽。</span></h1>
+      <p class="lede">Shadowing 是專為 Mac 和 Windows 設計的跟讀應用程式。拖入你手邊的日語音訊，自動轉寫成逐句字幕（在 Mac 上直接於本機轉寫）：循環練習這一句、放慢也不變調、聽不懂隨時展開詳細解釋。接著開口跟讀，你的錄音與母語原聲上下對齊，慢了多少、晚了幾秒，一眼就能看清。</p>
+      <div class="actions">
+        <a class="btn btn-ink" data-os="mac" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+          下載 macOS 版 <small>Apple Silicon</small>
+        </a>
+        <a class="btn btn-quiet" data-os="windows" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-windows-x64-setup.exe">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+          下載 Windows 版 <small>x64</small>
+        </a>
+        <a class="btn btn-quiet" href="#try">先在網頁上跟讀一句</a>
+      </div>
+      <p class="win-note">Windows 安裝檔尚未加入代碼簽名，若遭 SmartScreen 攔截，請按「其他資訊」，再按「仍要執行」（<a href="#windows">安裝說明</a>）。</p>
+      <div class="meta">
+        <span>免費，MIT 開源</span>
+        <span data-app-version>v0.14.0 · 約 12 MB</span>
+        <span>macOS 11 或以上，或 64 位元的 Windows 10 / 11</span>
+        <span>不含任何遙測</span>
+        <span><i class="dot" aria-hidden="true"></i>Linux 版開發中</span>
+      </div>
+    </section>
+
+    <figure class="shot window hero-shot">
+      <picture>
+        <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="shots/hero-crop-dark.webp" width="1121" height="533">
+        <source media="(max-width: 640px)" srcset="shots/hero-crop-light.webp" width="1121" height="533">
+        <source media="(prefers-color-scheme: dark)" srcset="shots/hero-dark.webp" width="2480" height="1560">
+        <img src="shots/hero-light.webp" width="2480" height="1560" alt="Shadowing 應用程式視窗：日語對話轉寫成逐句字幕，標出說話者與對話段落；正在練習的那句下方是跟讀錄音，原句與我的兩條波形上下對齊，下方標註比原聲晚 0.42 秒。" fetchpriority="high">
+      </picture>
+    </figure>
+
+    <section class="demo" id="try" aria-labelledby="try-title">
+      <div class="head">
+        <h2 id="try-title"><span class="ph">無需安裝，</span><span class="ph">先在這裡跟讀一句。</span></h2>
+        <p>應用程式內建的範例《ごんぎつね》。點選任一句即可單句循環，放慢也不變調；按<b>跟讀</b>，先聽原句，接著換你說，隨時與原聲對比。</p>
+      </div>
+      <div class="try">
+        <span class="keys"><span><kbd>空白鍵</kbd> 播放</span><span><kbd>L</kbd> 循環</span><span><kbd>[</kbd> <kbd>]</kbd> 切換句子</span><span><kbd>−</kbd> <kbd>=</kbd> 變速</span><span><kbd>I</kbd> 解釋</span><span><kbd>M</kbd> 跟讀</span></span>
+      </div>
+
+      <div class="sheet looping" id="sheet" tabindex="0" aria-label="範例播放器，支援鍵盤操作">
+        <div class="sheet-head"><b>ごんぎつね　新美南吉</b><span class="goal" id="goal" title="今日練習 / 每日目標"><svg class="ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="bg" cx="10" cy="10" r="8"/><circle class="fg" id="ringFg" cx="10" cy="10" r="8" stroke-dasharray="50.27" stroke-dashoffset="50.27"/></svg><span id="goalText">0:00/1 分鐘</span></span></div>
+        <ol class="script" id="script"></ol>
+        <div class="deck">
+          <div class="grp">
+            <button class="ib" id="prev" title="上一句 ([)" aria-label="上一句"><svg class="i" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <button class="ib play" id="play" title="播放 (空白鍵)" aria-label="播放"><svg class="i" viewBox="0 0 24 24" id="playIcon"><path d="M8 5.5v13l11-6.5z"/></svg></button>
+            <button class="ib" id="next" title="下一句 (])" aria-label="下一句"><svg class="i" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+          <button class="tog loop" id="loop" aria-pressed="true" title="循環這一句 (L)">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3l3 3-3 3"/><path d="M4 11V9a3 3 0 0 1 3-3h13"/><path d="M7 21l-3-3 3-3"/><path d="M20 13v2a3 3 0 0 1-3 3H4"/></svg>
+            循環 <kbd>L</kbd>
+          </button>
+          <div class="speeds" role="group" aria-label="播放速度" id="speeds"></div>
+          <button class="tog exp" id="exp" aria-pressed="true" title="解釋這一句 (I)">解釋 <kbd>I</kbd></button>
+          <button class="tog rec" id="rec" aria-pressed="false" title="跟讀這一句：先聽原句，再錄下你的聲音 (M)">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
+            跟讀 <kbd>M</kbd>
+          </button>
+          <div class="clock" aria-live="off"><b id="now">0:00.0</b> / 0:32.8</div>
+        </div>
+      </div>
+      <p class="caption">錄音來源：LibriVox，由 ekzemplaro 朗讀（CC0）。範例中的解釋為預先準備好的內容，在應用程式中由你所設定的 AI 即時生成。跟讀錄音僅保留在你的瀏覽器中，絕不上傳。</p>
+      <audio id="audio" src="gongitsune.mp3" preload="auto"></audio>
+    </section>
+
+    <section class="chapter" id="listen" aria-labelledby="listen-title">
+      <div class="head">
+        <h2 id="listen-title"><span class="ph">你手邊的錄音，</span><span class="ph">就是最佳跟讀教材。</span></h2>
+        <p>選擇一個存放音訊的檔案夾就能開始練習。既有字幕可直接讀取；若沒有字幕，直接在這台 Mac 上轉寫（Windows 版使用雲端服務），自動依停頓斷句、區分不同的說話者。</p>
+      </div>
+      <figure class="shot window listen-shot">
+        <picture>
+          <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="shots/listen-crop-dark.webp" width="1441" height="558">
+          <source media="(max-width: 640px)" srcset="shots/listen-crop-light.webp" width="1441" height="558">
+          <source media="(prefers-color-scheme: dark)" srcset="shots/listen-dark.webp" width="2480" height="1560">
+          <img src="shots/listen-light.webp" width="2480" height="1560" loading="lazy" decoding="async" alt="一段日語對話的字幕：每句前面標有時間與說話者 A、B，多段對話之間有「對話 2」這樣的小標題；正在循環播放的句子以橘色標註。">
+        </picture>
+      </figure>
+      <div class="shelfrow" aria-label="適合的材料"><span>シャドーイング 教材 CD</span><span>JLPT 聽力測驗</span><span>有聲書</span><span>Podcast 播客</span><span>NHK 新聞</span><span>英語教材</span></div>
+      <dl class="points">
+        <div><dt>本機轉寫</dt><dd>Whisper 直接在 Mac 本機執行，Apple Silicon 採用 Metal 硬體加速，無需連網、完全免費。初次開啟時會檢測此台 Mac 的晶片、記憶體與可用空間，為你推薦最合適的模型。若想追求極致速度，也可選用 Groq、OpenAI 等雲端服務；Windows 版則採用雲端服務。</dd></div>
+        <div><dt>單句循環，放慢不變調</dt><dd>點選句子即從該句開始播放，<kbd>S</kbd> 鍵循環，<kbd>[</kbd> <kbd>]</kbd> 鍵切換句子，旁邊會記錄聽了幾次。支援 <strong>0.5× 到 2.0×</strong> 變速，每次微調 0.05×。沒有字幕時，也能用 <kbd>L</kbd> 鍵設定 A、B 點隨意循環。</dd></div>
+        <div><dt>對話段落劃分</dt><dd>單一音訊中包含多段對話時（例如聽力測驗一題一段），可在長停頓或更換說話者時自動分段。小標題可自由重新命名、合併，支援「循環此段」與 <kbd>{</kbd> <kbd>}</kbd> 段落切換。</dd></div>
+        <div><dt>區分說話者</dt><dd><span class="spk">A</span><span class="spk">B</span> 對話中誰說了哪句話一清二楚，聲紋分析同樣完全在本機運算。</dd></div>
+        <div><dt>標註沒把握的字詞</dt><dd>轉寫時辨識把握度較低的字詞會以虛線標示，例如 <span class="doubt">飴</span>。可直接手動修改、尋找並取代全部，或請 AI 進行校對提供修正建議，改不改全由你決定。</dd></div>
+        <div><dt>讀取既有字幕</dt><dd>音訊旁若有同名的 SRT、VTT 檔案將會自動載入。所有修改僅保存在應用程式中，絕不更動你的原始檔案。每個音訊聽到何處都會完整記憶。</dd></div>
+      </dl>
+    </section>
+
+    <section class="chapter split flip" id="understand" aria-labelledby="understand-title">
+      <figure class="shot crop">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="shots/explain-dark.webp">
+          <img src="shots/explain-light.webp" width="1441" height="601" loading="lazy" decoding="async" alt="日語句子下方展開的解釋：中文翻譯、生詞與讀音、文法重點，口語中的縮約形也詳細說明。">
+        </picture>
+      </figure>
+      <div>
+        <div class="head">
+          <h2 id="understand-title"><span class="ph">聽不懂的那一句，</span><span class="ph">展開就有詳細解釋。</span></h2>
+          <p>按下 <kbd>I</kbd> 鍵，該句下方立即展開翻譯、生詞與文法要點，口語中的各類縮約形也能清楚掌握。解析結果會自動儲存，下次複習無需重複等待。</p>
+        </div>
+        <dl class="points">
+          <div><dt>串接你慣用的 AI</dt><dd>支援在瀏覽器中一鍵登入 ChatGPT 帳號或 OpenRouter；亦可填入 OpenAI、Anthropic、Gemini、DeepSeek 等 API Key，或是串接本機的 Ollama、LM Studio。</dd></div>
+          <div><dt>全部功能自由選用</dt><dd>即使未設定 AI 或沒有字幕，播放、單句循環與跟讀錄音依然能完全正常使用。</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <div class="band" id="speak">
+      <div class="wrap">
+        <section class="chapter" aria-labelledby="speak-title">
+          <div class="head">
+            <div><p class="new">0.7 版新增</p><h2 id="speak-title"><span class="ph">然後，</span><span class="ph">輪到你開口。</span></h2></div>
+            <p>每句右側都有麥克風按鈕，按下 <kbd>M</kbd> 鍵即可開始錄音。即使不戴耳機也沒問題：喇叭播放的原音若被收錄進去，錄音結束後會自動過濾消除，只留下你的純淨聲音。說完稍作停頓即會自動結束。</p>
+          </div>
+          <div class="split flip">
+            <figure class="shot crop">
+              <picture>
+                <source media="(prefers-color-scheme: dark)" srcset="shots/take-dark.webp">
+                <img src="shots/take-light.webp" width="1441" height="542" loading="lazy" decoding="async" alt="跟讀錄音卡片：邊聽邊說模式下，原句與我的兩條波形上下對齊，下方標註比原聲晚 0.42 秒；提供對比播放、原句、我的與再錄一次按鈕。">
+              </picture>
+              <figcaption>邊聽邊說：兩條波形依真實時間軸對齊，延遲幾秒一目了然。</figcaption>
+            </figure>
+            <dl class="points">
+              <div><dt>聽完再說，或邊聽邊說</dt><dd>可選擇先聽一遍原句再換你開口，或是跟著原句同步說出。錄完自動回放：可先聽原句再聽自己的，或是兩者合成立體聲同時播放，比對發音與語調是否合拍。</dd></div>
+              <div><dt>兩條波形上下對齊</dt><dd>清楚標示說話節奏比原句快或慢百分之幾，或相較原聲晚了幾秒開口。點選波形隨點隨聽，按 <kbd>P</kbd> 鍵即可重播上一次對比。</dd></div>
+              <div><dt>戴 AirPods 也同樣從容</dt><dd>使用藍牙耳機時，會自動切換為 Mac 內建麥克風收音，耳機中的播放音質絕不會因通話協定而劣化。</dd></div>
+            </dl>
+          </div>
+          <div class="split">
+            <dl class="points">
+              <div><dt>整段錄音</dt><dd>能一口氣朗讀完整段落或全文。自主朗讀時醒目提示會跟著你的語速移動，句尾稍停便自動跳至下一句；亦可緊跟原文節奏跟讀。讀完自動按句子切割，每句皆可單獨對比。</dd></div>
+              <div><dt>如動態歌詞般流暢</dt><dd>播放至曾錄音過的句子時，下方會自動展開你的跟讀錄音；按下「合聽」，即會逐句無縫播放完整篇章。</dd></div>
+              <div><dt>每次練習完整保留</dt><dd>錄音檔自動儲存於本機電腦，隨時可翻閱歷次練習記錄。偏好設定中可隨時查看佔用容量，原始音訊刪除後亦支援一鍵清理。</dd></div>
+            </dl>
+            <figure class="shot crop">
+              <picture>
+                <source media="(prefers-color-scheme: dark)" srcset="shots/reading-dark.webp">
+                <img src="shots/reading-light.webp" width="1441" height="911" loading="lazy" decoding="async" alt="整段朗讀完成後：段落上方一行標註你錄了 10.7 秒、原文 11.0 秒，節奏大致相當；提供逐句對比與我的整段錄音；目前播放的句子下方展開了原句與我的波形。">
+              </picture>
+              <figcaption>整段錄音：一口氣朗讀完畢，自動切割成逐句進行精準對比。</figcaption>
+            </figure>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <section class="chapter split" id="practice" aria-labelledby="practice-title">
+      <div>
+        <div class="head">
+          <h2 id="practice-title"><span class="ph">每天練習一點，</span><span class="ph">進步看得見。</span></h2>
+          <p>僅統計真正投入練習的時間。設定每日目標，頂端的圓環會隨練習進度悄悄填滿，達標後會化為綠色勾號。</p>
+        </div>
+        <dl class="points">
+          <div><dt>依實際練習精準計時</dt><dd>播放、跟讀錄音、回聽比對皆納入統計；暫停後 90 秒內的各項操作亦視為有效練習。每日以凌晨 4 點為分界，深夜練習同樣計入當天。</dd></div>
+          <div><dt>每日目標與連續天數</dt><dd>預設每日 15 分鐘，可彈性調整為 5 至 60 分鐘。提供近 14 天長條圖與近半年打卡日曆，哪天中斷一眼就能發現。</dd></div>
+        </dl>
+      </div>
+      <figure class="shot crop">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="shots/practice-dark.webp">
+          <img src="shots/practice-light.webp" width="1280" height="1361" loading="lazy" decoding="async" alt="學習記錄面板：今天、最近 7 天、累計時數與連續練習天數，近 14 天長條圖與近半年打卡日曆。">
+        </picture>
+      </figure>
+    </section>
+
+    <div class="band" id="plugins">
+      <div class="wrap">
+        <section class="chapter" aria-labelledby="plugins-title">
+          <div class="head">
+            <div><p class="new">0.9 版新增</p><h2 id="plugins-title"><span class="ph">核心功能之外，</span><span class="ph">全交給外掛模組。</span></h2></div>
+            <p>外掛模組能為 Shadowing 擴充無限可能，任何人都能自行開發。第一個官方外掛「YouTube 匯入」：在其他地方複製影片連結，回到應用程式按下 <kbd>⌘V</kbd>，音訊與人工字幕即刻儲存至你的檔案夾；想對照畫面跟讀，還能連同影像一併下載。</p>
+          </div>
+          <div class="split flip">
+            <figure class="shot imp">
+              <div class="imp-win" aria-hidden="true">
+                <div class="imp-bar"><b>從連結匯入</b><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></div>
+                <div class="imp-body">
+                  <div class="imp-url"><span class="field">https://www.youtube.com/watch?v=…</span><span class="mini">讀取</span></div>
+                  <p class="imp-title">カフェで注文してみよう｜日本語の会話</p>
+                  <p class="imp-meta">11:38 · YouTube</p>
+                  <div class="imp-rows">
+                    <div class="imp-row"><span>字幕</span><span class="field">日語（人工字幕）<svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span></div>
+                    <div class="imp-row"><span>內容</span><span class="seg"><span>純音訊</span><span class="on">音訊 + 視訊</span></span></div>
+                    <div class="imp-row"><span>畫質</span><span class="field"><span>720p · 約 96 MB</span><svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span></div>
+                    <div class="imp-row"><span>儲存至</span><span class="folder">日語聽力 /</span><span class="field">YouTube</span></div>
+                  </div>
+                  <p class="imp-note">下載 mp4 視訊（H.264）與原始 m4a 音軌，直接合成為單一影片，不經轉碼。字幕分句不佳時，可移除後改用本機轉寫。請僅下載你有權使用的內容。</p>
+                  <div class="imp-btns"><span class="mini">取消</span><span class="mini ink">下載</span></div>
+                </div>
+              </div>
+              <div class="dl-list" aria-hidden="true">
+                <b>YouTube</b>
+                <div class="dl"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="var(--track)"/><circle cx="8" cy="8" r="6.5" stroke="var(--fg)" stroke-linecap="round" stroke-dasharray="15.9 40.8" transform="rotate(-90 8 8)"/></svg><div><p>カフェで注文してみよう｜日本語の会話</p><small>下載畫面 31.4 / 85.2 MB</small></div></div>
+                <div class="dl q"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="var(--track)" stroke-dasharray="2.5 2.5"/></svg><div><p>駅で道を聞く｜日本語の会話</p><small>等待前一個下載完成</small></div></div>
+              </div>
+              <figcaption>按下 <kbd>⌘V</kbd> 即可預覽內容資訊與人工字幕，自由選擇僅保留聲音或下載完整畫面。欲下載的項目會立即顯示於清單中的目標檔案夾下，依序平穩下載。</figcaption>
+            </figure>
+            <dl class="points">
+              <div><dt>貼上連結即刻匯入</dt><dd>預先預覽標題、片長與人工字幕，選定放置的子檔案夾即可開始下載。下載期間可照常練習其他音訊，完成後便成為播放清單中的一般項目。音訊保留原始 m4a 音軌；若需視訊則下載 H.264 畫面並封裝為 mp4，全程不重新轉碼，也不需額外安裝 ffmpeg。</dd></div>
+              <div><dt>人人都能輕鬆開發</dt><dd>外掛模組僅由一支執行檔與一個 manifest.json 組成，透過標準輸入輸出溝通 JSON-RPC，機制如同 LSP 與 MCP，能使用任何程式語言撰寫。外掛當機或卡死也不會影響主程式播放。</dd></div>
+              <div><dt>安裝前權限一目了然</dt><dd>應用程式絕不向外掛公開你的檔案夾路徑：外掛僅能寫入暫存檔案夾，經應用程式檢驗確認後才會存入。安裝前會清楚條列連線目標與下載執行的項目；外掛目錄中的所有項目皆通過原始碼審核。</dd></div>
+            </dl>
+          </div>
+          <div class="plug-more">
+            <a class="btn btn-ink" href="/plugins">瀏覽外掛模組目錄</a>
+            <a class="btn btn-quiet" href="/plugins#write">開發外掛模組並提交</a>
+            <p>匯出至 Anki、辭典查詞等外掛模組接口正持續規劃中。</p>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <section class="chapter" id="privacy" aria-labelledby="privacy-title">
+      <div class="head">
+        <h2 id="privacy-title"><span class="ph">你的音訊與錄音，</span><span class="ph">始終留在你的電腦裡。</span></h2>
+        <p>區分說話者、消除錄進來的原聲完全在原生本機端運算，Mac 上連轉寫也能全程離線進行。除檢查軟體更新外，只有在使用 AI 相關功能（包含 Windows 版的轉寫）或外掛模組時才會連網。</p>
+      </div>
+      <ul class="facts">
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span><b>僅存取你所指定的檔案夾。</b>除了應用程式內建的範例材料，絕不觸碰其他任何檔案。</span></li>
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l16 16"/><path d="M9.5 5.2A9 9 0 0 1 21 12a9 9 0 0 1-1.6 2.6M6.2 6.6A9 9 0 0 0 3 12a9 9 0 0 0 12.4 5.4"/></svg><span><b>絕無遙測追蹤。</b>不蒐集任何使用數據與行為紀錄；偏好設定中針對各項 AI 功能皆清楚標註資料傳送目的地。</span></li>
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg><span><b>API Key 安全存放於系統金鑰庫</b>（macOS 鑰匙圈、Windows 認證管理員）。應用程式自身資料中僅保留如 <code>sk-…abcd</code> 的辨識提示。</span></li>
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span><b>本機模型於初次使用時才下載。</b>版本固定，並嚴格校驗 SHA-256 雜湊值。</span></li>
+      </ul>
+    </section>
+
+    <section class="chapter" id="updates" aria-labelledby="updates-title">
+      <div class="head">
+        <h2 id="updates-title"><span class="ph">十九天推出十七個版本，</span><span class="ph">持續高速迭代。</span></h2>
+        <p>新版本發布時，應用程式啟動時會主動通知，點擊「更新並重新開啟」即可一鍵完成安裝，所有偏好設定、字幕與錄音資料均完整保留。</p>
+      </div>
+      <ol class="log">
+        <li><span class="v">0.14</span><time datetime="2026-10-27">10 月 27 日</time><p><b>外掛標註。</b>外掛模組支援在字幕句子上加入標註，首推「日語注音」外掛，於日語字幕漢字上方標示假名讀音。</p></li>
+        <li><span class="v">0.13</span><time datetime="2026-10-27">10 月 27 日</time><p><b>影片支援。</b>mp4、mov 與音訊相同，支援變速、循環、跟讀；提供畫面並排、劇院模式、隱藏字幕；支援對嘴配音；YouTube 匯入可連同視訊一併下載。</p></li>
+        <li><span class="v">0.12</span><time datetime="2026-10-24">10 月 24 日</time><p><b>逐字醒目提示。</b>轉寫生成的字幕，目前播放的句子會隨聲音逐字點亮（英文則逐詞點亮）。</p></li>
+        <li><span class="v">0.11</span><time datetime="2026-10-19">10 月 19 日</time><p><b>Windows 版上線。</b>64 位元 Windows 10 / 11 同樣可用：播放、循環、跟讀錄音體驗與 Mac 版完全一致，快速鍵對應為 Ctrl；轉寫則採用雲端服務。</p></li>
+        <li><span class="v">0.10</span><time datetime="2026-10-18">10 月 18 日</time><p><b>英文介面。</b>跟隨系統語言設定，偏好設定中亦可隨時切換繁體中文、簡體中文與英文。</p></li>
+        <li><span class="v">0.9</span><time datetime="2026-10-18">10 月 18 日</time><p><b>外掛模組與 YouTube 匯入。</b>貼上連結即可將影片音訊與人工字幕匯入檔案夾；句子詳細解釋按語序拆解說明，並解析說話語氣。</p></li>
+        <li><span class="v">0.8.1</span><time datetime="2026-10-17">10 月 17 日</time><p>應用程式內可直接查閱各版本的新功能介紹。</p></li>
+        <li><span class="v">0.8</span><time datetime="2026-10-17">10 月 17 日</time><p><b>手動斷句、合併句子，單句連續錄製多次。</b>支援逐句跟讀；播放按鈕可暫停錄音與回放。</p></li>
+        <li><span class="v">0.7</span><time datetime="2026-10-15">10 月 15 日</time><p><b>跟讀錄音、整段錄音。</b>錄下自己的發音與原句對比，不戴耳機也能錄；整段一口氣朗讀完畢，自動拆解為逐句對比。</p></li>
+        <li><span class="v">0.6</span><time datetime="2026-10-13">10 月 13 日</time><p><b>對話段落劃分。</b>單一音訊內的多段對話自動分段，支援重新命名、合併與整段循環。</p></li>
+        <li><span class="v">0.5.1</span><time datetime="2026-10-12">10 月 12 日</time><p>更新後不再頻繁彈出請求系統鑰匙圈存取權限的對話框。</p></li>
+        <li><span class="v">0.5</span><time datetime="2026-10-12">10 月 12 日</time><p><b>新手導引流程。</b>根據此台 Mac 硬體規格推薦並下載本機模型，支援透過 ChatGPT 帳號登入 AI；安裝檔改為 .dmg 封裝。</p></li>
+        <li><span class="v">0.4</span><time datetime="2026-10-12">10 月 12 日</time><p><b>學習記錄與每日目標，</b>並新增應用程式內自動更新。</p></li>
+        <li><span class="v">0.3</span><time datetime="2026-10-11">10 月 11 日</time><p>縮減安裝檔體積，儲存更穩定，長篇字幕 AI 校對不再發生逾時。</p></li>
+        <li><span class="v">0.2</span><time datetime="2026-10-10">10 月 10 日</time><p>播放順序切換：清單循環、單曲循環、播畢停止。</p></li>
+        <li><span class="v">0.1</span><time datetime="2026-10-09">10 月 9 日</time><p>首個公開版本發布。</p></li>
+      </ol>
+      <p class="log-more"><a href="https://github.com/mxggle/shadowing/blob/main/CHANGELOG.md" target="_blank" rel="noopener">查看完整的更新日誌</a>，或在 GitHub 上關注本專案，第一時間掌握 Linux 版本的發布動態。</p>
+    </section>
+
+    <section class="chapter" id="install" aria-labelledby="install-title">
+      <div class="head">
+        <h2 id="install-title">安裝說明</h2>
+        <p>Mac 版需配備 Apple Silicon 晶片（macOS 11 或以上），Windows 版需為 64 位元的 Windows 10 或 11。初次開啟時有四步導引流程：選擇學習語言、選擇轉寫方式（Mac 上會推薦並下載適合的本機模型）、登入 AI、以範例練習一次；中間兩步皆可隨時略過。</p>
+      </div>
+      <div class="split start">
+      <div>
+      <h3 class="os">macOS（Apple Silicon）</h3>
+      <ol class="steps">
+        <li><h3>下載安裝檔</h3><p>點擊此處<a href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">下載最新版本</a>，大小約 11 MB。</p></li>
+        <li><h3>拖移至「應用程式」</h3><p>按兩下載回的 .dmg 檔案，在打開的視窗中將 Shadowing 拖移至「應用程式」檔案夾。</p></li>
+        <li>
+          <h3>無法開啟或顯示「已損毀」時</h3>
+          <p>應用程式尚未進行 Apple 公證，透過瀏覽器下載的軟體可能遭系統 Gatekeeper 攔截，偶爾會顯示「已損毀」，但檔案本身完全正常。請按 ⌘ 空白鍵開啟「終端機」，貼上下列指令並按 Enter，系統便會自動下載、安裝至「應用程式」檔案夾並直接開啟，往後直接按兩下即可啟動：</p>
+          <div class="cmd"><code id="cmd">curl -fsSL https://shadowing.nihongo.day/install.sh | bash</code><button id="copy" type="button">複製</button></div>
+          <p>你也可以直接執行此指令，略過前兩步直接完成安裝。</p>
+        </li>
+        <li><h3>日後自動更新</h3><p>推出新版本時應用程式會主動提醒，查閱更新說明後輕點即可更新完成，安裝檔皆預先通過簽名校驗。</p></li>
+      </ol>
+      <h3 class="os" id="windows">Windows（x64）</h3>
+      <ol class="steps">
+        <li><h3>下載安裝檔</h3><p>點擊此處<a href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-windows-x64-setup.exe">下載 Windows 版</a>，按兩下執行。軟體將安裝於目前使用者目錄下，無需管理員權限。</p></li>
+        <li><h3>「Windows 已保護您的電腦」提示</h3><p>安裝檔尚未加入微軟程式碼簽名，SmartScreen 會暫時提示防護：請點擊「其他資訊」，接著點選「仍要執行」。</p></li>
+        <li><h3>日後自動更新</h3><p>與 Mac 版相同，推出新版本時應用程式會主動提醒，輕點一下即可完成更新。Windows 版轉寫目前僅支援雲端服務（Groq、OpenAI 等），本機端轉寫為 Mac 專屬功能。</p></li>
+      </ol>
+      </div>
+      <figure class="shot crop">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="shots/onboarding-dark.webp">
+          <img src="shots/onboarding-light.webp" width="1250" height="806" loading="lazy" decoding="async" alt="新手導引第二步「在此台 Mac 上轉寫」：列出晶片、記憶體與可用空間，推薦 Large v3 Turbo 模型並說明推薦理由，下方為「下載並使用」。">
+        </picture>
+        <figcaption>新手導引：檢測此台 Mac 的晶片、記憶體與可用空間，推薦合適的轉寫模型，點擊即可於背景自動下載。</figcaption>
+      </figure>
+      </div>
+    </section>
+
+    <section class="close">
+      <h2><span class="ph">今天就挑一句，</span><span class="ph">循環練習到完全跟上。</span></h2>
+      <p>然後錄下聲音，與母語原聲放在一起對比。給自己設定一個每天 15 分鐘的小目標，就從今天開始。</p>
+      <div class="actions">
+        <a class="btn btn-ink" data-os="mac" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+          下載 macOS 版 <small>Apple Silicon</small>
+        </a>
+        <a class="btn btn-quiet" data-os="windows" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-windows-x64-setup.exe">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+          下載 Windows 版 <small>x64</small>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>本軟體由一位在東京寫程式的開發者打造，亦在 <a href="https://www.xiaohongshu.com/user/profile/606524e3000000000100884d" target="_blank" rel="noopener">小紅書</a> 上分享如何結合技術與 AI 學習日語，開發歷程也會在此持續公開。</p>
+    <nav aria-label="頁尾">
+      <a href="https://github.com/mxggle/shadowing" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/mxggle/shadowing/blob/main/CHANGELOG.md" target="_blank" rel="noopener">更新日誌</a>
+      <a href="/plugins">外掛模組</a>
+      <a href="https://github.com/mxggle/shadowing/blob/main/LICENSE" target="_blank" rel="noopener">MIT 授權</a>
+      <a href="https://nihongo.day/">更多日語工具</a>
+    </nav>
+    <div class="lang-foot">
+      <span>語言 / Language:</span>
+      <a href="/" lang="zh-CN">简体中文</a>
+      <a href="/zh-tw" class="active" lang="zh-TW">繁體中文</a>
+      <a href="/en" lang="en">English</a>
+      <a href="/ja" lang="ja">日本語</a>
+    </div>
+  </footer>
+</div>
+
+<script>
+const LINES = [
+  { s: 0.25, e: 6.25, text: "これは、私が小さいときに、村の茂平というおじいさんからきいたお話です。",
+    tr: "這是我小時候，從村裡一位叫茂平的老爺爺那裡聽來的故事。",
+    words: [["茂平", "もへい", "人名"], ["おじいさん", "", "老爺爺"], ["きいた", "聞いた", "聽見的，「聞く」的過去式"], ["お話", "おはなし", "故事"]],
+    points: [["AというB", "叫做 A 的 B，用來引出人名、地名"], ["〜からきいた", "從……那裡聽說"], ["きいたお話", "過去式直接修飾名詞：聽來的故事"]] },
+  { s: 7.5, e: 17.0, text: "むかしは、私たちの村のちかくの、中山というところに小さなお城があって、中山さまというおとのさまが、おられたそうです。",
+    tr: "很久以前，在我們村子附近一個叫中山的地方有一座小城，據說那裡住著一位叫中山大人的領主。",
+    words: [["お城", "おしろ", "城堡"], ["おとのさま", "", "領主，對藩主的尊稱"], ["おられた", "", "「いる」的尊敬語「おる」的過去式"]],
+    points: [["〜そうです", "接在句尾的傳聞：據說"], ["〜があって", "「ある」的て形，將兩件事連接起來"], ["〜さま", "比「さん」更鄭重的敬稱"]] },
+  { s: 18.25, e: 24.6, text: "その中山から、少しはなれた山の中に、「ごん狐」という狐がいました。",
+    tr: "在離那座中山稍遠一些的山裡，住著一隻叫「權狐」的狐狸。",
+    words: [["少し", "すこし", "稍微"], ["はなれた", "離れた", "離開的，稍遠一些的"], ["狐", "きつね", "狐狸"]],
+    points: [["〜からはなれた", "離……稍遠的，修飾後方的「山」"], ["いました", "動物、人的存在用「いる」"]] },
+  { s: 25.45, e: 32.45, text: "ごんは、一人ぼっちの小狐で、しだの一ぱいしげった森の中に穴をほって住んでいました。",
+    tr: "權是一隻孤零零的小狐狸，在長滿蕨草的森林深處挖了個洞住著。",
+    words: [["一人ぼっち", "ひとりぼっち", "孤零零一個人"], ["しだ", "", "蕨類植物"], ["しげった", "茂った", "茂密的"], ["ほって", "掘って", "挖"]],
+    points: [["〜で、", "名詞句的中頓：是……，而且……"], ["しだの一ぱいしげった森", "「の」相當於「が」，修飾「森」：長滿蕨草的森林"], ["〜て住んでいました", "先挖洞，然後一直住在那裡"]] },
+];
+const SPEEDS = [0.75, 0.85, 1, 1.25];
+
+const $ = (id) => document.getElementById(id);
+const audio = $("audio"), sheet = $("sheet"), script = $("script");
+let cur = 0, looping = true, explain = true, rate = 0.85, count = 1, raf = 0;
+// Play only up to here, then call onStop (跟讀 uses this for "listen first" and replays).
+let stopAt = null, onStop = null;
+
+const fmt = (t) => { const m = Math.floor(t / 60), s = (t % 60).toFixed(1).padStart(4, "0"); return `${m}:${s}`; };
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+script.innerHTML = LINES.map((l, i) => `
+  <li class="line" data-i="${i}">
+    <span class="t"><span>${fmt(l.s)}</span><span class="count" aria-live="polite"></span></span>
+    <span class="say" lang="ja">${esc(l.text)}</span>
+    <span class="bar" aria-hidden="true"><i></i></span>
+    <div class="note" hidden>
+      <p class="tr">${esc(l.tr)}</p>
+      <dl class="run">${l.words.map(([w, r, m]) => `<div><dt lang="ja">${esc(w)}${r ? `<span lang="ja">${esc(r)}</span>` : ""}</dt><dd>${esc(m)}</dd></div>`).join("")}</dl>
+      <div class="run pts">${l.points.map(([p, n]) => `<div><b lang="ja">${esc(p)}</b><span>${esc(n)}</span></div>`).join("")}<span class="src">範例解釋</span></div>
+    </div>
+    <div class="take" hidden aria-live="polite"></div>
+  </li>`).join("");
+const rows = [...script.children];
+
+$("speeds").innerHTML = SPEEDS.map((v) => `<button type="button" data-v="${v}">${v === 1 ? "1.0" : v}×</button>`).join("");
+
+function render() {
+  rows.forEach((r, i) => {
+    const on = i === cur;
+    r.classList.toggle("on", on);
+    r.querySelector(".note").hidden = !(on && explain);
+    r.querySelector(".count").textContent = on ? `× ${count}` : "";
+    if (!on) r.querySelector(".bar i").style.transform = "scaleX(0)";
+  });
+  sheet.classList.toggle("looping", looping);
+  $("loop").setAttribute("aria-pressed", looping);
+  $("exp").setAttribute("aria-pressed", explain);
+  [...$("speeds").children].forEach((b) => b.setAttribute("aria-pressed", Math.abs(+b.dataset.v - rate) < 0.001));
+  const playing = !audio.paused;
+  $("play").setAttribute("aria-label", playing ? "暫停" : "播放");
+  $("playIcon").innerHTML = playing ? '<rect x="6.5" y="5" width="4" height="14" rx="1"/><rect x="13.5" y="5" width="4" height="14" rx="1"/>' : '<path d="M8 5.5v13l11-6.5z"/>';
+}
+
+function setRate(v) {
+  rate = Math.min(2, Math.max(0.5, Math.round(v * 20) / 20));
+  // Changing speed while the sentence plays for a take: compare against the speed you heard.
+  if (take.phase === "listen" && !audio.paused) take.rate = rate;
+  audio.playbackRate = rate;
+  audio.preservesPitch = true; audio.webkitPreservesPitch = true;
+  render();
+}
+
+function go(i, play = true) {
+  const next = Math.max(0, Math.min(LINES.length - 1, i));
+  if (next !== cur) closeTake();
+  cur = next;
+  count = 1;
+  stopAt = onStop = null;
+  try { audio.currentTime = LINES[cur].s; } catch (e) {}
+  render();
+  if (play) start();
+}
+
+function start() {
+  audio.playbackRate = rate;
+  const p = audio.play();
+  if (p) p.catch(() => {});
+}
+
+function tick() {
+  const t = audio.currentTime, l = LINES[cur];
+  if (stopAt !== null) {
+    if (t >= stopAt) { const f = onStop; stopAt = onStop = null; audio.pause(); if (f) f(); }
+  } else if (looping) {
+    if (t >= l.e || t < l.s - 0.3) { audio.currentTime = l.s; count++; render(); }
+  } else {
+    const k = LINES.findIndex((x, j) => t >= x.s && (j === LINES.length - 1 || t < LINES[j + 1].s));
+    if (k >= 0 && k !== cur) { cur = k; count = 1; closeTake(); render(); }
+  }
+  const p = Math.min(1, Math.max(0, (audio.currentTime - l.s) / (l.e - l.s)));
+  rows[cur].querySelector(".bar i").style.transform = `scaleX(${p})`;
+  $("now").textContent = fmt(audio.currentTime);
+  takeFrame();
+  if (!audio.paused) raf = requestAnimationFrame(tick);
+}
+
+audio.addEventListener("play", () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); render(); });
+audio.addEventListener("pause", render);
+audio.addEventListener("ended", () => {
+  if (stopAt !== null) { const f = onStop; stopAt = onStop = null; if (f) f(); }
+  else if (looping) { audio.currentTime = LINES[cur].s; start(); }
+  render();
+});
+
+const busy = () => take.phase === "listen" || take.phase === "wait" || take.phase === "rec" || take.phase === "saving";
+
+function toggle() {
+  if (busy()) return;
+  stopPlayback();
+  if (audio.paused) {
+    if (audio.currentTime < LINES[cur].s || audio.currentTime >= LINES[cur].e) audio.currentTime = LINES[cur].s;
+    start();
+  } else audio.pause();
+  sheet.focus({ preventScroll: true });
+}
+
+$("play").onclick = toggle;
+$("prev").onclick = () => go(cur - 1, !audio.paused);
+$("next").onclick = () => go(cur + 1, !audio.paused);
+$("loop").onclick = () => { looping = !looping; count = 1; render(); };
+$("exp").onclick = () => { explain = !explain; render(); };
+$("rec").onclick = () => { if (take.phase === "listen" || take.phase === "rec") finishTake(); else if (take.phase && take.line === cur) closeTake(); else startTake(); };
+$("speeds").onclick = (e) => { const b = e.target.closest("button"); if (b) setRate(+b.dataset.v); };
+script.onclick = (e) => {
+  const r = e.target.closest(".line");
+  if (!r || e.target.closest(".note, .take")) return;
+  const i = +r.dataset.i;
+  if (busy()) return;
+  if (i !== cur) go(i, true); else if (audio.paused) toggle();
+  sheet.focus({ preventScroll: true });
+};
+sheet.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (e.target.closest("button") && (k === " " || k === "Enter")) return;
+  const b = busy();
+  if (k === "Escape") { if (b) cancelTake(); else if (take.phase) closeTake(); else return; }
+  else if (b) { if (k === " ") finishTake(); else return; }
+  else if (k === " ") toggle();
+  else if (k === "l" || k === "L" || k === "s" || k === "S") { if (!e.repeat) $("loop").click(); }
+  else if (k === "[") go(cur - 1, !audio.paused);
+  else if (k === "]") go(cur + 1, !audio.paused);
+  else if (k === "-" || k === "_") setRate(rate - 0.05);
+  else if (k === "=" || k === "+") setRate(rate + 0.05);
+  else if (k === "i" || k === "I") { if (!e.repeat) $("exp").click(); }
+  else if (k === "m" || k === "M") { if (!e.repeat) startTake(); }
+  else if (k === "p" || k === "P") { if (take.phase === "done") play("both"); else return; }
+  else return;
+  e.preventDefault();
+});
+
+/*
+ * 跟讀, the app's 聽完再說 in the browser: the sentence plays once, then the
+ * mic opens until you've spoken and paused (or Space). Your voice is drawn
+ * under the original, both lined up at their first sound, with the same
+ * pace wording the app uses. Nothing leaves the page.
+ */
+const take = { phase: null, line: -1, rate: 1, stream: null, chunks: [], sr: 48000, mine: null, orig: null, mineRange: null, levels: [], secs: 0, error: "", playing: null };
+let ac = null, decoded = null, decoding = null, cap = null, srcNode = null, playStart = 0;
+const SR_PEAKS = 50;
+
+function ctx() {
+  if (!ac) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ac = new C(); }
+  if (ac.state === "suspended") ac.resume();
+  return ac;
+}
+function loadOriginal() {
+  if (!decoding) decoding = fetch(audio.currentSrc || audio.src).then((r) => r.arrayBuffer()).then((b) => new Promise((res, rej) => ctx().decodeAudioData(b, res, rej))).then((b) => (decoded = b));
+  return decoding;
+}
+const mono = (buf) => { const a = buf.getChannelData(0); if (buf.numberOfChannels < 2) return a; const b = buf.getChannelData(1), m = new Float32Array(a.length); for (let i = 0; i < a.length; i++) m[i] = (a[i] + b[i]) / 2; return m; };
+let origMono = null;
+
+/** Peaks, 50 a second, of data[from..to) seconds. */
+function peaks(data, sr, from, to) {
+  const hop = Math.round(sr / SR_PEAKS), a = Math.max(0, Math.round(from * sr)), b = Math.min(data.length, Math.round(to * sr)), out = [];
+  for (let i = a; i < b; i += hop) { let p = 0; for (let k = i; k < Math.min(b, i + hop); k++) { const v = Math.abs(data[k]); if (v > p) p = v; } out.push(p); }
+  return out;
+}
+/** Where the voice is in data[from..to): first and last 20 ms frame clearly above the quiet. */
+function voiced(data, sr, from, to) {
+  const hop = Math.round(sr * 0.02), a = Math.max(0, Math.round(from * sr)), b = Math.min(data.length, Math.round(to * sr)), rms = [];
+  for (let i = a; i + hop <= b; i += hop) { let s = 0; for (let k = i; k < i + hop; k++) s += data[k] * data[k]; rms.push(Math.sqrt(s / hop)); }
+  if (!rms.length) return null;
+  const sorted = [...rms].sort((x, y) => x - y), floor = sorted[Math.floor(sorted.length * 0.1)], top = sorted[Math.floor(sorted.length * 0.98)];
+  const thr = Math.max(0.006, floor * 2.5, top * 0.1);
+  let f = rms.findIndex((v) => v > thr), l = rms.length - 1 - [...rms].reverse().findIndex((v) => v > thr);
+  if (f < 0 || top < 0.01) return null;
+  return [from + Math.max(0, f - 2) * 0.02, from + Math.min(rms.length, l + 4) * 0.02];
+}
+
+function startTake() {
+  if (take.phase === "listen" || take.phase === "rec" || take.phase === "saving") return;
+  stopPlayback();
+  if (take.phase && take.line !== cur) closeTake();
+  Object.assign(take, { phase: "listen", line: cur, rate, chunks: [], mine: null, mineRange: null, levels: [], secs: 0, error: "", playing: null, stream: null });
+  $("rec").setAttribute("aria-pressed", "true");
+  const c = ctx();
+  if (!c || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { take.asked = null; showError("這個瀏覽器不支援錄音。請換用 Chrome、Safari 或 Edge 再試，或直接下載應用程式。"); return; }
+  loadOriginal().catch(() => {});
+  // Ask for the mic while the sentence plays, so it's ready when it's your turn.
+  const asked = take.asked = navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+    .then((s) => { if (take.asked !== asked || !take.phase || take.phase === "done") { s.getTracks().forEach((t) => t.stop()); return null; } take.stream = s; if (take.phase === "wait") beginCapture(); return s; })
+    .catch((e) => { if (take.asked === asked && (take.phase === "listen" || take.phase === "wait")) { audio.pause(); stopAt = onStop = null; showError(e && e.name === "NotAllowedError" ? "麥克風尚未開啟。允許此網頁存取麥克風後，請再按一次跟讀。" : "無法開啟麥克風。請確認是否被其他應用程式占用，或換個瀏覽器再試。"); } });
+  audio.currentTime = LINES[cur].s;
+  stopAt = LINES[cur].e;
+  onStop = () => { if (take.phase !== "listen") return; if (take.stream) beginCapture(); else { take.phase = "wait"; drawTake(); } };
+  start();
+  drawTake();
+}
+
+function beginCapture() {
+  const c = ctx();
+  // Never record the sample: whatever is playing stops when it's your turn.
+  stopAt = onStop = null;
+  if (!audio.paused) audio.pause();
+  take.phase = "rec";
+  take.sr = c.sampleRate;
+  srcNode = c.createMediaStreamSource(take.stream);
+  cap = c.createScriptProcessor(2048, 1, 1);
+  const mute = c.createGain(); mute.gain.value = 0;
+  srcNode.connect(cap); cap.connect(mute); mute.connect(c.destination);
+  const l = LINES[take.line], maxSecs = Math.max(6, ((l.e - l.s) / take.rate) * 2.2 + 2);
+  let heard = 0, quiet = 0, floor = 0, n = 0;
+  cap.onaudioprocess = (ev) => {
+    if (take.phase !== "rec") return;
+    const d = new Float32Array(ev.inputBuffer.getChannelData(0));
+    take.chunks.push(d);
+    let s = 0, p = 0; for (let i = 0; i < d.length; i++) { s += d[i] * d[i]; const v = Math.abs(d[i]); if (v > p) p = v; }
+    const rms = Math.sqrt(s / d.length), dt = d.length / take.sr;
+    take.secs += dt; n++;
+    if (n <= 6) floor = Math.max(floor, rms);
+    const on = Math.max(0.012, floor * 3);
+    take.levels.push(Math.min(1, p * 1.6));
+    if (rms > on) { heard += dt; quiet = 0; } else if (heard > 0.25) quiet += dt;
+    // Done when you've said something and then paused; give up on silence.
+    if ((heard > 0.25 && quiet > 1.1) || take.secs > maxSecs || (heard < 0.1 && take.secs > 7)) finishTake();
+  };
+  drawTake();
+}
+
+function releaseMic() {
+  if (cap) { cap.onaudioprocess = null; try { cap.disconnect(); } catch (e) {} cap = null; }
+  if (srcNode) { try { srcNode.disconnect(); } catch (e) {} srcNode = null; }
+  if (take.stream) { take.stream.getTracks().forEach((t) => t.stop()); take.stream = null; }
+}
+
+async function finishTake() {
+  if (take.phase === "listen" || take.phase === "wait") {
+    // Skip the rest of the original: your turn now.
+    stopAt = null; onStop = null; audio.pause();
+    if (take.stream) beginCapture(); else { take.phase = "wait"; drawTake(); }
+    return;
+  }
+  if (take.phase !== "rec") return;
+  take.phase = "saving";
+  releaseMic();
+  const len = take.chunks.reduce((n, c) => n + c.length, 0), all = new Float32Array(len);
+  let o = 0; for (const c of take.chunks) { all.set(c, o); o += c.length; }
+  take.chunks = [];
+  const range = voiced(all, take.sr, 0, all.length / take.sr);
+  if (!range) { showError("沒有收到你的聲音。請靠近麥克風一些，再錄一次。"); return; }
+  take.mine = all; take.mineRange = range;
+  const id = take.asked;
+  try { await loadOriginal(); } catch (e) { decoded = null; }
+  // Closed, or a new take started, while the original was still decoding.
+  if (take.asked !== id || take.phase !== "saving") return;
+  if (decoded && !origMono) origMono = mono(decoded);
+  const l = LINES[take.line];
+  take.orig = origMono ? (voiced(origMono, decoded.sampleRate, l.s, l.e) || [l.s, l.e]) : [l.s, l.e];
+  take.phase = "done";
+  drawTake();
+  play("both");
+}
+
+function cancelTake() {
+  if (take.phase === "listen" || take.phase === "wait") { stopAt = onStop = null; audio.pause(); }
+  releaseMic();
+  closeTake();
+}
+
+function closeTake() {
+  if (!take.phase) return;
+  stopPlayback();
+  releaseMic();
+  take.asked = null;
+  const r = rows[take.line];
+  if (r) { const el = r.querySelector(".take"); el.hidden = true; el.innerHTML = ""; }
+  Object.assign(take, { phase: null, line: -1, mine: null, playing: null, error: "" });
+  $("rec").setAttribute("aria-pressed", "false");
+  $("rec").classList.remove("live");
+}
+
+function showError(msg) {
+  releaseMic();
+  take.phase = "error"; take.error = msg;
+  drawTake();
+}
+
+/* Playback of the result: the original through the player (pitch kept at your speed), yours through Web Audio. */
+function stopPlayback() {
+  if (take.src) { try { take.src.onended = null; take.src.stop(); } catch (e) {} take.src = null; }
+  if (take.playing === "orig" || take.playing === "both") { stopAt = onStop = null; if (!audio.paused) audio.pause(); }
+  take.playing = null;
+  paintHeads();
+}
+function play(what) {
+  if (take.phase !== "done") return;
+  if (take.playing === what || (what === "both" && take.playing && take.both)) { stopPlayback(); drawButtons(); return; }
+  stopPlayback();
+  take.both = what === "both";
+  if (what === "mine") playMine(); else playOrig(() => { if (take.both) setTimeout(() => take.both && take.phase === "done" && playMine(), 250); });
+  drawButtons();
+}
+function playOrig(then) {
+  const [a, b] = take.orig;
+  take.playing = "orig";
+  audio.currentTime = a; stopAt = b;
+  onStop = () => { take.playing = null; paintHeads(); if (then) then(); else drawButtons(); };
+  audio.playbackRate = take.rate;
+  const p = audio.play(); if (p) p.catch(() => {});
+}
+function playMine() {
+  const c = ctx(), [a, b] = take.mineRange, from = Math.round(a * take.sr), to = Math.round(b * take.sr);
+  const buf = c.createBuffer(1, to - from, take.sr);
+  buf.getChannelData(0).set(take.mine.subarray(from, to));
+  const src = c.createBufferSource(); src.buffer = buf; src.connect(c.destination);
+  src.onended = () => { if (take.src !== src) return; take.src = null; take.playing = null; take.both = false; paintHeads(); drawButtons(); };
+  take.src = src; take.playing = "mine"; playStart = c.currentTime;
+  src.start();
+  (function f() { if (take.src === src) { paintHeads(); requestAnimationFrame(f); } })();
+}
+
+const SECS = (s) => `${s.toFixed(1)} 秒`;
+function paceNote() {
+  const o = (take.orig[1] - take.orig[0]) / take.rate, m = take.mineRange[1] - take.mineRange[0], r = m / o;
+  const at = Math.abs(take.rate - 1) > 0.01 ? `（原句播放速度：${take.rate}×）` : "";
+  if (r > 1.15) return `比原句慢 ${Math.round((r - 1) * 100)}%${at}`;
+  if (r < 0.87) return `比原句快 ${Math.round((1 - r) * 100)}%${at}`;
+  return `節奏和原句差不多${at}`;
+}
+/** Bars for one lane, on a scale `width` seconds wide (both lanes share it). */
+function laneSvg(pk, secs, width, n) {
+  const bars = Math.max(1, Math.round((secs / width) * n)), group = pk.length / bars, max = Math.max(1e-4, ...pk);
+  let r = "";
+  for (let i = 0; i < bars; i++) {
+    let p = 0; for (let k = Math.floor(i * group); k < Math.floor((i + 1) * group); k++) p = Math.max(p, pk[k] || 0);
+    const h = Math.sqrt(p / max);
+    if (h > 0.04) r += `<rect x="${i + 0.15}" y="${(1 - h * 0.92).toFixed(3)}" width="0.7" height="${(h * 1.84).toFixed(3)}" fill="currentColor"/>`;
+  }
+  return `<svg viewBox="0 0 ${n} 2" preserveAspectRatio="none" aria-hidden="true">${r}</svg>`;
+}
+
+const ICON_PLAY = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 1v8l7-4z"/></svg>';
+const ICON_STOP = '<svg viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" rx="1"/></svg>';
+const EAR = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8.5a6 6 0 0 1 12 0c0 3.5-3 4.5-3 7.5a3.5 3.5 0 0 1-6.3 2.1"/><path d="M15 8.5a3 3 0 0 0-6 0"/></svg>';
+
+function drawTake() {
+  const r = rows[take.line]; if (!r) return;
+  const el = r.querySelector(".take");
+  el.hidden = false;
+  $("rec").classList.toggle("live", take.phase === "rec");
+  if (take.phase === "listen" || take.phase === "wait") {
+    el.innerHTML = `<div class="take-row"><span class="take-state">${EAR}${take.phase === "wait" ? "等待允許存取麥克風" : "先聽原句"}</span><span class="prog"><i id="tprog"></i></span></div>
+      <div class="take-tools"><button class="tb" type="button" data-a="skip">略過原句</button><button class="tl" type="button" data-a="cancel">取消</button><span class="hint">${take.phase === "wait" ? "瀏覽器會確認一次是否允許使用麥克風" : "聽完就輪到你"}</span></div>`;
+  } else if (take.phase === "rec") {
+    el.innerHTML = `<div class="take-row"><span class="take-state"><i class="rdot" aria-hidden="true"></i>輪到你了</span><span class="meter" id="tmeter">${"<i></i>".repeat(40)}</span><span class="secs" id="tsecs">0.0</span></div>
+      <div class="take-tools"><button class="tb" type="button" data-a="stop">${ICON_STOP}說完了</button><button class="tl" type="button" data-a="cancel">取消</button><span class="hint">說完稍停會自動結束 · <kbd>空白鍵</kbd> 結束 · <kbd>Esc</kbd> 取消</span></div>`;
+  } else if (take.phase === "saving") {
+    el.innerHTML = `<div class="take-row">正在整理錄音…</div>`;
+  } else if (take.phase === "error") {
+    el.innerHTML = `<div class="take-row"><span class="err">${esc(take.error)}</span></div><div class="take-tools"><button class="tb" type="button" data-a="again"><i class="rdot" aria-hidden="true"></i>再試一次</button><button class="tl" type="button" data-a="close">收起</button></div>`;
+  } else if (take.phase === "done") {
+    const o = (take.orig[1] - take.orig[0]) / take.rate, m = take.mineRange[1] - take.mineRange[0], width = Math.max(o, m);
+    const n = Math.max(56, Math.min(170, Math.round((sheet.clientWidth - 220) / 5.5)));
+    const op = origMono ? peaks(origMono, decoded.sampleRate, take.orig[0], take.orig[1]) : [];
+    const mp = peaks(take.mine, take.sr, take.mineRange[0], take.mineRange[1]);
+    el.innerHTML = `<div><div class="waves">
+        <span>原句</span><button class="lane o" type="button" data-a="orig" title="聽原句" data-w="${o / width}">${laneSvg(op, o, width, n)}<i class="head" hidden></i></button><span>${SECS(o)}</span>
+        <span>我的</span><button class="lane m" type="button" data-a="mine" title="聽我的" data-w="${m / width}">${laneSvg(mp, m, width, n)}<i class="head" hidden></i></button><span>${SECS(m)}</span>
+      </div><p class="pace">${paceNote()}</p></div>
+      <div class="take-tools" id="tbtns"></div>
+      <p class="more">網頁版僅提供「聽完再說」。應用程式中還能邊聽邊說（不戴耳機也行，錄進去的原聲會自動消除），每次錄音都會保留，整段也能一口氣讀完。</p>`;
+    drawButtons();
+  }
+  el.querySelectorAll("[data-a]").forEach((b) => (b.onclick = (e) => {
+    e.stopPropagation();
+    const a = b.dataset.a;
+    if (a === "skip" || a === "stop") finishTake();
+    else if (a === "cancel") cancelTake();
+    else if (a === "close") closeTake();
+    else if (a === "again") startTake();
+    else if (a === "orig" || a === "mine" || a === "both") play(a);
+  }));
+}
+function drawButtons() {
+  const box = document.getElementById("tbtns"); if (!box || take.phase !== "done") return;
+  const btn = (a, label, title) => {
+    const on = take.playing && (a === "both" ? take.both : take.playing === a && !take.both);
+    return `<button class="tb" type="button" data-a="${a}" aria-pressed="${!!on}" title="${title}">${on ? ICON_STOP : ICON_PLAY}${label}</button>`;
+  };
+  box.innerHTML = btn("both", "對比", "先放原句，再放你的 (P)") + btn("orig", "原句", "只聽原句") + btn("mine", "我的", "只聽你的") +
+    `<span class="hint" style="margin-left:auto"></span><button class="tb" type="button" data-a="again" title="再錄一次 (M)"><i class="rdot" aria-hidden="true"></i>再錄一次</button>`;
+  box.querySelectorAll("[data-a]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); const a = b.dataset.a; if (a === "again") startTake(); else play(a); }));
+}
+function paintHeads() {
+  const r = rows[take.line]; if (!r || take.phase !== "done") return;
+  const lanes = r.querySelectorAll(".lane");
+  if (lanes.length < 2) return;
+  const [lo, lm] = lanes, ho = lo.querySelector(".head"), hm = lm.querySelector(".head");
+  let xo = null, xm = null;
+  if (take.playing === "orig") xo = (audio.currentTime - take.orig[0]) / (take.orig[1] - take.orig[0]);
+  if (take.playing === "mine" && ac) xm = (ac.currentTime - playStart) / (take.mineRange[1] - take.mineRange[0]);
+  const put = (h, x, w) => { h.hidden = x === null || x < 0 || x > 1; if (!h.hidden) h.style.left = `${x * w * 100}%`; };
+  put(ho, xo, +lo.dataset.w); put(hm, xm, +lm.dataset.w);
+}
+/* Called every frame while the player runs; the meter runs off its own frames. */
+function takeFrame() {
+  if (take.phase === "listen") {
+    const l = LINES[take.line], p = document.getElementById("tprog");
+    if (p) p.style.transform = `scaleX(${Math.min(1, Math.max(0, (audio.currentTime - l.s) / (l.e - l.s)))})`;
+  }
+  if (take.playing === "orig") paintHeads();
+}
+(function meter() {
+  if (take.phase === "rec") {
+    const m = document.getElementById("tmeter"), s = document.getElementById("tsecs");
+    if (m) { const bars = m.children, lv = take.levels.slice(-bars.length), pad = bars.length - lv.length; for (let i = 0; i < bars.length; i++) { const v = i < pad ? 0 : lv[i - pad]; bars[i].style.height = `${Math.max(8, Math.min(1, v) ** 1.5 * 100)}%`; bars[i].style.opacity = v < 0.05 ? 0.25 : 1; } }
+    if (s) s.textContent = take.secs.toFixed(1);
+  }
+  requestAnimationFrame(meter);
+})();
+
+$("copy").onclick = async () => {
+  const b = $("copy"), text = $("cmd").textContent;
+  try { await navigator.clipboard.writeText(text); b.textContent = "已複製"; }
+  catch (e) { const r = document.createRange(); r.selectNodeContents($("cmd")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "已選取，請按 ⌘C"; }
+  setTimeout(() => (b.textContent = "複製"), 1800);
+};
+
+// Practice time in the demo: counts real playing time toward a one-minute goal.
+let practiced = 0, lastT = 0;
+function practice(now) {
+  if (!audio.paused || take.phase === "rec") { if (lastT) practiced += (now - lastT) / 1000; lastT = now; requestAnimationFrame(practice); } else lastT = 0;
+  const goal = 60, f = Math.min(1, practiced / goal);
+  $("ringFg").setAttribute("stroke-dashoffset", (50.27 * (1 - f)).toFixed(2));
+  $("goal").classList.toggle("done", f >= 1);
+  $("goalText").textContent = `${Math.floor(practiced / 60)}:${String(Math.floor(practiced % 60)).padStart(2, "0")}/1 分鐘`;
+}
+audio.addEventListener("play", () => { lastT = 0; requestAnimationFrame(practice); });
+audio.addEventListener("pause", () => { if (take.phase === "rec") { lastT = 0; requestAnimationFrame(practice); } else practice(0); });
+
+setRate(rate);
+go(0, false);
+
+if (/Windows/.test(navigator.userAgent)) {
+  document.querySelector(".nav-dl").href = "https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-windows-x64-setup.exe";
+  for (const win of document.querySelectorAll('.actions [data-os="windows"]')) {
+    const mac = win.parentElement.querySelector('[data-os="mac"]');
+    mac.before(win);
+    [mac.className, win.className] = [win.className, mac.className];
+  }
+}
+
+// Language picker
+const picker = document.querySelector(".lang-picker");
+if (picker) {
+  const btn = picker.querySelector(".lang-btn");
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    const open = picker.classList.toggle("open");
+    btn.setAttribute("aria-expanded", String(open));
+  };
+  document.addEventListener("click", () => {
+    picker.classList.remove("open");
+    btn.setAttribute("aria-expanded", "false");
+  });
+  document.querySelectorAll(".lang-menu a, .lang-foot a").forEach((a) => {
+    a.addEventListener("click", () => {
+      const code = a.getAttribute("lang");
+      if (code) localStorage.setItem("shadowing-lang", code);
+    });
+  });
+}
+try { localStorage.setItem("shadowing-lang", "zh-TW"); } catch (e) {}
+</script>
+
+</body>
+</html>

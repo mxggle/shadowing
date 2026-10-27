@@ -1,2 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://shadowing.nihongo.day/</loc></url><url><loc>https://shadowing.nihongo.day/plugins</loc></url></urlset>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://shadowing.nihongo.day/</loc>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://shadowing.nihongo.day/"/>
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://shadowing.nihongo.day/zh-tw"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://shadowing.nihongo.day/en"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://shadowing.nihongo.day/ja"/>
+  </url>
+  <url>
+    <loc>https://shadowing.nihongo.day/zh-tw</loc>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://shadowing.nihongo.day/"/>
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://shadowing.nihongo.day/zh-tw"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://shadowing.nihongo.day/en"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://shadowing.nihongo.day/ja"/>
+  </url>
+  <url>
+    <loc>https://shadowing.nihongo.day/en</loc>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://shadowing.nihongo.day/"/>
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://shadowing.nihongo.day/zh-tw"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://shadowing.nihongo.day/en"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://shadowing.nihongo.day/ja"/>
+  </url>
+  <url>
+    <loc>https://shadowing.nihongo.day/ja</loc>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://shadowing.nihongo.day/"/>
+    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://shadowing.nihongo.day/zh-tw"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://shadowing.nihongo.day/en"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://shadowing.nihongo.day/ja"/>
+  </url>
+  <url><loc>https://shadowing.nihongo.day/plugins</loc></url>
+</urlset>

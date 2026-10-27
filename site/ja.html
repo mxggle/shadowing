@@ -1,0 +1,1586 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Shadowing · お手本の声と、自分の声を並べて聴くシャドーイングアプリ</title>
+<meta name="description" content="Shadowing：Mac と Windows のためのシャドーイングアプリ。音声を一文ずつ書き起こし、ループ再生、音程を変えずにスロー再生、AI解説、そしてお手本と自分の声を波形で並べて比較。完全無料・オープンソース。">
+<link rel="canonical" href="https://shadowing.nihongo.day/ja">
+<link rel="alternate" hreflang="zh-CN" href="https://shadowing.nihongo.day/">
+<link rel="alternate" hreflang="zh-TW" href="https://shadowing.nihongo.day/zh-tw">
+<link rel="alternate" hreflang="en" href="https://shadowing.nihongo.day/en">
+<link rel="alternate" hreflang="ja" href="https://shadowing.nihongo.day/ja">
+<link rel="alternate" hreflang="x-default" href="https://shadowing.nihongo.day/">
+<meta name="theme-color" content="#f5f4f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b1b1a" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Shadowing · nihongo.day">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:url" content="https://shadowing.nihongo.day/ja">
+<meta property="og:title" content="Shadowing · お手本の声と、自分の声を並べて聴くシャドーイングアプリ">
+<meta property="og:description" content="音声を一文ずつ書き起こし、ループ再生、音程を変えずにスロー再生、AI解説、そしてお手本と自分の声を波形で並べて比較。完全無料・オープンソース、macOS & Windows 対応。">
+<meta property="og:image" content="https://shadowing.nihongo.day/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Shadowing のアプリ画面：日本語の文の下に、お手本と自分の2つの波形が上下に並んで比較表示されている様子。">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://shadowing.nihongo.day/og.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Shadowing","alternateName":"Shadowing","url":"https://shadowing.nihongo.day/ja","description":"Mac と Windows のためのシャドーイングアプリ：音声を一文ずつ書き起こし、ループ再生、音程を変えずにスロー再生、AI解説、そしてお手本と自分の声を波形で並べて比較。","applicationCategory":"EducationalApplication","operatingSystem":"macOS, Windows","inLanguage":"ja","image":"https://shadowing.nihongo.day/og.png","screenshot":"https://shadowing.nihongo.day/shots/hero-light.webp","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"downloadUrl":"https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg","publisher":{"@type":"Organization","name":"日本語Day","url":"https://nihongo.day/"}}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@500;600;700&display=swap">
+<link rel="preload" as="image" href="shots/hero-light.webp" media="(prefers-color-scheme: light) and (min-width: 641px)" fetchpriority="high">
+<style>
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+/*
+ * Layout: "script and deck", taken from the app itself (src/index.css). The
+ * page is a shelf; the sheets of paper on it hold real scripts. Screenshots
+ * are the real app, rendered from the promo video's stage. Orange means "this
+ * is repeating" and is used for nothing else; red only marks the mic while it
+ * is recording, as in the app.
+ */
+:root {
+  --shelf: oklch(96.7% 0.003 95);
+  --paper: oklch(98.9% 0.002 95);
+  --deck: oklch(97.4% 0.002 95);
+  --fg: oklch(21% 0.004 95);
+  --muted: oklch(45% 0.004 95);
+  --faint: oklch(53% 0.004 95);
+  --line: oklch(21% 0.004 95 / 0.09);
+  --line-strong: oklch(21% 0.004 95 / 0.16);
+  --fill: oklch(21% 0.004 95 / 0.055);
+  --hover: oklch(21% 0.004 95 / 0.05);
+  --press: oklch(21% 0.004 95 / 0.09);
+  --track: oklch(21% 0.004 95 / 0.11);
+  --ink: oklch(21% 0.004 95);
+  --on-ink: oklch(99% 0.001 95);
+  --focus: oklch(21% 0.004 95 / 0.5);
+  --selection: oklch(63.5% 0.19 38 / 0.18);
+  --loop: oklch(63.5% 0.19 38);
+  --loop-text: oklch(52% 0.165 38);
+  --loop-soft: oklch(63.5% 0.19 38 / 0.09);
+  --loop-line: oklch(63.5% 0.19 38 / 0.38);
+  --ok: oklch(53% 0.13 150);
+  --danger: oklch(54% 0.2 27);
+  --danger-soft: oklch(54% 0.2 27 / 0.12);
+  --window: 0 0 0 0.5px oklch(21% 0.004 95 / 0.14), 0 2px 6px -1px oklch(21% 0.004 95 / 0.08), 0 28px 56px -18px oklch(21% 0.004 95 / 0.28), 0 70px 120px -50px oklch(21% 0.004 95 / 0.3);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
+  --font-head: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", ui-serif, serif;
+  --font-script: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", ui-serif, serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --measure: 34em;
+  --wrap: 1160px;
+  --gutter: clamp(16px, 4vw, 32px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --shelf: oklch(16.8% 0.004 95);
+    --paper: oklch(19.5% 0.004 95);
+    --deck: oklch(21% 0.004 95);
+    --fg: oklch(93.5% 0.003 95);
+    --muted: oklch(73% 0.003 95);
+    --faint: oklch(63% 0.003 95);
+    --line: oklch(100% 0 0 / 0.075);
+    --line-strong: oklch(100% 0 0 / 0.14);
+    --fill: oklch(100% 0 0 / 0.065);
+    --hover: oklch(100% 0 0 / 0.055);
+    --press: oklch(100% 0 0 / 0.1);
+    --track: oklch(100% 0 0 / 0.11);
+    --ink: oklch(93.5% 0.003 95);
+    --on-ink: oklch(19.5% 0.004 95);
+    --focus: oklch(100% 0 0 / 0.5);
+    --selection: oklch(70% 0.17 42 / 0.28);
+    --loop: oklch(70% 0.17 42);
+    --loop-text: oklch(78% 0.125 45);
+    --loop-soft: oklch(70% 0.17 42 / 0.13);
+    --loop-line: oklch(70% 0.17 42 / 0.42);
+    --ok: oklch(74% 0.15 150);
+    --danger: oklch(70% 0.17 25);
+    --danger-soft: oklch(70% 0.17 25 / 0.16);
+    --window: 0 0 0 0.5px oklch(100% 0 0 / 0.16), 0 2px 6px -1px oklch(0% 0 0 / 0.4), 0 28px 56px -18px oklch(0% 0 0 / 0.6), 0 70px 120px -50px oklch(0% 0 0 / 0.7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --shelf: oklch(16.8% 0.004 95);
+  --paper: oklch(19.5% 0.004 95);
+  --deck: oklch(21% 0.004 95);
+  --fg: oklch(93.5% 0.003 95);
+  --muted: oklch(73% 0.003 95);
+  --faint: oklch(63% 0.003 95);
+  --line: oklch(100% 0 0 / 0.075);
+  --line-strong: oklch(100% 0 0 / 0.14);
+  --fill: oklch(100% 0 0 / 0.065);
+  --hover: oklch(100% 0 0 / 0.055);
+  --press: oklch(100% 0 0 / 0.1);
+  --track: oklch(100% 0 0 / 0.11);
+  --ink: oklch(93.5% 0.003 95);
+  --on-ink: oklch(19.5% 0.004 95);
+  --focus: oklch(100% 0 0 / 0.5);
+  --selection: oklch(70% 0.17 42 / 0.28);
+  --loop: oklch(70% 0.17 42);
+  --loop-text: oklch(78% 0.125 45);
+  --loop-soft: oklch(70% 0.17 42 / 0.13);
+  --loop-line: oklch(70% 0.17 42 / 0.42);
+  --ok: oklch(74% 0.15 150);
+  --danger: oklch(70% 0.17 25);
+  --danger-soft: oklch(70% 0.17 25 / 0.16);
+  --window: 0 0 0 0.5px oklch(100% 0 0 / 0.16), 0 2px 6px -1px oklch(0% 0 0 / 0.4), 0 28px 56px -18px oklch(0% 0 0 / 0.6), 0 70px 120px -50px oklch(0% 0 0 / 0.7);
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --shelf: oklch(96.7% 0.003 95);
+  --paper: oklch(98.9% 0.002 95);
+  --deck: oklch(97.4% 0.002 95);
+  --fg: oklch(21% 0.004 95);
+  --muted: oklch(45% 0.004 95);
+  --faint: oklch(53% 0.004 95);
+  --line: oklch(21% 0.004 95 / 0.09);
+  --line-strong: oklch(21% 0.004 95 / 0.16);
+  --fill: oklch(21% 0.004 95 / 0.055);
+  --hover: oklch(21% 0.004 95 / 0.05);
+  --press: oklch(21% 0.004 95 / 0.09);
+  --track: oklch(21% 0.004 95 / 0.11);
+  --ink: oklch(21% 0.004 95);
+  --on-ink: oklch(99% 0.001 95);
+  --focus: oklch(21% 0.004 95 / 0.5);
+  --selection: oklch(63.5% 0.19 38 / 0.18);
+  --loop: oklch(63.5% 0.19 38);
+  --loop-text: oklch(52% 0.165 38);
+  --loop-soft: oklch(63.5% 0.19 38 / 0.09);
+  --loop-line: oklch(63.5% 0.19 38 / 0.38);
+  --ok: oklch(53% 0.13 150);
+  --danger: oklch(54% 0.2 27);
+  --danger-soft: oklch(54% 0.2 27 / 0.12);
+  --window: 0 0 0 0.5px oklch(21% 0.004 95 / 0.14), 0 2px 6px -1px oklch(21% 0.004 95 / 0.08), 0 28px 56px -18px oklch(21% 0.004 95 / 0.28), 0 70px 120px -50px oklch(21% 0.004 95 / 0.3);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html {
+  background: var(--shelf);
+  color: var(--fg);
+  font: 400 16px/1.65 var(--font-sans);
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+::selection { background: var(--selection); }
+
+body { min-height: 100vh; overflow-x: hidden; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; }
+
+.wrap { max-width: var(--wrap); margin-inline: auto; padding-inline: var(--gutter); }
+
+/* Top nav */
+.nav {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between;
+  padding-block: 14px;
+  background: color-mix(in oklch, var(--shelf) 86%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.brand {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-weight: 600; font-size: 15px; letter-spacing: -0.01em;
+}
+.brand svg { width: 22px; height: 22px; border-radius: 5px; display: block; }
+.nav-links { display: flex; align-items: center; gap: 20px; color: var(--muted); }
+.nav-links a:hover { color: var(--fg); }
+.nav-dl {
+  display: inline-flex; align-items: center;
+  padding: 6px 13px; border-radius: 999px;
+  background: var(--ink); color: var(--on-ink) !important;
+  font-weight: 500; font-size: 13.5px;
+  transition: opacity 120ms;
+}
+.nav-dl:hover { opacity: 0.9; }
+
+/* Language picker */
+.lang-picker { position: relative; }
+.lang-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: 0; cursor: pointer;
+  color: var(--muted); font: inherit; font-size: 13.5px;
+  padding: 4px 6px; border-radius: 6px;
+  transition: color 120ms, background-color 120ms;
+}
+.lang-btn:hover { color: var(--fg); background: var(--hover); }
+.lang-btn .i { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.lang-btn .arrow { width: 10px; height: 10px; opacity: 0.6; transition: transform 150ms; }
+.lang-picker.open .lang-btn .arrow { transform: rotate(180deg); }
+.lang-menu {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  min-width: 130px; padding: 5px;
+  background: var(--paper); border: 1px solid var(--line-strong);
+  border-radius: 10px; box-shadow: var(--window);
+  display: none; flex-direction: column; gap: 2px;
+  z-index: 50;
+}
+.lang-picker.open .lang-menu { display: flex; }
+.lang-menu a {
+  display: block; padding: 6px 10px; border-radius: 6px;
+  font-size: 13px; color: var(--muted);
+  white-space: nowrap; transition: color 120ms, background-color 120ms;
+}
+.lang-menu a:hover { color: var(--fg); background: var(--hover); }
+.lang-menu a.active { color: var(--fg); font-weight: 600; background: var(--fill); }
+
+@media (max-width: 720px) {
+  .nav-links a:not(.nav-dl) { display: none; }
+  .lang-picker { display: block; }
+}
+
+/* Hero */
+.hero { padding-block: clamp(48px, 8vw, 96px) clamp(32px, 5vw, 64px); text-align: center; }
+.hero h1 {
+  font-family: var(--font-head);
+  font-weight: 600;
+  font-size: clamp(36px, 5.7vw, 68px);
+  line-height: 1.14;
+  letter-spacing: -0.025em;
+  margin-inline: auto;
+  max-width: 14em;
+}
+.hero h1 .ph { display: inline-block; }
+.hero .lede {
+  margin-top: clamp(18px, 2.8vw, 26px);
+  margin-inline: auto;
+  max-width: var(--measure);
+  color: var(--muted);
+  font-size: clamp(17px, 1.8vw, 20px);
+  line-height: 1.6;
+}
+.actions {
+  margin-top: clamp(26px, 3.8vw, 38px);
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;
+}
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 46px; padding-inline: 22px; border-radius: 12px;
+  font-weight: 500; font-size: 15px;
+  transition: transform 120ms var(--ease), opacity 120ms, background-color 120ms;
+  cursor: pointer; border: 0;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn-ink { background: var(--ink); color: var(--on-ink); }
+.btn-ink:hover { opacity: 0.92; }
+.btn-ink small { font-size: 12px; opacity: 0.65; font-weight: 400; margin-left: -2px; }
+.btn-quiet { background: var(--fill); color: var(--fg); box-shadow: inset 0 0 0 1px var(--line); }
+.btn-quiet:hover { background: var(--hover); }
+.btn-quiet small { font-size: 12px; color: var(--faint); font-weight: 400; margin-left: -2px; }
+.btn .i { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; }
+.win-note { margin-top: 10px; font-size: 12.5px; color: var(--faint); }
+.win-note a { text-decoration: underline; text-underline-offset: 3px; }
+
+.meta {
+  margin-top: clamp(18px, 2.8vw, 28px);
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px;
+  font-size: 13px; color: var(--faint);
+}
+.meta span { display: inline-flex; align-items: center; gap: 5px; }
+.meta .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ok); display: inline-block; }
+
+/* Generic window frame for screenshots */
+.window {
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: var(--window);
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.window img { display: block; width: 100%; height: auto; }
+
+.hero-shot {
+  margin-top: clamp(24px, 4vw, 44px);
+  margin-inline: auto;
+  max-width: 1080px;
+}
+
+/* Chapters */
+.chapter { padding-block: clamp(64px, 10vw, 128px); }
+.head { margin-bottom: clamp(28px, 4vw, 44px); }
+.head h2 {
+  font-family: var(--font-head);
+  font-weight: 600;
+  font-size: clamp(30px, 3.9vw, 46px);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  max-width: 14em;
+}
+.head h2 .ph { display: inline-block; }
+.head p {
+  margin-top: 14px;
+  max-width: var(--measure);
+  color: var(--muted);
+  font-size: clamp(16px, 1.4vw, 18px);
+  line-height: 1.6;
+}
+.head .new {
+  display: inline-block;
+  font-size: 12px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--loop-text);
+  margin-bottom: 6px;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: clamp(28px, 5vw, 64px);
+}
+.split.flip > :first-child { order: 2; }
+.split.flip > :last-child { order: 1; }
+.split.start { align-items: start; }
+@media (max-width: 820px) {
+  .split, .split.flip { grid-template-columns: 1fr; }
+  .split.flip > :first-child { order: 1; }
+  .split.flip > :last-child { order: 2; }
+}
+
+/* Bullet-less descriptive lists */
+.points { display: grid; gap: 20px; font-size: 15px; line-height: 1.6; }
+.points div { display: grid; gap: 4px; }
+.points dt { font-weight: 600; color: var(--fg); font-size: 16px; }
+.points dd { color: var(--muted); }
+.points kbd {
+  display: inline-block; padding: 1px 6px; border-radius: 5px;
+  background: var(--fill); box-shadow: 0 0 0 1px var(--line);
+  font: 500 12px var(--font-sans); color: var(--fg);
+}
+.points .spk {
+  display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 4px;
+  background: var(--line-strong); font: 600 11px/1 var(--font-sans); color: var(--fg);
+  vertical-align: -2px; margin-right: 2px;
+}
+.points .doubt { border-bottom: 1.5px dotted var(--danger); }
+
+/* The shelf band of materials */
+.shelfrow {
+  display: flex; flex-wrap: wrap; gap: 8px 10px;
+  margin-block: 28px 36px;
+}
+.shelfrow span {
+  font: 500 14px/1 var(--font-sans);
+  padding: 10px 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  color: var(--fg);
+  background: var(--paper);
+}
+
+/* Speak and Plugins bands */
+.band {
+  background: var(--paper);
+  border-block: 1px solid var(--line);
+  padding-block: 8px;
+}
+.band .window { background: var(--shelf); }
+
+/* Figures with real crop and caption */
+figure.crop {
+  margin: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--window);
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+figure.crop img { display: block; width: 100%; height: auto; }
+figcaption {
+  padding: 11px 16px;
+  font-size: 13px; color: var(--faint);
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+
+/* News ribbon */
+.news {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 5px 12px 5px 6px; border-radius: 999px;
+  background: var(--fill); color: var(--muted);
+  font-size: 13px; margin-bottom: 22px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: background-color 150ms;
+}
+.news:hover { background: var(--hover); color: var(--fg); }
+.news b {
+  flex: none; font: 600 12.5px/1 var(--font-sans);
+  color: var(--fg); background: var(--paper);
+  border-radius: 999px; padding: 5px 9px;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.news .i { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; margin-left: -2px; }
+
+/* Plugins */
+.imp-win {
+  width: 100%; max-width: 520px; justify-self: center;
+  background: var(--paper); border-radius: 16px; box-shadow: var(--window);
+  overflow: hidden; font-size: 13.5px; line-height: 1.5;
+}
+.imp-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--line);
+  color: var(--fg);
+}
+.imp-bar b { font-weight: 600; font-size: 14px; }
+.imp-bar .i { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; color: var(--faint); }
+.imp-body { padding: 18px 20px 20px; }
+.imp-url { display: flex; gap: 8px; }
+.imp .field {
+  flex: 1; min-width: 0; height: 34px; display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 0 11px; border-radius: 8px; background: var(--fill); color: var(--fg);
+  white-space: nowrap; overflow: hidden; font-size: 13px;
+}
+.imp .field .i { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; color: var(--faint); }
+.imp .mini {
+  flex: none; height: 32px; padding: 0 13px; border-radius: 8px;
+  display: inline-grid; place-items: center; background: var(--fill);
+  font: 500 13px/1 var(--font-sans); color: var(--fg);
+}
+.imp .mini.ink { background: var(--ink); color: var(--on-ink); }
+.imp-url .field { color: var(--muted); font: 400 12.5px/1 var(--font-mono); }
+.imp-title { margin-top: 18px; font: 500 17px/1.45 var(--font-script); letter-spacing: 0.02em; }
+.imp-meta { margin-top: 3px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.imp-rows { margin-top: 16px; display: grid; gap: 10px; }
+.imp-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.imp-row > span:first-child { flex: none; width: 4.8em; color: var(--muted); }
+.imp .seg { display: inline-flex; padding: 3px; border-radius: 8px; background: var(--fill); gap: 2px; }
+.imp .seg span { height: 26px; padding: 0 12px; border-radius: 7px; display: inline-grid; place-items: center; font-size: 12.5px; color: var(--muted); }
+.imp .seg .on { background: var(--paper); color: var(--fg); font-weight: 500; box-shadow: 0 0 0 1px var(--line); }
+.imp-row .folder { flex: none; color: var(--faint); font-size: 12.5px; }
+.imp-note { margin-top: 14px; font-size: 12px; line-height: 1.6; color: var(--faint); }
+.imp-btns { margin-top: 18px; display: flex; justify-content: flex-end; gap: 8px; }
+.dl-list { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); max-width: 520px; }
+.dl-list > b { display: block; padding: 4px 10px 6px; font: 500 12px/1.4 var(--font-sans); color: var(--faint); }
+.dl { display: flex; align-items: flex-start; gap: 9px; padding: 6px 10px; font-size: 13px; }
+.dl svg { width: 16px; height: 16px; flex: none; margin-top: 3px; fill: none; stroke-width: 2.2; }
+.dl p { font-size: 13px; line-height: 1.4; color: var(--fg); }
+.dl small { display: block; font: 400 11.5px/16px var(--font-mono); color: var(--faint); font-variant-numeric: tabular-nums; }
+.dl.q { opacity: 0.6; }
+.dl.q small { font-family: var(--font-sans); }
+.plug-more { margin-top: 36px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+.plug-more p { margin-left: auto; color: var(--faint); font-size: 14.5px; max-width: 26em; }
+@media (max-width: 820px) { .plug-more p { margin-left: 0; width: 100%; } }
+
+/* Goal ring in sheet head */
+.sheet-head .goal { margin-left: auto; }
+.goal {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 500 13px/1 var(--font-mono); color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.goal .ring { width: 18px; height: 18px; transform: rotate(-90deg); }
+.goal .ring circle { fill: none; stroke-width: 2.6; }
+.goal .ring .bg { stroke: var(--track); }
+.goal .ring .fg { stroke: var(--loop); transition: stroke-dashoffset 240ms var(--ease); }
+.goal.done .ring .fg { stroke: var(--ok); }
+
+/* Privacy */
+.facts { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; font-size: 14.5px; line-height: 1.6; color: var(--muted); }
+.facts li { display: grid; gap: 8px; align-content: start; }
+.facts .i { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; color: var(--fg); }
+.facts b { color: var(--fg); font-weight: 600; }
+.facts code { font: 400 0.9em var(--font-mono); }
+
+/* Updates */
+.log { list-style: none; display: grid; gap: 14px; font-size: 14.5px; line-height: 1.6; }
+.log li {
+  display: grid; grid-template-columns: 54px 90px 1fr; gap: 14px;
+  align-items: baseline; padding-block: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.log .v { font: 500 15px/1.6 var(--font-mono); color: var(--fg); font-variant-numeric: tabular-nums; }
+.log time { font-size: 14px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.log p { color: var(--muted); }
+.log b { color: var(--fg); font-weight: 600; }
+.log-more { margin-top: 18px; font-size: 15px; color: var(--muted); }
+.log-more a { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 580px) {
+  .log li { grid-template-columns: 54px 1fr; }
+  .log time { grid-column: 2; margin-top: -6px; margin-bottom: 2px; }
+  .log p { grid-column: 1 / -1; }
+}
+
+/* Install */
+.steps { list-style: none; counter-reset: s; display: grid; gap: 18px; font-size: 14.5px; line-height: 1.6; }
+.steps li { display: grid; grid-template-columns: 32px 1fr; gap: 6px 12px; align-items: baseline; }
+.steps li::before { counter-increment: s; content: counter(s); font: 600 22px/1.4 var(--font-head); color: var(--faint); }
+.steps h3 { font: 600 17px/1.6 var(--font-sans); }
+.steps p { color: var(--muted); grid-column: 2; }
+.steps a { text-decoration: underline; text-underline-offset: 3px; }
+.os { font: 600 15px/1.6 var(--font-sans); color: var(--faint); margin-bottom: 4px; }
+.os:not(:first-child) { margin-top: 32px; }
+.cmd {
+  grid-column: 2; display: flex; align-items: center; gap: 8px;
+  padding: 4px 6px 4px 12px; border-radius: 9px;
+  background: var(--deck); border: 1px solid var(--line-strong);
+  margin-block: 8px 4px;
+}
+.cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font: 400 13.5px/1.6 var(--font-mono); color: var(--fg); scrollbar-width: thin; }
+.cmd button {
+  flex: none; height: 32px; padding: 0 12px; border: 0; border-radius: 7px;
+  background: var(--fill); color: var(--fg); font: 500 13px/1 var(--font-sans);
+  cursor: pointer; transition: background-color 150ms;
+}
+.cmd button:hover { background: var(--hover); }
+
+/* Close */
+.close { padding-block: clamp(72px, 12vw, 140px); text-align: center; }
+.close h2 { font-family: var(--font-head); font-weight: 600; font-size: clamp(30px, 4vw, 48px); line-height: 1.2; letter-spacing: -0.02em; margin-inline: auto; max-width: 14em; }
+.close h2 .ph { display: inline-block; }
+.close p { margin-top: 14px; color: var(--muted); font-size: clamp(16px, 1.4vw, 19px); }
+
+/* Footer */
+footer {
+  padding-block: 40px 56px;
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px 32px;
+  border-top: 1px solid var(--line);
+  color: var(--faint); font-size: 14px;
+}
+footer a { color: var(--muted); }
+footer a:hover { color: var(--fg); }
+footer nav { display: flex; flex-wrap: wrap; gap: 16px 22px; }
+.lang-foot { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--faint); }
+.lang-foot a { color: var(--muted); }
+.lang-foot a.active { color: var(--fg); font-weight: 600; }
+
+/* Demo player (#try) */
+.try { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 8px 24px; margin-bottom: 10px; color: var(--muted); font-size: 15px; }
+.try .keys { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--faint); }
+.try kbd {
+  display: inline-block; padding: 1px 6px; border-radius: 5px;
+  background: var(--paper); box-shadow: 0 0 0 1px var(--line-strong);
+  font: 500 11.5px var(--font-sans); color: var(--fg);
+}
+.sheet {
+  background: var(--paper); border: 1px solid var(--line-strong);
+  border-radius: 16px; box-shadow: var(--window);
+  overflow: hidden; outline: none;
+}
+.sheet:focus-visible { box-shadow: var(--window), 0 0 0 2px var(--focus); }
+.sheet-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+  padding: 14px clamp(18px, 3vw, 36px) 0;
+  color: var(--faint); font-size: 13px;
+}
+.sheet-head b { font: 600 15px/1.4 var(--font-script); color: var(--muted); letter-spacing: 0.02em; }
+.script { list-style: none; padding: 10px 0; }
+.line {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  align-items: baseline;
+  column-gap: clamp(10px, 1.6vw, 18px);
+  padding: 8px clamp(18px, 3vw, 36px);
+  cursor: pointer;
+  transition: background-color 160ms;
+}
+.line:hover { background: var(--hover); }
+.t { font: 400 12.5px/1 var(--font-mono); color: var(--faint); font-variant-numeric: tabular-nums; padding-top: 0.55em; display: flex; flex-direction: column; gap: 7px; }
+.count { color: var(--loop-text); font-weight: 600; visibility: hidden; }
+.say {
+  font-family: var(--font-script); font-weight: 500; color: var(--muted);
+  font-size: clamp(16px, 1.5vw, 18px); line-height: 1.7; letter-spacing: 0.02em;
+  transition: font-size 360ms var(--ease), color 200ms;
+}
+.line.on { background: var(--hover); cursor: default; }
+.line.on .count { visibility: visible; }
+.sheet.looping .line.on .count { color: var(--loop-text); }
+.line.on .say { color: var(--fg); font-size: clamp(20px, 2.3vw, 28px); line-height: 1.55; }
+.bar {
+  grid-column: 2; height: 2px; background: var(--line);
+  border-radius: 1px; overflow: hidden; margin-top: 8px;
+}
+.bar i { display: block; height: 100%; width: 100%; background: var(--fg); transform-origin: left; transform: scaleX(0); will-change: transform; }
+.sheet.looping .line.on .bar i { background: var(--loop); }
+
+/* Explanation under the current sentence */
+.note, .take { grid-column: 2; margin-top: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; font-size: 14px; line-height: 1.6; color: var(--muted); cursor: default; }
+.note { background: var(--deck); }
+.note .tr { color: var(--fg); font-size: 15.5px; line-height: 1.6; }
+.note .run { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 13.5px; }
+.note dt { display: inline; }
+.note dt, .note .run b { font-family: var(--font-script); color: var(--fg); font-weight: 600; }
+.note dt span { font: 400 12.5px var(--font-sans); color: var(--faint); margin-left: 4px; }
+.note dd { display: inline; margin-left: 4px; color: var(--muted); }
+.note .pts span { margin-left: 4px; }
+.note .src { font-size: 12px; color: var(--faint); margin-left: auto; align-self: end; }
+
+/* Shadow recording under the current sentence */
+.take { background: var(--paper); box-shadow: 0 1px 3px var(--line); display: grid; gap: 10px; }
+.take[hidden] { display: none !important; }
+.take-row { display: flex; align-items: center; gap: 10px; }
+.take-state { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; color: var(--fg); white-space: nowrap; }
+.take-state .i { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+.rdot { width: 9px; height: 9px; border-radius: 50%; background: var(--danger); display: inline-block; box-shadow: 0 0 0 3px var(--danger-soft); }
+.prog { flex: 1; height: 4px; background: var(--track); border-radius: 2px; overflow: hidden; }
+.prog i { display: block; height: 100%; width: 100%; background: var(--loop); transform-origin: left; transform: scaleX(0); will-change: transform; }
+.meter { flex: 1; display: flex; align-items: center; gap: 2px; height: 20px; }
+.meter i { flex: 1; background: var(--fg); border-radius: 1px; min-height: 2px; transform-origin: bottom; opacity: 0.35; transition: height 60ms linear, opacity 60ms linear; }
+.secs { font: 500 12px/1 var(--font-mono); color: var(--fg); font-variant-numeric: tabular-nums; width: 3em; text-align: right; }
+.take-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.take-tools .hint { margin-left: auto; font-size: 12px; color: var(--faint); }
+.take-tools kbd { padding: 1px 5px; border-radius: 4px; background: var(--fill); font: 500 11px var(--font-sans); color: var(--fg); }
+.tb {
+  display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px; border-radius: 7px; border: 0;
+  background: var(--fill); color: var(--fg); font: 500 13px/1 var(--font-sans); cursor: pointer;
+}
+.tb:hover { background: var(--hover); }
+.tb[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+.tb[aria-pressed="true"] svg { fill: currentColor; }
+.tb svg { width: 10px; height: 10px; fill: currentColor; }
+.tl { border: 0; background: none; padding: 4px 2px; color: var(--faint); font: 400 12px/1 var(--font-sans); cursor: pointer; }
+.tl:hover { color: var(--fg); }
+.waves { display: grid; grid-template-columns: 52px minmax(0, 1fr) 50px; align-items: center; gap: 4px 8px; }
+.waves > span { font-size: 11.5px; color: var(--faint); }
+.waves > span:last-child, .waves .len { text-align: right; font: 400 11.5px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.lane {
+  position: relative; height: 26px; border: 0; background: var(--fill); border-radius: 6px;
+  overflow: hidden; cursor: pointer; padding: 0; display: block; width: 100%;
+}
+.lane:hover { background: var(--hover); }
+.lane.o { color: var(--muted); }
+.lane.m { color: var(--fg); }
+.lane svg { width: 100%; height: 100%; display: block; }
+.lane .head { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); pointer-events: none; }
+.pace { padding-left: 60px; font-size: 12.5px; color: var(--faint); margin-top: 2px; }
+.take .err { color: var(--danger); font-size: 13px; }
+.take .more { font-size: 12.5px; color: var(--faint); border-top: 1px solid var(--line); padding-top: 9px; }
+
+/* Deck */
+.deck {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px clamp(18px, 3vw, 36px);
+  background: var(--deck); border-top: 1px solid var(--line);
+  user-select: none; flex-wrap: wrap;
+}
+.deck .grp { display: flex; gap: 4px; }
+.ib {
+  width: 36px; height: 36px; border-radius: 10px;
+  border: 0; background: transparent; color: var(--fg);
+  display: inline-grid; place-items: center;
+  cursor: pointer; transition: background-color 150ms;
+}
+.ib:hover { background: var(--hover); }
+.ib:active { background: var(--press); }
+.ib.play { background: var(--ink); color: var(--on-ink); }
+.ib.play:hover { opacity: 0.9; }
+.ib svg { width: 17px; height: 17px; fill: currentColor; }
+.ib.play svg { fill: currentColor; }
+.deck .tog {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 36px; padding: 0 13px; border-radius: 10px;
+  border: 1px solid var(--line-strong); background: transparent;
+  color: var(--fg); font: 500 14.5px/1 var(--font-sans);
+  cursor: pointer;
+}
+.deck .tog:hover { background: var(--hover); }
+.deck .tog kbd { height: 1.45em; font-size: 0.74em; }
+.deck .tog.loop[aria-pressed="true"] {
+  background: var(--loop-soft); border-color: var(--loop-line);
+  color: var(--loop-text); font-weight: 600;
+}
+.deck .tog.rec[aria-pressed="true"] {
+  background: var(--ink); color: var(--on-ink); border-color: transparent;
+}
+.deck .tog.rec.live { background: var(--danger); color: #fff; border-color: transparent; }
+.deck .tog.exp[aria-pressed="true"] {
+  background: var(--fill);
+}
+.speeds { display: inline-flex; padding: 2px; border-radius: 10px; background: var(--fill); gap: 2px; }
+.speeds button {
+  height: 32px; min-width: 48px; padding-inline: 8px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--muted);
+  font: 500 13.5px/1 var(--font-mono); font-variant-numeric: tabular-nums;
+  cursor: pointer; transition: background-color 150ms, color 150ms;
+}
+.speeds button:hover { color: var(--fg); }
+.speeds button[aria-pressed="true"] { background: var(--paper); color: var(--fg); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
+.clock { margin-left: auto; font: 400 13px/1 var(--font-mono); color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.clock b { color: var(--fg); font-weight: 500; }
+@media (max-width: 860px) { .clock { display: none; } }
+@media (max-width: 720px) { .deck { gap: 10px; } .tog { padding: 0 11px; } .tog kbd { display: none; } }
+@media (max-width: 560px) { .deck { gap: 10px 8px; padding-inline: 12px; } .deck .grp { order: 1; } #loop { order: 2; } #rec { order: 3; } .speeds { order: 4; } #exp { order: 5; } .speeds button { min-width: 44px; } }
+.caption { margin-top: 12px; font-size: 13px; color: var(--faint); }
+</style>
+<script>
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+
+<div class="wrap">
+  <nav class="nav" aria-label="メインナビゲーション">
+    <a class="brand" href="#top" aria-label="Shadowing ホーム">
+      <svg viewBox="64 64 896 896" aria-hidden="true"><rect x="64" y="64" width="896" height="896" rx="208" fill="#252927"/><path d="M 648 326 A 238 238 0 1 0 748 513" fill="none" stroke="#F7F5EE" stroke-width="55" stroke-linecap="round"/><path d="M 748 447 L 803 541 L 693 541 Z" fill="#F7F5EE"/><g fill="#EFA477"><rect x="389" y="455" width="53" height="114" rx="26.5"/><rect x="486" y="393" width="53" height="238" rx="26.5"/><rect x="583" y="432" width="53" height="160" rx="26.5"/></g></svg>
+      Shadowing
+    </a>
+    <div class="nav-links">
+      <a href="#try">体験する</a>
+      <a href="#listen">機能</a>
+      <a href="#speak">シャドーイング</a>
+      <a href="#practice">練習の記録</a>
+      <a href="#plugins">プラグイン</a>
+      <a href="#updates">更新履歴</a>
+      <a href="#install">インストール</a>
+      <a href="https://github.com/mxggle/shadowing" target="_blank" rel="noopener">GitHub</a>
+      <div class="lang-picker">
+        <button class="lang-btn" type="button" aria-expanded="false" aria-label="言語を選択">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span>日本語</span>
+          <svg class="arrow" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="lang-menu" role="menu">
+          <a href="/" role="menuitem" lang="zh-CN">简体中文</a>
+          <a href="/zh-tw" role="menuitem" lang="zh-TW">繁體中文</a>
+          <a href="/en" role="menuitem" lang="en">English</a>
+          <a href="/ja" role="menuitem" class="active" lang="ja">日本語</a>
+        </div>
+      </div>
+      <a class="nav-dl" data-os="mac" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">ダウンロード</a>
+    </div>
+  </nav>
+
+  <main id="top">
+    <section class="hero">
+      <a class="news" href="#updates"><b>0.14 新機能</b>プラグイン注釈<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+      <h1><span class="ph">お手本の声と、</span><span class="ph">自分の声を並べて聴く。</span></h1>
+      <p class="lede">Shadowing（シャドーイング）は、Mac と Windows のためのシャドーイングアプリです。手元の音声ファイルをドラッグ＆ドロップするだけで、一文ずつ自動で文字起こし（Mac なら完全ローカルで処理）。この一文をループ再生したり、音程を変えずにスロー再生したり、聞き取れない箇所は AI 解説を展開。そしてお手本に続いて声に出せば、あなたの録音とお手本の波形が上下に並び、テンポやタイミングのズレが一目で分かります。</p>
+      <div class="actions">
+        <a class="btn btn-ink" data-os="mac" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+          macOS 版をダウンロード <small>Apple Silicon</small>
+        </a>
+        <a class="btn btn-quiet" data-os="windows" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-windows-x64-setup.exe">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+          Windows 版をダウンロード <small>x64</small>
+        </a>
+        <a class="btn btn-quiet" href="#try">ブラウザで一文試してみる</a>
+      </div>
+      <p class="win-note">Windows 版インストーラーはコード署名前のため、SmartScreen が表示された場合は「詳細情報」をクリックしてから「実行」を選択してください（<a href="#windows">インストール手順</a>）。</p>
+      <div class="meta">
+        <span>完全無料・MIT オープンソース</span>
+        <span data-app-version>v0.14.0 · 約 12 MB</span>
+        <span>macOS 11 以降、または 64 ビット Windows 10 / 11</span>
+        <span>テレメトリ（情報送信）なし</span>
+        <span><i class="dot" aria-hidden="true"></i>Linux 版開発中</span>
+      </div>
+    </section>
+
+    <figure class="shot window hero-shot">
+      <picture>
+        <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="shots/hero-crop-dark.webp" width="1121" height="533">
+        <source media="(max-width: 640px)" srcset="shots/hero-crop-light.webp" width="1121" height="533">
+        <source media="(prefers-color-scheme: dark)" srcset="shots/hero-dark.webp" width="2480" height="1560">
+        <img src="shots/hero-light.webp" width="2480" height="1560" alt="Shadowing のアプリ画面：日本語の会話が一文ずつ書き起こされ、話者と会話セクションが表示されている。練習中の文の下にはシャドーイング録音カードがあり、お手本と自分の2つの波形が並び、お手本より 0.42 秒遅れて発音されたことが示されている。" fetchpriority="high">
+      </picture>
+    </figure>
+
+    <section class="demo" id="try" aria-labelledby="try-title">
+      <div class="head">
+        <h2 id="try-title"><span class="ph">インストール不要。</span><span class="ph">まずはここで一文、声に出してみる。</span></h2>
+        <p>アプリ付属のサンプル作品《ごんぎつね》。文をクリックするとその文をループ再生し、音程を変えずにテンポを落とせます。「<b>シャドーイング</b>」を押せば、まずお手本が流れ、続いてあなたの番。お手本と吹き込みを聴き比べられます。</p>
+      </div>
+      <div class="try">
+        <span class="keys"><span><kbd>Space</kbd> 再生 / 一時停止</span><span><kbd>L</kbd> ループ</span><span><kbd>[</kbd> <kbd>]</kbd> 前後の一文</span><span><kbd>−</kbd> <kbd>=</kbd> 速度変更</span><span><kbd>I</kbd> AI解説</span><span><kbd>M</kbd> シャドーイング</span></span>
+      </div>
+
+      <div class="sheet looping" id="sheet" tabindex="0" aria-label="サンプルプレーヤー（キーボード操作対応）">
+        <div class="sheet-head"><b>ごんぎつね　新美南吉</b><span class="goal" id="goal" title="今日の練習 / 毎日の目標"><svg class="ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="bg" cx="10" cy="10" r="8"/><circle class="fg" id="ringFg" cx="10" cy="10" r="8" stroke-dasharray="50.27" stroke-dashoffset="50.27"/></svg><span id="goalText">0:00 / 1分</span></span></div>
+        <ol class="script" id="script"></ol>
+        <div class="deck">
+          <div class="grp">
+            <button class="ib" id="prev" title="前の文 ([)" aria-label="前の文"><svg class="i" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <button class="ib play" id="play" title="再生 (Space)" aria-label="再生"><svg class="i" viewBox="0 0 24 24" id="playIcon"><path d="M8 5.5v13l11-6.5z"/></svg></button>
+            <button class="ib" id="next" title="次の文 (])" aria-label="次の文"><svg class="i" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+          <button class="tog loop" id="loop" aria-pressed="true" title="この文をループ (L)">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3l3 3-3 3"/><path d="M4 11V9a3 3 0 0 1 3-3h13"/><path d="M7 21l-3-3 3-3"/><path d="M20 13v2a3 3 0 0 1-3 3H4"/></svg>
+            ループ <kbd>L</kbd>
+          </button>
+          <div class="speeds" role="group" aria-label="再生速度" id="speeds"></div>
+          <button class="tog exp" id="exp" aria-pressed="true" title="この文の解説 (I)">解説 <kbd>I</kbd></button>
+          <button class="tog rec" id="rec" aria-pressed="false" title="この文をシャドーイング：まずお手本を聴き、続けて自分の声を録音 (M)">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
+            シャドーイング <kbd>M</kbd>
+          </button>
+          <div class="clock" aria-live="off"><b id="now">0:00.0</b> / 0:32.8</div>
+        </div>
+      </div>
+      <p class="caption">音声：LibriVox、ekzemplaro 氏朗読（CC0）。ブラウザ体験版の解説はあらかじめ用意されたサンプルです。アプリ内ではお好みの AI が自動生成します。録音データはお使いのブラウザ内のみで処理され、外部には送信されません。</p>
+      <audio id="audio" src="gongitsune.mp3" preload="auto"></audio>
+    </section>
+
+    <section class="chapter" id="listen" aria-labelledby="listen-title">
+      <div class="head">
+        <h2 id="listen-title"><span class="ph">手元にある音声が、</span><span class="ph">そのまま教材になる。</span></h2>
+        <p>音声ファイルが入ったフォルダを選ぶだけですぐに練習開始。字幕ファイル（SRT / VTT）の読み込みはもちろん、字幕がなくても Mac 上で直接文字起こし（Windows 版はクラウド連携）。自然な息継ぎで文を区切り、誰が話しているかも見分けます。</p>
+      </div>
+      <figure class="shot window listen-shot">
+        <picture>
+          <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="shots/listen-crop-dark.webp" width="1441" height="558">
+          <source media="(max-width: 640px)" srcset="shots/listen-crop-light.webp" width="1441" height="558">
+          <source media="(prefers-color-scheme: dark)" srcset="shots/listen-dark.webp" width="2480" height="1560">
+          <img src="shots/listen-light.webp" width="2480" height="1560" loading="lazy" decoding="async" alt="日本語の会話音声の字幕画面：各文の先頭に再生時間と話者 A・B が表示され、複数の会話の合間に「会話 2」などの見出しがつく。ループ再生中の文はオレンジ色でハイライトされている。">
+        </picture>
+      </figure>
+      <div class="shelfrow" aria-label="おすすめの学習素材"><span>シャドーイング 教材 CD</span><span>JLPT 聴解過去問</span><span>オーディオブック</span><span>ポッドキャスト</span><span>NHK ニュース</span><span>英語・語学教材</span></div>
+      <dl class="points">
+        <div><dt>完全ローカル文字起こし</dt><dd>Whisper が Mac 上で直接動作し、Apple Silicon では Metal により高速処理。インターネット通信は一切不要、追加料金もかかりません。初回起動時に Mac のチップ、メモリ、ストレージの空き容量を自動判別し、最適なモデルをご提案します。さらなる高速化を求める場合は Groq や OpenAI などのクラウド API も選択可能（Windows 版はクラウド API を使用）。</dd></div>
+        <div><dt>音程を変えずにスロー再生・一文ループ</dt><dd>文をクリックするだけで、その文から即座に再生。キーボードの <kbd>S</kbd> でループ、<kbd>[</kbd> <kbd>]</kbd> で前後の文へ移動でき、聴いた回数も記録されます。再生速度は <strong>0.5倍速から2.0倍速</strong> まで、0.05刻みで自在に調整可能。字幕のない音声でも、<kbd>L</kbd> キーで A-B 区間を指定すれば同じようにループ再生できます。</dd></div>
+        <div><dt>会話のセクション分割</dt><dd>1つの音声に複数の会話が含まれている場合（リスニング問題の大問など）、長い無音や話者の交代を検知して自動でセクション分け。小見出しの名前変更や結合、「このセクションをループ」や <kbd>{</kbd> <kbd>}</kbd> キーでのセクション移動も思いのままです。</dd></div>
+        <div><dt>話者の分離・識別</dt><dd><span class="spk">A</span><span class="spk">B</span> 会話の中で誰がどの発言をしたかを色分けして表示。声紋の分析もすべて端末内で安全に計算されます。</dd></div>
+        <div><dt>自信のない箇所のハイライト</dt><dd>文字起こしの確信度が低い単語には点線を表示（例：<span class="doubt">飴</span>）。その場で直接編集したり、一括置換したり、AI 校正のアドバイスを参考にしながら修正できます。修正するかどうかはあなた次第です。</dd></div>
+        <div><dt>既存の字幕ファイルを読み込み</dt><dd>音声ファイルと同じフォルダにある同名の SRT や VTT ファイルを自動認識。修正内容はアプリ内のみに保存され、元の音声ファイルを書き換えることはありません。どこまで聴いたかも音声ごとに記憶されます。</dd></div>
+      </dl>
+    </section>
+
+    <section class="chapter split flip" id="understand" aria-labelledby="understand-title">
+      <figure class="shot crop">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="shots/explain-dark.webp">
+          <img src="shots/explain-light.webp" width="1441" height="601" loading="lazy" decoding="async" alt="日本語の文の下に展開された解説：日本語の現代語訳、単語と読み仮名、文法ポイント、口語の縮約表現などが丁寧に解説されている。">
+        </picture>
+      </figure>
+      <div>
+        <div class="head">
+          <h2 id="understand-title"><span class="ph">聞き取れなかった文は、</span><span class="ph">開くだけですぐ理解。</span></h2>
+          <p><kbd>I</kbd> キーを押すと、その文の現代語訳・重要単語・文法ポイントが瞬時に展開。口語特有の省略や縮約もわかりやすく解説されます。一度生成された解説は保存されるため、次回からは待ち時間ゼロです。</p>
+        </div>
+        <dl class="points">
+          <div><dt>お好みの AI を連携</dt><dd>ChatGPT アカウントや OpenRouter ならブラウザ経由でワンクリック連携。OpenAI、Anthropic、Gemini、DeepSeek の API キーを設定することも、端末ローカルで動く Ollama や LM Studio を使うことも可能です。</dd></div>
+          <div><dt>AI なしでも快適に動作</dt><dd>AI の設定や字幕がなくても、音声再生、一文ループ、シャドーイング録音といった基本機能はすべて完全に利用できます。</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <div class="band" id="speak">
+      <div class="wrap">
+        <section class="chapter" aria-labelledby="speak-title">
+          <div class="head">
+            <div><p class="new">0.7 版新機能</p><h2 id="speak-title"><span class="ph">そして、</span><span class="ph">あなたの番。</span></h2></div>
+            <p>文の横にあるマイクボタンを押すか、<kbd>M</kbd> キーを押して録音開始。ヘッドホンがなくても大丈夫：スピーカーから流れるお手本の音声を自動で除去し、あなたの声だけをクリアに録音します。話し終わって一呼吸置くと、自動で録音が完了します。</p>
+          </div>
+          <div class="split flip">
+            <figure class="shot crop">
+              <picture>
+                <source media="(prefers-color-scheme: dark)" srcset="shots/take-dark.webp">
+                <img src="shots/take-light.webp" width="1441" height="542" loading="lazy" decoding="async" alt="シャドーイング録音カード：「聞きながら話す」モードでお手本（2.1 秒）と自分の声（2.2 秒）の波形が並び、お手本より 0.12 秒遅れて発音されたこと、テンポがお手本とほぼ同じであることが示されている。">
+              </picture>
+              <figcaption>聞きながら話す：リアルタイムに並ぶ2本の波形で、テンポが合っているか一目で確認。</figcaption>
+            </figure>
+            <dl class="points">
+              <div><dt>聞いてから話す、聞きながら話す</dt><dd>まずお手本を聴いてから自分の番になるモードと、お手本に合わせて同時に声を重ねるモードの両方に対応。録音後は自動で聴き直し：お手本のあとに自分の声を再生することも、両方を同時に流して重なり具合を確かめることもできます。</dd></div>
+              <div><dt>2つの波形を並べて比較</dt><dd>お手本と比べてテンポが速いか遅いか、発音の立ち上がりが何秒ズレたかを明示。どちらの波形をクリックしてもその音声を再生でき、<kbd>P</kbd> キーで直前のテイクをすぐに聴き直せます。</dd></div>
+              <div><dt>AirPods やイヤホンマイクにも対応</dt><dd>Bluetooth イヤホンの使用時は、自動的に Mac 本体の内蔵マイクで録音するように制御。イヤホンの通話モードによる音質劣化を防ぎ、クリアな音声でお手本を聴きながら練習できます。</dd></div>
+            </dl>
+          </div>
+          <div class="split">
+            <dl class="points">
+              <div><dt>通し録音</dt><dd>セクション全体や長文を一息に読み通す練習も可能。自分が読むスピードに合わせてハイライトが進み、文末で一呼吸置くと次の文へ自動進行。お手本と一緒に読むこともできます。録音終了後は文ごとに自動分割され、一文ずつの詳細な比較が可能です。</dd></div>
+              <div><dt>歌詞のように自然に振り返る</dt><dd>録音済みの文に差し掛かると、下に自動であなたの録音カードが展開。「通して聴く」を押せば、一文ずつ流れるように全文を振り返ることができます。</dd></div>
+              <div><dt>すべてのテイクをローカルに保存</dt><dd>録音データはすべてお使いのパソコン内に自動保存され、過去のテイクをいつでも振り返ることができます。設定画面から使用容量を確認でき、元の音声を削除した際の一括クリーンアップも簡単です。</dd></div>
+            </dl>
+            <figure class="shot crop">
+              <picture>
+                <source media="(prefers-color-scheme: dark)" srcset="shots/reading-dark.webp">
+                <img src="shots/reading-light.webp" width="1441" height="911" loading="lazy" decoding="async" alt="通し録音の完了画面：セクション上部に「あなた 10.7 秒 / お手本 11.0 秒、テンポはお手本とほぼ同じ」と表示され、一文ごとの比較と全体の通し録音が並んでいる。再生中の文の下にはお手本と自分の波形が展開されている。">
+              </picture>
+              <figcaption>通し録音：文章全体を一気に読み上げ、自動で一文ずつに分割して詳細に比較。</figcaption>
+            </figure>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <section class="chapter split" id="practice" aria-labelledby="practice-title">
+      <div>
+        <div class="head">
+          <h2 id="practice-title"><span class="ph">毎日の小さな積み重ねを、</span><span class="ph">確かな手応えに。</span></h2>
+          <p>実際に声を出して練習した時間だけを正確に計測。目標時間を設定すると、トップバーのリングが少しずつ満たされ、達成するとグリーンのチェックに変わります。</p>
+        </div>
+        <dl class="points">
+          <div><dt>実践した時間だけをカウント</dt><dd>音声の再生、シャドーイングの録音、吹き込んだ声の確認時間がすべて対象。一時停止後も 90 秒以内の操作であれば継続時間としてカウントされます。日毎の切り替えは午前4時のため、夜遅くの練習もその日の実績として記録されます。</dd></div>
+          <div><dt>目標設定と連続日数</dt><dd>1日の目標はデフォルトで15分（5分〜60分で変更可能）。直近14日間の棒グラフや過去半年間のヒートマップカレンダーで、継続のリズムが一目で分かります。</dd></div>
+        </dl>
+      </div>
+      <figure class="shot crop">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="shots/practice-dark.webp">
+          <img src="shots/practice-light.webp" width="1280" height="1361" loading="lazy" decoding="async" alt="練習の記録パネル：今日、直近7日間、累計時間、連続達成日数に加え、直近14日間の棒グラフと過去半年間の練習カレンダーが表示されている。">
+        </picture>
+      </figure>
+    </section>
+
+    <div class="band" id="plugins">
+      <div class="wrap">
+        <section class="chapter" aria-labelledby="plugins-title">
+          <div class="head">
+            <div><p class="new">0.9 版新機能</p><h2 id="plugins-title"><span class="ph">足りない機能は、</span><span class="ph">プラグインで広がる。</span></h2></div>
+            <p>プラグイン機能によって、Shadowing の可能性はさらに広がります。誰でも自由に開発可能です。第1弾公式プラグイン「YouTube インポート」：動画の URL をコピーしてアプリ内で <kbd>⌘V</kbd> を押すだけで、音声と公式字幕が指定フォルダに直接届きます。映像を見ながら練習したい場合は動画ごと保存も可能です。</p>
+          </div>
+          <div class="split flip">
+            <figure class="shot imp">
+              <div class="imp-win" aria-hidden="true">
+                <div class="imp-bar"><b>リンクからインポート</b><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></div>
+                <div class="imp-body">
+                  <div class="imp-url"><span class="field">https://www.youtube.com/watch?v=…</span><span class="mini">読み込み</span></div>
+                  <p class="imp-title">カフェで注文してみよう｜日本語の会話</p>
+                  <p class="imp-meta">11:38 · YouTube</p>
+                  <div class="imp-rows">
+                    <div class="imp-row"><span>字幕</span><span class="field">日本語（公式字幕）<svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span></div>
+                    <div class="imp-row"><span>保存形式</span><span class="seg"><span>音声のみ</span><span class="on">音声 + 動画</span></span></div>
+                    <div class="imp-row"><span>画質</span><span class="field"><span>720p · 約 96 MB</span><svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span></div>
+                    <div class="imp-row"><span>保存先</span><span class="folder">リスニング練習 /</span><span class="field">YouTube</span></div>
+                  </div>
+                  <p class="imp-note">MP4 動画（H.264）とオリジナルの M4A 音声を結合し、再エンコードなしで高速保存。字幕の区切りが不自然な場合は、字幕を削除してローカル文字起こしに切り替えることも可能です。利用規約や著作権を遵守してご利用ください。</p>
+                  <div class="imp-btns"><span class="mini">キャンセル</span><span class="mini ink">ダウンロード</span></div>
+                </div>
+              </div>
+              <div class="dl-list" aria-hidden="true">
+                <b>YouTube</b>
+                <div class="dl"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="var(--track)"/><circle cx="8" cy="8" r="6.5" stroke="var(--fg)" stroke-linecap="round" stroke-dasharray="15.9 40.8" transform="rotate(-90 8 8)"/></svg><div><p>カフェで注文してみよう｜日本語の会話</p><small>動画をダウンロード中 31.4 / 85.2 MB</small></div></div>
+                <div class="dl q"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="var(--track)" stroke-dasharray="2.5 2.5"/></svg><div><p>駅で道を聞く｜日本語の会話</p><small>待機中（前のダウンロード完了後）</small></div></div>
+              </div>
+              <figcaption><kbd>⌘V</kbd> を押すと動画タイトルや公式字幕の有無をプレビュー。音声のみか動画ごとも選べます。ダウンロード中も他の音声で練習でき、完了するとリストの指定フォルダにすぐ並びます。</figcaption>
+            </figure>
+            <dl class="points">
+              <div><dt>URL を貼るだけで即インポート</dt><dd>タイトル、再生時間、公式字幕の有無を確認し、保存先フォルダを選んでダウンロード。ダウンロード中も他の教材で普段どおり練習できます。音声はオリジナルの M4A 音声を無劣化で抽出。動画が必要な場合も H.264 映像と音声を高速結合するため、ffmpeg 等の面倒な追加インストールは一切不要です。</dd></div>
+              <div><dt>誰でも作れるシンプルな設計</dt><dd>プラグインは実行ファイルと manifest.json だけで構成され、LSP や MCP と同様に標準入出力の JSON-RPC で通信します。言語の制限はなく、万が一プラグイン側でエラーや遅延が起きてもアプリの再生は止まりません。</dd></div>
+              <div><dt>インストール前の安全確認</dt><dd>アプリはユーザーのフォルダ全体をプラグインに渡しません。専用の一時ディレクトリにのみ書き込ませ、安全確認後に正規のフォルダへ配置します。インストール前にはアクセス先の通信先や実行内容を明示し、公式プラグインディレクトリに掲載されるものは事前にソースコードを審査しています。</dd></div>
+            </dl>
+          </div>
+          <div class="plug-more">
+            <a class="btn btn-ink" href="/plugins">プラグイン一覧を見る</a>
+            <a class="btn btn-quiet" href="/plugins#write">プラグインを自作・公開する</a>
+            <p>Anki への単語書き出しや、辞書連携プラグインなども順次開発予定です。</p>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <section class="chapter" id="privacy" aria-labelledby="privacy-title">
+      <div class="head">
+        <h2 id="privacy-title"><span class="ph">あなたの音声と録音は、</span><span class="ph">パソコンの外に出ません。</span></h2>
+        <p>話者の識別も、録音に入り込んだお手本音声の除去も、すべてお使いの端末内で完結。Mac では文字起こしもオフラインで動作します。更新チェックを除き、通信が発生するのはクラウド AI 機能（Windows 版の文字起こしを含む）やプラグインを明示的に使ったときだけです。</p>
+      </div>
+      <ul class="facts">
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span><b>アクセスするのは指定したフォルダのみ。</b>アプリ付属のサンプル教材以外、パソコン内の他のファイルに触れることは一切ありません。</span></li>
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l16 16"/><path d="M9.5 5.2A9 9 0 0 1 21 12a9 9 0 0 1-1.6 2.6M6.2 6.6A9 9 0 0 0 3 12a9 9 0 0 0 12.4 5.4"/></svg><span><b>テレメトリ（利用状況送信）なし。</b>利用履歴や個人データを収集することは一切ありません。設定画面では各 AI 機能の送信先も明記しています。</span></li>
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg><span><b>API キーはシステムの安全な保管庫に保存</b>（macOS キーチェーン、Windows 資格情報マネージャー）。アプリ内のデータには <code>sk-…abcd</code> のような末尾のヒントのみを残します。</span></li>
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span><b>ローカルモデルは初回使用時のみダウンロード。</b>バージョンは固定され、SHA-256 チェックサムで改ざんがないことを確認します。</span></li>
+      </ul>
+    </section>
+
+    <section class="chapter" id="updates" aria-labelledby="updates-title">
+      <div class="head">
+        <h2 id="updates-title"><span class="ph">19日間で17バージョン。</span><span class="ph">ハイペースで進化中。</span></h2>
+        <p>新バージョンが公開されると起動時にお知らせします。「更新して再起動」を1クリックするだけで完了。設定や字幕、録音データもすべてそのまま引き継がれます。</p>
+      </div>
+      <ol class="log">
+        <li><span class="v">0.14</span><time datetime="2026-10-27">10月27日</time><p><b>プラグイン注釈。</b>プラグインが字幕の文に直接注釈を付けられるようになりました。第1弾として、漢字の上に読みがなを表示する「日本語ふりがな」プラグインが登場。</p></li>
+        <li><span class="v">0.13</span><time datetime="2026-10-27">10月27日</time><p><b>動画ファイルの再生に対応。</b>mp4 や mov 動画も音声と同様に速度変更、ループ、シャドーイングに対応。並列表示やシアターモード、字幕マスク、アフレコ練習、YouTube インポートでの動画保存が可能になりました。</p></li>
+        <li><span class="v">0.12</span><time datetime="2026-10-24">10月24日</time><p><b>1文字ずつのカラオケ風ハイライト。</b>文字起こしされた字幕が、音声の再生に合わせて1文字ずつ（英語は1単語ずつ）リアルタイムに点灯します。</p></li>
+        <li><span class="v">0.11</span><time datetime="2026-10-19">10月19日</time><p><b>Windows 版リリース。</b>64 ビット Windows 10 / 11 に対応。再生、ループ、シャドーイング録音を Mac 版と同じ快適さで利用可能（ショートカットは Ctrl、文字起こしはクラウド連携）。</p></li>
+        <li><span class="v">0.10</span><time datetime="2026-10-18">10月18日</time><p><b>英語インターフェースに対応。</b>OS の言語設定に自動で追従するほか、設定画面からいつでも手動で言語を切り替えられます。</p></li>
+        <li><span class="v">0.9</span><time datetime="2026-10-18">10月18日</time><p><b>プラグイン機能と YouTube インポート。</b>URL を貼り付けるだけで動画の音声と公式字幕をフォルダに一括取り込み。AI 解説も語順ごとの分解やニュアンス解説に対応。</p></li>
+        <li><span class="v">0.8.1</span><time datetime="2026-10-17">10月17日</time><p>アプリ内で各バージョンの新機能と更新内容を直接確認できるようになりました。</p></li>
+        <li><span class="v">0.8</span><time datetime="2026-10-17">10月17日</time><p><b>文の手動分割・結合、同一文の連続録音。</b>一文ずつのシャドーイング特訓に対応し、再生ボタンで録音や再生を一時停止できるようになりました。</p></li>
+        <li><span class="v">0.7</span><time datetime="2026-10-15">10月15日</time><p><b>シャドーイング録音と通し録音。</b>自分の声とお手本を波形で比較。ヘッドホンなしでも録音可能になり、長文の一気読みと文単位の自動分割にも対応。</p></li>
+        <li><span class="v">0.6</span><time datetime="2026-10-13">10月13日</time><p><b>会話セクションの分割。</b>1つの音声に含まれる複数の会話を自動検出し、名前変更、結合、セクションごとのループ再生が可能に。</p></li>
+        <li><span class="v">0.5.1</span><time datetime="2026-10-12">10月12日</time><p>アップデート後にキーチェーンのパスワードを繰り返し求められる問題を修正。</p></li>
+        <li><span class="v">0.5</span><time datetime="2026-10-12">10月12日</time><p><b>初期セットアップガイド。</b>Mac のスペックに応じたローカル文字起こしモデルの自動提案、ChatGPT アカウント連携、.dmg 配布形式に対応。</p></li>
+        <li><span class="v">0.4</span><time datetime="2026-10-12">10月12日</time><p><b>練習の記録と毎日の目標、</b>アプリ内自動アップデート機能を追加。</p></li>
+        <li><span class="v">0.3</span><time datetime="2026-10-11">10月11日</time><p>インストーラーの容量削減、保存処理の安定化、長い字幕に対する AI 校正のタイムアウトを解消。</p></li>
+        <li><span class="v">0.2</span><time datetime="2026-10-10">10月10日</time><p>再生順序の変更に対応（フォルダ内ループ、1曲ループ、最後まで再生して停止）。</p></li>
+        <li><span class="v">0.1</span><time datetime="2026-10-09">10月9日</time><p>最初の公開バージョンをリリース。</p></li>
+      </ol>
+      <p class="log-more"><a href="https://github.com/mxggle/shadowing/blob/main/CHANGELOG.md" target="_blank" rel="noopener">すべての更新履歴を見る</a>。GitHub リポジトリを Star すると、Linux 版のリリース情報などもいち早く受け取れます。</p>
+    </section>
+
+    <section class="chapter" id="install" aria-labelledby="install-title">
+      <div class="head">
+        <h2 id="install-title">インストール</h2>
+        <p>Mac 版は Apple Silicon（macOS 11 以降）、Windows 版は 64 ビットの Windows 10 または 11 に対応しています。初回起動時には4ステップの初期ガイド（学習言語の選択、文字起こし方法の選択、AI のログイン、サンプルでの練習）が表示されます（途中のステップはスキップ可能）。</p>
+      </div>
+      <div class="split start">
+      <div>
+      <h3 class="os">macOS（Apple Silicon）</h3>
+      <ol class="steps">
+        <li><h3>インストーラーをダウンロード</h3><p>こちらから<a href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">最新版（.dmg）をダウンロード</a>してください（約 11 MB）。</p></li>
+        <li><h3>「アプリケーション」フォルダへドラッグ</h3><p>ダウンロードした .dmg ファイルをダブルクリックし、開いたウィンドウで Shadowing アイコンを「Applications」フォルダへドラッグ＆ドロップします。</p></li>
+        <li>
+          <h3>開けない場合や「壊れている」と表示されるとき</h3>
+          <p>本アプリは現在 Apple による公証（Notarization）取得前のため、ブラウザ経由でダウンロードした際に macOS のセキュリティ機能によって警告が出たり、「壊れているため開けません」と表示されることがあります。Spotlight（⌘ スペース）で「ターミナル」を開き、以下のコマンドを貼り付けて Return を押してください。自動で安全にダウンロード・インストール・起動が行われ、以降は通常のアプリと同様にダブルクリックで起動できます：</p>
+          <div class="cmd"><code id="cmd">curl -fsSL https://shadowing.nihongo.day/install.sh | bash</code><button id="copy" type="button">コピー</button></div>
+          <p>1〜2の手順をスキップして、このコマンドだけで直接インストールすることも可能です。</p>
+        </li>
+        <li><h3>以降はアプリ内で自動更新</h3><p>新しいバージョンがリリースされるとアプリ内で通知されます。更新内容を確認の上、ワンクリックで最新版へアップデートできます（インストーラーの署名も自動検証されます）。</p></li>
+      </ol>
+      <h3 class="os" id="windows">Windows（x64）</h3>
+      <ol class="steps">
+        <li><h3>インストーラーをダウンロード</h3><p>こちらから<a href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-windows-x64-setup.exe">Windows 版（.exe）をダウンロード</a>し、ダブルクリックで実行してください。現在のユーザー環境にインストールされるため、管理者権限は不要です。</p></li>
+        <li><h3>「Windows によって PC が保護されました」と表示された場合</h3><p>インストーラーのコード署名準備中のため、Microsoft Defender SmartScreen の画面が出ることがあります。「詳細情報」をクリックし、「実行」を選択してください。</p></li>
+        <li><h3>以降はアプリ内で自動更新</h3><p>Mac 版と同様に、新バージョンが公開されるとアプリ内でお知らせし、ワンクリックで更新できます。なお Windows 版の文字起こしはクラウド API（Groq、OpenAI 等）を利用します（完全ローカル文字起こしは現在 Mac 版のみ）。</p></li>
+      </ol>
+      </div>
+      <figure class="shot crop">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="shots/onboarding-dark.webp">
+          <img src="shots/onboarding-light.webp" width="1250" height="806" loading="lazy" decoding="async" alt="初期セットアップガイドのステップ2「この Mac で文字起こし」：チップ、メモリ、空き容量が表示され、Large v3 Turbo モデルが推奨理由とともに提示されている。下部には「ダウンロードして使用」ボタンがある。">
+        </picture>
+        <figcaption>初期セットアップガイド：Mac のチップ・メモリ・空き容量を自動検出し、最適な文字起こしモデルを提案。ワンクリックでバックグラウンドダウンロードが始まります。</figcaption>
+      </figure>
+      </div>
+    </section>
+
+    <section class="close">
+      <h2><span class="ph">今日、好きな一文を選んで、</span><span class="ph">口が慣れるまで繰り返してみる。</span></h2>
+      <p>そして録音して、お手本の声と並べて聴いてみる。まずは1日15分の目標から、今日始めてみませんか。</p>
+      <div class="actions">
+        <a class="btn btn-ink" data-os="mac" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+          macOS 版をダウンロード <small>Apple Silicon</small>
+        </a>
+        <a class="btn btn-quiet" data-os="windows" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-windows-x64-setup.exe">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+          Windows 版をダウンロード <small>x64</small>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>東京で個人開発しています。<a href="https://www.xiaohongshu.com/user/profile/606524e3000000000100884d" target="_blank" rel="noopener">小紅書（RED）</a>や GitHub でも AI とテクノロジーを活用した語学学習の知見や開発プロセスを発信しています。</p>
+    <nav aria-label="フッター">
+      <a href="https://github.com/mxggle/shadowing" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/mxggle/shadowing/blob/main/CHANGELOG.md" target="_blank" rel="noopener">更新履歴</a>
+      <a href="/plugins">プラグイン</a>
+      <a href="https://github.com/mxggle/shadowing/blob/main/LICENSE" target="_blank" rel="noopener">MIT ライセンス</a>
+      <a href="https://nihongo.day/">その他の日本語学習ツール</a>
+    </nav>
+    <div class="lang-foot">
+      <span>言語 / Language:</span>
+      <a href="/" lang="zh-CN">简体中文</a>
+      <a href="/zh-tw" lang="zh-TW">繁體中文</a>
+      <a href="/en" lang="en">English</a>
+      <a href="/ja" class="active" lang="ja">日本語</a>
+    </div>
+  </footer>
+</div>
+
+<script>
+const LINES = [
+  { s: 0.25, e: 6.25, text: "これは、私が小さいときに、村の茂平というおじいさんからきいたお話です。",
+    tr: "これは、私が幼いころに、村の茂平というおじいさんから聞いたお話です。",
+    words: [["茂平", "もへい", "人名"], ["おじいさん", "", "お爺さん・高齢の男性"], ["きいた", "聞いた", "耳にした、「聞く」の過去形"], ["お話", "おはなし", "物語や昔話"]],
+    points: [["AというB", "「Aという名前のB」など、人名や地名を提示する表現"], ["〜からきいた", "「〜から聞いた」、情報の発信元・伝聞元を示す"], ["きいたお話", "過去形「きいた」が名詞「お話」を直接修飾（連体修飾）"]] },
+  { s: 7.5, e: 17.0, text: "むかしは、私たちの村のちかくの、中山というところに小さなお城があって、中山さまというおとのさまが、おられたそうです。",
+    tr: "昔は、私たちの村の近くにある中山という場所に小さなお城があり、中山様というお殿様がいらっしゃったそうです。",
+    words: [["お城", "おしろ", "城・天守"], ["おとのさま", "お殿様", "領主や貴人への敬称"], ["おられた", "", "「おる（居る）」の尊敬表現・過去形（いらっしゃった）"]],
+    points: [["〜そうです", "様態ではなく伝聞の表現（〜だそうだ、と聞いている）"], ["〜があって", "動詞「ある」のて形。2つの事態を接続する"], ["〜さま", "「〜さん」よりも改まった丁寧な敬称"]] },
+  { s: 18.25, e: 24.6, text: "その中山から、少しはなれた山の中に、「ごん狐」という狐がいました。",
+    tr: "その中山から少し離れた山の中に、「ごん狐」という名前の狐が住んでいました。",
+    words: [["少し", "すこし", "わずかに・ちょっと"], ["はなれた", "離れた", "距離がある、遠ざかっている"], ["狐", "きつね", "哺乳類イヌ科の動物"]],
+    points: [["〜からはなれた", "起点「〜から」＋「離れた」で、後ろの「山」を修飾"], ["いました", "人や生き物の存在を表す動詞「いる」の過去形"]] },
+  { s: 25.45, e: 32.45, text: "ごんは、一人ぼっちの小狐で、しだの一ぱいしげった森の中に穴をほって住んでいました。",
+    tr: "ごんは、ひとりぼっちの子狐で、シダが生い茂った森の中に穴を掘って暮らしていました。",
+    words: [["一人ぼっち", "ひとりぼっち", "頼る仲間や家族がなく、ただひとりであること"], ["しだ", "羊歯", "シダ植物（草木）"], ["しげった", "茂った", "草木が群がり生えた"], ["ほって", "掘って", "穴をあけて（掘る）"]],
+    points: [["〜で、", "断定の助動詞「だ」の連用形（中止め）：〜であって"], ["しだの一ぱいしげった森", "連体修飾節の中の主格「が」が「の」になったもの"], ["〜て住んでいました", "「掘って」と「住んでいました」の動作の連続・継続"]] },
+];
+const SPEEDS = [0.75, 0.85, 1, 1.25];
+
+const $ = (id) => document.getElementById(id);
+const audio = $("audio"), sheet = $("sheet"), script = $("script");
+let cur = 0, looping = true, explain = true, rate = 0.85, count = 1, raf = 0;
+// Play only up to here, then call onStop (Shadowing uses this for "listen first" and replays).
+let stopAt = null, onStop = null;
+
+const fmt = (t) => { const m = Math.floor(t / 60), s = (t % 60).toFixed(1).padStart(4, "0"); return `${m}:${s}`; };
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+script.innerHTML = LINES.map((l, i) => `
+  <li class="line" data-i="${i}">
+    <span class="t"><span>${fmt(l.s)}</span><span class="count" aria-live="polite"></span></span>
+    <span class="say" lang="ja">${esc(l.text)}</span>
+    <span class="bar" aria-hidden="true"><i></i></span>
+    <div class="note" hidden>
+      <p class="tr">${esc(l.tr)}</p>
+      <dl class="run">${l.words.map(([w, r, m]) => `<div><dt lang="ja">${esc(w)}${r ? `<span lang="ja">${esc(r)}</span>` : ""}</dt><dd>${esc(m)}</dd></div>`).join("")}</dl>
+      <div class="run pts">${l.points.map(([p, n]) => `<div><b lang="ja">${esc(p)}</b><span>${esc(n)}</span></div>`).join("")}<span class="src">解説サンプル</span></div>
+    </div>
+    <div class="take" hidden aria-live="polite"></div>
+  </li>`).join("");
+const rows = [...script.children];
+
+$("speeds").innerHTML = SPEEDS.map((v) => `<button type="button" data-v="${v}">${v === 1 ? "1.0" : v}×</button>`).join("");
+
+function render() {
+  rows.forEach((r, i) => {
+    const on = i === cur;
+    r.classList.toggle("on", on);
+    r.querySelector(".note").hidden = !(on && explain);
+    r.querySelector(".count").textContent = on ? `× ${count}` : "";
+    if (!on) r.querySelector(".bar i").style.transform = "scaleX(0)";
+  });
+  sheet.classList.toggle("looping", looping);
+  $("loop").setAttribute("aria-pressed", looping);
+  $("exp").setAttribute("aria-pressed", explain);
+  [...$("speeds").children].forEach((b) => b.setAttribute("aria-pressed", Math.abs(+b.dataset.v - rate) < 0.001));
+  const playing = !audio.paused;
+  $("play").setAttribute("aria-label", playing ? "一時停止" : "再生");
+  $("play").setAttribute("title", playing ? "一時停止 (Space)" : "再生 (Space)");
+  $("playIcon").innerHTML = playing ? '<rect x="6.5" y="5" width="4" height="14" rx="1"/><rect x="13.5" y="5" width="4" height="14" rx="1"/>' : '<path d="M8 5.5v13l11-6.5z"/>';
+}
+
+function setRate(v) {
+  rate = Math.min(2, Math.max(0.5, Math.round(v * 20) / 20));
+  // Changing speed while the sentence plays for a take: compare against the speed you heard.
+  if (take.phase === "listen" && !audio.paused) take.rate = rate;
+  audio.playbackRate = rate;
+  audio.preservesPitch = true; audio.webkitPreservesPitch = true;
+  render();
+}
+
+function go(i, play = true) {
+  const next = Math.max(0, Math.min(LINES.length - 1, i));
+  if (next !== cur) closeTake();
+  cur = next;
+  count = 1;
+  stopAt = onStop = null;
+  try { audio.currentTime = LINES[cur].s; } catch (e) {}
+  render();
+  if (play) start();
+}
+
+function start() {
+  audio.playbackRate = rate;
+  const p = audio.play();
+  if (p) p.catch(() => {});
+}
+
+function tick() {
+  const t = audio.currentTime, l = LINES[cur];
+  if (stopAt !== null) {
+    if (t >= stopAt) { const f = onStop; stopAt = onStop = null; audio.pause(); if (f) f(); }
+  } else if (looping) {
+    if (t >= l.e || t < l.s - 0.3) { audio.currentTime = l.s; count++; render(); }
+  } else {
+    const k = LINES.findIndex((x, j) => t >= x.s && (j === LINES.length - 1 || t < LINES[j + 1].s));
+    if (k >= 0 && k !== cur) { cur = k; count = 1; closeTake(); render(); }
+  }
+  const p = Math.min(1, Math.max(0, (audio.currentTime - l.s) / (l.e - l.s)));
+  rows[cur].querySelector(".bar i").style.transform = `scaleX(${p})`;
+  $("now").textContent = fmt(audio.currentTime);
+  takeFrame();
+  if (!audio.paused) raf = requestAnimationFrame(tick);
+}
+
+audio.addEventListener("play", () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); render(); });
+audio.addEventListener("pause", render);
+audio.addEventListener("ended", () => {
+  if (stopAt !== null) { const f = onStop; stopAt = onStop = null; if (f) f(); }
+  else if (looping) { audio.currentTime = LINES[cur].s; start(); }
+  render();
+});
+
+const busy = () => take.phase === "listen" || take.phase === "wait" || take.phase === "rec" || take.phase === "saving";
+
+function toggle() {
+  if (busy()) return;
+  stopPlayback();
+  if (audio.paused) {
+    if (audio.currentTime < LINES[cur].s || audio.currentTime >= LINES[cur].e) audio.currentTime = LINES[cur].s;
+    start();
+  } else audio.pause();
+  sheet.focus({ preventScroll: true });
+}
+
+$("play").onclick = toggle;
+$("prev").onclick = () => go(cur - 1, !audio.paused);
+$("next").onclick = () => go(cur + 1, !audio.paused);
+$("loop").onclick = () => { looping = !looping; count = 1; render(); };
+$("exp").onclick = () => { explain = !explain; render(); };
+$("rec").onclick = () => { if (take.phase === "listen" || take.phase === "rec") finishTake(); else if (take.phase && take.line === cur) closeTake(); else startTake(); };
+$("speeds").onclick = (e) => { const b = e.target.closest("button"); if (b) setRate(+b.dataset.v); };
+script.onclick = (e) => {
+  const r = e.target.closest(".line");
+  if (!r || e.target.closest(".note, .take")) return;
+  const i = +r.dataset.i;
+  if (busy()) return;
+  if (i !== cur) go(i, true); else if (audio.paused) toggle();
+  sheet.focus({ preventScroll: true });
+};
+sheet.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (e.target.closest("button") && (k === " " || k === "Enter")) return;
+  const b = busy();
+  if (k === "Escape") { if (b) cancelTake(); else if (take.phase) closeTake(); else return; }
+  else if (b) { if (k === " ") finishTake(); else return; }
+  else if (k === " ") toggle();
+  else if (k === "l" || k === "L" || k === "s" || k === "S") { if (!e.repeat) $("loop").click(); }
+  else if (k === "[") go(cur - 1, !audio.paused);
+  else if (k === "]") go(cur + 1, !audio.paused);
+  else if (k === "-" || k === "_") setRate(rate - 0.05);
+  else if (k === "=" || k === "+") setRate(rate + 0.05);
+  else if (k === "i" || k === "I") { if (!e.repeat) $("exp").click(); }
+  else if (k === "m" || k === "M") { if (!e.repeat) startTake(); }
+  else if (k === "p" || k === "P") { if (take.phase === "done") play("both"); else return; }
+  else return;
+  e.preventDefault();
+});
+
+/*
+ * Shadowing, the app's "Listen, then speak" in the browser: the sentence plays once, then the
+ * mic opens until you've spoken and paused (or Space). Your voice is drawn
+ * under the original, both lined up at their first sound, with the same
+ * pace wording the app uses. Nothing leaves the page.
+ */
+const take = { phase: null, line: -1, rate: 1, stream: null, chunks: [], sr: 48000, mine: null, orig: null, mineRange: null, levels: [], secs: 0, error: "", playing: null };
+let ac = null, decoded = null, decoding = null, cap = null, srcNode = null, playStart = 0;
+const SR_PEAKS = 50;
+
+function ctx() {
+  if (!ac) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ac = new C(); }
+  if (ac.state === "suspended") ac.resume();
+  return ac;
+}
+function loadOriginal() {
+  if (!decoding) decoding = fetch(audio.currentSrc || audio.src).then((r) => r.arrayBuffer()).then((b) => new Promise((res, rej) => ctx().decodeAudioData(b, res, rej))).then((b) => (decoded = b));
+  return decoding;
+}
+const mono = (buf) => { const a = buf.getChannelData(0); if (buf.numberOfChannels < 2) return a; const b = buf.getChannelData(1), m = new Float32Array(a.length); for (let i = 0; i < a.length; i++) m[i] = (a[i] + b[i]) / 2; return m; };
+let origMono = null;
+
+/** Peaks, 50 a second, of data[from..to) seconds. */
+function peaks(data, sr, from, to) {
+  const hop = Math.round(sr / SR_PEAKS), a = Math.max(0, Math.round(from * sr)), b = Math.min(data.length, Math.round(to * sr)), out = [];
+  for (let i = a; i < b; i += hop) { let p = 0; for (let k = i; k < Math.min(b, i + hop); k++) { const v = Math.abs(data[k]); if (v > p) p = v; } out.push(p); }
+  return out;
+}
+/** Where the voice is in data[from..to): first and last 20 ms frame clearly above the quiet. */
+function voiced(data, sr, from, to) {
+  const hop = Math.round(sr * 0.02), a = Math.max(0, Math.round(from * sr)), b = Math.min(data.length, Math.round(to * sr)), rms = [];
+  for (let i = a; i + hop <= b; i += hop) { let s = 0; for (let k = i; k < i + hop; k++) s += data[k] * data[k]; rms.push(Math.sqrt(s / hop)); }
+  if (!rms.length) return null;
+  const sorted = [...rms].sort((x, y) => x - y), floor = sorted[Math.floor(sorted.length * 0.1)], top = sorted[Math.floor(sorted.length * 0.98)];
+  const thr = Math.max(0.006, floor * 2.5, top * 0.1);
+  let f = rms.findIndex((v) => v > thr), l = rms.length - 1 - [...rms].reverse().findIndex((v) => v > thr);
+  if (f < 0 || top < 0.01) return null;
+  return [from + Math.max(0, f - 2) * 0.02, from + Math.min(rms.length, l + 4) * 0.02];
+}
+
+function startTake() {
+  if (take.phase === "listen" || take.phase === "rec" || take.phase === "saving") return;
+  stopPlayback();
+  if (take.phase && take.line !== cur) closeTake();
+  Object.assign(take, { phase: "listen", line: cur, rate, chunks: [], mine: null, mineRange: null, levels: [], secs: 0, error: "", playing: null, stream: null });
+  $("rec").setAttribute("aria-pressed", "true");
+  const c = ctx();
+  if (!c || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { take.asked = null; showError("このブラウザでは録音機能がサポートされていません。Chrome、Safari、Edge でお試しいただくか、デスクトップアプリをご利用ください。"); return; }
+  loadOriginal().catch(() => {});
+  // Ask for the mic while the sentence plays, so it's ready when it's your turn.
+  const asked = take.asked = navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+    .then((s) => { if (take.asked !== asked || !take.phase || take.phase === "done") { s.getTracks().forEach((t) => t.stop()); return null; } take.stream = s; if (take.phase === "wait") beginCapture(); return s; })
+    .catch((e) => { if (take.asked === asked && (take.phase === "listen" || take.phase === "wait")) { audio.pause(); stopAt = onStop = null; showError(e && e.name === "NotAllowedError" ? "マイクへのアクセスが許可されていません。ブラウザの設定でマイクを許可してから、もう一度お試しください。" : "マイクを起動できませんでした。他のアプリで使用されていないか確認するか、別のブラウザでお試しください。"); } });
+  audio.currentTime = LINES[cur].s;
+  stopAt = LINES[cur].e;
+  onStop = () => { if (take.phase !== "listen") return; if (take.stream) beginCapture(); else { take.phase = "wait"; drawTake(); } };
+  start();
+  drawTake();
+}
+
+function beginCapture() {
+  const c = ctx();
+  // Never record the sample: whatever is playing stops when it's your turn.
+  stopAt = onStop = null;
+  if (!audio.paused) audio.pause();
+  take.phase = "rec";
+  take.sr = c.sampleRate;
+  srcNode = c.createMediaStreamSource(take.stream);
+  cap = c.createScriptProcessor(2048, 1, 1);
+  const mute = c.createGain(); mute.gain.value = 0;
+  srcNode.connect(cap); cap.connect(mute); mute.connect(c.destination);
+  const l = LINES[take.line], maxSecs = Math.max(6, ((l.e - l.s) / take.rate) * 2.2 + 2);
+  let heard = 0, quiet = 0, floor = 0, n = 0;
+  cap.onaudioprocess = (ev) => {
+    if (take.phase !== "rec") return;
+    const d = new Float32Array(ev.inputBuffer.getChannelData(0));
+    take.chunks.push(d);
+    let s = 0, p = 0; for (let i = 0; i < d.length; i++) { s += d[i] * d[i]; const v = Math.abs(d[i]); if (v > p) p = v; }
+    const rms = Math.sqrt(s / d.length), dt = d.length / take.sr;
+    take.secs += dt; n++;
+    if (n <= 6) floor = Math.max(floor, rms);
+    const on = Math.max(0.012, floor * 3);
+    take.levels.push(Math.min(1, p * 1.6));
+    if (rms > on) { heard += dt; quiet = 0; } else if (heard > 0.25) quiet += dt;
+    // Done when you've said something and then paused; give up on silence.
+    if ((heard > 0.25 && quiet > 1.1) || take.secs > maxSecs || (heard < 0.1 && take.secs > 7)) finishTake();
+  };
+  drawTake();
+}
+
+function releaseMic() {
+  if (cap) { cap.onaudioprocess = null; try { cap.disconnect(); } catch (e) {} cap = null; }
+  if (srcNode) { try { srcNode.disconnect(); } catch (e) {} srcNode = null; }
+  if (take.stream) { take.stream.getTracks().forEach((t) => t.stop()); take.stream = null; }
+}
+
+async function finishTake() {
+  if (take.phase === "listen" || take.phase === "wait") {
+    // Skip the rest of the original: your turn now.
+    stopAt = null; onStop = null; audio.pause();
+    if (take.stream) beginCapture(); else { take.phase = "wait"; drawTake(); }
+    return;
+  }
+  if (take.phase !== "rec") return;
+  take.phase = "saving";
+  releaseMic();
+  const len = take.chunks.reduce((n, c) => n + c.length, 0), all = new Float32Array(len);
+  let o = 0; for (const c of take.chunks) { all.set(c, o); o += c.length; }
+  take.chunks = [];
+  const range = voiced(all, take.sr, 0, all.length / take.sr);
+  if (!range) { showError("音声が検出されませんでした。マイクに少し近づいて、もう一度録音してください。"); return; }
+  take.mine = all; take.mineRange = range;
+  const id = take.asked;
+  try { await loadOriginal(); } catch (e) { decoded = null; }
+  // Closed, or a new take started, while the original was still decoding.
+  if (take.asked !== id || take.phase !== "saving") return;
+  if (decoded && !origMono) origMono = mono(decoded);
+  const l = LINES[take.line];
+  take.orig = origMono ? (voiced(origMono, decoded.sampleRate, l.s, l.e) || [l.s, l.e]) : [l.s, l.e];
+  take.phase = "done";
+  drawTake();
+  play("both");
+}
+
+function cancelTake() {
+  if (take.phase === "listen" || take.phase === "wait") { stopAt = onStop = null; audio.pause(); }
+  releaseMic();
+  closeTake();
+}
+
+function closeTake() {
+  if (!take.phase) return;
+  stopPlayback();
+  releaseMic();
+  take.asked = null;
+  const r = rows[take.line];
+  if (r) { const el = r.querySelector(".take"); el.hidden = true; el.innerHTML = ""; }
+  Object.assign(take, { phase: null, line: -1, mine: null, playing: null, error: "" });
+  $("rec").setAttribute("aria-pressed", "false");
+  $("rec").classList.remove("live");
+}
+
+function showError(msg) {
+  releaseMic();
+  take.phase = "error"; take.error = msg;
+  drawTake();
+}
+
+/* Playback of the result: the original through the player (pitch kept at your speed), yours through Web Audio. */
+function stopPlayback() {
+  if (take.src) { try { take.src.onended = null; take.src.stop(); } catch (e) {} take.src = null; }
+  if (take.playing === "orig" || take.playing === "both") { stopAt = onStop = null; if (!audio.paused) audio.pause(); }
+  take.playing = null;
+  paintHeads();
+}
+function play(what) {
+  if (take.phase !== "done") return;
+  if (take.playing === what || (what === "both" && take.playing && take.both)) { stopPlayback(); drawButtons(); return; }
+  stopPlayback();
+  take.both = what === "both";
+  if (what === "mine") playMine(); else playOrig(() => { if (take.both) setTimeout(() => take.both && take.phase === "done" && playMine(), 250); });
+  drawButtons();
+}
+function playOrig(then) {
+  const [a, b] = take.orig;
+  take.playing = "orig";
+  audio.currentTime = a; stopAt = b;
+  onStop = () => { take.playing = null; paintHeads(); if (then) then(); else drawButtons(); };
+  audio.playbackRate = take.rate;
+  const p = audio.play(); if (p) p.catch(() => {});
+}
+function playMine() {
+  const c = ctx(), [a, b] = take.mineRange, from = Math.round(a * take.sr), to = Math.round(b * take.sr);
+  const buf = c.createBuffer(1, to - from, take.sr);
+  buf.getChannelData(0).set(take.mine.subarray(from, to));
+  const src = c.createBufferSource(); src.buffer = buf; src.connect(c.destination);
+  src.onended = () => { if (take.src !== src) return; take.src = null; take.playing = null; take.both = false; paintHeads(); drawButtons(); };
+  take.src = src; take.playing = "mine"; playStart = c.currentTime;
+  src.start();
+  (function f() { if (take.src === src) { paintHeads(); requestAnimationFrame(f); } })();
+}
+
+const SECS = (s) => `${s.toFixed(1)} 秒`;
+function paceNote() {
+  const o = (take.orig[1] - take.orig[0]) / take.rate, m = take.mineRange[1] - take.mineRange[0], r = m / o;
+  const at = Math.abs(take.rate - 1) > 0.01 ? `（お手本の再生速度：${take.rate}倍速）` : "";
+  if (r > 1.15) return `お手本より ${Math.round((r - 1) * 100)}% 遅い${at}`;
+  if (r < 0.87) return `お手本より ${Math.round((1 - r) * 100)}% 速い${at}`;
+  return `お手本とほぼ同じテンポ${at}`;
+}
+/** Bars for one lane, on a scale `width` seconds wide (both lanes share it). */
+function laneSvg(pk, secs, width, n) {
+  const bars = Math.max(1, Math.round((secs / width) * n)), group = pk.length / bars, max = Math.max(1e-4, ...pk);
+  let r = "";
+  for (let i = 0; i < bars; i++) {
+    let p = 0; for (let k = Math.floor(i * group); k < Math.floor((i + 1) * group); k++) p = Math.max(p, pk[k] || 0);
+    const h = Math.sqrt(p / max);
+    if (h > 0.04) r += `<rect x="${i + 0.15}" y="${(1 - h * 0.92).toFixed(3)}" width="0.7" height="${(h * 1.84).toFixed(3)}" fill="currentColor"/>`;
+  }
+  return `<svg viewBox="0 0 ${n} 2" preserveAspectRatio="none" aria-hidden="true">${r}</svg>`;
+}
+
+const ICON_PLAY = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 1v8l7-4z"/></svg>';
+const ICON_STOP = '<svg viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" rx="1"/></svg>';
+const EAR = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8.5a6 6 0 0 1 12 0c0 3.5-3 4.5-3 7.5a3.5 3.5 0 0 1-6.3 2.1"/><path d="M15 8.5a3 3 0 0 0-6 0"/></svg>';
+
+function drawTake() {
+  const r = rows[take.line]; if (!r) return;
+  const el = r.querySelector(".take");
+  el.hidden = false;
+  $("rec").classList.toggle("live", take.phase === "rec");
+  if (take.phase === "listen" || take.phase === "wait") {
+    el.innerHTML = `<div class="take-row"><span class="take-state">${EAR}${take.phase === "wait" ? "マイクの使用許可を待っています" : "お手本を聴く"}</span><span class="prog"><i id="tprog"></i></span></div>
+      <div class="take-tools"><button class="tb" type="button" data-a="skip">お手本をスキップ</button><button class="tl" type="button" data-a="cancel">キャンセル</button><span class="hint">${take.phase === "wait" ? "ブラウザにマイク許可の確認ダイアログが表示されます" : "お手本が終わったらあなたの番です"}</span></div>`;
+  } else if (take.phase === "rec") {
+    el.innerHTML = `<div class="take-row"><span class="take-state"><i class="rdot" aria-hidden="true"></i>あなたの番です</span><span class="meter" id="tmeter">${"<i></i>".repeat(40)}</span><span class="secs" id="tsecs">0.0</span></div>
+      <div class="take-tools"><button class="tb" type="button" data-a="stop">${ICON_STOP}話し終わった</button><button class="tl" type="button" data-a="cancel">キャンセル</button><span class="hint">話し終えて一呼吸置くと自動終了 · <kbd>Space</kbd> 終了 · <kbd>Esc</kbd> 取消</span></div>`;
+  } else if (take.phase === "saving") {
+    el.innerHTML = `<div class="take-row">録音を処理中…</div>`;
+  } else if (take.phase === "error") {
+    el.innerHTML = `<div class="take-row"><span class="err">${esc(take.error)}</span></div><div class="take-tools"><button class="tb" type="button" data-a="again"><i class="rdot" aria-hidden="true"></i>もう一度試す</button><button class="tl" type="button" data-a="close">閉じる</button></div>`;
+  } else if (take.phase === "done") {
+    const o = (take.orig[1] - take.orig[0]) / take.rate, m = take.mineRange[1] - take.mineRange[0], width = Math.max(o, m);
+    const n = Math.max(56, Math.min(170, Math.round((sheet.clientWidth - 220) / 5.5)));
+    const op = origMono ? peaks(origMono, decoded.sampleRate, take.orig[0], take.orig[1]) : [];
+    const mp = peaks(take.mine, take.sr, take.mineRange[0], take.mineRange[1]);
+    el.innerHTML = `<div><div class="waves">
+        <span>お手本</span><button class="lane o" type="button" data-a="orig" title="お手本を聴く" data-w="${o / width}">${laneSvg(op, o, width, n)}<i class="head" hidden></i></button><span>${SECS(o)}</span>
+        <span>自分の声</span><button class="lane m" type="button" data-a="mine" title="自分の声を聴く" data-w="${m / width}">${laneSvg(mp, m, width, n)}<i class="head" hidden></i></button><span>${SECS(m)}</span>
+      </div><p class="pace">${paceNote()}</p></div>
+      <div class="take-tools" id="tbtns"></div>
+      <p class="more">※ブラウザ体験版では「聞いてから話す」のみ体験できます。デスクトップアプリではリアルタイムの「聞きながら話す」（イヤホンなしでもお手本の音を自動除去して録音可能）や、全テイクの自動保存、セクションごとの通し録音にも対応しています。</p>`;
+    drawButtons();
+  }
+  el.querySelectorAll("[data-a]").forEach((b) => (b.onclick = (e) => {
+    e.stopPropagation();
+    const a = b.dataset.a;
+    if (a === "skip" || a === "stop") finishTake();
+    else if (a === "cancel") cancelTake();
+    else if (a === "close") closeTake();
+    else if (a === "again") startTake();
+    else if (a === "orig" || a === "mine" || a === "both") play(a);
+  }));
+}
+function drawButtons() {
+  const box = document.getElementById("tbtns"); if (!box || take.phase !== "done") return;
+  const btn = (a, label, title) => {
+    const on = take.playing && (a === "both" ? take.both : take.playing === a && !take.both);
+    return `<button class="tb" type="button" data-a="${a}" aria-pressed="${!!on}" title="${title}">${on ? ICON_STOP : ICON_PLAY}${label}</button>`;
+  };
+  box.innerHTML = btn("both", "比較", "お手本の後に自分の声を再生 (P)") + btn("orig", "お手本", "お手本のみ再生") + btn("mine", "自分の声", "自分の声のみ再生") +
+    `<span class="hint" style="margin-left:auto"></span><button class="tb" type="button" data-a="again" title="もう一度録音 (M)"><i class="rdot" aria-hidden="true"></i>もう一度録音</button>`;
+  box.querySelectorAll("[data-a]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); const a = b.dataset.a; if (a === "again") startTake(); else play(a); }));
+}
+function paintHeads() {
+  const r = rows[take.line]; if (!r || take.phase !== "done") return;
+  const lanes = r.querySelectorAll(".lane");
+  if (lanes.length < 2) return;
+  const [lo, lm] = lanes, ho = lo.querySelector(".head"), hm = lm.querySelector(".head");
+  let xo = null, xm = null;
+  if (take.playing === "orig") xo = (audio.currentTime - take.orig[0]) / (take.orig[1] - take.orig[0]);
+  if (take.playing === "mine" && ac) xm = (ac.currentTime - playStart) / (take.mineRange[1] - take.mineRange[0]);
+  const put = (h, x, w) => { h.hidden = x === null || x < 0 || x > 1; if (!h.hidden) h.style.left = `${x * w * 100}%`; };
+  put(ho, xo, +lo.dataset.w); put(hm, xm, +lm.dataset.w);
+}
+/* Called every frame while the player runs; the meter runs off its own frames. */
+function takeFrame() {
+  if (take.phase === "listen") {
+    const l = LINES[take.line], p = document.getElementById("tprog");
+    if (p) p.style.transform = `scaleX(${Math.min(1, Math.max(0, (audio.currentTime - l.s) / (l.e - l.s)))})`;
+  }
+  if (take.playing === "orig") paintHeads();
+}
+(function meter() {
+  if (take.phase === "rec") {
+    const m = document.getElementById("tmeter"), s = document.getElementById("tsecs");
+    if (m) { const bars = m.children, lv = take.levels.slice(-bars.length), pad = bars.length - lv.length; for (let i = 0; i < bars.length; i++) { const v = i < pad ? 0 : lv[i - pad]; bars[i].style.height = `${Math.max(8, Math.min(1, v) ** 1.5 * 100)}%`; bars[i].style.opacity = v < 0.05 ? 0.25 : 1; } }
+    if (s) s.textContent = take.secs.toFixed(1);
+  }
+  requestAnimationFrame(meter);
+})();
+
+$("copy").onclick = async () => {
+  const b = $("copy"), text = $("cmd").textContent;
+  try { await navigator.clipboard.writeText(text); b.textContent = "コピーしました"; }
+  catch (e) { const r = document.createRange(); r.selectNodeContents($("cmd")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "コピーしました (⌘C)"; }
+  setTimeout(() => (b.textContent = "コピー"), 1800);
+};
+
+// Practice time in the demo: counts real playing time toward a one-minute goal.
+let practiced = 0, lastT = 0;
+function practice(now) {
+  if (!audio.paused || take.phase === "rec") { if (lastT) practiced += (now - lastT) / 1000; lastT = now; requestAnimationFrame(practice); } else lastT = 0;
+  const goal = 60, f = Math.min(1, practiced / goal);
+  $("ringFg").setAttribute("stroke-dashoffset", (50.27 * (1 - f)).toFixed(2));
+  $("goal").classList.toggle("done", f >= 1);
+  $("goalText").textContent = `${Math.floor(practiced / 60)}:${String(Math.floor(practiced % 60)).padStart(2, "0")} / 1分`;
+}
+audio.addEventListener("play", () => { lastT = 0; requestAnimationFrame(practice); });
+audio.addEventListener("pause", () => { if (take.phase === "rec") { lastT = 0; requestAnimationFrame(practice); } else practice(0); });
+
+setRate(rate);
+go(0, false);
+
+if (/Windows/.test(navigator.userAgent)) {
+  document.querySelector(".nav-dl").href = "https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-windows-x64-setup.exe";
+  for (const win of document.querySelectorAll('.actions [data-os="windows"]')) {
+    const mac = win.parentElement.querySelector('[data-os="mac"]');
+    mac.before(win);
+    [mac.className, win.className] = [win.className, mac.className];
+  }
+}
+
+// Language picker
+const picker = document.querySelector(".lang-picker");
+if (picker) {
+  const btn = picker.querySelector(".lang-btn");
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    const open = picker.classList.toggle("open");
+    btn.setAttribute("aria-expanded", String(open));
+  };
+  document.addEventListener("click", () => {
+    picker.classList.remove("open");
+    btn.setAttribute("aria-expanded", "false");
+  });
+  document.querySelectorAll(".lang-menu a, .lang-foot a").forEach((a) => {
+    a.addEventListener("click", () => {
+      const code = a.getAttribute("lang");
+      if (code) localStorage.setItem("shadowing-lang", code);
+    });
+  });
+}
+
+try { localStorage.setItem("shadowing-lang", "ja"); } catch (e) {}
+</script>
+
+</body>
+</html>

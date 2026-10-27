@@ -7,6 +7,11 @@
 <title>Shadowing 跟读</title>
 <meta name="description" content="Shadowing：给 Mac 和 Windows 的跟读应用。把音频转写成一句一句，循环、放慢不变调、看解释，再录下自己和原声对比。免费开源。">
 <link rel="canonical" href="https://shadowing.nihongo.day/">
+<link rel="alternate" hreflang="zh-CN" href="https://shadowing.nihongo.day/">
+<link rel="alternate" hreflang="zh-TW" href="https://shadowing.nihongo.day/zh-tw">
+<link rel="alternate" hreflang="en" href="https://shadowing.nihongo.day/en">
+<link rel="alternate" hreflang="ja" href="https://shadowing.nihongo.day/ja">
+<link rel="alternate" hreflang="x-default" href="https://shadowing.nihongo.day/">
 <meta name="theme-color" content="#f5f4f1" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1b1b1a" media="(prefers-color-scheme: dark)">
 <meta property="og:type" content="website">
@@ -181,6 +186,34 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 .nav-links a { text-decoration: none; color: var(--muted); font-size: 15px; padding: 8px 12px; border-radius: 8px; transition: background-color 150ms, color 150ms; }
 .nav-links a:hover { background: var(--hover); color: var(--fg); }
 .nav-links .nav-dl { color: var(--fg); background: var(--fill); font-weight: 600; margin-left: 6px; }
+.lang-picker { position: relative; display: inline-flex; align-items: center; margin-left: 4px; }
+.lang-btn {
+  display: inline-flex; align-items: center; gap: 5px; height: 35px; padding: 0 10px;
+  border-radius: 8px; border: 1px solid var(--line); background: var(--fill);
+  color: var(--muted); font: 500 13.5px/1 var(--font-sans); cursor: pointer;
+  transition: background-color 150ms, color 150ms, border-color 150ms;
+}
+.lang-btn:hover, .lang-btn[aria-expanded="true"] { background: var(--press); color: var(--fg); border-color: var(--line-strong); }
+.lang-btn svg.i { width: 14px; height: 14px; }
+.lang-btn .arrow { width: 10px; height: 10px; transition: transform 150ms; }
+.lang-btn[aria-expanded="true"] .arrow { transform: rotate(180deg); }
+.lang-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; min-width: 120px;
+  padding: 5px; background: var(--paper); border: 1px solid var(--line-strong);
+  border-radius: 10px; box-shadow: 0 10px 24px -6px oklch(0% 0 0 / 0.2);
+  display: none; flex-direction: column; gap: 2px; z-index: 100;
+}
+.lang-picker.open .lang-menu { display: flex; }
+.lang-menu a {
+  display: block; padding: 7px 10px; border-radius: 6px; color: var(--muted);
+  font: 500 13px/1 var(--font-sans); text-decoration: none; white-space: nowrap;
+  transition: background-color 120ms, color 120ms;
+}
+.lang-menu a:hover { background: var(--hover); color: var(--fg); }
+.lang-menu a.active { color: var(--fg); font-weight: 600; background: var(--fill); }
+.lang-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; width: 100%; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--faint); }
+.lang-foot a { color: var(--muted); text-decoration: none; }
+.lang-foot a:hover, .lang-foot a.active { color: var(--fg); font-weight: 600; }
 @media (max-width: 860px) { .nav-links a:not(.nav-dl) { display: none; } }
 
 /* Hero */
@@ -493,6 +526,19 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
       <a href="#updates">更新</a>
       <a href="#install">安装</a>
       <a href="https://github.com/mxggle/shadowing" target="_blank" rel="noopener">GitHub</a>
+      <div class="lang-picker">
+        <button class="lang-btn" type="button" aria-expanded="false" aria-label="选择语言">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span>简体中文</span>
+          <svg class="arrow" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="lang-menu" role="menu">
+          <a href="/" role="menuitem" class="active" lang="zh-CN">简体中文</a>
+          <a href="/zh-tw" role="menuitem" lang="zh-TW">繁體中文</a>
+          <a href="/en" role="menuitem" lang="en">English</a>
+          <a href="/ja" role="menuitem" lang="ja">日本語</a>
+        </div>
+      </div>
       <a class="nav-dl" data-os="mac" href="https://github.com/mxggle/shadowing/releases/latest/download/Shadowing-macos-arm64.dmg">下载</a>
     </div>
   </nav>
@@ -815,6 +861,13 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
       <a href="https://github.com/mxggle/shadowing/blob/main/LICENSE" target="_blank" rel="noopener">MIT 许可</a>
       <a href="https://nihongo.day/">更多日语工具</a>
     </nav>
+    <div class="lang-foot">
+      <span>语言 / Language:</span>
+      <a href="/" class="active" lang="zh-CN">简体中文</a>
+      <a href="/zh-tw" lang="zh-TW">繁體中文</a>
+      <a href="/en" lang="en">English</a>
+      <a href="/ja" lang="ja">日本語</a>
+    </div>
   </footer>
 </div>
 
@@ -1291,6 +1344,38 @@ if (/Windows/.test(navigator.userAgent)) {
     [mac.className, win.className] = [win.className, mac.className];
   }
 }
+
+// Language picker
+const picker = document.querySelector(".lang-picker");
+if (picker) {
+  const btn = picker.querySelector(".lang-btn");
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    const open = picker.classList.toggle("open");
+    btn.setAttribute("aria-expanded", String(open));
+  };
+  document.addEventListener("click", () => {
+    picker.classList.remove("open");
+    btn.setAttribute("aria-expanded", "false");
+  });
+  document.querySelectorAll(".lang-menu a, .lang-foot a").forEach((a) => {
+    a.addEventListener("click", () => {
+      const code = a.getAttribute("lang");
+      if (code) localStorage.setItem("shadowing-lang", code);
+    });
+  });
+}
+
+// First-visit language detection for root landing page
+(function() {
+  const saved = localStorage.getItem("shadowing-lang");
+  if (!saved && (location.pathname === "/" || location.pathname === "/index.html" || location.pathname === "")) {
+    const l = ((navigator.languages && navigator.languages[0]) || navigator.language || "").toLowerCase();
+    if (l.startsWith("ja")) location.replace("/ja");
+    else if (l.startsWith("zh-tw") || l.startsWith("zh-hk") || l.startsWith("zh-hant") || l.startsWith("zh-mo")) location.replace("/zh-tw");
+    else if (l.startsWith("en")) location.replace("/en");
+  }
+})();
 </script>
 
 </body>

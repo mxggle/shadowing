@@ -1,8 +1,9 @@
 # 落地页
 
-`site/` 是 Shadowing 的落地页：一个静态页面，不需要构建。
+`site/` 是 Shadowing 的落地页：一个静态页面，不需要构建。支持四种语言：简体中文（`index.html`）、繁体中文（`zh-tw.html`，线上 `/zh-tw` / `/zh-hant`）、英文（`en.html`，线上 `/en`）、日文（`ja.html`，线上 `/ja`），并在导航栏与页脚提供语言切换菜单，初次访问根据浏览器偏好自动推荐。
 
-- `index.html`：页面本身（样式和脚本都内联）。「试一句」的示例播放器用 `gongitsune.mp3`，它是 `src-tauri/samples/ja/ごんぎつね.mp3` 的副本（公有领域，出处见 `src-tauri/samples/README.md`）。示例里的「跟读」按钮在浏览器里录一句、和原句并排画两条波形，录音只留在访客的浏览器里，不上传。
+- `index.html`：简体中文主页（样式和脚本都内联）。「试一句」的示例播放器用 `gongitsune.mp3`，它是 `src-tauri/samples/ja/ごんぎつね.mp3` 的副本（公有领域，出处见 `src-tauri/samples/README.md`）。示例里的「跟读」按钮在浏览器里录一句、和原句并排画两条波形，录音只留在访客的浏览器里，不上传。
+- `zh-tw.html` / `en.html` / `ja.html`：繁体中文、英文与日文落地页，采用地道自然的本地化文案和符合目标语言习惯的字型与排版。
 - `shots/`：页面上的应用截图，浅色和深色各一套（`*-light.webp` / `*-dark.webp`，无损 WebP，2× 像素），`*-crop-*` 是手机宽度用的裁切版。这些是真实界面，取自宣传视频工程（本地 `video/`）的舞台画面：去掉字幕层、相机复位、2× 渲染后导出。界面改版后要重新导出一套，文件名不变就不用改页面。
 - `og.png`：分享到社交平台时的预览图（1200×630），用浅色首屏截图拼的。
 - 「更新」一节的版本列表和标题里的天数、版本数由 `scripts/site-sync.mjs changelog` 从 `CHANGELOG.md` 生成（`scripts/bump-version.sh` 会运行它，
