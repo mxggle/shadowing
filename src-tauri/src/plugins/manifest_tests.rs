@@ -138,3 +138,32 @@ fn a_windows_program_is_an_exe_inside_the_folder() {
         .insert(platform().into(), "C:/Windows/notepad.exe".into());
     assert!(m.program_path().is_err());
 }
+
+#[test]
+fn checks_settings_and_readings() {
+    let with = |contributes: &str| {
+        manifest(&format!(
+            r#"{{"id":"furigana","name":"日语注音","version":"0.1.0","protocol":1,
+            "main":{{"{}":"bin/shadowing-furigana"}},"contributes":{contributes}}}"#,
+            platform()
+        ))
+        .check("0.14.0")
+    };
+    let style = r#"{"key":"style","type":"select","label":"注音用","default":"hiragana",
+        "options":[{"value":"hiragana","label":"平假名"},{"value":"romaji","label":"罗马音"}]}"#;
+    assert!(with(&format!(
+        r#"{{"readings":[{{"id":"ja","title":"日语注音","languages":["ja"]}}],"settings":[{style}]}}"#
+    ))
+    .is_ok());
+    assert!(with(&format!(
+        r#"{{"settings":[{}]}}"#,
+        style.replace("\"select\"", "\"toggle\"")
+    ))
+    .is_err());
+    assert!(with(&format!(
+        r#"{{"settings":[{}]}}"#,
+        style.replace("\"default\":\"hiragana\"", "\"default\":\"kanji\"")
+    ))
+    .is_err());
+    assert!(with(r#"{"readings":[{"id":"ja","title":"日语注音","languages":[]}]}"#).is_err());
+}

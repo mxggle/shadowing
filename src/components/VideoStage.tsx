@@ -8,7 +8,7 @@ import { Picture } from "./Picture";
 import { TrackTitle } from "./TrackTitle";
 import { TranscribeCard } from "./TranscribeCard";
 import { SentenceList } from "./Transcript";
-import { SaidText } from "./SentenceText";
+import { SaidText, SentenceText } from "./SentenceText";
 import { IconButton } from "./ui";
 
 /**
@@ -62,7 +62,7 @@ function CurrentLine({ big = false }: { big?: boolean }) {
   const toggleHidden = useApp((s) => s.toggleLineHidden);
   const sentence = sentences[index];
   const next = sentences[index + 1];
-  const text = sentence && (lit ? <SaidText sentence={sentence} find="" /> : sentence.text);
+  const text = sentence && (lit ? <SaidText sentence={sentence} find="" /> : <SentenceText text={sentence.text} find="" />);
 
   if (!big) {
     return (

@@ -1,0 +1,33 @@
+{
+  "id": "furigana",
+  "name": "日语注音",
+  "version": "0.1.0",
+  "protocol": 1,
+  "minAppVersion": "0.14.0",
+  "author": "Shadowing",
+  "description": "在日语句子的汉字上方标出读音：平假名、片假名或罗马音。词典（IPADIC）在插件里，不联网。",
+  "main": {
+    "darwin-arm64": "bin/shadowing-furigana",
+    "windows-x86_64": "bin/shadowing-furigana.exe"
+  },
+  "contributes": {
+    "readings": [{ "id": "ja", "title": "日语注音", "languages": ["ja"] }],
+    "settings": [
+      {
+        "key": "style",
+        "type": "select",
+        "label": "注音用",
+        "default": "hiragana",
+        "options": [
+          { "value": "hiragana", "label": "平假名" },
+          { "value": "katakana", "label": "片假名" },
+          { "value": "romaji", "label": "罗马音" }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "network": [],
+    "runs": "只在这台电脑上分词、查读音，不下载、不运行别的程序"
+  }
+}

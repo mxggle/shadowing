@@ -2,7 +2,8 @@
 
 插件给 Shadowing 加上应用本身不带的功能。写好以后可以提交到[插件目录](https://shadowing.nihongo.day/plugins)，审过源代码就上架，谁都能下载。
 
-这份文档写的是**插件协议 1**（Shadowing 0.9.0 起）。参考实现是 [YouTube 导入](../plugins/youtube/)（Rust，几百行）。
+这份文档写的是**插件协议 1**（Shadowing 0.9.0 起）。参考实现是 [YouTube 导入](../plugins/youtube/)（Rust，几百行）
+和 [日语注音](../plugins/furigana/)（Rust，一百多行加上词典）。
 为什么这样设计、以后的计划，见 [plugin-plan.md](plugin-plan.md)。
 
 ## 插件是什么
@@ -21,7 +22,11 @@ podcast/
 Rust、Go、Swift 编译出来的程序，或者用系统自带解释器的脚本（Mac 上 `#!/bin/sh`、`#!/bin/zsh`；Windows 上 `.cmd`，见[Windows](#windows)）。
 别依赖 Homebrew、Python、Node：插件的 `PATH` 只有系统目录，用户的电脑上也不一定有。
 
-现在只有一个扩展点：**从链接导入**。用户粘贴一个链接，你的插件把音频（和字幕）下载下来，应用放进用户的文件夹。
+现在有两个扩展点：
+
+- **从链接导入**：用户粘贴一个链接，你的插件把音频（和字幕）下载下来，应用放进用户的文件夹。
+- **注音**（应用 0.14 起）：应用把字幕的句子交给你的插件，插件说每个词怎么读，应用把读音显示在字的上方（`<ruby>`）。
+
 导出（比如导出到 Anki）、查词典这些扩展点在计划中。
 
 ## manifest.json
@@ -58,6 +63,8 @@ Rust、Go、Swift 编译出来的程序，或者用系统自带解释器的脚�
 | `author`、`description` | | 安装前和设置里显示 |
 | `main` | 是 | 平台 → 插件文件夹里的程序路径。平台是 `darwin-arm64`（Apple Silicon）、`darwin-x86_64`（Intel Mac）、`windows-x86_64`、`windows-arm64`。Windows on Arm 上没有 `windows-arm64` 时用 `windows-x86_64` 的程序（Windows 11 会模拟运行）；Mac 不这样回退。路径用 `/` 分隔，不能出插件文件夹，也不能有 `:`；Windows 的程序要写全文件名（`bin/podcast.exe`） |
 | `contributes.importers` | | 能导入哪些链接，见下面 |
+| `contributes.readings` | | 给哪些语言注音，见[注音](#注音) |
+| `contributes.settings` | | 插件自己的选项，应用画在 设置 → 插件 里，见[选项](#选项) |
 | `permissions.network` | | 会联网到哪些域名 |
 | `permissions.runs` | | 一句话：会下载或运行什么程序（例如“第一次使用时从 GitHub 下载 yt-dlp（约 51 MB）”） |
 
@@ -73,6 +80,30 @@ Rust、Go、Swift 编译出来的程序，或者用系统自带解释器的脚�
 - 一个导入可以写好几条规则，任何一条匹配就交给这个插件。
 
 `importers` 里每一项还有 `id`（发给插件，用来区分同一个插件的几种导入）和 `title`（显示给用户，例如“YouTube”）。
+
+### 注音（`readings`）
+
+```json
+"readings": [{ "id": "ja", "title": "日语注音", "languages": ["ja"] }]
+```
+
+`languages` 是 ISO-639-1 的语言代码。字幕没有记下语言，应用自己判断：现在只认得日语（至少五分之一的句子里有假名），
+所以 `languages` 里只有 `ja` 有用。装了好几个能读同一种语言的插件时，用第一个（按插件 id 排）。
+
+### 选项（`settings`）
+
+```json
+"settings": [
+  {
+    "key": "style", "type": "select", "label": "注音用", "default": "hiragana",
+    "options": [{ "value": "hiragana", "label": "平假名" }, { "value": "romaji", "label": "罗马音" }]
+  }
+]
+```
+
+应用在 设置 → 插件 里这个插件的一行下面画出来（一组按钮），记下用户选的，每次请求时放在 `settings` 里发给插件
+（`{"style":"romaji"}`；没选过就是 `default`）。现在只有 `select` 一种（应用 0.14 起）；写了应用不认识的类型，这个版本的应用会拒绝安装。
+`label` 和选项的 `label` 照原样显示，不翻译。
 
 ## 协议
 
@@ -123,6 +154,19 @@ Rust、Go、Swift 编译出来的程序，或者用系统自带解释器的脚�
 - `video` 是用户要的画面高度（resolve 时 `videos` 里的一个），或者 `null` / 没有（只要声音）。旧版本的应用不发这一项。
 - 回答里的 `files`：`path` 是相对 `outDir` 的路径（或者 `outDir` 里的绝对路径），`kind` 是 `"audio"`、`"video"`（要了画面时：一个 mp4 / m4v / mov，画面 H.264，声音 AAC）或 `"subtitle"`，字幕可以带 `lang`。
   `title` 可以不写（就用 resolve 时的标题）。
+
+### readings/run：注音
+
+一次发这个字幕里还没读过的所有句子（应用记住读过的，改了一句只发这一句；换了选项全部重新发）：
+
+```json
+→ {"jsonrpc":"2.0","id":2,"method":"readings/run","params":{"reading":"ja","language":"ja","texts":["東京へ行く","はい"],"settings":{"style":"hiragana"}}}
+← {"jsonrpc":"2.0","id":2,"result":{"results":[[{"text":"東京","ruby":"とうきょう"},{"text":"へ"},{"text":"行","ruby":"い"},{"text":"く"}],[{"text":"はい"}]]}}
+```
+
+- `results` 和 `texts` 一一对应。每句切成几段，**按顺序连起来必须正好是原句**（空格、标点都不能少），不然这一句就不显示注音。
+- `ruby` 是显示在这一段上面的字，没有就不标。超过 40 个字的会被截断。
+- 不发 `progress`，要快：几百句应该在一秒内回答完。30 秒还没回答，应用就取消。
 
 ### progress 和 log
 

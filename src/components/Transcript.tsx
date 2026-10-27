@@ -19,7 +19,7 @@ import { MicButton, RecorderCard } from "./Recorder";
 import { ReplaceBar } from "./ReplaceBar";
 import { SentenceEditor } from "./SentenceEditor";
 import { SectionHeading, SectionMenu } from "./Sections";
-import { SaidText, SentenceText, UnsureCount } from "./SentenceText";
+import { hasRuby, SaidText, SentenceText, UnsureCount, useRuby } from "./SentenceText";
 import { TakePeek } from "./TakePeek";
 import { IconButton } from "./ui";
 
@@ -31,6 +31,10 @@ import { IconButton } from "./ui";
  */
 export function SentenceList() {
   const sentences = useApp((s) => s.transcript?.sentences ?? []);
+  // 注音 for sentences not read yet (a new transcript, an edit, another plugin or setting).
+  const rubyOn = useApp((s) => s.settings.ruby);
+  const plugins = useApp((s) => s.plugins);
+  useEffect(() => void useApp.getState().loadRuby(), [sentences, rubyOn, plugins]);
   const active = useApp((s) => {
     if (!s.transcript) return -1;
     // Reading on your own: the sentence you're on; playing a reading or a take back: the one playing.
@@ -215,6 +219,7 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
   last: boolean;
 }) {
   const { playSentence, toggleSentenceLoop, editSentence, toggleExplain, splitSection, mergeSentence } = useApp.getState();
+  const ruby = hasRuby(useRuby(sentence.text));
   const explaining = !!explain?.open;
   const tone = reading ? "bg-danger-soft" : looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";
   const lit = active || looping || recorder;
@@ -262,7 +267,7 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
           <SentenceEditor />
         ) : (
           <p
-            className={`cursor-text font-script text-[18px] leading-[30px] break-words select-text transition-colors duration-200 ${
+            className={`cursor-text font-script text-[18px] ${ruby ? "leading-[40px]" : "leading-[30px]"} break-words select-text transition-colors duration-200 ${
               lit ? "text-fg" : "text-muted"
             }`}
           >

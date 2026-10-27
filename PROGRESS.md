@@ -1,6 +1,21 @@
 # 进度
 
-_最后更新：2026-10-26_
+_最后更新：2026-10-27_
+
+## 日语注音插件（2026-10-27，已实现）
+- 来由：你要一个插件，在日语内容的汉字上方显示读音，可以选罗马音或假名。商量的结果：平假名 / 片假名 / 罗马音三选一（默认平假名），三种都只标汉字。
+- 已实现：
+  - 插件 `plugins/furigana/`（Rust，lindera 6.2 + 内嵌的 IPADIC，构建时 lindera 从 Lindera.dev 下载词典）：`readings/run` 把每句切成段，汉字段带读音。
+    `ruby.rs` 把词典给的整词读音按词里的假名拆到各个汉字段上（食べ物 → 食 た / べ / 物 もの），拆不开就整词标；罗马音按假名拼写的 Hepburn。程序 48 MB，zip 约 11 MB，读词典约 1 毫秒。
+  - 应用：manifest 新增 `contributes.readings`（给哪些语言注音）和 `contributes.settings`（插件自己的选项，只有 `select`），
+    state.json 的 `plugins.<id>.settings` 记下选的值；`plugins/readings.rs` 的 `plugins_readings`（每段连起来必须正好是原句，不然这句不标；读音截到 40 个字；30 秒超时）和 `plugins_set_setting`。
+  - 界面：`lib/ruby.ts`（至少五分之一的句子有假名才算日语；读音和查找 / 没把握 / 逐字高亮的分段怎么合在一起），`rubySlice.ts` 按句子文字记住读过的，改一句只问这一句、换选项全部重问；
+    `SentenceText` 用 `<ruby>` 显示（有注音的句子行高 40px），视频下面的那句也有；设置 → 插件 里插件下面一组按钮；播放设置里「注音：显示 / 隐藏」（`settings.ruby`），只在有插件能读这份字幕时出现。
+  - `npm run check` 也查这个插件；文档：`docs/plugin-dev.md`（注音、选项、`readings/run`）、`docs/plugin-plan.md` 的扩展点表。
+- 已验证（自动）：插件的拆分、罗马音、整句不丢字；应用的分段检查、默认选项、manifest 检查；TS 的语言判断、分组。浏览器 mock 里看了平假名、罗马音、隐藏。
+  终端里直接喂消息给构建好的插件，回答正确。
+- 待验证（需要你用）：`scripts/build-plugin.sh furigana`，设置 → 插件 → 从文件夹安装，打开日语字幕看读音准不准、长句子多的字幕要等多久；Windows 版插件（还没在 Windows 上构建过）。
+  还没做：插件目录 `site/plugins.json` 和发布流程里打包这个插件（等决定随哪个版本发布）。
 
 ## 视频，第 3 步：YouTube 导入带画面（2026-10-26，已实现）
 - 来由：YouTube 上下的视频最常见；插件以前只下 m4a 音轨。方案见 [docs/video-plan.md](docs/video-plan.md) 的“YouTube 插件”。

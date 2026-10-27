@@ -78,6 +78,7 @@ jobs:
           workspaces: |
             src-tauri
             plugins/youtube
+            plugins/furigana
 
       - name: Tools
         run: |

@@ -33,6 +33,37 @@ pub struct Manifest {
 pub struct Contributes {
     #[serde(default)]
     pub importers: Vec<Importer>,
+    #[serde(default)]
+    pub readings: Vec<Readings>,
+    #[serde(default)]
+    pub settings: Vec<Setting>,
+}
+
+/// 注音: how the words of sentences in these languages are read, shown over them (readings.rs).
+#[derive(Debug, Clone, Deserialize)]
+pub struct Readings {
+    pub id: String,
+    pub title: String,
+    /// ISO-639-1 codes ("ja").
+    pub languages: Vec<String>,
+}
+
+/// One of the plugin's own options, drawn by the app in 设置 → 插件 and sent
+/// with every request. Only `select` so far.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Setting {
+    pub key: String,
+    #[serde(rename = "type")]
+    pub kind: String,
+    pub label: String,
+    pub default: String,
+    pub options: Vec<Choice>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Choice {
+    pub value: String,
+    pub label: String,
 }
 
 /// 从链接导入: links matching one of `matches` are handed to the plugin.
@@ -161,6 +192,31 @@ impl Manifest {
                 return Err(tr!(
                     "链接规则 “{bad}” 要以 https:// 或 http:// 开头",
                     "The link pattern “{bad}” must start with https:// or http://"
+                ));
+            }
+        }
+        for setting in &self.contributes.settings {
+            let key = &setting.key;
+            if setting.kind != "select" {
+                let kind = &setting.kind;
+                return Err(tr!(
+                    "设置 “{key}” 的类型 “{kind}” 这个版本的应用不认识",
+                    "This version of the app doesn't know the type “{kind}” of the setting “{key}”"
+                ));
+            }
+            if !setting.options.iter().any(|o| o.value == setting.default) {
+                return Err(tr!(
+                    "设置 “{key}” 的默认值不在选项里",
+                    "The default of the setting “{key}” isn't one of its options"
+                ));
+            }
+        }
+        for readings in &self.contributes.readings {
+            if readings.languages.is_empty() {
+                let title = &readings.title;
+                return Err(tr!(
+                    "“{title}” 没有写给哪些语言注音",
+                    "“{title}” doesn't say which languages it reads"
                 ));
             }
         }

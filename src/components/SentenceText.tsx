@@ -1,17 +1,28 @@
-import type { Sentence } from "../lib/api";
-import { textPieces } from "../lib/edits";
+import { Fragment } from "react";
+import type { RubyPiece, Sentence } from "../lib/api";
+import { textPieces, type TextPiece } from "../lib/edits";
 import { t, tk } from "../lib/i18n";
 import { shortcut } from "../lib/platform";
+import { rubyGroups } from "../lib/ruby";
 import { saidPieces, saidUpTo } from "../lib/sentences";
 import { useApp } from "../store";
 
 const UNSURE_TITLE = tk("转写时没把握，可能听错了。按 E 改正；没错的话按 E 再按 {key}，虚线就会去掉");
 
+/** The readings shown over this text (注音), when a plugin gave them and they're on. */
+export function useRuby(text: string): RubyPiece[] | undefined {
+  return useApp((s) => (s.settings.ruby && s.ruby.key ? s.ruby.byText[text] : undefined));
+}
+
+/** Whether `ruby` puts any reading over the text (the line needs room for it). */
+export const hasRuby = (ruby: RubyPiece[] | undefined) => !!ruby?.some((r) => r.ruby);
+
 /**
  * A sentence's text: what the replace bar looks for (and what an AI suggestion
  * would change, `fixes`) is highlighted, and what the transcriber was unsure of
  * has a dotted underline. In the sentence playing (`said`), what hasn't been
- * said yet stays grey, a character (a word) at a time.
+ * said yet stays grey, a character (a word) at a time. Readings from a plugin
+ * (注音) sit over their words.
  */
 export function SentenceText({ text, find, unsure, fixes, said }: {
   text: string;
@@ -20,15 +31,16 @@ export function SentenceText({ text, find, unsure, fixes, said }: {
   fixes?: string[];
   said?: { times: [number, number][]; upTo: number };
 }) {
-  if (!find && !unsure?.length && !fixes?.length && !said) return text;
+  const ruby = useRuby(text);
+  if (!find && !unsure?.length && !fixes?.length && !said && !hasRuby(ruby)) return text;
   const fixed = (fixes ?? []).flatMap((from): [number, number][] => {
     const at = text.indexOf(from);
     return at < 0 ? [] : [[at, at + from.length]];
   });
-  const pieces = textPieces(text, find, unsure, fixed);
+  const marked = textPieces(text, find, unsure, fixed);
   let at = 0;
   // Keyed by where they start, so a piece keeps its element (and fades) as it's said.
-  return (said ? saidPieces(pieces, said.times, said.upTo) : pieces).map((piece) => {
+  const shown = (piece: TextPiece & { said?: boolean }) => {
     const key = at;
     at += piece.text.length;
     if (!piece.match && !piece.unsure && piece.said === undefined) return piece.text;
@@ -43,6 +55,18 @@ export function SentenceText({ text, find, unsure, fixes, said }: {
       >
         {piece.text}
       </Tag>
+    );
+  };
+  const pieces = said ? saidPieces(marked, said.times, said.upTo) : marked;
+  return rubyGroups(pieces, ruby).map((group) => {
+    const key = at;
+    const inner = group.pieces.map(shown);
+    if (!group.ruby) return <Fragment key={`t${key}`}>{inner}</Fragment>;
+    return (
+      <ruby key={`r${key}`}>
+        {inner}
+        <rt className="font-sans text-[11px] font-normal text-faint select-none">{group.ruby}</rt>
+      </ruby>
     );
   });
 }

@@ -65,6 +65,8 @@ export interface Settings {
   maskBottom: number;
   /** Only listen: a video's picture isn't shown (or decoded). */
   pictureHidden: boolean;
+  /** 注音 from a plugin over the sentences, where one reads their language. */
+  ruby: boolean;
   /** Interface language chosen in settings ("" follows the Mac); see lib/i18n.ts. */
   uiLanguage: LangSetting;
 }
@@ -435,11 +437,28 @@ export interface PluginInfo {
   description: string;
   /** What it imports links from (“YouTube”). */
   importers: string[];
+  /** Languages it shows readings for (“ja”). */
+  readings: string[];
+  /** Its own options, drawn in 设置 → 插件, with the value in use. */
+  settings: PluginSetting[];
   permissions: { network: string[]; runs: string };
   /** Disk used, with the tools it downloaded. */
   bytes: number;
   /** Why it can't be used, when it can't. */
   problem: string | null;
+}
+
+export interface PluginSetting {
+  key: string;
+  label: string;
+  options: { value: string; label: string }[];
+  value: string;
+}
+
+/** A piece of a sentence and the reading shown over it (注音, from a plugin); the pieces join into the sentence. */
+export interface RubyPiece {
+  text: string;
+  ruby?: string;
 }
 
 /** A plugin folder picked in 从文件夹安装…, shown before 安装. */
@@ -608,6 +627,9 @@ export const api = {
     /** Installs the folder `pick` offered. */
     install: () => invoke<PluginInfo[]>("plugins_install"),
     remove: (id: string) => invoke<PluginInfo[]>("plugins_remove", { id }),
+    setSetting: (id: string, key: string, value: string) => invoke<PluginInfo[]>("plugins_set_setting", { id, key, value }),
+    /** Each sentence in pieces with readings, from the plugin that reads `language`; null when none does. */
+    readings: (language: string, texts: string[]) => invoke<RubyPiece[][] | null>("plugins_readings", { language, texts }),
   },
   imports: {
     /** The clipboard, when it holds one web link. */

@@ -1,0 +1,17 @@
+[package]
+name = "shadowing-furigana"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = "Shadowing plugin: readings (hiragana, katakana or romaji) over the kanji of Japanese sentences"
+
+[dependencies]
+lindera = { version = "6.2", default-features = false, features = ["embed-ipadic"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

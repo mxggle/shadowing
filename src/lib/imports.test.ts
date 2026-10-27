@@ -134,6 +134,8 @@ describe("downloads", () => {
       author: "",
       description: "",
       importers,
+      readings: [],
+      settings: [],
       permissions: { network: [], runs: "" },
       bytes: 0,
       problem,

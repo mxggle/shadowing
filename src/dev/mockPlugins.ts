@@ -1,7 +1,7 @@
 // Plugins and 从链接导入 in the browser mock: the YouTube plugin is installed,
 // a link resolves after a moment, and a download adds a track to the folder.
 import { emit } from "@tauri-apps/api/event";
-import type { FolderListing, ImportStatus, PluginInfo, Resolved } from "../lib/api";
+import type { FolderListing, ImportStatus, PluginInfo, Resolved, RubyPiece } from "../lib/api";
 
 let plugins: PluginInfo[] = [
   {
@@ -11,11 +11,64 @@ let plugins: PluginInfo[] = [
     author: "Shadowing",
     description: "粘贴 YouTube 链接，把视频的音频（m4a，不转码）和人工字幕导入到打开的文件夹。只下载你有权使用的内容。",
     importers: ["YouTube"],
+    readings: [],
+    settings: [],
     permissions: { network: ["youtube.com", "googlevideo.com", "github.com"], runs: "第一次使用时下载 yt-dlp" },
     bytes: 126_400_000,
     problem: null,
   },
+  {
+    id: "furigana",
+    name: "日语注音",
+    version: "0.1.0",
+    author: "Shadowing",
+    description: "在日语句子的汉字上方标出读音：平假名、片假名或罗马音。词典（IPADIC）在插件里，不联网。",
+    importers: [],
+    readings: ["ja"],
+    settings: [
+      {
+        key: "style",
+        label: "注音用",
+        value: "hiragana",
+        options: [
+          { value: "hiragana", label: "平假名" },
+          { value: "katakana", label: "片假名" },
+          { value: "romaji", label: "罗马音" },
+        ],
+      },
+    ],
+    permissions: { network: [], runs: "只在这台电脑上分词、查读音，不下载、不运行别的程序" },
+    bytes: 48_500_000,
+    problem: null,
+  },
 ];
+
+// The kanji of the mock sentences: reading, romaji.
+const WORDS: Record<string, [string, string]> = {
+  今日: ["きょう", "kyou"], 天気: ["てんき", "tenki"], 話: ["はなし", "hanashi"], 朝: ["あさ", "asa"], 雨: ["あめ", "ame"],
+  降: ["ふ", "fu"], 傘: ["かさ", "kasa"], 持: ["も", "mo"], 忘: ["わす", "wasu"], 駅: ["えき", "eki"], 一緒: ["いっしょ", "issho"],
+  行: ["い", "i"], 助: ["たす", "tasu"], 週末: ["しゅうまつ", "shuumatsu"], 晴: ["は", "ha"], 公園: ["こうえん", "kouen"],
+  弁当: ["べんとう", "bentou"], 作: ["つく", "tsuku"], 予報: ["よほう", "yohou"], 気温: ["きおん", "kion"], 上: ["あ", "a"],
+  日焼: ["ひや", "hiya"], 止: ["ど", "do"], 願: ["ねが", "nega"],
+};
+
+/** What the 日语注音 plugin would answer, from WORDS. */
+function readings(texts: string[]): RubyPiece[][] {
+  const style = plugins.find((p) => p.id === "furigana")?.settings[0]?.value;
+  const shown = ([kana, romaji]: [string, string]) =>
+    style === "romaji" ? romaji : style === "katakana" ? kana.replace(/[\u3041-\u3096]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60)) : kana;
+  return texts.map((text) => {
+    const pieces: RubyPiece[] = [];
+    for (let i = 0; i < text.length; ) {
+      const word = [2, 1].map((n) => text.slice(i, i + n)).find((w) => WORDS[w]);
+      if (word) pieces.push({ text: word, ruby: shown(WORDS[word]) });
+      else if (pieces.length && !pieces[pieces.length - 1].ruby) pieces[pieces.length - 1].text += text[i];
+      else pieces.push({ text: text[i] });
+      i += word?.length ?? 1;
+    }
+    return pieces;
+  });
+}
 
 const resolved: Resolved = {
   title: "日本語練習／中級【～によって】会話",
@@ -55,6 +108,15 @@ export async function mockPlugins(cmd: string, a: Record<string, never>, folder:
         replacing: plugins.length ? "0.1.0" : null,
       };
     case "plugins_install":
+      return plugins;
+    case "plugins_readings":
+      if (!plugins.some((p) => p.readings.includes(a.language))) return null;
+      await wait(300);
+      return readings(a.texts);
+    case "plugins_set_setting":
+      plugins = plugins.map((p) =>
+        p.id === a.id ? { ...p, settings: p.settings.map((s) => (s.key === a.key ? { ...s, value: a.value } : s)) } : p,
+      );
       return plugins;
     case "plugins_remove":
       plugins = plugins.filter((p) => p.id !== a.id);

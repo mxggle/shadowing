@@ -276,6 +276,9 @@ button {
   to { scale: 1 1; }
 }
 
+/* 注音 (a plugin's readings): a word keeps its characters together under a reading wider than it. */
+ruby { ruby-align: center; }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,

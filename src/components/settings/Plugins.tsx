@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type PluginInfo, type PluginOffer } from "../../lib/api";
+import { api, type PluginInfo, type PluginOffer, type PluginSetting } from "../../lib/api";
 import { t } from "../../lib/i18n";
+import { languageName } from "../../lib/imports";
 import { isWindows } from "../../lib/platform";
 import { useApp } from "../../store";
 import { Button } from "../ui";
@@ -50,7 +51,7 @@ export function PluginsSection() {
       </p>
       <div className="mt-1 flex flex-col divide-y divide-line">
         {plugins.map((p) => (
-          <PluginRow key={p.id} plugin={p} onRemoved={setPlugins} />
+          <PluginRow key={p.id} plugin={p} onChange={setPlugins} />
         ))}
       </div>
       {offer ? (
@@ -94,12 +95,12 @@ function Offer({ offer, onInstall, onCancel }: { offer: PluginOffer; onInstall: 
   );
 }
 
-function PluginRow({ plugin, onRemoved }: { plugin: PluginInfo; onRemoved: (list: PluginInfo[]) => void }) {
+function PluginRow({ plugin, onChange }: { plugin: PluginInfo; onChange: (list: PluginInfo[]) => void }) {
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const remove = async () => {
     try {
-      onRemoved(await api.plugins.remove(plugin.id));
+      onChange(await api.plugins.remove(plugin.id));
     } catch (e) {
       setError(String(e));
       setConfirm(false);
@@ -116,8 +117,14 @@ function PluginRow({ plugin, onRemoved }: { plugin: PluginInfo; onRemoved: (list
         <p className={`mt-0.5 text-[12px] leading-relaxed ${plugin.problem || error ? "text-danger" : "text-muted"}`}>{detail}</p>
         <p className="mt-0.5 text-[11px] text-faint">
           {plugin.importers.length > 0 && <>{t("可以导入：{kinds}", { kinds: plugin.importers.join(t("、")) })} · </>}
+          {plugin.readings.length > 0 && (
+            <>{t("给这些语言注音：{languages}", { languages: plugin.readings.map((l) => languageName(l, l)).join(t("、")) })} · </>
+          )}
           {t("占用")} <span className="tabular font-mono">{plugin.bytes < 1e6 ? t("不到 1 MB") : formatBytes(plugin.bytes)}</span>
         </p>
+        {plugin.settings.map((s) => (
+          <PluginOption key={s.key} plugin={plugin.id} setting={s} onChange={onChange} onError={setError} />
+        ))}
       </div>
       {confirm ? (
         <Button primary onClick={() => void remove()}>
@@ -126,6 +133,43 @@ function PluginRow({ plugin, onRemoved }: { plugin: PluginInfo; onRemoved: (list
       ) : (
         <Button onClick={() => setConfirm(true)}>{t("删除")}</Button>
       )}
+    </div>
+  );
+}
+
+/** One of the plugin's own options (manifest `settings`); its words are the plugin's. */
+function PluginOption({ plugin, setting, onChange, onError }: {
+  plugin: string;
+  setting: PluginSetting;
+  onChange: (list: PluginInfo[]) => void;
+  onError: (message: string | null) => void;
+}) {
+  const pick = async (value: string) => {
+    try {
+      onChange(await api.plugins.setSetting(plugin, setting.key, value));
+      onError(null);
+    } catch (e) {
+      onError(String(e));
+    }
+  };
+  return (
+    <div className="mt-2 flex items-center gap-3">
+      <span className="text-[12px] text-muted">{setting.label}</span>
+      <div className="tint flex h-7 rounded-[8px] p-0.5" role="radiogroup" aria-label={setting.label}>
+        {setting.options.map((o) => (
+          <button
+            key={o.value}
+            role="radio"
+            aria-checked={setting.value === o.value}
+            onClick={() => void pick(o.value)}
+            className={`rounded-[6px] px-2.5 text-[12px] font-medium transition-[background-color,color] duration-150 ${
+              setting.value === o.value ? "bg-raised text-fg shadow-[inset_0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
+            }`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
