@@ -39,6 +39,22 @@ pub struct Contributes {
     pub settings: Vec<super::options::Setting>,
 }
 
+impl Contributes {
+    /// Whether this app can do anything with the plugin. One written for another
+    /// version (an extension point this app doesn't have, or no longer has) still
+    /// installs, but settings says why it does nothing.
+    pub fn usable(&self) -> bool {
+        !self.importers.is_empty() || !self.annotators.is_empty()
+    }
+}
+
+pub fn unusable() -> &'static str {
+    crate::i18n::pick(
+        "这个插件的功能这个版本的应用用不上（它是给别的版本写的）。换一个这个版本的插件，或者更新应用。",
+        "This version of the app can't use what this plugin does (it was written for another version). Get a version of the plugin for this app, or update the app.",
+    )
+}
+
 /// 标注: the plugin marks up the sentences of any transcript (readings over
 /// words, a line under the sentence…; annotate.rs). It says itself which
 /// sentences it has something for.

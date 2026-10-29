@@ -166,6 +166,11 @@ fn checks_annotators_and_settings() {
         style.replace("\"default\":\"hiragana\"", "\"default\":\"kanji\"")
     ))
     .is_err());
-    // Something a newer app contributes is ignored.
+    // Something a newer app contributes is ignored: the plugin installs, but this app can't use it.
     assert!(with(r#"{"exporters":[{"id":"anki"}]}"#).is_ok());
+    let old: Contributes =
+        serde_json::from_str(r#"{"readings":[{"id":"ja","title":"日语注音","languages":["ja"]}]}"#)
+            .unwrap();
+    assert!(!old.usable());
+    assert!(youtube().contributes.usable());
 }

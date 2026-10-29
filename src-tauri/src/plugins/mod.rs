@@ -139,6 +139,7 @@ pub(super) fn list(state: &AppState) -> Vec<PluginInfo> {
             let bytes = size(&dir);
             match manifest {
                 Ok(m) => PluginInfo {
+                    problem: (!m.contributes.usable()).then(|| manifest::unusable().to_string()),
                     id,
                     importers: m
                         .contributes
@@ -159,7 +160,6 @@ pub(super) fn list(state: &AppState) -> Vec<PluginInfo> {
                     description: m.description,
                     permissions: m.permissions,
                     bytes,
-                    problem: None,
                 },
                 Err(problem) => PluginInfo {
                     name: id.clone(),
