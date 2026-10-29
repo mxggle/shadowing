@@ -9,6 +9,7 @@ import { recordTarget, type Rec, type RecordAt } from "../recordSlice";
 import { useApp } from "../store";
 import { TakeWaves } from "./TakeWaves";
 import { Button, fillNodes, IconButton, Kbd } from "./ui";
+import { useKeys } from "../hooks/useKeys";
 
 /**
  * 跟读录音, under the sentence (or the A–B loop) being practised: while
@@ -116,15 +117,16 @@ function Ready({ at, looping }: { at: RecordAt; looping: boolean }) {
 
 /** 录一遍 and 连续录; M is the one that fits: 连续录 while it loops (`looping`). */
 function RecordButtons({ at, looping }: { at: RecordAt; looping: boolean }) {
+  const key = useKeys();
   const { startTake } = useApp.getState();
   return (
     <span className="flex items-center gap-1.5">
-      <Button title={looping ? t("录一遍") : t("录一遍 (M)")} onClick={() => void startTake(at, { again: false })} className="h-7 px-2.5">
+      <Button title={looping ? t("录一遍") : t("录一遍 ({key})", { key: key("record") })} onClick={() => void startTake(at, { again: false })} className="h-7 px-2.5">
         <span className="size-2 rounded-full bg-danger" />
         {t("录一遍")}
       </Button>
       <Button
-        title={looping ? t("一遍遍接着说，满意了按空格留下 (M)") : t("一遍遍接着说，满意了按空格留下（循环这一句时按 M 也是它）")}
+        title={looping ? t("一遍遍接着说，满意了按空格留下 ({key})", { key: key("record") }) : t("一遍遍接着说，满意了按空格留下（循环这一句时按 {key} 也是它）", { key: key("record") })}
         onClick={() => void startTake(at, { again: true })}
         className="h-7 px-2.5"
       >
@@ -229,6 +231,7 @@ function Problem({ message, at, looping }: { message: string; at: RecordAt; loop
 }
 
 function Result({ take, at, looping }: { take: Take; at: RecordAt; looping: boolean }) {
+  const key = useKeys();
   const playing = useApp((s) => (s.playingTake?.id === take.id ? s.playingTake : null));
   const { playTake, stopTake, pausePlayingTake, deleteTake } = useApp.getState();
   const turns = inTurns(take);
@@ -242,7 +245,7 @@ function Result({ take, at, looping }: { take: Take; at: RecordAt; looping: bool
         {note && <p className="mt-0.5 pl-[3.75rem] text-[12px] text-faint">{note}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
-        <PlayButton active={playing?.what === both} paused={playing?.paused} onClick={() => toggle(both)} title={turns ? t("从这句听下去：每句先放原句，再放你的 (P)") : t("从这句听下去：原句和你的一起放，听合不合拍 (P)")}>
+        <PlayButton active={playing?.what === both} paused={playing?.paused} onClick={() => toggle(both)} title={turns ? t("从这句听下去：每句先放原句，再放你的 ({key})", { key: key("replay") }) : t("从这句听下去：原句和你的一起放，听合不合拍 ({key})", { key: key("replay") })}>
           {turns ? t("对比") : t("一起听")}
         </PlayButton>
         {take.dub && (
@@ -276,11 +279,12 @@ function PlayButton({ active, paused = false, onClick, title, children }: { acti
 
 /** The mic on a sentence row (or the loop panel): opens the card; visible while there are takes. */
 export function MicButton({ at, count, className = "" }: { at: RecordAt; count: number; className?: string }) {
+  const key = useKeys();
   const open = useApp((s) => s.recordAt === at);
   const live = useApp((s) => s.rec?.at === at);
   return (
     <button
-      title={open ? t("收起跟读录音") : count ? t("跟读录音（录过 {n} 次）(M)", { n: count }) : t("跟读录音 (M)")}
+      title={open ? t("收起跟读录音") : count ? t("跟读录音（录过 {n} 次）({key})", { n: count, key: key("record") }) : t("跟读录音 ({key})", { key: key("record") })}
       aria-pressed={open}
       onClick={() => useApp.getState().toggleRecorder(at)}
       className={`relative grid size-[28px] place-items-center rounded-[8px] transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${

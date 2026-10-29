@@ -149,8 +149,8 @@ export const guide: Record<string, Entry> = {
   "设置 AI（可选）": "Set up AI (optional)",
 
   // One-off tips (guideSlice.ts TIPS; keys in them are drawn as key caps, see lib/hint.ts)
-  "下次可以直接按 S 循环当前句，[ 和 ] 换到上一句 / 下一句。": "Next time, just press S to loop the current sentence, and [ or ] to go to the previous / next one.",
-  "按 − 和 = 也能调速度。": "You can also press − and = to change the speed.",
-  "按 L 依次设 A、设 B、取消循环。": "Press L to set A, then B, then clear the loop.",
+  "下次可以直接按 {sentenceLoop} 循环当前句，{prev} 和 {next} 换到上一句 / 下一句。": "Next time, just press {sentenceLoop} to loop the current sentence, and {prev} or {next} to go to the previous / next one.",
+  "按 {slower} 和 {faster} 也能调速度。": "You can also press {slower} and {faster} to change the speed.",
+  "按 {loop} 依次设 A、设 B、取消循环。": "Press {loop} to set A, then B, then clear the loop.",
   知道了: "Got it",
 };

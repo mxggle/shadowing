@@ -286,7 +286,7 @@ export function installMockBackend() {
     folder: fresh ? null : { root, name: "日本語ポッドキャスト", tracks },
     missingFolder: null,
     lastTrack: fresh ? null : tracks[1].path,
-    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, uiLanguage: "" },
+    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, paceOn: false, pauseMode: "length", pauseSeconds: 2, pauseRatio: 1.5, sentenceRepeats: 1, shortcuts: {}, uiLanguage: "" },
     progress: {
       [tracks[0].path]: { position: 178, duration: 180, updatedAt: 0 },
       [tracks[1].path]: { position: 64, duration: 200, updatedAt: 0 },
@@ -330,6 +330,9 @@ export function installMockBackend() {
         case "player_play_range":
           Object.assign(player, { time: a.a, stop: a.b, playing: true });
           return status();
+        case "player_end_range":
+          player.stop = null;
+          return;
         case "player_set_rate":
           player.rate = a.rate;
           return;

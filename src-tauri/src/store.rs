@@ -57,6 +57,19 @@ pub struct Settings {
     pub picture_hidden: bool,
     /// Plugins' marks on the sentences (标注: readings over words, a line under…).
     pub annotations: bool,
+    /// 跟读停顿 on: with a transcript, play one sentence at a time, each `sentence_repeats`
+    /// times with a pause after every time (`pause_mode`). Off keeps the choices for next time.
+    pub pace_on: bool,
+    /// "none", "fixed" (`pause_seconds`), "length" (`pause_ratio` × the sentence) or "wait" (until
+    /// you go on). A string like `picture_layout`: a version that doesn't know a value still reads the file.
+    pub pause_mode: String,
+    pub pause_seconds: f64,
+    pub pause_ratio: f64,
+    /// Times each sentence plays before the next (the frontend keeps it to 1–10).
+    pub sentence_repeats: u32,
+    /// Keys the learner chose for the player's actions (action id → key); only those that
+    /// differ from the defaults (src/lib/keymap.ts).
+    pub shortcuts: std::collections::BTreeMap<String, String>,
     /// Interface language: "" follows the Mac, "zh" or "en" (see i18n.rs). Settings saved
     /// before it existed stay Chinese, the only language those versions had.
     #[serde(default = "chinese")]
@@ -100,6 +113,12 @@ impl Default for Settings {
             mask_bottom: 0.96,
             picture_hidden: false,
             annotations: true,
+            pace_on: false,
+            pause_mode: "length".into(),
+            pause_seconds: 2.0,
+            pause_ratio: 1.5,
+            sentence_repeats: 1,
+            shortcuts: Default::default(),
             ui_language: String::new(),
         }
     }
@@ -325,6 +344,27 @@ mod tests {
             (0.8, PlayMode::Next, 5.0)
         );
         assert!(s.daily_goals.is_empty());
+        // 跟读停顿 starts off, with a pause the length of the sentence and a half ready for it.
+        assert!(!s.pace_on);
+        assert_eq!(
+            (s.pause_mode.as_str(), s.pause_ratio, s.sentence_repeats),
+            ("length", 1.5, 1)
+        );
+        assert!(s.shortcuts.is_empty());
+    }
+
+    #[test]
+    fn keeps_the_learners_own_keys() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("state.json");
+        fs::write(
+            &path,
+            r#"{"settings":{"shortcuts":{"loop":"k","pace":""}}}"#,
+        )
+        .unwrap();
+        let s = Persisted::load(&path).settings;
+        assert_eq!(s.shortcuts["loop"], "k");
+        assert_eq!(s.shortcuts["pace"], "");
     }
 
     #[test]

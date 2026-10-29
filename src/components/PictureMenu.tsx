@@ -5,14 +5,16 @@ import type { PictureLayout } from "../lib/api";
 import { t, tk } from "../lib/i18n";
 import { layoutShown } from "../lib/picture";
 import { useApp } from "../store";
+import { useKeys } from "../hooks/useKeys";
 
 /** The playback menu's rows for a video (PlaybackMenu.tsx): where the picture goes, and the subtitle mask. */
 export function PictureMenu() {
+  const key = useKeys();
   const video = useApp((s) => s.current?.kind === "video");
   if (!video) return null;
   return (
     <>
-      <MenuRow label={t("画面")} hint={t("V 键轮换")}>
+      <MenuRow label={t("画面")} hint={t("{key} 键轮换", { key: key("picture") })}>
         <PlacePicker />
       </MenuRow>
       <MenuRow label={t("遮字幕")} hint={t("盖住画面里烧录的字幕")}>

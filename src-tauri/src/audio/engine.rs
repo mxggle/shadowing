@@ -33,7 +33,8 @@ pub enum Cmd {
     Loop(Option<(u64, u64)>, u64),
     Region(Arc<Region>),
     RegionFailed(u64),
-    /// Play up to this source frame once, then pause there (loops don't apply).
+    /// Play up to this source frame once, then pause there (loops don't apply);
+    /// `None` forgets the range and plays on.
     Range(Option<u64>),
     Tap(Option<Box<Tap>>),
     /// Play a clip over the track (which pauses); `None` stops the current one.
@@ -274,7 +275,11 @@ impl Engine {
             }
             Cmd::Range(stop) => {
                 if let Some(s) = self.session.as_mut() {
-                    s.reader.stop_at(stop);
+                    match stop {
+                        Some(_) => s.reader.stop_at(stop),
+                        // One already into its end padding stops as it would have.
+                        None => s.reader.cancel_range(),
+                    }
                 }
             }
             Cmd::Tap(tap) => {

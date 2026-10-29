@@ -8,6 +8,7 @@ import { nextLead, soundJumped, syncPicture, type Playhead } from "../lib/videoS
 import { playhead, useApp } from "../store";
 import { PICTURE_MAX, PICTURE_MIN } from "../videoSlice";
 import { PictureMask } from "./PictureMask";
+import { useKeys } from "../hooks/useKeys";
 
 /** Above the sentences, the picture never takes more than this much of the window, so they keep room. */
 const MOST_OF_WINDOW = "50vh";
@@ -33,6 +34,7 @@ export function Picture({ layout }: { layout: PictureLayout }) {
 }
 
 function Screen({ path, layout }: { path: string; layout: PictureLayout }) {
+  const key = useKeys();
   const video = useRef<HTMLVideoElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const height = useApp((s) => s.settings.pictureHeight);
@@ -63,7 +65,7 @@ function Screen({ path, layout }: { path: string; layout: PictureLayout }) {
         preload="auto"
         disablePictureInPicture
         aria-label={t("视频画面")}
-        title={t("播放 / 暂停 (空格)")}
+        title={t("播放 / 暂停 ({key})", { key: key("toggle") })}
         onClick={() => useApp.getState().toggle()}
         onLoadedMetadata={(e) => setLook(e.currentTarget.videoWidth > 0 ? "shown" : "none")}
         onError={() => setLook("failed")}
@@ -194,6 +196,7 @@ const LAYOUTS: { value: PictureLayout; icon: typeof Rows2; label: string }[] = [
 
 /** Over the picture's corner while the pointer is on it: the three layouts (V goes round them too). */
 function LayoutButtons() {
+  const key = useKeys();
   const wide = useStageWide();
   const shown = useApp((s) => layoutShown(s.settings.pictureLayout, wide));
   const setLayout = useApp((s) => s.setPictureLayout);
@@ -212,7 +215,7 @@ function LayoutButtons() {
             aria-checked={shown === value}
             aria-label={t(label)}
             disabled={narrow}
-            title={narrow ? t("{label}（窗口太窄）", { label: t(label) }) : t("{label} (V)", { label: t(label) })}
+            title={narrow ? t("{label}（窗口太窄）", { label: t(label) }) : t("{label} ({key})", { label: t(label), key: key("picture") })}
             onClick={() => setLayout(value)}
             className={`grid h-[26px] w-7 place-items-center rounded-[7px] transition-colors duration-150 disabled:opacity-35 ${
               shown === value ? "bg-white/25" : "hover:bg-white/15"

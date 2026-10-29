@@ -42,11 +42,11 @@ describe("playKey", () => {
   });
 
   it("says what it does", () => {
-    expect(playKeyTitle(at({ rec: { phase: "speaking", paused: false } }))).toBe("暂停录音");
-    expect(playKeyTitle(at({ live: { phase: "reading", paused: true } }))).toBe("继续录音");
-    expect(playKeyTitle(at({ playingTake: { paused: false } }))).toBe("暂停回放");
-    expect(playKeyTitle(at({ playingReading: { paused: true } }))).toBe("继续回放");
-    expect(playKeyTitle(at({}))).toBe("播放 / 暂停 (空格)");
+    expect(playKeyTitle(at({ rec: { phase: "speaking", paused: false } }), "空格")).toBe("暂停录音");
+    expect(playKeyTitle(at({ live: { phase: "reading", paused: true } }), "空格")).toBe("继续录音");
+    expect(playKeyTitle(at({ playingTake: { paused: false } }), "空格")).toBe("暂停回放");
+    expect(playKeyTitle(at({ playingReading: { paused: true } }), "空格")).toBe("继续回放");
+    expect(playKeyTitle(at({}), "空格")).toBe("播放 / 暂停 (空格)");
   });
 });
 

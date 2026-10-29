@@ -18,8 +18,10 @@ src/                      前端
   audio/logic.ts          纯函数规则（循环、恢复位置、速度），有单元测试
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，改字幕在 correctSlice.ts，拆句 / 合并句在 reshapeSlice.ts，
                           AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts，
-                          学习记录与每日目标在 practiceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts，逐句跟读在 drillSlice.ts，
+                          学习记录与每日目标在 practiceSlice.ts，跟读停顿在 paceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts，逐句跟读在 drillSlice.ts，
                           插件和从链接导入在 importSlice.ts，插件在句子上的标注在 annotateSlice.ts，视频画面的设置在 videoSlice.ts）
+  lib/pace.ts             跟读停顿：一次放哪一段（这一句，循环里到循环的终点）、每句后停多久（不停 / 秒数 / 按句长 / 等你）、放几遍之后去哪，有单元测试
+  lib/keymap.ts           快捷键：每个动作的默认键、你自己换的键（交换、恢复默认、和新默认键冲突时）、按键的名字，有单元测试
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句、正在放的句子逐字亮到哪），有单元测试
   lib/sections.ts         对话段落规则（分段、合并、改名、整段循环、{ } 换段），有单元测试
   lib/edits.ts            改字幕的规则（改动取整词、查找匹配、全部替换），有单元测试
@@ -45,7 +47,7 @@ src/                      前端
   lib/playKey.ts          播放条的播放 / 暂停键现在管谁（录音、整段录音、回放录音、整段回放，都没有时是主播放器）、暂停后继续时还要做什么，有单元测试
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板；视频时多一块画面，Picture.tsx：静音的 <video>、拖动条、悬停时的布局按钮，PictureMask.tsx 遮字幕的模糊带，
                           VideoStage.tsx 并排和影院，PictureMenu.tsx 播放设置里的「画面」「遮字幕」，Unsupported.tsx 放不了的 WebM / MKV 的说明；TrackTitle.tsx 音频的标题）、PlayerBar.tsx 底部播放条、
-                          Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置；ui.tsx 共用的按键与表单件；
+                          Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置，Pace.tsx 跟读停顿（底部的开关和它的设置）；ui.tsx 共用的按键与表单件；
                           Transcript.tsx 句子列表，Sections.tsx 段落小标题和顶部的段落菜单，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
                           Explain.tsx 句子下的解释块、SentenceEditor.tsx 改一句（⇧↩ 断开、⌫ / ⌦ 合并）、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
                           UpdateNotice.tsx 右上角的更新提示（更新后一次的“已更新到 …”也在这里），WhatsNew.tsx 新功能（菜单、设置里打开）；Recorder.tsx 句子下的跟读录音卡片（和行上的麦克风），TakeWaves.tsx 原句 / 我的两条波形，TakePeek.tsx 播放到录过的句子时展开的精简对比；
@@ -53,7 +55,7 @@ src/                      前端
                           AddMenu.tsx 侧栏顶的 ＋（所有添加音频的方式，插件的导入也在这里；见 docs/plugin-ui.md 的插槽），
                           ImportLink.tsx 从链接导入的确认框（⌘V 或 ＋ 打开）、列表里下载中 / 排队 / 失败的一行；
                           Practice.tsx 学习记录面板（PracticeCharts.tsx 柱状图和日历，PracticeGoal.tsx 顶栏目标圆环和目标一行）；
-                          settings/ 是设置面板（Plugins.tsx 插件：已装的、删除、从文件夹安装）；
+                          settings/ 是设置面板（Plugins.tsx 插件：已装的、删除、从文件夹安装；Shortcuts.tsx 自定义快捷键）；
                           guide/ 是引导：Welcome.tsx 欢迎页（第一次打开是 Onboarding.tsx 四步新手引导，步骤内容在 OnboardingSteps.tsx）、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示
   dev/smoke.ts            应用内自测脚本（只在 smoke 模式加载）
 src-tauri/src/
@@ -161,7 +163,7 @@ x86_64 先做；2026-10-19 在真实的 Windows 11 电脑上试过，从 0.10.0 
 ## 播放引擎（src-tauri/src/audio）
 
 - symphonia 解码（每个音频一个解码线程，2 秒环形缓冲）→ signalsmith-stretch 变速（1.0× 时旁路）→ rubato 重采样 → cpal 输出。
-- 跟读录音用到的：`Cmd::Range` 只放一段然后停在终点（循环不生效），`Cmd::Tap` 把送给声卡的样本连同主机时间和在音频里的位置（`Mark::src`）
+- 跟读录音和跟读停顿用到的：`Cmd::Range` 只放一段然后停在终点（循环不生效；`Range(None)` 让它接着放下去），`Cmd::Tap` 把送给声卡的样本连同主机时间和在音频里的位置（`Mark::src`）
   抄一份给录音线程（tap.rs；主机时间见 clock.rs：Windows 上设备报的时间缺失或差一秒以上时改用性能计数器），`Cmd::Clip` 在暂停的音频上放一段录音（clip.rs）。暂停录音用 `Cmd::Hold`（暂停但保留这一段的终点，
   继续时接着放；之后任何移动播放头的命令都让它作废），暂停回放用 `Cmd::HoldClip`。配音用 `Cmd::Mute`：抄给录音线程之后才把送给声卡的变成静音。
 - A–B 循环在音频回调里按帧完成：设定循环时把 [A−0.3s, B] 解码进内存，越过 B 时 5ms 交叉淡化接回 A，不依赖任何定时器。

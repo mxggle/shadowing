@@ -4,6 +4,7 @@ import type { Explain } from "../explainSlice";
 import { t } from "../lib/i18n";
 import { useApp } from "../store";
 import { Button, IconButton } from "./ui";
+import { useKeys } from "../hooks/useKeys";
 
 /** "ChatGPT · gpt-5-mini", and whether it runs on this Mac. */
 function serviceOf(ai: AiOverview | null) {
@@ -14,6 +15,7 @@ function serviceOf(ai: AiOverview | null) {
 
 /** Under a sentence: what the model says about it (or that it is being asked, or why not). */
 export function ExplainNote({ index, entry }: { index: number; entry: Explain }) {
+  const key = useKeys();
   const ai = useApp((s) => s.ai);
   const { toggleExplain, retryExplain, setSettingsOpen } = useApp.getState();
   const service = serviceOf(ai);
@@ -43,7 +45,7 @@ export function ExplainNote({ index, entry }: { index: number; entry: Explain })
         </div>
       )}
       {entry.state === "done" && <Answer value={entry.value} />}
-      <IconButton title={t("收起 (I)")} onClick={() => toggleExplain(index)} className="absolute top-1.5 right-1.5 !h-6 !min-w-6">
+      <IconButton title={t("收起 ({key})", { key: key("explain") })} onClick={() => toggleExplain(index)} className="absolute top-1.5 right-1.5 !h-6 !min-w-6">
         <X />
       </IconButton>
     </div>

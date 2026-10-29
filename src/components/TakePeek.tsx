@@ -6,6 +6,7 @@ import { headOnTake } from "../lib/readings";
 import { comparePart, inTurns, lagNote, paceNote, peekTake, playheadAt } from "../lib/takes";
 import { useApp, type AppState } from "../store";
 import { TakeWaves } from "./TakeWaves";
+import { useKeys } from "../hooks/useKeys";
 
 /**
  * Under the sentence playing (or paused on, or looped) once you've recorded
@@ -47,6 +48,7 @@ function Peek({ start, end }: { start: number; end: number }) {
 }
 
 function PeekTake({ take }: { take: Take }) {
+  const key = useKeys();
   const head = useApp(useShallow((s) => headOf(s, take)));
   const playing = useApp((s) => s.playingTake?.id === take.id);
   const { playTake, stopTake } = useApp.getState();
@@ -58,7 +60,7 @@ function PeekTake({ take }: { take: Take }) {
         compact
         take={take}
         head={head}
-        titles={playing ? t("停 (空格)") : inTurns(take) ? t("从这句听下去：每句先原句，再你的 (P)") : t("从这句听下去：原句和你的一起放 (P)")}
+        titles={playing ? t("停 (空格)") : inTurns(take) ? t("从这句听下去：每句先原句，再你的 ({key})", { key: key("replay") }) : t("从这句听下去：原句和你的一起放 ({key})", { key: key("replay") })}
         onPlay={() => (playing ? stopTake() : void playTake(take.id, both))}
       />
       {note && <p className="mt-0.5 pl-[2.75rem] text-[12px] leading-4 text-faint">{note}</p>}

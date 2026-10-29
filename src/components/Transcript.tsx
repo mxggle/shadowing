@@ -22,6 +22,7 @@ import { SectionHeading, SectionMenu } from "./Sections";
 import { hasRuby, SaidText, SentenceText, UnsureCount, useAnnotation } from "./SentenceText";
 import { TakePeek } from "./TakePeek";
 import { IconButton } from "./ui";
+import { useKeys } from "../hooks/useKeys";
 
 /**
  * The script: one row per sentence. The text is selectable; the time on the
@@ -218,6 +219,7 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
   /** The last sentence: nothing after it to join. */
   last: boolean;
 }) {
+  const key = useKeys();
   const { playSentence, toggleSentenceLoop, editSentence, toggleExplain, splitSection, mergeSentence } = useApp.getState();
   const annotation = useAnnotation(sentence.text);
   const ruby = hasRuby(annotation);
@@ -290,7 +292,7 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
       </div>
       <span className="flex h-[30px] items-center">
         <button
-          title={explaining ? t("收起解释 (I)") : t("解释这一句 (I)")}
+          title={explaining ? t("收起解释 ({key})", { key: key("explain") }) : t("解释这一句 ({key})", { key: key("explain") })}
           aria-pressed={explaining}
           onClick={() => toggleExplain(index)}
           className={`grid size-[28px] place-items-center rounded-[8px] transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${
@@ -305,7 +307,7 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
           </HoverButton>
         )}
         {!editing && (
-          <HoverButton title={t("修改这一句 (E)")} onClick={() => editSentence(index)}>
+          <HoverButton title={t("修改这一句 ({key})", { key: key("edit") })} onClick={() => editSentence(index)}>
             <PenLine size={14} strokeWidth={2.1} />
           </HoverButton>
         )}
@@ -315,7 +317,7 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
           </HoverButton>
         )}
         <button
-          title={looping ? t("取消循环 (S)") : t("循环这一句 (S)")}
+          title={looping ? t("取消循环 ({key})", { key: key("sentenceLoop") }) : t("循环这一句 ({key})", { key: key("sentenceLoop") })}
           aria-pressed={looping}
           onClick={() => {
             toggleSentenceLoop(index);

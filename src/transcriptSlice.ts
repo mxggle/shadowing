@@ -74,6 +74,8 @@ export function createTranscriptSlice(
     if (get().current?.path !== path) return;
     get().forgetCorrections(path);
     set({ transcript, loopSentence: null, loopSection: null });
+    // Already playing (it opened before its sentences came): 跟读停顿 starts with this sentence.
+    get().paceRearm();
   };
 
   void listen<TranscribeStatus>("transcribe:status", ({ payload }) => {
@@ -82,8 +84,7 @@ export function createTranscriptSlice(
   });
 
   function startAt(i: number) {
-    get().seek(sentenceStart(sentences()[i]));
-    if (engine.paused) engine.play();
+    get().playFrom(sentenceStart(sentences()[i]));
   }
 
   function loopSentenceAt(i: number) {

@@ -7,5 +7,6 @@ import { settings } from "./en/settings";
 import { player } from "./en/player";
 import { record } from "./en/record";
 import { library } from "./en/library";
+import { pace } from "./en/pace";
 
-export const en: Record<string, Entry> = { ...app, ...guide, ...settings, ...player, ...record, ...library };
+export const en: Record<string, Entry> = { ...app, ...guide, ...settings, ...player, ...record, ...library, ...pace };

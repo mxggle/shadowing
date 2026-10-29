@@ -8,6 +8,7 @@ import { useApp } from "../store";
 import { PictureMenu } from "./PictureMenu";
 import { PLAY_MODE_LOOK, PlayModePicker } from "./PlayMode";
 import { Stepper } from "./ui";
+import { useKeys } from "../hooks/useKeys";
 
 /**
  * The deck's one settings key: shows the speed (and the play mode when it
@@ -24,6 +25,7 @@ export function PlaybackMenu() {
   const { icon: ModeIcon, label } = PLAY_MODE_LOOK[playMode];
   const modeLabel = t(label);
   const showMode = playMode !== "next";
+  const key = useKeys();
 
   return (
     <div ref={root} className="relative">
@@ -55,10 +57,10 @@ export function PlaybackMenu() {
           className="absolute right-0 bottom-full z-20 mb-2.5 w-[288px] origin-bottom-right animate-pop-up divide-y divide-line rounded-[12px] bg-raised px-1 py-0.5 shadow-lift"
         >
           <SpeedSection />
-          <Row label={t("跳转步长")} hint="← / →">
+          <Row label={t("跳转步长")} hint={`${key("back")} / ${key("forward")}`}>
             <SeekStepControl />
           </Row>
-          <Row label={t("播放顺序")} hint={`${modeLabel} · R`}>
+          <Row label={t("播放顺序")} hint={`${modeLabel} · ${key("playMode")}`}>
             <PlayModePicker />
           </Row>
           <Row label={t("高亮")} hint={t("逐字只限转写的字幕")}>
@@ -150,11 +152,14 @@ function AnnotationsRow() {
 function SpeedSection() {
   const rate = useApp((s) => s.settings.rate);
   const setRate = useApp((s) => s.setRate);
+  const key = useKeys();
   return (
     <div className="px-2.5 pt-3 pb-3">
       <div className="flex items-baseline justify-between">
         <span className="text-[13px] font-medium">{t("速度")}</span>
-        <span className="text-[11px] text-faint">− / =</span>
+        <span className="text-[11px] text-faint">
+          {key("slower")} / {key("faster")}
+        </span>
       </div>
       <div className="tint mt-2.5 grid grid-cols-4 gap-0.5 rounded-[10px] p-[3px]" role="group" aria-label={t("常用速度")}>
         {RATE_PRESETS.map((p) => {
@@ -175,8 +180,8 @@ function SpeedSection() {
       </div>
       <div className="mt-2">
         <Stepper
-          decTitle={t("减速 (−)")}
-          incTitle={t("加速 (=)")}
+          decTitle={t("减速 ({key})", { key: key("slower") })}
+          incTitle={t("加速 ({key})", { key: key("faster") })}
           decFlash="slower"
           incFlash="faster"
           onDec={() => (setRate(rate - RATE_STEP), useApp.getState().tip("rate"))}
