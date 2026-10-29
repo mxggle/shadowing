@@ -7,6 +7,7 @@ import { useApp } from "../store";
 import { takesFor } from "../lib/takes";
 import { MicButton, RecorderCard } from "./Recorder";
 import { IconButton, Kbd } from "./ui";
+import { useKeys } from "../hooks/useKeys";
 
 export type LoopPhase = "idle" | "armed" | "active";
 
@@ -31,14 +32,18 @@ function rich(text: string, slots: Record<string, ReactNode>): ReactNode {
   return text.split(/\{(\w+)\}/).map((piece, i) => (i % 2 ? <Fragment key={i}>{slots[piece]}</Fragment> : piece));
 }
 
-const KEY_L = <Kbd>L</Kbd>;
+/** The loop key (L, unless 设置 → 快捷键 moved it) as a key cap. */
+function useLoopKey(): ReactNode {
+  const key = useKeys();
+  return <Kbd>{key("loop")}</Kbd>;
+}
 
-function caption(phase: LoopPhase): ReactNode {
-  if (phase === "idle") return rich(t("听到想练的句子开头时按 {key}，结尾再按一次，这一段就会反复播放。"), { key: KEY_L });
-  if (phase === "armed") return rich(t("起点已设好。听到句尾时按 {key} 设终点。"), { key: KEY_L });
+function caption(phase: LoopPhase, loopKey: ReactNode, recordKey: string): ReactNode {
+  if (phase === "idle") return rich(t("听到想练的句子开头时按 {key}，结尾再按一次，这一段就会反复播放。"), { key: loopKey });
+  if (phase === "armed") return rich(t("起点已设好。听到句尾时按 {key} 设终点。"), { key: loopKey });
   return rich(t("‹ › 把边界移动 0.1 秒。按 {record} 跟读录音，按 {key} 或 {esc} 取消循环。"), {
-    record: <Kbd>M</Kbd>,
-    key: KEY_L,
+    record: <Kbd>{recordKey}</Kbd>,
+    key: loopKey,
     esc: <Kbd>Esc</Kbd>,
   });
 }
@@ -55,6 +60,8 @@ export function LoopPanel() {
   const length = loop.a !== null && loop.b !== null ? loop.b - loop.a : null;
   const takes = useApp((s) => (s.loop.a !== null && s.loop.b !== null ? takesFor(s.takes, s.loop.a, s.loop.b).length : 0));
   const recording = useApp((s) => s.recordAt === "loop");
+  const key = useKeys();
+  const loopKey = useLoopKey();
 
   return (
     <section className="@container" aria-label={t("A–B 循环")}>
@@ -80,7 +87,7 @@ export function LoopPanel() {
       </div>
 
       <p key={phase} className="mt-3.5 animate-fade text-[13px] leading-relaxed text-muted">
-        {caption(phase)}
+        {caption(phase, loopKey, key("record"))}
       </p>
       {recording && phase === "active" && (
         <div className="mt-3">
@@ -102,6 +109,7 @@ function Readout({ label, value, next, onNudge }: {
   onNudge?: (d: number) => void;
 }) {
   const set = value !== null;
+  const loopKey = useLoopKey();
   const outline = next ? (label === "B" ? "outline-loop-line" : "outline-line-strong") : "outline-transparent";
   return (
     <div
@@ -120,7 +128,7 @@ function Readout({ label, value, next, onNudge }: {
         </span>
       ) : (
         <span className={`flex items-center gap-1.5 text-[13px] ${next ? (label === "B" ? "text-loop-text" : "text-fg") : "text-faint"}`}>
-          {rich(label === "A" ? t("按 {key} 设起点") : t("按 {key} 设终点"), { key: KEY_L })}
+          {rich(label === "A" ? t("按 {key} 设起点") : t("按 {key} 设终点"), { key: loopKey })}
         </span>
       )}
     </div>
@@ -152,6 +160,7 @@ export function LoopStrip() {
   const loopSection = useApp((s) => (s.loopSection === null ? null : sectionName(sectionsOf(s.transcript), s.loopSection)));
   const hasTranscript = useApp((s) => !!s.transcript?.sentences.length);
   const { clearLoop, nudgeLoop } = useApp.getState();
+  const loopKey = useLoopKey();
   if (phase === "idle" || !hasTranscript) return null;
 
   return (
@@ -165,7 +174,7 @@ export function LoopStrip() {
         <Boundary label="B" value={loop.b!} onNudge={(d) => nudgeLoop("b", d)} />
       ) : (
         <span className="flex items-center gap-1.5 text-[12px] whitespace-nowrap text-loop-text">
-          {rich(t("按 {key} 设终点 B"), { key: KEY_L })}
+          {rich(t("按 {key} 设终点 B"), { key: loopKey })}
         </span>
       )}
       <span className="ml-auto flex min-w-0 items-center gap-1">

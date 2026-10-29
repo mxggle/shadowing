@@ -64,6 +64,24 @@ fn range_plays_once_and_waits_at_its_end() {
 }
 
 #[test]
+fn a_range_forgotten_while_playing_plays_on() {
+    // 跟读停顿 turned off mid-sentence: the sentence's stop goes, the track plays on.
+    let dir = tempfile::tempdir().unwrap();
+    let (path, n) = ramp_wav(dir.path(), SR, 6.0);
+    let (a, b) = (SR as u64, SR as u64 * 2);
+    let mut rig = Rig::new(&path, SR, 1.0, 0);
+    rig.send(Cmd::Seek(a));
+    rig.send(Cmd::Range(Some(b)));
+    rig.render(SR as usize / 2, 512);
+    rig.send(Cmd::Range(None));
+    let (out, _) = rig.render(SR as usize, 512);
+    let last = *heard(&out, n).last().unwrap();
+    assert!(last > b as f64 + 0.3 * SR as f64, "past B: {last}");
+    assert!(rig.shared.playing(), "still playing");
+    assert_eq!(rig.shared.take_events() & EV_ENDED, 0);
+}
+
+#[test]
 fn a_range_cut_short_leaves_the_loop_working() {
     // Skipping the original while recording pauses it partway; playing on
     // afterwards must loop the sentence again, not stop at its end.

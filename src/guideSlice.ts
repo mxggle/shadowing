@@ -4,14 +4,28 @@ import type { AudioEngine } from "./audio/engine";
 import { NO_LOOP } from "./audio/logic";
 import { api, type Guide, type Track } from "./lib/api";
 import { t, tk } from "./lib/i18n";
+import { keymap, keyName } from "./lib/keymap";
 import type { AppState } from "./store";
 
 /** Shown once each, when the learner uses the mouse for something that has a key. */
 export const TIPS = {
-  sentenceLoop: tk("下次可以直接按 S 循环当前句，[ 和 ] 换到上一句 / 下一句。"),
-  rate: tk("按 − 和 = 也能调速度。"),
-  abLoop: tk("按 L 依次设 A、设 B、取消循环。"),
+  sentenceLoop: tk("下次可以直接按 {sentenceLoop} 循环当前句，{prev} 和 {next} 换到上一句 / 下一句。"),
+  rate: tk("按 {slower} 和 {faster} 也能调速度。"),
+  abLoop: tk("按 {loop} 依次设 A、设 B、取消循环。"),
 } as const;
+
+/** The keys a tip names, as they are now (设置 → 快捷键 can move them). */
+function tipKeys(shortcuts: Record<string, string>) {
+  const map = keymap(shortcuts);
+  return {
+    loop: keyName(map.loop),
+    sentenceLoop: keyName(map.sentenceLoop),
+    prev: keyName(map.prevSentence),
+    next: keyName(map.nextSentence),
+    slower: keyName(map.slower),
+    faster: keyName(map.faster),
+  };
+}
 export type TipId = keyof typeof TIPS;
 
 const HINT_MS = 6000;
@@ -32,8 +46,8 @@ export interface GuideState {
   endPractice(): void;
   setWizardOpen(open: boolean): void;
   tip(id: TipId): void;
-  /** Shows a short message in the same place as tips, for a few seconds. */
-  say(text: string): void;
+  /** Shows a short message in the same place as tips, for a few seconds (`ms`). */
+  say(text: string, ms?: number): void;
   dismissHint(): void;
 }
 
@@ -77,6 +91,7 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
       get().stopTake();
       get().cancelReading();
       get().stopReadingPlayback();
+      get().paceReset();
       engine.unload();
       set({ rec: null, live: null, takes: [], readings: [], recordAt: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, transcript: null, loopSentence: null, loopSection: null });
       void api.setLastTrack(null);
@@ -90,13 +105,13 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
       const { guide } = get();
       if (guide.tips.includes(id)) return;
       get().saveGuide({ tips: [...guide.tips, id] });
-      get().say(t(TIPS[id]));
+      get().say(t(TIPS[id], tipKeys(get().settings.shortcuts)));
     },
 
-    say(text) {
+    say(text, ms = HINT_MS) {
       set({ hint: text });
       window.clearTimeout(hintTimer);
-      hintTimer = window.setTimeout(() => set({ hint: null }), HINT_MS);
+      hintTimer = window.setTimeout(() => set({ hint: null }), ms);
     },
 
     dismissHint() {

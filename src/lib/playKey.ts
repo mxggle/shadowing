@@ -46,8 +46,8 @@ export function playKey(s: PlayKeyState): PlayKey {
   return { target: "track", running: s.playing, enabled: s.hasTracks };
 }
 
-/** The key's tooltip. */
-export function playKeyTitle(k: PlayKey): string {
+/** The key's tooltip; `key` is the keyboard key that plays (空格 unless moved). */
+export function playKeyTitle(k: PlayKey, key: string): string {
   switch (k.target) {
     case "take":
     case "reading":
@@ -56,7 +56,7 @@ export function playKeyTitle(k: PlayKey): string {
     case "readingPlayback":
       return k.running ? t("暂停回放") : t("继续回放");
     case "track":
-      return t("播放 / 暂停 (空格)");
+      return t("播放 / 暂停 ({key})", { key });
   }
 }
 

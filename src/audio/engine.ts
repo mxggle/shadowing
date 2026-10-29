@@ -139,6 +139,11 @@ export class AudioEngine {
     void this.command("player_play_range", { a, b });
   }
 
+  /** Forgets the range `playRange` set: plays on past its end. */
+  endRange() {
+    this.send("player_end_range");
+  }
+
   seek(t: number) {
     const d = this.duration;
     const target = Math.max(0, d > 0 ? Math.min(t, d - 0.05) : t);

@@ -58,6 +58,12 @@ pub fn player_play_range(player: State<'_, Player>, a: f64, b: f64) -> Result<St
     Ok(player.status())
 }
 
+/// Forgets a range: the track plays on past where it would have stopped (跟读停顿 turned off).
+#[tauri::command]
+pub fn player_end_range(player: State<'_, Player>) -> Result<(), String> {
+    player.end_range()
+}
+
 #[tauri::command]
 pub fn player_set_rate(player: State<'_, Player>, rate: f64) -> Result<(), String> {
     player.set_rate(rate)

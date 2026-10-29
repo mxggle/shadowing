@@ -9,6 +9,7 @@ import { Button, IconButton, TextLink } from "../ui";
 import { PluginsSection } from "./Plugins";
 import { ProviderSetup } from "./ProviderSetup";
 import { RecordingsRow } from "./Recordings";
+import { ShortcutsSection } from "./Shortcuts";
 
 /** Gear in the top bar; ⌘, (Ctrl+, on Windows) also opens settings, as in every Mac app. */
 export function SettingsButton() {
@@ -45,7 +46,8 @@ export function SettingsDialog() {
     if (!open) return;
     // Capture phase: Esc closes the sheet instead of also clearing the loop.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
+      // Esc while a key is being picked (快捷键) cancels that instead.
+      if (e.key !== "Escape" || document.querySelector("[data-key-capture]")) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       setOpen(false);
@@ -91,6 +93,7 @@ export function SettingsDialog() {
               onClick={() => useApp.getState().setWizardOpen(true)}
             />
           </div>
+          <ShortcutsSection />
           <div className="mt-5 border-t border-line pt-6">
             <h3 className="text-[12px] font-medium text-faint">{t("AI 功能（可选）")}</h3>
             <p className="mt-1 text-[12px] leading-relaxed text-muted">

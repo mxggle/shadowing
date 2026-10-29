@@ -426,6 +426,7 @@ pub fn run() {
             audio::commands::player_toggle,
             audio::commands::player_seek,
             audio::commands::player_play_range,
+            audio::commands::player_end_range,
             audio::commands::player_set_rate,
             audio::commands::player_set_loop,
             audio::commands::player_set_volume,

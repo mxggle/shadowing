@@ -13,6 +13,7 @@ import { createExplainSlice, type ExplainState } from "./explainSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
 import { createImportSlice, type ImportState } from "./importSlice";
 import { createPracticeSlice, type PracticeState } from "./practiceSlice";
+import { createPaceSlice, type PaceState } from "./paceSlice";
 import { createProofreadSlice, type ProofreadState } from "./proofreadSlice";
 import { createReadingSlice, type ReadingState } from "./readingSlice";
 import { createRecordSlice, micOpen, type RecordState } from "./recordSlice";
@@ -21,7 +22,7 @@ import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./tr
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 import { createVideoSlice, type VideoState } from "./videoSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState {
+export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState, PaceState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -71,6 +72,8 @@ export interface AppState extends TranscriptState, CorrectState, ReshapeState, P
   setWordHighlight(on: boolean): void;
   /** Shows or hides the plugins' marks on the sentences (标注). */
   setAnnotations(on: boolean): void;
+  /** The learner's own keys (lib/keymap.ts): only those that differ from the defaults. */
+  setShortcuts(shortcuts: Record<string, string>): void;
   setTranscribeLanguage(language: string): void;
   cycleLoop(): void;
   clearLoop(): void;
@@ -140,6 +143,7 @@ export const useApp = create<AppState>((set, get) => {
         get().playbackStopped();
         get().readingPlaybackStopped();
       }
+      get().pacePlaying(playing);
     },
     onEnded: () => {
       saveProgress(true);
@@ -210,7 +214,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, uiLanguage: "" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, paceOn: false, pauseMode: "length", pauseSeconds: 2, pauseRatio: 1.5, sentenceRepeats: 1, shortcuts: {}, uiLanguage: "" },
     current: null,
     playing: false,
     time: 0,
@@ -238,6 +242,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createImportSlice(set, get, persistSettings),
     ...createVideoSlice(set, get, persistSettings),
     ...createAnnotateSlice(set, get),
+    ...createPaceSlice(set, get, engine, persistSettings),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
@@ -307,6 +312,7 @@ export const useApp = create<AppState>((set, get) => {
       get().stopTake();
       get().cancelReading();
       get().stopReadingPlayback();
+      get().paceReset();
       engine.unload();
       set({ takes: [], readings: [], rec: null, live: null, recordAt: null, folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, practicing: false });
       if (!get().guide.welcomed) get().saveGuide({ welcomed: true });
@@ -319,6 +325,7 @@ export const useApp = create<AppState>((set, get) => {
 
     open(track, autoplay = true) {
       saveProgress(true);
+      get().paceReset();
       get().cancelTake();
       get().stopTake();
       get().cancelReading();
@@ -361,11 +368,12 @@ export const useApp = create<AppState>((set, get) => {
         if (first) get().open(first);
         return;
       }
-      if (playable(current)) engine.toggle();
+      if (!playable(current) || get().paceToggle()) return;
+      engine.toggle();
     },
 
     seek(t) {
-      if (micOpen(get())) return;
+      if (micOpen(get()) || get().paceSeek(t)) return;
       engine.seek(t);
       saveProgress(true);
     },
@@ -411,6 +419,10 @@ export const useApp = create<AppState>((set, get) => {
       persistSettings({ wordHighlight });
     },
 
+    setShortcuts(shortcuts) {
+      persistSettings({ shortcuts });
+    },
+
     setAnnotations(annotations) {
       persistSettings({ annotations });
       void get().loadAnnotations();
@@ -425,10 +437,7 @@ export const useApp = create<AppState>((set, get) => {
       const loop = cycleLoop(get().loop, engine.time);
       applyLoop(loop);
       // Setting B starts the first repeat right away.
-      if (loop.a !== null && loop.b !== null) {
-        engine.seek(loop.a);
-        if (engine.paused) engine.play();
-      }
+      if (loop.a !== null && loop.b !== null) get().playFrom(loop.a);
     },
 
     clearLoop() {
@@ -441,8 +450,8 @@ export const useApp = create<AppState>((set, get) => {
       const loop = nudgeLoop(get().loop, which, delta, engine.duration);
       applyLoop(loop, { sentence: get().loopSentence, section: get().loopSection });
       // Re-hear the new boundary immediately.
-      if (which === "a" && loop.a !== null) engine.seek(loop.a);
-      if (which === "b" && loop.b !== null) engine.seek(Math.max(loop.a ?? 0, loop.b - 1.5));
+      if (which === "a" && loop.a !== null) get().seek(loop.a);
+      if (which === "b" && loop.b !== null) get().seek(Math.max(loop.a ?? 0, loop.b - 1.5));
     },
   };
 });

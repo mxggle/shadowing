@@ -245,6 +245,11 @@ impl Player {
         self.play()
     }
 
+    /// Forgets a range set by `play_range`: the track plays on past its end.
+    pub fn end_range(&self) -> Result<(), String> {
+        self.cmd.send(Cmd::Range(None))
+    }
+
     /// Starts (or with `None`, stops) copying the output for the recorder.
     pub fn set_tap(&self, tap: Option<Tap>) -> Result<(), String> {
         self.cmd.send(Cmd::Tap(tap.map(Box::new)))

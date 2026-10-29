@@ -1,12 +1,14 @@
 import { useEffect } from "react";
 import { nextPlayMode, RATE_STEP } from "../audio/logic";
+import { copyText } from "../lib/clipboard";
 import { isTypingTarget } from "../lib/focus";
+import { t } from "../lib/i18n";
+import { actionFor, keyOf, keymap, REPEATING, type Action } from "../lib/keymap";
+import { paceLabel } from "../lib/pace";
 import { isBrowserKey, isMod } from "../lib/platform";
+import { sentenceIndexAt } from "../lib/sentences";
 import { useApp } from "../store";
 import { flash, type FlashId } from "./useFlash";
-
-/** Keys that step or nudge, so holding them down keeps going. Toggles (Space, L, S, R…) fire once per press. */
-const REPEATS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "[", "]", "{", "}", "-", "="]);
 
 type State = ReturnType<typeof useApp.getState>;
 
@@ -16,19 +18,70 @@ type State = ReturnType<typeof useApp.getState>;
  * cancels. Other keys do nothing.
  */
 function recordingKey(e: KeyboardEvent, s: State) {
-  const keys: Record<string, () => void> = s.live
-    ? {
-        " ": () => void s.finishReading(),
-        M: () => void s.finishReading(),
-        Escape: s.cancelReading,
-        "[": () => s.stepReading(-1),
-        "]": () => s.stepReading(1),
-      }
-    : { " ": s.advanceTake, m: s.advanceTake, M: s.advanceTake, Escape: s.cancelTake };
-  const run = keys[e.key];
+  const map = keymap(s.settings.shortcuts);
+  const key = keyOf(e);
+  const keys: Record<string, () => void> = {};
+  if (s.live) {
+    keys[" "] = () => void s.finishReading();
+    if (map.record) keys[map.record] = () => void s.finishReading();
+    keys.Escape = s.cancelReading;
+    if (map.prevSentence) keys[map.prevSentence] = () => s.stepReading(-1);
+    if (map.nextSentence) keys[map.nextSentence] = () => s.stepReading(1);
+  } else {
+    keys[" "] = s.advanceTake;
+    if (map.record) keys[map.record] = s.advanceTake;
+    keys.Escape = s.cancelTake;
+  }
+  const run = keys[e.key === "Escape" ? "Escape" : (key ?? "")];
   e.preventDefault();
   if (!run) return;
-  if (!e.repeat || e.key === "[" || e.key === "]") run();
+  const stepping = key !== null && (key === map.prevSentence || key === map.nextSentence);
+  if (!e.repeat || stepping) run();
+}
+
+/** ⌘C with nothing selected: the sentence playing (or looping) goes to the clipboard. */
+function copySentence(s: State): boolean {
+  if (window.getSelection()?.toString()) return false; // a selection copies as usual
+  const list = s.transcript?.sentences ?? [];
+  const i = s.loopSentence ?? sentenceIndexAt(list, s.time);
+  const sentence = list[i];
+  if (!sentence) return false;
+  void copyText(sentence.text).then((ok) => s.say(ok ? t("已复制第 {n} 句", { n: i + 1 }) : t("没能复制"), 1800));
+  return true;
+}
+
+/** Each action: what it does, and the on-screen button it presses. */
+function actions(s: State, e: KeyboardEvent): Record<Action, [() => void, FlashId?]> {
+  return {
+    toggle: [s.toggle, "toggle"],
+    back: [() => s.jump(-1), "back"],
+    forward: [() => s.jump(1), "forward"],
+    prevTrack: [() => s.step(-1), "prev"],
+    nextTrack: [() => s.step(1), "next"],
+    slower: [() => s.setRate(s.settings.rate - RATE_STEP), "slower"],
+    faster: [() => s.setRate(s.settings.rate + RATE_STEP), "faster"],
+    playMode: [() => s.setPlayMode(nextPlayMode(s.settings.playMode)), "playMode"],
+    picture: [s.cyclePictureLayout],
+    loop: [s.cycleLoop, "loop"],
+    pace: [
+      () => {
+        s.togglePace();
+        const on = useApp.getState().settings;
+        s.say(on.paceOn ? t("跟读停顿：开（{how}）", { how: paceLabel(on) }) : t("跟读停顿：关"), 2500);
+      },
+      "pace",
+    ],
+    sentenceLoop: [() => s.toggleSentenceLoop(), "sentenceLoop"],
+    prevSentence: [() => s.stepSentence(-1), "prevSentence"],
+    nextSentence: [() => s.stepSentence(1), "nextSentence"],
+    prevSection: [() => s.stepSection(-1)],
+    nextSection: [() => s.stepSection(1)],
+    explain: [() => s.toggleExplain()],
+    edit: [() => s.editSentence()],
+    // With ⇧ a paragraph, without a sentence (by Shift, not the letter's case: Caps Lock doesn't count).
+    record: [() => void (e.shiftKey ? s.startReading() : s.startTake())],
+    replay: [() => s.replayTake()],
+  };
 }
 
 export function useShortcuts() {
@@ -39,19 +92,18 @@ export function useShortcuts() {
       if (s.settingsOpen || s.wizardOpen || s.statsOpen || s.newsOpen || s.linkImport) return;
       if ((s.live || s.rec) && !(e.metaKey || e.ctrlKey || e.altKey)) return recordingKey(e, s);
       if (isMod(e) && !e.altKey && !e.shiftKey) {
-        const command: Record<string, (() => void) | false> = {
+        const command: Record<string, (() => boolean | void) | false> = {
           b: s.toggleShelf,
           // A link copied elsewhere: import it (when a plugin takes it).
           v: () => void s.pasteLink(),
           // Find in the sentences, starting from any text selected in them.
           f: !!s.transcript && (() => s.openReplace(window.getSelection()?.toString().trim() || undefined)),
           z: s.undo.length > 0 && (() => void s.undoEdit()),
+          c: () => copySentence(s),
         };
         const run = command[e.key.toLowerCase()];
-        if (run) {
-          e.preventDefault();
-          run();
-        }
+        // A command that declines (⌘C with text selected) leaves the key to the WebView.
+        if (run && run() !== false) e.preventDefault();
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -66,43 +118,22 @@ export function useShortcuts() {
         s.stopTake();
         return;
       }
-      const actions: Record<string, [() => void, FlashId?]> = {
-        " ": [s.toggle, "toggle"],
-        ArrowLeft: [() => s.jump(-1), "back"],
-        ArrowRight: [() => s.jump(1), "forward"],
-        ArrowUp: [() => s.step(-1), "prev"],
-        ArrowDown: [() => s.step(1), "next"],
-        l: [s.cycleLoop, "loop"],
-        L: [s.cycleLoop, "loop"],
-        Escape: [s.replace ? s.closeReplace : s.recordAt !== null ? s.closeRecorder : s.shownReading ? () => s.showReading(null) : s.clearLoop],
-        "[": [() => s.stepSentence(-1), "prevSentence"],
-        "]": [() => s.stepSentence(1), "nextSentence"],
-        "{": [() => s.stepSection(-1)],
-        "}": [() => s.stepSection(1)],
-        s: [() => s.toggleSentenceLoop(), "sentenceLoop"],
-        S: [() => s.toggleSentenceLoop(), "sentenceLoop"],
-        i: [() => s.toggleExplain()],
-        I: [() => s.toggleExplain()],
-        e: [() => s.editSentence()],
-        E: [() => s.editSentence()],
-        // ⇧M a paragraph, M a sentence (by Shift, not the letter's case: Caps Lock doesn't count).
-        m: [() => void (e.shiftKey ? s.startReading() : s.startTake())],
-        M: [() => void (e.shiftKey ? s.startReading() : s.startTake())],
-        p: [() => s.replayTake()],
-        P: [() => s.replayTake()],
-        v: [s.cyclePictureLayout],
-        V: [s.cyclePictureLayout],
-        r: [() => s.setPlayMode(nextPlayMode(s.settings.playMode)), "playMode"],
-        R: [() => s.setPlayMode(nextPlayMode(s.settings.playMode)), "playMode"],
-        "-": [() => s.setRate(s.settings.rate - RATE_STEP), "slower"],
-        "=": [() => s.setRate(s.settings.rate + RATE_STEP), "faster"],
-      };
-      const entry = actions[e.key];
-      if (!entry) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        // The nearest thing first; a pause after a sentence waits for you instead of going on.
+        if (s.replace) s.closeReplace();
+        else if (s.recordAt !== null) s.closeRecorder();
+        else if (s.shownReading) s.showReading(null);
+        else if (!s.paceHold()) s.clearLoop();
+        return;
+      }
+      const action = actionFor(keymap(s.settings.shortcuts), keyOf(e));
+      if (!action) return;
       e.preventDefault();
-      if (e.repeat && !REPEATS.has(e.key)) return;
-      entry[0]();
-      if (entry[1]) flash(entry[1]);
+      if (e.repeat && !REPEATING.has(action)) return;
+      const [run, flashId] = actions(s, e)[action];
+      run();
+      if (flashId) flash(flashId);
     };
     // Windows' WebView has shortcuts of its own (reload, print, find); none of them belongs in the app
     // (`tauri dev` keeps them: reloading is handy there).
