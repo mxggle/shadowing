@@ -61,14 +61,15 @@ export const pace: Record<string, Entry> = {
   // 设置 → 快捷键, and what each action is called there (lib/keymap.ts)
   快捷键: "Keyboard shortcuts",
   全部恢复默认: "Reset all",
-  "点一个按键，再按你想用的键；已经有用处的键会和它交换。Esc、? 和带 {mod} 的快捷键不能改。":
-    "Click a key, then press the one you want; if another action had it, the two swap. Esc, ? and {mod} shortcuts stay as they are.",
+  "点一个按键，再按你想用的单个键；已经有用处的键会和它交换。Esc、? 和带 {mod} 的快捷键不能改。":
+    "Click a key, then press the single key you want; if another action had it, the two swap. Esc, ? and {mod} shortcuts stay as they are.",
   "恢复默认（{key}）": "Back to the default ({key})",
   "{action}的按键：{key}": "Key for {action}: {key}",
   "按一个键（Esc 取消）": "Press a key (Esc cancels)",
   点一下换个键: "Click to change the key",
   "按一个键…": "Press a key…",
   "{key} 留给应用自己用，换一个吧": "{key} is kept for the app; pick another",
+  "只能设单个键，不能用组合键": "Only a single key works here, not a combination",
   "和「{other}」交换了按键": "Swapped keys with “{other}”",
   后退: "Back",
   前进: "Forward",

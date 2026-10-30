@@ -85,12 +85,13 @@ const RESERVED = new Set(["Escape", "?", "Tab", "Enter", "Backspace", "Delete", 
 export function keyOf(e: Pick<KeyboardEvent, "key">): string | null {
   const key = e.key === "Spacebar" ? " " : e.key;
   if (!key || RESERVED.has(key)) return null;
-  // One character (a letter, a digit, a sign) or a key that moves (an arrow, PageUp, Home…).
+  // One character (a letter, a digit, a sign), a key that moves (an arrow, PageUp, Home…) or F1–F12
+  // (what foot pedals and page turners tend to send).
   if ([...key].length === 1) return key.toLowerCase();
   return NAMED.has(key) ? key : null;
 }
 
-const NAMED = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown", "Insert"]);
+const NAMED = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown", "Insert", ...Array.from({ length: 12 }, (_, i) => `F${i + 1}`)]);
 
 /**
  * Every action's key: the default, or the learner's own (`custom`). A default taken by a key of
