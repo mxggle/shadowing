@@ -56,11 +56,19 @@ objc2-core-audio = { version = "0.3", default-features = false, features = ["std
 apple-native-keyring-store = { version = "1.0.2", features = ["keychain"] }
 # Local transcription (src/local): whisper.cpp on the GPU via Metal (offered on Apple Silicon). Building it needs cmake.
 whisper-rs = { version = "0.16.0", features = ["metal"] }
+# 媒体键 (src/nowplaying): the keyboard's ⏯ ⏮ ⏭ and a headset's buttons, through Now Playing.
+# MediaPlayer's bindings are the one new crate; objc2, Foundation and blocks are in the tree via Tauri.
+objc2-media-player = { version = "0.3", default-features = false, features = ["std", "block2", "MPMediaItem", "MPNowPlayingInfoCenter", "MPRemoteCommand", "MPRemoteCommandCenter", "MPRemoteCommandEvent"] }
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSDictionary", "NSObject", "NSString", "NSValue"] }
+block2 = "0.6"
 
 # Windows: API keys in Credential Manager; clipboard, opening links, RAM and free disk, the performance counter (windows-sys is already in the tree via cpal and tauri).
 [target.'cfg(windows)'.dependencies]
 windows-native-keyring-store = { version = "1.1.0", default-features = false }
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation", "Win32_System_Performance", "Win32_Storage_FileSystem"] }
+# 媒体键 (src/nowplaying): the window's media controls (SMTC, a WinRT API); the same version Tauri uses.
+windows = { version = "0.62", features = ["Media", "Win32_Foundation", "Win32_System_WinRT"] }
 
 [dev-dependencies]
 tempfile = "3"

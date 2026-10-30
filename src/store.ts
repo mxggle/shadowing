@@ -74,6 +74,8 @@ export interface AppState extends TranscriptState, CorrectState, ReshapeState, P
   setAnnotations(on: boolean): void;
   /** The learner's own keys (lib/keymap.ts): only those that differ from the defaults. */
   setShortcuts(shortcuts: Record<string, string>): void;
+  /** 媒体键 on or off (hooks/useMediaKeys.ts lets go of them when off). */
+  setMediaKeys(on: boolean): void;
   setTranscribeLanguage(language: string): void;
   cycleLoop(): void;
   clearLoop(): void;
@@ -214,7 +216,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, paceOn: false, pauseMode: "length", pauseSeconds: 2, pauseRatio: 1.5, sentenceRepeats: 1, shortcuts: {}, uiLanguage: "" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, paceOn: false, pauseMode: "length", pauseSeconds: 2, pauseRatio: 1.5, sentenceRepeats: 1, shortcuts: {}, mediaKeys: true, uiLanguage: "" },
     current: null,
     playing: false,
     time: 0,
@@ -421,6 +423,10 @@ export const useApp = create<AppState>((set, get) => {
 
     setShortcuts(shortcuts) {
       persistSettings({ shortcuts });
+    },
+
+    setMediaKeys(mediaKeys) {
+      persistSettings({ mediaKeys });
     },
 
     setAnnotations(annotations) {

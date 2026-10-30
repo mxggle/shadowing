@@ -107,6 +107,41 @@ export function ShortcutsSection() {
           );
         })}
       </dl>
+      <MediaKeysRow />
     </section>
+  );
+}
+
+/** 媒体键: the keyboard's ⏯ ⏮ ⏭ and a headset's buttons, from any app (lib/mediaKeys.ts). On unless turned off. */
+function MediaKeysRow() {
+  const on = useApp((s) => s.settings.mediaKeys);
+  const choices = [
+    { value: true, label: t("开") },
+    { value: false, label: t("关") },
+  ];
+  return (
+    <div className="mt-3 flex items-center gap-4 border-t border-line pt-3">
+      <div className="min-w-0 flex-1">
+        <h4 className="text-[13px] text-fg/90">{t("媒体键和耳机按键")}</h4>
+        <p className="mt-0.5 text-[12px] leading-relaxed text-muted">
+          {t("⏯ 播放 / 暂停，⏭ 下一句，⏮ 从这一句开头再放（马上再按是上一句）；没有字幕时 ⏮ ⏭ 是后退、前进。AirPods 按一下、两下、三下也一样。在别的应用里也能用。")}
+        </p>
+      </div>
+      <div className="tint flex h-7 shrink-0 rounded-[8px] p-0.5" role="radiogroup" aria-label={t("媒体键和耳机按键")}>
+        {choices.map((c) => (
+          <button
+            key={String(c.value)}
+            role="radio"
+            aria-checked={on === c.value}
+            onClick={() => useApp.getState().setMediaKeys(c.value)}
+            className={`rounded-[6px] px-2.5 text-[12px] font-medium transition-[background-color,color] duration-150 ${
+              on === c.value ? "bg-raised text-fg shadow-[inset_0_0_0_1px_var(--line)]" : "text-muted hover:text-fg"
+            }`}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

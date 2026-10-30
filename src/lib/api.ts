@@ -2,6 +2,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { PlayMode } from "../audio/logic";
 import type { Lang, LangSetting } from "./i18n";
+import type { NowPlaying } from "./mediaKeys";
 import type { PauseMode } from "./pace";
 
 /** Audio; a video (the engine plays its sound, a `<video>` its picture); or a video the app can't play (WebM, MKV), listed to say why. */
@@ -79,6 +80,8 @@ export interface Settings {
   sentenceRepeats: number;
   /** Keys the learner chose (action → key), only those that differ from the defaults (lib/keymap.ts). */
   shortcuts: Record<string, string>;
+  /** 媒体键: the keyboard's ⏯ ⏮ ⏭ and a headset's buttons work the player (lib/mediaKeys.ts). */
+  mediaKeys: boolean;
   /** Interface language chosen in settings ("" follows the Mac); see lib/i18n.ts. */
   uiLanguage: LangSetting;
 }
@@ -600,6 +603,8 @@ export const api = {
     cancel: () => invoke<void>("transcribe_cancel"),
     running: () => invoke<string | null>("transcribe_running"),
   },
+  /** What Control Center / Windows' media flyout shows; null lets go of the media keys. Buttons arrive as `media:button`. */
+  nowPlaying: (playing: NowPlaying | null) => invoke<void>("now_playing", { playing }),
   practice: {
     /** The learner did something in the window: keeps a paused session counting. */
     ping: () => invoke<void>("practice_ping"),

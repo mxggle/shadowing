@@ -45,6 +45,7 @@ src/                      前端
                           声音比画面长时停在最后一帧，有单元测试
   lib/annotations.ts      插件标注：标注随哪些插件和选项变、插件切的段和应用自己的分段（查找、没把握、逐字高亮）怎么合在一起，有单元测试
   lib/playKey.ts          播放条的播放 / 暂停键现在管谁（录音、整段录音、回放录音、整段回放，都没有时是主播放器）、暂停后继续时还要做什么，有单元测试
+  lib/mediaKeys.ts        媒体键和耳机按键：⏯ ⏮ ⏭ 各做什么（⏯ 是播放键，⏮ ⏭ 同 [ ]）、什么时候再告诉系统在放什么，有单元测试；hooks/useMediaKeys.ts 接上 Rust
   components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板；视频时多一块画面，Picture.tsx：静音的 <video>、拖动条、悬停时的布局按钮，PictureMask.tsx 遮字幕的模糊带，
                           VideoStage.tsx 并排和影院，PictureMenu.tsx 播放设置里的「画面」「遮字幕」，Unsupported.tsx 放不了的 WebM / MKV 的说明；TrackTitle.tsx 音频的标题）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置，Pace.tsx 跟读停顿（底部的开关和它的设置）；ui.tsx 共用的按键与表单件；
@@ -73,6 +74,8 @@ src-tauri/src/
   subtitles.rs            SRT / WebVTT 解析
   sections.rs             对话段落：转写 / 导入后在明显的停顿或换了一组说话人处自动分段（纯函数，不联网），
                           以及整理前端送来的分段（transcript.rs 存在字幕里，旧字幕读取时补上）
+  nowplaying/             媒体键和耳机按键：macOS 的 Now Playing（mac.rs：MPRemoteCommandCenter + MPNowPlayingInfoCenter，要自己设 playbackState），
+                          Windows 窗口的 SystemMediaTransportControls（windows.rs）；前端送来在放什么（now_playing），按键发 media:button，都在主线程
   practice/               学习记录：clock.rs 按播放器状态、录音 / 回听录音和窗口操作算“在练”的时间段（暂停 90 秒内有操作也算），
                           存在 app data 的 practice.json；音频事件经 practice::Watch 先给它看一眼
   record/                 跟读录音：mod.rs 录音的开始 / 结束，session.rs 录音线程（麦克风 + 播放器输出的副本，说完自动停，事件 recorder:*）、
