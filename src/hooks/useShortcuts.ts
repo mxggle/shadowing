@@ -3,7 +3,7 @@ import { nextPlayMode, RATE_STEP } from "../audio/logic";
 import { copyText } from "../lib/clipboard";
 import { isTypingTarget } from "../lib/focus";
 import { t } from "../lib/i18n";
-import { actionFor, keyOf, keymap, REPEATING, type Action } from "../lib/keymap";
+import { actionFor, keymap, pressOf, REPEATING, unshifted, type Action } from "../lib/keymap";
 import { paceLabel } from "../lib/pace";
 import { isBrowserKey, isMod } from "../lib/platform";
 import { sentenceIndexAt } from "../lib/sentences";
@@ -15,11 +15,12 @@ type State = ReturnType<typeof useApp.getState>;
 /**
  * While recording only the recording's own keys act: a paragraph finishes,
  * cancels or puts the highlight right; a take skips the original, finishes or
- * cancels. Other keys do nothing.
+ * cancels. Other single keys do nothing; other combinations (⌘B…) go on as
+ * usual (false).
  */
-function recordingKey(e: KeyboardEvent, s: State) {
+function recordingKey(e: KeyboardEvent, s: State, combo: boolean): boolean {
   const map = keymap(s.settings.shortcuts);
-  const key = keyOf(e);
+  const key = pressOf(e);
   const keys: Record<string, () => void> = {};
   if (s.live) {
     keys[" "] = () => void s.finishReading();
@@ -32,11 +33,13 @@ function recordingKey(e: KeyboardEvent, s: State) {
     if (map.record) keys[map.record] = s.advanceTake;
     keys.Escape = s.cancelTake;
   }
-  const run = keys[e.key === "Escape" ? "Escape" : (key ?? "")];
+  const run = keys[e.key === "Escape" && !combo ? "Escape" : (key ?? "")];
+  if (combo && !run) return false;
   e.preventDefault();
-  if (!run) return;
+  if (!run) return true;
   const stepping = key !== null && (key === map.prevSentence || key === map.nextSentence);
   if (!e.repeat || stepping) run();
+  return true;
 }
 
 /** ⌘C with nothing selected: the sentence playing (or looping) goes to the clipboard. */
@@ -90,7 +93,9 @@ export function useShortcuts() {
       if (isTypingTarget(e.target)) return;
       const s = useApp.getState();
       if (s.settingsOpen || s.wizardOpen || s.statsOpen || s.newsOpen || s.linkImport) return;
-      if ((s.live || s.rec) && !(e.metaKey || e.ctrlKey || e.altKey)) return recordingKey(e, s);
+      // Ctrl, Alt or ⌘ held: a combination. The app's own ⌘ shortcuts come first, then the learner's keys.
+      const combo = e.metaKey || e.ctrlKey || e.altKey;
+      if ((s.live || s.rec) && recordingKey(e, s, combo)) return;
       if (isMod(e) && !e.altKey && !e.shiftKey) {
         const command: Record<string, (() => boolean | void) | false> = {
           b: s.toggleShelf,
@@ -102,23 +107,24 @@ export function useShortcuts() {
           c: () => copySentence(s),
         };
         const run = command[e.key.toLowerCase()];
-        // A command that declines (⌘C with text selected) leaves the key to the WebView.
-        if (run && run() !== false) e.preventDefault();
-        return;
+        if (run !== undefined) {
+          // A command that declines (⌘C with text selected) leaves the key to the WebView.
+          if (run && run() !== false) e.preventDefault();
+          return;
+        }
       }
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (s.playingReading && (e.key === " " || e.key === "Escape")) {
+      if (!combo && s.playingReading && (e.key === " " || e.key === "Escape")) {
         e.preventDefault();
         s.stopReadingPlayback();
         return;
       }
       // A take playing back: Space or Esc stops it (instead of starting the track).
-      if (s.playingTake && (e.key === " " || e.key === "Escape")) {
+      if (!combo && s.playingTake && (e.key === " " || e.key === "Escape")) {
         e.preventDefault();
         s.stopTake();
         return;
       }
-      if (e.key === "Escape") {
+      if (!combo && e.key === "Escape") {
         e.preventDefault();
         // The nearest thing first; a pause after a sentence waits for you instead of going on.
         if (s.replace) s.closeReplace();
@@ -127,7 +133,10 @@ export function useShortcuts() {
         else if (!s.paceHold()) s.clearLoop();
         return;
       }
-      const action = actionFor(keymap(s.settings.shortcuts), keyOf(e));
+      const map = keymap(s.settings.shortcuts);
+      const key = pressOf(e);
+      // ⇧ with the record key's combination: a whole section, as ⇧M is.
+      const action = actionFor(map, key) ?? (combo && key !== null && map.record === unshifted(key) ? "record" : undefined);
       if (!action) return;
       e.preventDefault();
       if (e.repeat && !REPEATING.has(action)) return;

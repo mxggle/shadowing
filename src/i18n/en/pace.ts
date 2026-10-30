@@ -61,15 +61,15 @@ export const pace: Record<string, Entry> = {
   // 设置 → 快捷键, and what each action is called there (lib/keymap.ts)
   快捷键: "Keyboard shortcuts",
   全部恢复默认: "Reset all",
-  "点一个按键，再按你想用的单个键；已经有用处的键会和它交换。Esc、? 和带 {mod} 的快捷键不能改。":
-    "Click a key, then press the single key you want; if another action had it, the two swap. Esc, ? and {mod} shortcuts stay as they are.",
+  "点一个按键，再按你想用的键，也可以是组合键（比如 {example}）；已经有用处的键会和它交换。Esc、? 和应用自带的 {mod} 快捷键不能改。":
+    "Click a key, then press the one you want, or a combination (like {example}); if another action had it, the two swap. Esc, ? and the app's own {mod} shortcuts stay as they are.",
   "恢复默认（{key}）": "Back to the default ({key})",
   "{action}的按键：{key}": "Key for {action}: {key}",
   "按一个键（Esc 取消）": "Press a key (Esc cancels)",
   点一下换个键: "Click to change the key",
   "按一个键…": "Press a key…",
   "{key} 留给应用自己用，换一个吧": "{key} is kept for the app; pick another",
-  "只能设单个键，不能用组合键": "Only a single key works here, not a combination",
+  "{key} 是应用或系统自己的快捷键，换一个吧": "{key} is one of the app's or the system's own shortcuts; pick another",
   媒体键和耳机按键: "Media keys and headphone buttons",
   "AirPods：按 1、2、3 下": "AirPods: press 1, 2, 3 times",
   "⏯ 播放 / 暂停，⏭ 下一句，⏮ 从这一句开头再放（马上再按是上一句）；没有字幕时 ⏮ ⏭ 是后退、前进。AirPods 按一下、两下、三下也一样。在别的应用里也能用。":
