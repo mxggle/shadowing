@@ -131,8 +131,8 @@ src-tauri/tauri.windows.conf.json   只在 Windows 上叠加到 tauri.conf.json 
                           没有 Mac 的标题栏设置的窗口、NSIS 安装包（当前用户、简体中文和英文）、WebView2 下载式引导、含 icon.ico 的图标列表、
                           更新包（createUpdaterArtifacts：安装包本身就是更新，tauri build 用更新私钥签出 .sig）
 docs/plugin-dev.md        写插件的人看的文档（manifest、协议、运行环境、打包、提交和审核）
-site/                     落地页 index.html 和插件目录 plugins.html（列表是 plugins.json，scripts/check-plugin-list.mjs 检查格式；
-                          提交插件用 .github/ISSUE_TEMPLATE/plugin.yml），见 site/README.md
+site/                     落地页 index.html（还有 en.html、ja.html、zh-tw.html，它们「更新」列表的译文在 updates.json）和插件目录 plugins.html
+                          （列表是 plugins.json，scripts/check-plugin-list.mjs 检查格式；提交插件用 .github/ISSUE_TEMPLATE/plugin.yml），见 site/README.md
 ```
 
 ## Windows
@@ -251,16 +251,18 @@ SHADOWING_DATA_DIR=$(mktemp -d) npm run app   # 开发模式，用一个空的�
 
 ## 发布
 
-1. 从 `main` 开 `release/vX.Y.Z` 分支：把 CHANGELOG 的「未发布」改成版本号和日期，用 `scripts/bump-version.sh X.Y.Z` 改版本号
+1. 从 `main` 开 `release/vX.Y.Z` 分支：把 CHANGELOG 的「未发布」改成版本号和日期，在 `site/updates.json` 最前面给这个版本写英文、日文、繁体中文的
+   `title` 和 `text`（CHANGELOG 第一条的标题和那句话，用各自语言自然的说法；没有标题的版本只写 `text`），用 `scripts/bump-version.sh X.Y.Z` 改版本号
    （`package.json`、`package-lock.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`src-tauri/tauri.conf.json`，
-   还有落地页 `site/index.html` 上显示的版本和「更新」列表：`scripts/site-sync.mjs changelog` 从 CHANGELOG 加一行、重新数天数和版本数；
+   还有四个落地页（`site/index.html`、`en.html`、`ja.html`、`zh-tw.html`）上显示的版本和「更新」列表：`scripts/site-sync.mjs changelog` 加一行
+   （简体中文从 CHANGELOG，其他三种从 `site/updates.json`；缺了译文就停下，什么都不改）、换首屏的小标签、重新数天数和版本数；
    `scripts/check-version.sh` 检查它们一致，CI 也会查）。CHANGELOG 每个版本的第一条写成 `- **标题**：一句话。…`，落地页用的就是它，提交 `chore(release): vX.Y.Z`，开 PR，本地检查过就合并，不等 GitHub 的检查（rebase，保留每个小提交）。
 2. **打包在 Mac 上做**：在合并后的 `main` 上打附注标签 `vX.Y.Z` 并推送，然后在本机运行 `scripts/release-local.sh vX.Y.Z`（只有 Mac 时 5 分钟左右）。
    它会停掉这个标签在 Actions 上的 Mac 构建（`release.yml`），在本机用 `~/.tauri` 里的证书和更新私钥打包、签名，检查过就直接发布（加 `--draft` 只建草稿）：
    `Shadowing-X.Y.Z-macos-arm64.dmg`（给人下载的安装包）和 `.zip`，固定名字的 `Shadowing-macos-arm64.dmg` / `.zip`
    （网站的下载按钮链接 `releases/latest/download/Shadowing-macos-arm64.dmg`），应用内更新用的 `Shadowing-X.Y.Z-macos-arm64.app.tar.gz`、`.sig` 和 `latest.json`，
    说明由 `scripts/release-notes.sh` 从 CHANGELOG 生成（含安装步骤和 SHA-256）。
-   **发布以后它自己更新落地页**（`scripts/site-after-release.sh`）：下载大小和 `site/plugins.json` 里这个版本带的插件（新插件按 manifest 加一条，
+   **发布以后它自己更新落地页**（`scripts/site-after-release.sh`）：四个页面上的下载大小和 `site/plugins.json` 里这个版本带的插件（新插件按 manifest 加一条，
    版本变了的换成这个 Release 的 zip 和 SHA-256），提交到 `main` 并推送，Vercel 自动上线。不用再手动改落地页。
    插件随每个版本打包（Mac 和 Windows 的 zip），列表在 `scripts/release-plugins.sh`。
    Mac 不在手边时，标签在 Actions 上的构建（`.github/workflows/release.yml`）会做同样的事并建草稿，但要 20 分钟左右；两边的文件都由 `scripts/release-assets.sh` 生成，名字和内容一样。

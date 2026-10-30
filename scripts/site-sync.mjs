@@ -1,13 +1,15 @@
 #!/usr/bin/env node
-// Keeps the landing page (site/) in step with releases, so nobody has to remember to:
-//   changelog          — site/index.html's 更新 list gets a line for every CHANGELOG version newer than its top one
-//                        (the first bullet's bold title and its first sentence), the headline counts days and
-//                        versions again, and the badge at the top names the newest version with something new. Run by scripts/bump-version.sh; scripts/check-version.sh checks it was.
+// Keeps the landing pages (site/) in step with releases, so nobody has to remember to:
+//   changelog          — each page's 更新 list gets a line for every CHANGELOG version newer than its top one (the
+//                        first bullet's bold title and first sentence; en / ja / zh-tw take it from site/updates.json,
+//                        which must have the new version), the headline counts days and versions again, and the badge
+//                        at the top names the newest version with something new. Run by scripts/bump-version.sh;
+//                        `changelog --check` (scripts/check-version.sh) says which page is behind.
 //   release <file>     — after a release is published (<file>: `gh release view vX.Y.Z --json tagName,assets`):
-//                        the download size shown on the page, and site/plugins.json's entry for each plugin zip in the
+//                        the download size shown on the pages, and site/plugins.json's entry for each plugin zip in the
 //                        release whose version isn't listed yet (new plugins get an entry from their manifest).
 //                        Run by scripts/site-after-release.sh.
-// Usage: node scripts/site-sync.mjs changelog | release <assets.json>
+// Usage: node scripts/site-sync.mjs changelog [--check] | release <assets.json>
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -39,20 +41,69 @@ function firstBullet(body) {
 
 const label = (version) => (version.endsWith(".0") ? version.slice(0, -2) : version);
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** The landing pages, by language: the badge's label, a date, a bold title, and the headline's count. */
+export const PAGES = {
+  zh: {
+    file: "site/index.html",
+    badge: (v) => `${v} 新增`,
+    date: (m, d) => `${m} 月 ${d} 日`,
+    lead: (title) => `<b>${title}。</b>`,
+    count: (days, n) => `${chineseNumber(days)}天发了${chineseNumber(n)}个版本，`,
+  },
+  "zh-tw": {
+    file: "site/zh-tw.html",
+    badge: (v) => `${v} 新增`,
+    date: (m, d) => `${m} 月 ${d} 日`,
+    lead: (title) => `<b>${title}。</b>`,
+    count: (days, n) => `${chineseNumber(days)}天推出${chineseNumber(n)}個版本，`,
+  },
+  ja: {
+    file: "site/ja.html",
+    badge: (v) => `${v} 新機能`,
+    date: (m, d) => `${m}月${d}日`,
+    lead: (title) => `<b>${title}。</b>`,
+    count: (days, n) => `${days}日間で${n}バージョン。`,
+  },
+  en: {
+    file: "site/en.html",
+    badge: (v) => `New in ${v}`,
+    date: (m, d) => `${MONTHS[m - 1]} ${d}`,
+    lead: (title) => `<b>${title}.</b> `,
+    count: (days, n) => `${n} releases in ${days} days.`,
+  },
+};
+
+/**
+ * A version's line in a page's language: { title, text }. Chinese is CHANGELOG's first bullet (its first sentence);
+ * the others are site/updates.json's { "0.15.0": { "en": { "title", "text" } } }, written whole.
+ */
+function headline(version, lang, translations) {
+  const { title, rest } = firstBullet(version.body);
+  if (lang === "zh") return { title, text: rest.match(/^.*?[。！？](?=\s|$|[^）」』])/)?.[0] ?? rest };
+  const t = translations[version.version]?.[lang];
+  if (!t?.text || (title && !t.title)) {
+    const zh = `${title ? `**${title}**：` : ""}${rest}`;
+    throw new Error(`site/updates.json has no ${lang} title and text for ${version.version} (CHANGELOG: ${zh}): add them`);
+  }
+  return { title: t.title ?? "", text: t.text };
+}
+
 /** The badge at the top of the page: the newest version with a 新增 section and a titled first bullet, linking to the 更新 list. */
-export function newsBadge(all) {
+export function newsBadge(all, lang = "zh", translations = {}) {
   const v = all.find((x) => /^### 新增/m.test(x.body) && firstBullet(x.body).title);
   if (!v) return null;
-  return `<a class="news" href="#updates"><b>${label(v.version)} 新增</b>${prose(firstBullet(v.body).title)}<svg`;
+  const { title } = headline(v, lang, translations);
+  return `<a class="news" href="#updates"><b>${PAGES[lang].badge(label(v.version))}</b>${prose(title)}<svg`;
 }
 
 /** One line of the 更新 list: "0.14" (patches in full), the date, the first bullet's title and first sentence. */
-export function updateLine({ version, date, body }) {
-  const { title, rest } = firstBullet(body);
-  const sentence = rest.match(/^.*?[。！？](?=\s|$|[^）」』])/)?.[0] ?? rest;
-  const [, m, d] = date.split("-").map(Number);
-  const text = `${title ? `<b>${prose(title)}。</b>` : ""}${prose(sentence)}`;
-  return `<li><span class="v">${label(version)}</span><time datetime="${date}">${m} 月 ${d} 日</time><p>${text}</p></li>`;
+export function updateLine(version, lang = "zh", translations = {}) {
+  const page = PAGES[lang];
+  const { title, text } = headline(version, lang, translations);
+  const [, m, d] = version.date.split("-").map(Number);
+  const lead = title ? page.lead(prose(title)) : "";
+  return `<li><span class="v">${label(version.version)}</span><time datetime="${version.date}">${page.date(m, d)}</time><p>${lead}${prose(text)}</p></li>`;
 }
 
 const CHINESE_NUMBERS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
@@ -64,24 +115,21 @@ export function chineseNumber(n) {
   return `${tens === 1 ? "" : CHINESE_NUMBERS[tens]}十${ones ? CHINESE_NUMBERS[ones] : ""}`;
 }
 
-/** index.html with a line for each version newer than the list's top one, and the headline counted again. */
-export function syncChangelog(html, changelog) {
+/** A page with a line for each version newer than its list's top one, the badge, and the headline counted again. */
+export function syncChangelog(html, changelog, lang = "zh", translations = {}) {
   const all = versions(changelog);
   const top = html.match(/<ol class="log">\s*<li><span class="v">([^<]+)<\/span>/);
-  if (!top || !all.length) throw new Error("index.html has no 更新 list, or CHANGELOG.md no versions");
+  if (!top || !all.length) throw new Error(`${PAGES[lang].file} has no 更新 list, or CHANGELOG.md no versions`);
   const newer = all.filter((v) => newerThan(v.version, top[1]));
   let out = html;
   if (newer.length) {
-    const lines = newer.map((v) => `        ${updateLine(v)}\n`).join("");
+    const lines = newer.map((v) => `        ${updateLine(v, lang, translations)}\n`).join("");
     out = out.replace(/(<ol class="log">\n)/, `$1${lines}`);
   }
-  const badge = newsBadge(all);
+  const badge = newsBadge(all, lang, translations);
   if (badge) out = out.replace(/<a class="news" href="[^"]*"><b>[^<]*<\/b>[^<]*<svg/, badge);
   const days = Math.round((Date.parse(all[0].date) - Date.parse(all[all.length - 1].date)) / 86_400_000) + 1;
-  return out.replace(
-    /(<h2 id="updates-title"><span class="ph">)[^<]*(，<\/span>)/,
-    `$1${chineseNumber(days)}天发了${chineseNumber(all.length)}个版本$2`,
-  );
+  return out.replace(/(<h2 id="updates-title"><span class="ph">)[^<]*(<\/span>)/, `$1${PAGES[lang].count(days, all.length)}$2`);
 }
 
 /** "0.14.0" vs the list's "0.13" (a label: patch 0 left out). */
@@ -90,11 +138,6 @@ function newerThan(version, label) {
   const [a, b] = [parts(version), parts(label)];
   for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] > b[i];
   return false;
-}
-
-/** Whether the list's top line is CHANGELOG's newest version (checked by scripts/check-version.sh). */
-export function changelogInSync(html, changelog) {
-  return syncChangelog(html, changelog) === html;
 }
 
 const PLUGIN_ZIP = /^Shadowing-(.+)-plugin-(\d+\.\d+\.\d+)-(macos-arm64|windows-x86_64)\.zip$/;
@@ -143,17 +186,35 @@ export function syncPlugins(list, release, manifests, today) {
   return { ...list, plugins };
 }
 
-/** index.html showing the dmg's size ("v0.14.0 · 约 11 MB"). */
+/** A page showing the dmg's size ("v0.14.0 · 约 11 MB", "~11 MB", "約 11 MB"). */
 export function syncSize(html, release) {
   const dmg = release.assets.find((a) => a.name === "Shadowing-macos-arm64.dmg");
   if (!dmg) return html;
-  return html.replace(/(<span data-app-version>v[0-9.]+ · 约 )\d+( MB)/, `$1${Math.round(dmg.size / 1e6)}$2`);
+  return html.replace(/(<span data-app-version>v[0-9.]+ · [^\d<]*)\d+( MB)/, `$1${Math.round(dmg.size / 1e6)}$2`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [mode, file] = process.argv.slice(2);
   if (mode === "changelog") {
-    write("site/index.html", syncChangelog(read("site/index.html"), read("CHANGELOG.md")));
+    const changelog = read("CHANGELOG.md");
+    const translations = JSON.parse(read("site/updates.json"));
+    let pages;
+    try {
+      // All four first: a missing translation stops it before any page is written.
+      pages = Object.entries(PAGES).map(([lang, { file }]) => {
+        const html = read(file);
+        return { file, html, out: syncChangelog(html, changelog, lang, translations) };
+      });
+    } catch (e) {
+      console.error(e.message);
+      process.exit(1);
+    }
+    if (file === "--check") {
+      const behind = pages.filter((p) => p.out !== p.html);
+      for (const p of behind) console.error(`${p.file}'s 更新 list is behind CHANGELOG.md: run node scripts/site-sync.mjs changelog`);
+      process.exit(behind.length ? 1 : 0);
+    }
+    for (const p of pages) write(p.file, p.out);
   } else if (mode === "release" && file) {
     const release = JSON.parse(readFileSync(file, "utf8"));
     // The zip's name part for each plugin folder, as scripts/release-plugins.sh names them.
@@ -167,9 +228,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const today = new Date().toISOString().slice(0, 10);
     const list = syncPlugins(JSON.parse(read("site/plugins.json")), release, manifests, today);
     write("site/plugins.json", `${JSON.stringify(list, null, 2)}\n`);
-    write("site/index.html", syncSize(read("site/index.html"), release));
+    for (const { file: page } of Object.values(PAGES)) write(page, syncSize(read(page), release));
   } else {
-    console.error("usage: node scripts/site-sync.mjs changelog | release <assets.json>");
+    console.error("usage: node scripts/site-sync.mjs changelog [--check] | release <assets.json>");
     process.exit(1);
   }
 }

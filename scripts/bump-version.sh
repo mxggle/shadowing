@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # Sets the app version everywhere it is written (checked by scripts/check-version.sh): package.json,
 # package-lock.json, src-tauri/tauri.conf.json, src-tauri/Cargo.toml, src-tauri/Cargo.lock and the version shown
-# on the landing page (site/index.html), and the landing page's 更新 list from CHANGELOG.md (scripts/site-sync.mjs;
-# rename CHANGELOG's 「未发布」 to the version first).
+# on the landing pages (site/index.html, en, ja, zh-tw), and the pages' 更新 list from CHANGELOG.md (scripts/site-sync.mjs;
+# rename CHANGELOG's 「未发布」 to the version first, and add the version's English, Japanese and Traditional Chinese
+# line to site/updates.json — without them it stops before changing anything).
 # Usage: scripts/bump-version.sh <X.Y.Z>
 set -euo pipefail
 cd "$(dirname "$0")/.."
 new="${1:?usage: scripts/bump-version.sh <X.Y.Z>}"
 [[ "$new" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "not a version: $new" >&2; exit 1; }
 old=$(node -p "require('./package.json').version")
+node scripts/site-sync.mjs changelog
 
 NEW="$new" node -e '
   const fs = require("fs");
@@ -24,5 +26,4 @@ NEW="$new" node -e '
     if (fs.existsSync(f)) edit(f, (s) => s.replace(/(<span data-app-version>v)[0-9.]+/, `$1${v}`));
   }
 '
-node scripts/site-sync.mjs changelog
 echo "$old → $(scripts/check-version.sh)"

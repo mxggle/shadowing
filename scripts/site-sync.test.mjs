@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chineseNumber, changelogInSync, syncChangelog, syncPlugins, syncSize, updateLine, versions } from "./site-sync.mjs";
+import { chineseNumber, syncChangelog, syncPlugins, syncSize, updateLine, versions } from "./site-sync.mjs";
 
 const changelog = `# 更新日志
 
@@ -32,6 +32,26 @@ const html = `<a class="news" href="#windows"><b>0.11 新增</b>Windows 版<svg 
       </ol>
 <span data-app-version>v0.14.0 · 约 11 MB</span>`;
 
+/** The same page in another language, as en.html / ja.html / zh-tw.html have it. */
+const page = (badge, headline, line) => `<a class="news" href="#windows"><b>${badge}</b>Windows<svg class="i"></svg></a>
+<h2 id="updates-title"><span class="ph">${headline}</span> <span class="ph">Evolving fast.</span></h2>
+      <ol class="log">
+        <li><span class="v">0.13</span>${line}</li>
+      </ol>`;
+
+const translations = {
+  "0.14.0": {
+    en: { title: "Plugin annotations", text: "Plugins can now annotate sentences." },
+    ja: { title: "プラグイン注釈", text: "プラグインが文に注釈を付けられるようになりました。" },
+    "zh-tw": { title: "外掛標註", text: "外掛能在句子上標註了。" },
+  },
+  "0.13.1": {
+    en: { text: "Fixed latest.json & more." },
+    ja: { text: "latest.json の問題を修正。" },
+    "zh-tw": { text: "修好了 latest.json 的問題。" },
+  },
+};
+
 describe("site-sync", () => {
   it("reads the versions, newest first", () => {
     expect(versions(changelog).map((v) => v.version)).toEqual(["0.14.0", "0.13.1", "0.13.0", "0.1.0"]);
@@ -51,8 +71,42 @@ describe("site-sync", () => {
     expect(out.match(/class="v">([^<]+)/g)).toEqual(['class="v">0.14', 'class="v">0.13.1', 'class="v">0.13']);
     expect(out).toContain("二十天发了四个版本，");
     expect(out).toContain('<a class="news" href="#updates"><b>0.14 新增</b>插件标注<svg class="i">');
-    expect(changelogInSync(out, changelog)).toBe(true);
-    expect(changelogInSync(html, changelog)).toBe(false);
+    expect(syncChangelog(out, changelog)).toBe(out);
+  });
+
+  it("does the same for the other languages, from site/updates.json", () => {
+    const en = syncChangelog(page("New in 0.11", "16 releases in 19 days.", "<p>Video.</p>"), changelog, "en", translations);
+    expect(en).toContain('<a class="news" href="#updates"><b>New in 0.14</b>Plugin annotations<svg class="i">');
+    expect(en).toContain('<span class="ph">4 releases in 20 days.</span> <span class="ph">Evolving fast.</span>');
+    expect(en).toContain(
+      '<li><span class="v">0.14</span><time datetime="2026-10-28">Oct 28</time><p><b>Plugin annotations.</b> Plugins can now annotate sentences.</p></li>\n' +
+        '        <li><span class="v">0.13.1</span><time datetime="2026-10-27">Oct 27</time><p>Fixed latest.json &amp; more.</p></li>\n' +
+        '        <li><span class="v">0.13</span>',
+    );
+    expect(syncChangelog(en, changelog, "en", translations)).toBe(en);
+
+    const ja = syncChangelog(page("0.11 新機能", "19日間で16バージョン。", ""), changelog, "ja", translations);
+    expect(ja).toContain("<b>0.14 新機能</b>プラグイン注釈<svg");
+    expect(ja).toContain('<span class="ph">20日間で4バージョン。</span>');
+    expect(ja).toContain('<time datetime="2026-10-28">10月28日</time><p><b>プラグイン注釈。</b>プラグインが文に注釈を付けられるようになりました。</p>');
+
+    const tw = syncChangelog(page("0.11 新增", "十九天推出十六個版本，", ""), changelog, "zh-tw", translations);
+    expect(tw).toContain("<b>0.14 新增</b>外掛標註<svg");
+    expect(tw).toContain('<span class="ph">二十天推出四個版本，</span>');
+    expect(tw).toContain('<time datetime="2026-10-27">10 月 27 日</time><p>修好了 latest.json 的問題。</p>');
+  });
+
+  it("won't sync a page without its version's translation", () => {
+    const { "0.13.1": _, ...missing } = translations;
+    expect(() => syncChangelog(page("", "", ""), changelog, "ja", missing)).toThrow(
+      "site/updates.json has no ja title and text for 0.13.1 (CHANGELOG: 修好了 `latest.json` 的问题。还有别的。)",
+    );
+    // A titled bullet needs a translated title (the badge shows it).
+    const untitled = { ...translations, "0.14.0": { en: { text: "Plugins can now annotate sentences." } } };
+    expect(() => syncChangelog(page("", "", ""), changelog, "en", untitled)).toThrow("no en title and text for 0.14.0");
+    // Nothing newer than the list and the badge's version translated: nothing else is needed.
+    const current = page("New in 0.14", "4 releases in 20 days.", "").replace('"v">0.13', '"v">0.14');
+    expect(syncChangelog(current, changelog, "en", { "0.14.0": translations["0.14.0"] })).toContain("New in 0.14");
   });
 
   it("counts in Chinese", () => {
@@ -90,5 +144,7 @@ describe("site-sync", () => {
       size: 12_000_000,
     });
     expect(syncSize(html, release)).toContain("v0.14.0 · 约 11 MB");
+    expect(syncSize("<span data-app-version>v0.14.0 · ~9 MB</span>", release)).toContain("v0.14.0 · ~11 MB");
+    expect(syncSize("<span data-app-version>v0.14.0 · 約 9 MB</span>", release)).toContain("v0.14.0 · 約 11 MB");
   });
 });

@@ -1,0 +1,16 @@
+{
+  "0.16.0": {
+    "en": {
+      "title": "Media keys and headphone buttons",
+      "text": "The keyboard's ⏯ ⏮ ⏭ and your headphones' buttons now control shadowing, even while you're in another app."
+    },
+    "ja": {
+      "title": "メディアキーとイヤホンのボタン",
+      "text": "キーボードの ⏯ ⏮ ⏭ やイヤホンのボタンでシャドーイングを操作できるようになりました。ほかのアプリを使っているときも効きます。"
+    },
+    "zh-tw": {
+      "title": "媒體鍵與耳機按鍵",
+      "text": "鍵盤上的 ⏯ ⏮ ⏭ 與耳機上的按鍵現在可以控制跟讀，切換到其他應用程式時也能使用。"
+    }
+  }
+}
