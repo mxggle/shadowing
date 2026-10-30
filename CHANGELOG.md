@@ -3,7 +3,7 @@
 这里记录每个版本对使用者可见的变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [未发布]
+## [0.16.0] - 2026-10-30
 
 ### 新增
 - **媒体键和耳机按键**：键盘上的 ⏯ ⏮ ⏭ 和耳机上的按键能控制跟读了，切到别的应用时也行。
@@ -11,12 +11,10 @@
   - ⏭ 下一句，⏮ 从这一句开头再放（马上再按是上一句）；没有字幕时是后退、前进。循环一句时换成循环上一句 / 下一句。
   - AirPods 按一下、两下、三下就是 ⏯ ⏭ ⏮，可以离开电脑跟读。
   - Mac 的控制中心和 Windows 的媒体浮窗里显示正在练的音频；设置 → 快捷键 里可以关掉。
-- **自定义组合键**：设置 → 快捷键 里换键时，除了单个键，也可以按住 `⌃` `⌥` `⌘` 再按一个键，设成组合键（比如 `⌃⌥T`，Windows 上是 `Ctrl+Alt+T`）。默认的单键不变，已经换过的键也照常用。
+- **自定义组合键**：设置 → 快捷键 里换键时，除了单个键，也可以按住 Ctrl、Alt（Mac 上也可以是 ⌘）再按一个键，设成组合键，比如 Mac 上的 `⌃⌥T`、Windows 上的 `Ctrl+Alt+T`。默认的单键不变，已经换过的键也照常用。
   - 按住修饰键时按钮上先显示 `⌃⌥…`，再按一个键就设好了；应用或系统已经在用的组合（比如 `⌘C`）会说明一句，让你换一个。
+  - 原来换键时按组合键会一直停在“按一个键…”没有反应。
 - 快捷键也可以设成 `F1`–`F12`，方便用脚踏板、翻页器控制。
-
-### 修复
-- 设置 → 快捷键 里换键时按了组合键，原来一直停在“按一个键…”没有反应。
 
 ## [0.15.0] - 2026-10-29
 
@@ -251,7 +249,9 @@
 - 修改字幕、查找和全部替换、AI 校对、解释这一句（译文、生词、语法点，答案会保存）。
 - 第一次打开有示例练习和 AI 设置向导。
 
-[未发布]: https://github.com/mxggle/shadowing/compare/v0.14.0...HEAD
+[未发布]: https://github.com/mxggle/shadowing/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/mxggle/shadowing/compare/v0.15.0...v0.16.0
+[0.15.0]: https://github.com/mxggle/shadowing/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/mxggle/shadowing/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/mxggle/shadowing/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/mxggle/shadowing/compare/v0.11.0...v0.12.0
