@@ -7,6 +7,7 @@ mod guide;
 mod library;
 mod local;
 mod media;
+mod nowplaying;
 mod plugins;
 mod practice;
 mod proofread;
@@ -405,6 +406,7 @@ pub fn run() {
             explain::sentence_explanations,
             practice::practice_ping,
             practice::practice_log,
+            nowplaying::now_playing,
             update::update_check,
             update::update_install,
             plugins::plugins_list,

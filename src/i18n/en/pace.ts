@@ -70,6 +70,10 @@ export const pace: Record<string, Entry> = {
   "按一个键…": "Press a key…",
   "{key} 留给应用自己用，换一个吧": "{key} is kept for the app; pick another",
   "只能设单个键，不能用组合键": "Only a single key works here, not a combination",
+  媒体键和耳机按键: "Media keys and headphone buttons",
+  "AirPods：按 1、2、3 下": "AirPods: press 1, 2, 3 times",
+  "⏯ 播放 / 暂停，⏭ 下一句，⏮ 从这一句开头再放（马上再按是上一句）；没有字幕时 ⏮ ⏭ 是后退、前进。AirPods 按一下、两下、三下也一样。在别的应用里也能用。":
+    "⏯ plays / pauses, ⏭ goes to the next sentence, ⏮ starts this sentence again (press it again right away for the one before); with no subtitles, ⏮ ⏭ go back and forward. Pressing AirPods once, twice or three times does the same. Works from other apps too.",
   "和「{other}」交换了按键": "Swapped keys with “{other}”",
   后退: "Back",
   前进: "Forward",

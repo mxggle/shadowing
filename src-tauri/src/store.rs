@@ -70,6 +70,8 @@ pub struct Settings {
     /// Keys the learner chose for the player's actions (action id → key); only those that
     /// differ from the defaults (src/lib/keymap.ts).
     pub shortcuts: std::collections::BTreeMap<String, String>,
+    /// 媒体键: the keyboard's ⏯ ⏮ ⏭ and a headset's buttons work the player (src/nowplaying).
+    pub media_keys: bool,
     /// Interface language: "" follows the Mac, "zh" or "en" (see i18n.rs). Settings saved
     /// before it existed stay Chinese, the only language those versions had.
     #[serde(default = "chinese")]
@@ -79,7 +81,6 @@ pub struct Settings {
 fn chinese() -> String {
     "zh".into()
 }
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GoalChange {
@@ -119,6 +120,7 @@ impl Default for Settings {
             pause_ratio: 1.5,
             sentence_repeats: 1,
             shortcuts: Default::default(),
+            media_keys: true,
             ui_language: String::new(),
         }
     }
@@ -351,6 +353,8 @@ mod tests {
             ("length", 1.5, 1)
         );
         assert!(s.shortcuts.is_empty());
+        // 媒体键 work from the start.
+        assert!(s.media_keys);
     }
 
     #[test]

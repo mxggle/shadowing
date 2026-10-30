@@ -14,6 +14,7 @@ import { Stage } from "./components/Stage";
 import { UpdateNotice } from "./components/UpdateNotice";
 import { WhatsNewDialog } from "./components/WhatsNew";
 import { fillNodes } from "./components/ui";
+import { useMediaKeys } from "./hooks/useMediaKeys";
 import { usePracticePing } from "./hooks/usePracticePing";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { api, isTauri } from "./lib/api";
@@ -39,6 +40,7 @@ function Shell() {
   const practicing = useApp((s) => s.practicing);
   const shelfOpen = useApp((s) => s.shelfOpen);
   useShortcuts();
+  useMediaKeys();
   usePracticePing();
 
   useEffect(() => {

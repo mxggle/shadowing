@@ -9,8 +9,11 @@ import type { Action } from "../lib/keymap";
 
 type Group = { title: string; keys: [string[], string][]; column: 0 | 1 };
 
+/** The media keys as key caps (text, not emoji: U+FE0E). */
+const [PLAY_PAUSE, PREVIOUS, NEXT] = ["\u23EF\uFE0E", "\u23EE\uFE0E", "\u23ED\uFE0E"];
+
 /** Built while rendering, in the interface language, with the keys as they are now (设置 → 快捷键). */
-const groups = (seekStep: number, key: (a: Action) => string): Group[] => [
+const groups = (seekStep: number, key: (a: Action) => string, mediaKeys: boolean): Group[] => [
   {
     title: t("播放"),
     column: 0,
@@ -60,6 +63,20 @@ const groups = (seekStep: number, key: (a: Action) => string): Group[] => [
       [["⌘", "Z"], t("撤销修改、断开或合并")],
     ],
   },
+  // 设置 → 快捷键 can turn them off (lib/mediaKeys.ts).
+  ...(mediaKeys
+    ? [
+        {
+          title: t("媒体键和耳机按键"),
+          column: 1 as const,
+          keys: [
+            [[PLAY_PAUSE], t("播放 / 暂停")],
+            [[PREVIOUS, NEXT], t("上一句 / 下一句")],
+            [[PLAY_PAUSE, NEXT, PREVIOUS], t("AirPods：按 1、2、3 下")],
+          ] as [string[], string][],
+        },
+      ]
+    : []),
   {
     title: t("其他"),
     column: 0,
@@ -82,6 +99,7 @@ function customize() {
 export function ShortcutHelp() {
   const [open, setOpen] = useState(false);
   const seekStep = useApp((s) => s.settings.seekStep);
+  const mediaKeys = useApp((s) => s.settings.mediaKeys);
   const key = useKeys();
   const root = useRef<HTMLDivElement>(null);
 
@@ -123,7 +141,7 @@ export function ShortcutHelp() {
           <div className="grid grid-cols-2 gap-x-6">
             {([0, 1] as const).map((column) => (
               <div key={column}>
-                {groups(seekStep, key)
+                {groups(seekStep, key, mediaKeys)
                   .filter((g) => g.column === column)
                   .map((g) => (
                     <section key={g.title} className="mt-3">
