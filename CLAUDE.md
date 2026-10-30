@@ -21,7 +21,7 @@ src/                      前端
                           学习记录与每日目标在 practiceSlice.ts，跟读停顿在 paceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts，逐句跟读在 drillSlice.ts，
                           插件和从链接导入在 importSlice.ts，插件在句子上的标注在 annotateSlice.ts，视频画面的设置在 videoSlice.ts）
   lib/pace.ts             跟读停顿：一次放哪一段（这一句，循环里到循环的终点）、每句后停多久（不停 / 秒数 / 按句长 / 等你）、放几遍之后去哪，有单元测试
-  lib/keymap.ts           快捷键：每个动作的默认键、你自己换的键（交换、恢复默认、和新默认键冲突时）、按键的名字，有单元测试
+  lib/keymap.ts           快捷键：每个动作的默认键（单键）、你自己换的键（单键或组合键 `ctrl+alt+t`；交换、恢复默认、和新默认键冲突时、应用和系统已占用的组合）、按键的名字，有单元测试
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句、正在放的句子逐字亮到哪），有单元测试
   lib/sections.ts         对话段落规则（分段、合并、改名、整段循环、{ } 换段），有单元测试
   lib/edits.ts            改字幕的规则（改动取整词、查找匹配、全部替换），有单元测试
