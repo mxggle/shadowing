@@ -146,5 +146,10 @@ describe("site-sync", () => {
     expect(syncSize(html, release)).toContain("v0.14.0 · 约 11 MB");
     expect(syncSize("<span data-app-version>v0.14.0 · ~9 MB</span>", release)).toContain("v0.14.0 · ~11 MB");
     expect(syncSize("<span data-app-version>v0.14.0 · 約 9 MB</span>", release)).toContain("v0.14.0 · 約 11 MB");
+    // The install steps say it too, after the download link (not the nav's link, which has no size).
+    const steps = (link, after) => `<a href="/Shadowing-macos-arm64.dmg">下载</a>\n<nav>3 MB</nav>\n<a href="/Shadowing-macos-arm64.dmg">${link}</a>${after}`;
+    expect(syncSize(steps("下载最新版", "，大约 9 MB。"), release)).toBe(steps("下载最新版", "，大约 11 MB。"));
+    expect(syncSize(steps("Download the latest release", " (~9 MB)."), release)).toBe(steps("Download the latest release", " (~11 MB)."));
+    expect(syncSize(steps("最新版（.dmg）をダウンロード", "してください（約 9 MB）。"), release)).toContain("（約 11 MB）");
   });
 });

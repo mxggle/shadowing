@@ -6,7 +6,7 @@
 //                        at the top names the newest version with something new. Run by scripts/bump-version.sh;
 //                        `changelog --check` (scripts/check-version.sh) says which page is behind.
 //   release <file>     — after a release is published (<file>: `gh release view vX.Y.Z --json tagName,assets`):
-//                        the download size shown on the pages, and site/plugins.json's entry for each plugin zip in the
+//                        the download size shown on the pages (twice), and site/plugins.json's entry for each plugin zip in the
 //                        release whose version isn't listed yet (new plugins get an entry from their manifest).
 //                        Run by scripts/site-after-release.sh.
 // Usage: node scripts/site-sync.mjs changelog [--check] | release <assets.json>
@@ -186,11 +186,17 @@ export function syncPlugins(list, release, manifests, today) {
   return { ...list, plugins };
 }
 
-/** A page showing the dmg's size ("v0.14.0 · 约 11 MB", "~11 MB", "約 11 MB"). */
+/**
+ * A page showing the dmg's size: next to the version ("v0.14.0 · 约 11 MB", "~11 MB", "約 11 MB") and after the
+ * install steps' download link ("下载最新版</a>，大约 11 MB", "Download the latest release</a> (~11 MB").
+ */
 export function syncSize(html, release) {
   const dmg = release.assets.find((a) => a.name === "Shadowing-macos-arm64.dmg");
   if (!dmg) return html;
-  return html.replace(/(<span data-app-version>v[0-9.]+ · [^\d<]*)\d+( MB)/, `$1${Math.round(dmg.size / 1e6)}$2`);
+  const mb = `$1${Math.round(dmg.size / 1e6)}$2`;
+  return html
+    .replace(/(<span data-app-version>v[0-9.]+ · [^\d<]*)\d+( MB)/, mb)
+    .replace(/(Shadowing-macos-arm64\.dmg">[^<]*<\/a>[^\d<]*)\d+( MB)/, mb);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

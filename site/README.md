@@ -23,7 +23,7 @@
   **上架一个插件**：读源代码、核对 zip、在应用里装一次，然后在这里加一条（`shasum -a 256` 算哈希，GitHub Release 的附件也能用
   `gh release view <tag> --json assets` 看 `digest`）。`node scripts/check-plugin-list.mjs` 检查格式（`npm test` 也会查）。
   随应用发布的插件（`scripts/release-plugins.sh`）不用手动改：发布以后 `scripts/site-after-release.sh` 把新版本的 zip、大小和 SHA-256 写进来
-  （新插件按它的 manifest 加一条），连同四个页面上的下载大小一起提交到 `main`。第三方插件照旧手动加。提交入口是 GitHub 的 issue 表单 `.github/ISSUE_TEMPLATE/plugin.yml`。
+  （新插件按它的 manifest 加一条），连同四个页面上的下载大小（版本号旁边和安装步骤里各一处）一起提交到 `main`。第三方插件照旧手动加。提交入口是 GitHub 的 issue 表单 `.github/ISSUE_TEMPLATE/plugin.yml`。
 - 首页的「插件」一节（`#plugins`）里那个导入确认框和下载中的两行是照应用的 `ImportLink.tsx` 用 HTML 画的，不是截图；应用里的样子变了要跟着改。
 - `install.sh`：一键安装脚本，用户在终端运行 `curl -fsSL https://shadowing.nihongo.day/install.sh | bash`。它用 curl 下载最新的 .dmg（curl 下载的文件没有隔离标记，打开时不会说“已损坏”），挂载后把 Shadowing.app 复制进“应用程序”（替换旧版、先关掉正在运行的），校验签名（只认 Shadowing 自己的证书，哈希写在脚本里）再打开。安装一节的命令框和 README、Release 说明里都用这一行。`vercel.json` 让它以 `text/plain` 返回，浏览器里能直接看内容。
 - 部署：Vercel 导入本仓库，Root Directory 填 `site`，Framework Preset 选 Other，不需要 Build Command。合并到 `main` 就自动上线。
