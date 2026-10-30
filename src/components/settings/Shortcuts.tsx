@@ -41,7 +41,9 @@ export function ShortcutsSection() {
       e.preventDefault();
       e.stopImmediatePropagation();
       if (e.key === "Escape") return setListening(null);
-      if (e.metaKey || e.ctrlKey || e.altKey || ["Shift", "CapsLock"].includes(e.key)) return; // still listening
+      // ⌘, Ctrl or Alt held: say so the moment it goes down, and keep listening for the one key.
+      if (e.metaKey || e.ctrlKey || e.altKey || e.key === "AltGraph") return setNote({ action, text: t("只能设单个键，不能用组合键") });
+      if (["Shift", "CapsLock"].includes(e.key)) return; // still listening
       const key = keyOf(e);
       setListening(null);
       if (key === null) return setNote({ action, text: t("{key} 留给应用自己用，换一个吧", { key: e.key }) });
@@ -72,7 +74,7 @@ export function ShortcutsSection() {
         )}
       </div>
       <p className="mt-1 text-[12px] leading-relaxed text-muted">
-        {t("点一个按键，再按你想用的键；已经有用处的键会和它交换。Esc、? 和带 {mod} 的快捷键不能改。", { mod: shortcut("⌘") })}
+        {t("点一个按键，再按你想用的单个键；已经有用处的键会和它交换。Esc、? 和带 {mod} 的快捷键不能改。", { mod: shortcut("⌘") })}
       </p>
       <dl className="mt-2.5 grid grid-cols-1 gap-x-6 sm:grid-cols-2">
         {ACTIONS.map((action) => {

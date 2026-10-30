@@ -18,8 +18,13 @@ describe("keyOf", () => {
     expect(keyOf({ key: "PageDown" })).toBe("PageDown");
   });
 
-  it("refuses the app's own keys, modifiers and function keys", () => {
-    for (const key of ["Escape", "?", "Tab", "Enter", "Backspace", "Shift", "Meta", "Dead", "F5"]) expect(keyOf({ key })).toBeNull();
+  it("takes F1–F12 (foot pedals, page turners)", () => {
+    for (const key of ["F1", "F5", "F12"]) expect(keyOf({ key })).toBe(key);
+    expect(keyName("F5")).toBe("F5");
+  });
+
+  it("refuses the app's own keys, modifiers and other named keys", () => {
+    for (const key of ["Escape", "?", "Tab", "Enter", "Backspace", "Shift", "Meta", "AltGraph", "Dead", "F13", "MediaPlayPause"]) expect(keyOf({ key })).toBeNull();
   });
 });
 
