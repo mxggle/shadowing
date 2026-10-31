@@ -1,9 +1,7 @@
-import { Check, Cpu, Download, KeyRound, LoaderCircle, LogIn } from "lucide-react";
+import { Check, Cpu, Download } from "lucide-react";
 import { useEffect, useState } from "react";
-import { featureReady } from "../../lib/aiReady";
 import { api, LOCAL_PROVIDER, type AiConfig } from "../../lib/api";
-import { isCancelled, t } from "../../lib/i18n";
-import { vault } from "../../lib/wording";
+import { t } from "../../lib/i18n";
 import { useApp } from "../../store";
 import { formatBytes, LocalModels } from "../settings/LocalModels";
 import { ProviderSetup } from "../settings/ProviderSetup";
@@ -113,119 +111,6 @@ export function ModelStep() {
       </div>
       {more && <LocalModels intro={false} />}
       {cloud && <ProviderSetup feature="transcribe" only={(p) => !p.local} allowNone={false} />}
-    </div>
-  );
-}
-
-type SignIn = "chatgpt" | "openrouter";
-
-/**
- * Explanations and proofreading need a language model: sign in with a plan the
- * learner already pays for, or paste an API key.
- */
-export function AccountStep() {
-  const ai = useApp((s) => s.ai)!;
-  const ready = useApp((s) => featureReady("chat", s.ai, s.local));
-  const [busy, setBusy] = useState<SignIn | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [keys, setKeys] = useState(false);
-  const chosen = ai.presets.find((p) => p.id === ai.config.chat.provider);
-
-  async function signIn(id: SignIn) {
-    setBusy(id);
-    setError(null);
-    try {
-      setConfig(id === "chatgpt" ? await api.ai.signInChatGPT() : await api.ai.signInOpenRouter());
-      let model = ai.presets.find((p) => p.id === id)?.chatModel ?? "";
-      if (!model) model = (await api.ai.models(id, "chat").catch(() => []))[0] ?? "";
-      setConfig(await api.ai.choose("chat", id, model));
-    } catch (e) {
-      if (!isCancelled(e)) setError(String(e));
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  const signedIn = (id: string) => !!ai.config.keyHints[id];
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="text-[13px] leading-relaxed text-muted">
-        {t("句子解释和字幕校对要用大语言模型。用你已有的订阅登录，或者填一个 API Key。Key 和登录信息只存在 {vault}里。", { vault: vault() })}
-      </p>
-      {ready && chosen && (
-        <p className="flex items-center gap-2 text-[13px]">
-          <Check size={15} strokeWidth={2.5} className="text-ok" />
-          {t("句子解释会用 {name}", { name: chosen.name })}
-          <span className="text-faint">{t("（{model}）", { model: ai.config.chat.model })}</span>
-        </p>
-      )}
-
-      <div className="flex flex-col gap-2">
-        <Option
-          title={t("ChatGPT 账号")}
-          recommended
-          text={t("用 Plus / Pro 套餐的额度，不需要 API Key（OpenAI 的预览功能）")}
-          done={signedIn("chatgpt") && chosen?.id === "chatgpt"}
-          busy={busy === "chatgpt"}
-          disabled={busy !== null}
-          onClick={() => void signIn("chatgpt")}
-        />
-        <Option
-          title="OpenRouter"
-          text={t("一个账号用 Claude、Gemini、DeepSeek 等多家模型，按用量付费")}
-          done={signedIn("openrouter") && chosen?.id === "openrouter"}
-          busy={busy === "openrouter"}
-          disabled={busy !== null}
-          onClick={() => void signIn("openrouter")}
-        />
-        {busy && (
-          <p className="flex items-center gap-2 text-[12px] text-muted">
-            {t("请在浏览器里完成授权…")}
-            <TextLink className="text-[12px]" onClick={() => void api.ai.cancelSignIn()}>
-              {t("取消")}
-            </TextLink>
-          </p>
-        )}
-        {error && <p className="text-[12px] break-words text-danger">{error}</p>}
-      </div>
-
-      <TextLink className="flex items-center gap-1.5 text-[12px]" onClick={() => setKeys(!keys)}>
-        <KeyRound size={13} />
-        {keys ? t("收起") : t("填写 API Key（OpenAI、Anthropic、Gemini、DeepSeek…），或用本机模型")}
-      </TextLink>
-      {keys && <ProviderSetup feature="chat" allowNone={false} />}
-    </div>
-  );
-}
-
-function Option({ title, text, recommended, done, busy, disabled, onClick }: {
-  title: string;
-  text: string;
-  recommended?: boolean;
-  done: boolean;
-  busy: boolean;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-[14px] px-4 py-3 shadow-[inset_0_0_0_1px_var(--line-strong)]">
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-2 text-[14px] font-semibold">
-          {title}
-          {recommended && <span className="rounded-[4px] px-1 text-[11px] leading-4 font-medium text-ok shadow-[inset_0_0_0_1px_currentColor]">{t("推荐")}</span>}
-        </p>
-        <p className="mt-0.5 text-[12px] text-muted">{text}</p>
-      </div>
-      {done ? (
-        <span className="flex items-center gap-1.5 text-[13px] text-ok">
-          <Check size={15} strokeWidth={2.5} /> {t("已登录")}
-        </span>
-      ) : (
-        <Button primary={recommended} disabled={disabled} onClick={onClick}>
-          {busy ? <LoaderCircle size={14} className="animate-spin" /> : <LogIn size={14} />}
-          {t("登录")}
-        </Button>
-      )}
     </div>
   );
 }

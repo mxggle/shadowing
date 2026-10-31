@@ -60,7 +60,7 @@ src/                      前端
                           ImportLink.tsx 从链接导入的确认框（⌘V 或 ＋ 打开）、列表里下载中 / 排队 / 失败的一行；
                           Practice.tsx 学习记录面板（PracticeCharts.tsx 柱状图和日历，PracticeGoal.tsx 顶栏目标圆环和目标一行）；
                           settings/ 是设置面板（Plugins.tsx 插件：已装的、删除、从文件夹安装；Shortcuts.tsx 自定义快捷键）；
-                          guide/ 是引导：Welcome.tsx 欢迎页（第一次打开是 Onboarding.tsx 四步新手引导，步骤内容在 OnboardingSteps.tsx）、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示、
+                          guide/ 是引导：Welcome.tsx 欢迎页（第一次打开是 Onboarding.tsx 三步新手引导，步骤内容在 OnboardingSteps.tsx）、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示、
                           AskCard.tsx 练满 3 天后右上角的一次性提问（停下 20 秒没操作才出现、练习时让开，答案经反馈接口发出，kind `card-3days`）
   dev/smoke.ts            应用内自测脚本（只在 smoke 模式加载）
 src-tauri/src/

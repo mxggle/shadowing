@@ -5,7 +5,7 @@ import { t, tk } from "../../lib/i18n";
 import { isWindows, shortcut } from "../../lib/platform";
 import { useApp } from "../../store";
 import { Button, TextLink } from "../ui";
-import { AccountStep, ModelStep } from "./OnboardingSteps";
+import { ModelStep } from "./OnboardingSteps";
 import { BigButton, Preview } from "./Welcome";
 
 const LANGUAGES: [string, string][] = [
@@ -25,13 +25,14 @@ const FEATURES: [LucideIcon, string, string][] = [
   [Sparkles, tk("看懂每一句"), tk("AI 翻译句子、讲解生词和语法，还能校对听错的字。")],
 ];
 
-const STEPS = [tk("介绍"), isWindows ? tk("转写") : tk("本机转写"), tk("登录 AI"), tk("开始")] as const;
+const STEPS = [tk("介绍"), isWindows ? tk("转写") : tk("本机转写"), tk("开始")] as const;
 
 /**
- * First launch: what the app does and which language, then the two optional
- * AI pieces (a Whisper model for this Mac, a sign-in for explanations), then
- * the sample practice or the learner's own folder. Every choice is saved as
- * it is made, so quitting halfway loses nothing.
+ * First launch: what the app does and which language, then the optional
+ * Whisper model for this Mac (or a cloud service), then the sample practice or
+ * the learner's own folder. A model for explanations is asked for the first time
+ * 解释 is used, not here. Every choice is saved as it is made, so quitting
+ * halfway loses nothing.
  */
 export function Onboarding() {
   const [step, setStep] = useState(0);
@@ -49,12 +50,7 @@ export function Onboarding() {
               <ModelStep />
             </Page>
           )}
-          {step === 2 && (
-            <Page title={t("登录 AI 服务")} onBack={() => setStep(1)} onNext={next} feature="chat">
-              <AccountStep />
-            </Page>
-          )}
-          {step === 3 && <Start onBack={() => setStep(2)} />}
+          {step === 2 && <Start onBack={() => setStep(1)} />}
         </div>
       </div>
     </div>
@@ -160,13 +156,13 @@ function Intro({ onNext }: { onNext: () => void }) {
 /** A setup step: title, body, and back / next (next says 跳过 until the feature works). */
 function Page({ title, feature, onBack, onNext, children }: {
   title: string;
-  feature: "transcribe" | "chat";
+  feature: "transcribe";
   onBack: () => void;
   onNext: () => void;
   children: React.ReactNode;
 }) {
   const ready = useApp((s) => featureReady(feature, s.ai, s.local));
-  const downloading = useApp((s) => feature === "transcribe" && s.download?.state === "running");
+  const downloading = useApp((s) => s.download?.state === "running");
   const go = ready || downloading;
   return (
     <section className="mx-auto flex w-full max-w-[600px] flex-col">
@@ -187,7 +183,6 @@ function Page({ title, feature, onBack, onNext, children }: {
 
 function Start({ onBack }: { onBack: () => void }) {
   const transcribe = useApp((s) => (featureReady("transcribe", s.ai, s.local) ? "ok" : s.download?.state === "running" ? "pending" : "off"));
-  const chat = useApp((s) => (featureReady("chat", s.ai, s.local) ? "ok" : "off"));
   // Opening the sample can fail (say, a broken install); nothing else on this screen would show it.
   const error = useApp((s) => s.error);
   const { startPractice, chooseFolder } = useApp.getState();
@@ -197,9 +192,8 @@ function Start({ onBack }: { onBack: () => void }) {
       <h1 className="font-heading text-[26px] leading-[1.3] font-semibold tracking-[-0.01em]">{t("准备好了")}</h1>
       <ul className="mt-5 flex flex-col gap-2 text-[13px]">
         <Status state={transcribe} label={t("转写")} text={{ ok: t("可以用了"), pending: t("模型正在后台下载，下载完就能用"), off: t("还没有设置") }} />
-        <Status state={chat} label={t("句子解释")} text={{ ok: t("可以用了"), pending: "", off: t("还没有设置") }} />
       </ul>
-      {(transcribe === "off" || chat === "off") && (
+      {transcribe === "off" && (
         <p className="mt-3 text-[12px] text-faint">{t("没设置也能练：播放、循环和导入字幕都不需要 AI。随时可以在设置（{key}）里补上。", { key: shortcut("⌘,") })}</p>
       )}
       <BigButton onClick={() => void startPractice()}>
