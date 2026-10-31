@@ -648,6 +648,9 @@ export const api = {
     stop: () => invoke<void>("record_stop"),
     /** Pauses a take or reading playing back where it is, or lets it go on. */
     pauseClip: (paused: boolean) => invoke<void>("record_pause_clip", { paused }),
+    /** 等我说完: listens until you've said it (nothing is recorded); the answer comes as `listen:done`. */
+    listen: (id: number, waitSecs: number) => invoke<void>("listen_start", { id, waitSecs }),
+    stopListening: () => invoke<void>("listen_stop"),
     /** How much room recordings take (and how much is for audio that's gone). */
     space: () => invoke<RecordingSpace>("record_space"),
     /** Deletes the recordings of audio files that are gone; returns what's left. */

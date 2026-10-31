@@ -352,6 +352,7 @@ pub fn run() {
             });
             app.manage(audio::Player::new(sink));
             app.manage(record::Recorder::default());
+            app.manage(record::listen::Listener::default());
             // Videos' pictures for the webview: only videos it may play (src/media.rs).
             let handle = app.handle().clone();
             app.manage(media::start(move |path| {
@@ -435,6 +436,8 @@ pub fn run() {
             audio::commands::player_unload,
             audio::commands::player_status,
             record::commands::record_begin,
+            record::listen::listen_start,
+            record::listen::listen_stop,
             record::commands::record_turn,
             record::commands::record_pause,
             record::commands::record_round,
