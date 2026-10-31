@@ -16,10 +16,10 @@ const TASKS: { id: TaskId; title: string; how: () => React.ReactNode }[] = [
   {
     id: "play",
     title: tk("播放"),
-    how: () => withKey(t("按 {key}，或把鼠标移到一句的时间上，点出现的播放按钮。"), keyNow("toggle")),
+    how: () => withKey(t("按 {key}，或点一下任意一句。"), keyNow("toggle")),
   },
   { id: "slow", title: tk("放慢"), how: () => withKey(t("在底部把速度调到 0.75，或按 {key}。"), keyNow("slower")) },
-  { id: "loop", title: tk("循环一句"), how: () => withKey(t("鼠标移到一句上，点最右边的循环按钮，或按 {key}。"), keyNow("sentenceLoop")) },
+  { id: "loop", title: tk("循环一句"), how: () => withKey(t("点一句放起来，再点它一下就循环，或按 {key}。"), keyNow("sentenceLoop")) },
   {
     id: "pace",
     title: tk("每句停一下"),

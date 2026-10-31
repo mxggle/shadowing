@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Sentence } from "./api";
 import { textPieces } from "./edits";
-import { saidPieces, saidUpTo, sentenceIndexAt, sentenceLoop, speakerCount, speakerName, startsTurn, stepTarget } from "./sentences";
+import { clickMeans, saidPieces, saidUpTo, sentenceIndexAt, sentenceLoop, speakerCount, speakerName, startsTurn, stepTarget } from "./sentences";
 
 const s = (start: number, end: number): Sentence => ({ start, end, text: "" });
 const list = [s(1, 3), s(4, 6), s(10, 12)];
@@ -31,6 +31,20 @@ describe("sentenceLoop", () => {
   it("never makes a loop shorter than a hand-set one could be", () => {
     const loop = sentenceLoop(s(5, 5.05), 100);
     expect(loop.b! - loop.a!).toBeCloseTo(0.3);
+  });
+});
+
+describe("clickMeans", () => {
+  it("plays a sentence, and loops it once it's the one playing", () => {
+    expect(clickMeans(2, { loopSentence: null, playing: false, at: 0 })).toBe("play");
+    expect(clickMeans(2, { loopSentence: null, playing: true, at: 0 })).toBe("play");
+    expect(clickMeans(2, { loopSentence: null, playing: true, at: 2 })).toBe("loop");
+  });
+
+  it("plays from the start when paused on it or when it already loops", () => {
+    expect(clickMeans(2, { loopSentence: null, playing: false, at: 2 })).toBe("play");
+    expect(clickMeans(2, { loopSentence: 2, playing: true, at: 2 })).toBe("play");
+    expect(clickMeans(3, { loopSentence: 2, playing: true, at: 2 })).toBe("play");
   });
 });
 

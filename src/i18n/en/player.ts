@@ -153,6 +153,7 @@ export const player: Record<string, Entry> = {
   从这句开始新段: "Start a new section here",
   "修改这一句 ({key})": "Edit this sentence ({key})",
   与下一句合并: "Merge with the next sentence",
+  更多: "More",
   "循环这一句 ({key})": "Loop this sentence ({key})",
 
   // Sections

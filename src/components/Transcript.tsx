@@ -1,5 +1,5 @@
-import { BetweenHorizontalStart, FileUp, FoldVertical, Languages, PenLine, Play, Repeat, Replace, Trash2 } from "lucide-react";
-import { Fragment, memo, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type RefObject } from "react";
+import { FileUp, Play, Replace, Trash2 } from "lucide-react";
+import { Fragment, memo, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { Sentence, Suggestion } from "../lib/api";
 import { explainKey, type Explain } from "../explainSlice";
 import { sentenceFor } from "../lib/book";
@@ -17,21 +17,21 @@ import { ProofreadBar, ProofreadButton, SuggestionNote } from "./Proofread";
 import { DrillBar } from "./Drill";
 import { LiveReadingBar, ReadingButton, ReadingProblem } from "./Reading";
 import { ReadingBar } from "./ReadingResult";
-import { MicButton, RecorderCard } from "./Recorder";
+import { RecorderCard } from "./Recorder";
 import { ReplaceBar } from "./ReplaceBar";
 import { SentenceEditor } from "./SentenceEditor";
 import { SectionHeading, SectionMenu } from "./Sections";
-import { BookStar } from "./Book";
 import { HiddenLine, HideTextButton } from "./HideText";
 import { hasRuby, SaidText, SentenceText, UnsureCount, useAnnotation } from "./SentenceText";
+import { SentenceActions } from "./SentenceActions";
 import { TakePeek } from "./TakePeek";
 import { IconButton } from "./ui";
-import { useKeys } from "../hooks/useKeys";
 
 /**
- * The script: one row per sentence. The text is selectable; the time on the
- * left turns into a play button, the loop button on the right (or S) repeats
- * the sentence, and the pen (or E) corrects its text. A track with more than one
+ * The script: one row per sentence. A click on its text plays it, and on the one
+ * playing loops it (dragging still selects); the time on the left turns into a
+ * play button, and the actions on the right (SentenceActions) explain, loop, record
+ * and, under 「…」, correct, merge, split and keep it in 句子本. A track with more than one
  * section (对话段落) gets a heading above each; any sentence can start a new one.
  */
 export function SentenceList() {
@@ -238,18 +238,20 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
   /** In 句子本 (its star shows). */
   inBook: boolean;
 }) {
-  const key = useKeys();
-  const { playSentence, toggleSentenceLoop, editSentence, toggleExplain, splitSection, mergeSentence } = useApp.getState();
+  const { playSentence, clickSentence } = useApp.getState();
+  const [menu, setMenu] = useState(false);
   const annotation = useAnnotation(sentence.text);
   const ruby = hasRuby(annotation);
   const explaining = !!explain?.open;
   const tone = reading ? "bg-danger-soft" : looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";
   const lit = active || looping || recorder;
   const columns = voices ? "grid-cols-[3.25rem_1.75rem_1fr_auto]" : "grid-cols-[3.25rem_1fr_auto]";
+  // Content-visibility clips what sticks out of the row: not while its menu is open.
+  const contain = menu ? "relative z-10 [content-visibility:visible]" : "[content-visibility:auto]";
   return (
     <div
       data-index={index}
-      className={`group grid ${columns} items-start gap-x-2 rounded-[12px] py-2 pr-1.5 pl-2 transition-colors duration-200 [contain-intrinsic-size:auto_48px] [content-visibility:auto] ${tone} ${turn && index > 0 && !opensSection ? "mt-3" : "mt-0.5"}`}
+      className={`group grid ${columns} items-start gap-x-2 rounded-[12px] py-2 pr-1.5 pl-2 transition-colors duration-200 [contain-intrinsic-size:auto_48px] ${tone} ${contain} ${turn && index > 0 && !opensSection ? "mt-3" : "mt-0.5"}`}
     >
       <div className="flex flex-col items-start">
         <button
@@ -291,7 +293,12 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
           <HiddenLine index={index} text={sentence.text} start={sentence.start} end={sentence.end} active={active} />
         ) : (
           <p
-            className={`cursor-text font-script text-[18px] ${ruby ? "leading-[40px]" : "leading-[30px]"} break-words select-text transition-colors duration-200 ${
+            onClick={() => {
+              // Dragging over the text (or double-clicking a word) selects it instead.
+              if (window.getSelection()?.isCollapsed === false) return;
+              clickSentence(index);
+            }}
+            className={`cursor-pointer font-script text-[18px] ${ruby ? "leading-[40px]" : "leading-[30px]"} break-words select-text transition-colors duration-200 ${
               lit ? "text-fg" : "text-muted"
             }`}
           >
@@ -312,50 +319,18 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
         {!hidden && suggestions?.map((s) => <SuggestionNote key={`${s.from}→${s.to}`} suggestion={s} />)}
         {takes > 0 && !recorder && !editing && <TakePeek sentence={sentence} open={peek} />}
       </div>
-      <span className="flex h-[30px] items-center">
-        <button
-          title={explaining ? t("收起解释 ({key})", { key: key("explain") }) : t("解释这一句 ({key})", { key: key("explain") })}
-          aria-pressed={explaining}
-          onClick={() => toggleExplain(index)}
-          className={`grid size-[28px] place-items-center rounded-[8px] transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${
-            explaining ? "bg-press text-fg" : "text-muted opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100"
-          }`}
-        >
-          <Languages size={14} strokeWidth={2.1} />
-        </button>
-        {canSplit && !editing && (
-          <HoverButton title={t("从这句开始新段")} onClick={() => splitSection(index)}>
-            <BetweenHorizontalStart size={14} strokeWidth={2.1} />
-          </HoverButton>
-        )}
-        {!editing && (
-          <HoverButton title={t("修改这一句 ({key})", { key: key("edit") })} onClick={() => editSentence(index)}>
-            <PenLine size={14} strokeWidth={2.1} />
-          </HoverButton>
-        )}
-        {!editing && !last && (
-          <HoverButton title={t("与下一句合并")} onClick={() => void mergeSentence(index)}>
-            <FoldVertical size={14} strokeWidth={2.1} />
-          </HoverButton>
-        )}
-        <button
-          title={looping ? t("取消循环 ({key})", { key: key("sentenceLoop") }) : t("循环这一句 ({key})", { key: key("sentenceLoop") })}
-          aria-pressed={looping}
-          onClick={() => {
-            toggleSentenceLoop(index);
-            useApp.getState().tip("sentenceLoop");
-          }}
-          className={`grid size-[28px] place-items-center rounded-[8px] transition-[opacity,background-color,color,scale] duration-150 active:scale-90 ${
-            looping
-              ? "text-loop hover:bg-loop-soft"
-              : "text-muted opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100"
-          }`}
-        >
-          <Repeat size={14} strokeWidth={2.1} />
-        </button>
-        <BookStar index={index} inBook={inBook} takes={takes} />
-        <MicButton at={index} count={takes} />
-      </span>
+      <SentenceActions
+        index={index}
+        looping={looping}
+        explaining={explaining}
+        editing={editing}
+        canSplit={canSplit}
+        last={last}
+        inBook={inBook}
+        takes={takes}
+        menu={menu}
+        setMenu={setMenu}
+      />
       {/* Under the row's actions too: in a narrow column (the picture beside it) they still have room. */}
       {((explain?.open && !hidden) || recorder) && (
         <div className={`min-w-0 ${voices ? "col-[3/-1]" : "col-[2/-1]"}`}>
@@ -366,16 +341,6 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
     </div>
   );
 });
-
-/** A row action that shows while the pointer is over the row. */
-function HoverButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <button
-      {...props}
-      className="grid size-[28px] place-items-center rounded-[8px] text-muted opacity-0 transition-[opacity,background-color,color,scale] duration-150 group-hover:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100 active:scale-90"
-    />
-  );
-}
 
 /** How far through the sentence playback is: a short line under its time. */
 function Meter({ sentence, looping }: { sentence: Sentence; looping: boolean }) {

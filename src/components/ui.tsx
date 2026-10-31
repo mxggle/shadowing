@@ -106,6 +106,28 @@ export function TextLink({ className = "", ...rest }: ButtonHTMLAttributes<HTMLB
   );
 }
 
+/** A row in a popover menu: an icon, its label and an optional faint line under it. */
+export function MenuItem({ icon, label, hint, title, muted, onClick }: { icon: ReactNode; label: string; hint?: string; title?: string; muted?: boolean; onClick: () => void }) {
+  return (
+    <button
+      role="menuitem"
+      title={title}
+      onClick={onClick}
+      className={`flex w-full items-start gap-2.5 rounded-[8px] px-2.5 py-1.5 text-left text-[13px] transition-colors duration-150 hover:bg-hover ${muted ? "text-muted" : "text-fg/90"}`}
+    >
+      <span className="mt-px shrink-0 text-muted">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block leading-[18px]">{label}</span>
+        {hint && <span className="block truncate text-[11px] leading-4 text-faint">{hint}</span>}
+      </span>
+    </button>
+  );
+}
+
+export function MenuSeparator() {
+  return <div role="separator" className="mx-1.5 my-1 h-px bg-line" />;
+}
+
 /** Shared look for text inputs and selects: a tinted field that gains an outline and focus ring. */
 export const fieldClass =
   "h-8 w-full min-w-0 rounded-[8px] bg-fill px-2.5 text-[13px] select-text outline-none transition-[background-color,box-shadow] duration-150 placeholder:text-faint focus:bg-raised focus:shadow-[inset_0_0_0_1px_var(--line-strong),0_0_0_3px_var(--hover)]";

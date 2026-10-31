@@ -7,7 +7,7 @@ import { isLoopActive, NO_LOOP, type Loop } from "./audio/logic";
 import type { AudioEngine } from "./audio/engine";
 import { api, type Section, type TranscribeStatus, type Transcript } from "./lib/api";
 import { mergeUp, rename, sectionIndexOf, sectionLoop, sectionsOf, sectionStep, splitAt } from "./lib/sections";
-import { sentenceIndexAt, sentenceLoop, sentenceStart, stepTarget } from "./lib/sentences";
+import { clickMeans, sentenceIndexAt, sentenceLoop, sentenceStart, stepTarget } from "./lib/sentences";
 import type { AppState } from "./store";
 import { micOpen } from "./recordSlice";
 
@@ -31,6 +31,8 @@ export interface TranscriptState {
   playSentence(i: number): void;
   /** Repeat a sentence (default: the current one), or stop if it already repeats. */
   toggleSentenceLoop(i?: number): void;
+  /** A click on a sentence's text: play from it, or loop it if it's the one playing. */
+  clickSentence(i: number): void;
   /** `[` / `]`: previous / next sentence, keeping a sentence loop going. */
   stepSentence(direction: 1 | -1): void;
 
@@ -190,6 +192,13 @@ export function createTranscriptSlice(
       if (!list[index]) return;
       if (get().loopSentence === index) applyLoop(NO_LOOP);
       else loopSentenceAt(index);
+    },
+
+    clickSentence(i) {
+      const { loopSentence, playing } = get();
+      if (clickMeans(i, { loopSentence, playing, at: sentenceIndexAt(sentences(), engine.time) }) === "play") return get().playSentence(i);
+      get().toggleSentenceLoop(i);
+      get().tip("sentenceLoop");
     },
 
     stepSentence(direction) {

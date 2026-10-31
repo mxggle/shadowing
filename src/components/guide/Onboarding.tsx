@@ -15,7 +15,7 @@ const LANGUAGES: [string, string][] = [
 ];
 
 const FEATURES: [LucideIcon, string, string][] = [
-  [Repeat, tk("一句一句跟读"), tk("点一句就循环，随时放慢，用你自己的音频。")],
+  [Repeat, tk("一句一句跟读"), tk("点一句就放，再点一下就循环，随时放慢，用你自己的音频。")],
   [
     Captions,
     tk("没有字幕也能练"),

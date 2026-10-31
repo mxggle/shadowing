@@ -13,17 +13,18 @@ import { HiddenLine, HideTextButton } from "./HideText";
 import { RecorderCard } from "./Recorder";
 import { Button, IconButton, Kbd } from "./ui";
 
-/** A sentence row's ☆: in 句子本 it stays lit; recorded three times or more, it asks. */
+/** A sentence row's ☆, only while it's in 句子本 or, recorded three times or more, asks to be (else it's in 「…」). */
 export function BookStar({ index, inBook, takes }: { index: number; inBook: boolean; takes: number }) {
   const key = useKeys()("book");
   const asks = !inBook && takes >= 3;
+  if (!inBook && !asks) return null;
   return (
     <button
       title={inBook ? t("从句子本拿掉 ({key})", { key }) : asks ? t("这句录了 {n} 次，加进句子本？({key})", { n: takes, key }) : t("加进句子本，明天再来跟读 ({key})", { key })}
       aria-pressed={inBook}
       onClick={() => useApp.getState().toggleBook(index)}
       className={`grid size-[28px] place-items-center rounded-[8px] transition-[opacity,background-color,color,scale] duration-150 hover:bg-hover active:scale-90 ${
-        inBook ? "text-fg" : asks ? "text-faint opacity-70 hover:text-fg hover:opacity-100" : "text-muted opacity-0 group-hover:opacity-100 hover:text-fg focus-visible:opacity-100"
+        inBook ? "text-fg" : "text-faint opacity-70 hover:text-fg hover:opacity-100"
       }`}
     >
       <Star size={14} strokeWidth={2.1} fill={inBook ? "currentColor" : "none"} />
@@ -106,7 +107,7 @@ export function BookView() {
           <p className="mt-8 pl-2 text-[13px] leading-relaxed text-muted">
             {all ? t("还没有句子。") : t("今天没有要再跟读的句子。")}
             <br />
-            <span className="text-faint">{t("在原文里把鼠标移到一句上点 ☆（或按 B），第二天它就会出现在这里。")}</span>
+            <span className="text-faint">{t("在原文里点一句右边的「…」，选「加进句子本」（或按 B），第二天它就会出现在这里。")}</span>
           </p>
         ) : (
           <ol className="mt-1.5">

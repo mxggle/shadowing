@@ -77,6 +77,14 @@ export function sentenceLoop(s: Sentence, duration: number): Loop {
   return { a, b: Math.max(end, a + MIN_LOOP) };
 }
 
+/**
+ * What clicking sentence `i` does: play from it, or loop it when it's the one
+ * playing (`at`). A sentence already looping plays from its start again.
+ */
+export function clickMeans(i: number, { loopSentence, playing, at }: { loopSentence: number | null; playing: boolean; at: number }): "play" | "loop" {
+  return playing && at === i && loopSentence !== i ? "loop" : "play";
+}
+
 /** Where `[` (−1) and `]` (+1) go from time `t`; −1 when there are no sentences. */
 export function stepTarget(sentences: Sentence[], t: number, direction: 1 | -1): number {
   if (!sentences.length) return -1;
