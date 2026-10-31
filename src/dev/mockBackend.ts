@@ -228,6 +228,8 @@ const player = { path: null as string | null, time: 0, duration: 0, playing: fal
 let seq = 0;
 const status = () => ({ path: player.path, time: player.time, duration: player.duration, playing: player.playing, repeats: player.repeats, seq: ++seq });
 const push = () => void emit("player:status", status());
+/** 等我说完's pretend listening. */
+let listening = 0;
 
 /** Like the engine's hold: a recording paused pauses the track, a range keeping its end; going on plays it
  *  on if it was playing (and nothing has moved it since). Returns, going on, whether it does. */
@@ -463,6 +465,14 @@ export function installMockBackend() {
         case "practice_ping":
         case "now_playing":
           return null;
+        // 等我说完: as if you said it in 2.5 s.
+        case "listen_start":
+          window.clearTimeout(listening);
+          listening = window.setTimeout(() => void emit("listen:done", { id: a.id, stop: "pause", error: null }), 2500);
+          return;
+        case "listen_stop":
+          window.clearTimeout(listening);
+          return;
         case "smoke_mode":
           return false;
         case "plugin:app|version":

@@ -8,6 +8,7 @@ import type { AudioEngine } from "./audio/engine";
 import type { Settings } from "./lib/api";
 import { t } from "./lib/i18n";
 import { clampRatio, clampRepeats, clampSeconds, END_MARGIN, longer, nextAfter, paceActive, pauseAfter, pauseLengthOf, pauseModeOf, pauseWaitOf, shorter, stretchAt, type Next, type PaceSettings, type Stretch } from "./lib/pace";
+import { createListening } from "./paceListen";
 import { micOpen } from "./recordSlice";
 import type { AppState } from "./store";
 
@@ -22,8 +23,8 @@ export interface PaceGap {
   until: number | null;
   /** How long the whole pause is, in seconds (0 when it waits). */
   secs: number;
-  /** Waiting until you've said it: the mic listens for you to start and stop. */
-  listening?: boolean;
+  /** 等我说完: the mic listens for you to start and stop (false: it waits for a key). */
+  listening: boolean;
 }
 
 export interface PaceState {
@@ -90,8 +91,15 @@ export function createPaceSlice(set: Set, get: Get, engine: AudioEngine, persist
   function clearGap() {
     window.clearTimeout(timer);
     after = null;
-    if (get().paceGap) set({ paceGap: null });
+    const gap = get().paceGap;
+    if (gap?.listening) listening.stop();
+    if (gap) set({ paceGap: null });
   }
+
+  const listening = createListening(get, set, () => {
+    set((s) => ({ paceSaid: s.paceSaid + 1 }));
+    go();
+  });
 
   /** Plays the stretch at `t` from `t`, as time `pass` through it; with none, straight on. */
   function run(t: number, pass = 1) {
@@ -133,7 +141,9 @@ export function createPaceSlice(set: Set, get: Get, engine: AudioEngine, persist
     const secs = pauseAfter(settings, stretch.stop - stretch.from, settings.rate);
     after = next;
     if (secs === 0) return go();
-    set({ paceGap: { until: secs === null ? null : performance.now() + secs * 1000, secs: secs ?? 0 } });
+    const voice = secs === null && pauseModeOf(settings.pauseMode) === "wait" && pauseWaitOf(settings.pauseWait) === "voice";
+    set({ paceGap: { until: secs === null ? null : performance.now() + secs * 1000, secs: secs ?? 0, listening: voice } });
+    if (voice) listening.start(stretch.stop - stretch.from);
     if (secs !== null)
       timer = window.setTimeout(() => {
         early = 0;
@@ -256,9 +266,15 @@ export function createPaceSlice(set: Set, get: Get, engine: AudioEngine, persist
     paceHold() {
       const gap = get().paceGap;
       if (!gap) return false;
+      if (gap.listening) {
+        // Listening for you: stop, and wait for a key.
+        listening.stop();
+        set({ paceGap: { ...gap, listening: false } });
+        return true;
+      }
       if (gap.until === null) return false; // already waiting: Esc does what it always did
       window.clearTimeout(timer);
-      set({ paceGap: { until: null, secs: 0 } });
+      set({ paceGap: { until: null, secs: 0, listening: false } });
       early = 0;
       if (++held >= 3) suggest("paceLonger", t("调长一点"), longer(get().settings));
       return true;

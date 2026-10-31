@@ -26,9 +26,6 @@ import { paceSettingsOf } from "../paceSlice";
 import { useApp } from "../store";
 import { Kbd, Stepper, TextLink } from "./ui";
 
-/** 等我说完 (the mic decides when the pause ends) isn't ready yet: only waiting for a key is offered. */
-const VOICE_WAIT = false;
-
 /** How long it pauses and how many times each sentence plays; any change turns it on. */
 export function PaceMenu() {
   const pace = useApp(useShallow(paceSettingsOf));
@@ -124,7 +121,7 @@ export function PaceMenu() {
             </div>
           </div>
         )}
-        {mode === "wait" && VOICE_WAIT && (
+        {mode === "wait" && (
           <Segmented<PauseWait>
             label={t("等到什么时候")}
             value={pauseWaitOf(pace.pauseWait)}
