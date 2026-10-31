@@ -205,7 +205,7 @@ function Start({ onBack }: { onBack: () => void }) {
       <BigButton onClick={() => void startPractice()}>
         <Play size={15} fill="currentColor" strokeWidth={0} /> {t("用示例练一下")}
       </BigButton>
-      <p className="mt-2.5 text-[12px] text-faint">{t("约 1 分钟：播放、放慢、循环一句、跟读。")}</p>
+      <p className="mt-2.5 text-[12px] text-faint">{t("约 1 分钟：播放、放慢、循环一句、每句停一下、跟读。")}</p>
       {error && <p className="mt-3 rounded-[8px] bg-danger-soft px-3 py-1.5 text-[12px] break-all text-danger">{error}</p>}
       <div className="mt-7 flex items-center gap-5">
         <TextLink onClick={() => void chooseFolder()}>{t("直接打开我的音频文件夹")}</TextLink>

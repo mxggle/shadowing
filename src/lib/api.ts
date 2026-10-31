@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { PlayMode } from "../audio/logic";
 import type { Lang, LangSetting } from "./i18n";
 import type { NowPlaying } from "./mediaKeys";
-import type { PauseMode } from "./pace";
+import type { PauseLength, PauseMode, PauseWait } from "./pace";
 
 /** Audio; a video (the engine plays its sound, a `<video>` its picture); or a video the app can't play (WebM, MKV), listed to say why. */
 export type TrackKind = "audio" | "video" | "unsupported";
@@ -72,10 +72,14 @@ export interface Settings {
   /** 跟读停顿 on: one sentence at a time, each `sentenceRepeats` times with a pause after every time (lib/pace.ts). */
   paceOn: boolean;
   pauseMode: PauseMode;
-  /** "fixed": seconds. */
+  /** "length": 短 / 标准 / 长, or "custom" (`pauseRatio`); "" in files from before the steps. */
+  pauseLength: PauseLength;
+  /** "fixed": seconds (0 = no pause). */
   pauseSeconds: number;
-  /** "length": times the sentence's length (as it plays, at the speed set). */
+  /** "length" and "custom": times the sentence's length (as it plays, at the speed set). */
   pauseRatio: number;
+  /** "wait": for a key, or until you've said it (the mic listens). */
+  pauseWait: PauseWait;
   /** Times each sentence plays before the next (1–10). */
   sentenceRepeats: number;
   /** Keys the learner chose (action → key), only those that differ from the defaults (lib/keymap.ts). */

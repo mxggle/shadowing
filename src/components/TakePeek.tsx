@@ -3,7 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import type { Sentence, Take } from "../lib/api";
 import { t } from "../lib/i18n";
 import { headOnTake } from "../lib/readings";
-import { comparePart, inTurns, lagNote, paceNote, peekTake, playheadAt } from "../lib/takes";
+import { comparePart, inTurns, LAG_GUIDE, lagNote, paceNote, peekTake, playheadAt } from "../lib/takes";
 import { useApp, type AppState } from "../store";
 import { TakeWaves } from "./TakeWaves";
 import { useKeys } from "../hooks/useKeys";
@@ -54,6 +54,7 @@ function PeekTake({ take }: { take: Take }) {
   const { playTake, stopTake } = useApp.getState();
   const both = comparePart(take);
   const note = inTurns(take) ? paceNote(take) : lagNote(take.lagMs, take.bluetooth);
+  const lagged = !inTurns(take) && !take.bluetooth && (take.lagMs ?? 0) >= 80;
   return (
     <div className="max-w-[560px] pt-1 pb-1.5">
       <TakeWaves
@@ -63,7 +64,7 @@ function PeekTake({ take }: { take: Take }) {
         titles={playing ? t("停 (空格)") : inTurns(take) ? t("从这句听下去：每句先原句，再你的 ({key})", { key: key("replay") }) : t("从这句听下去：原句和你的一起放 ({key})", { key: key("replay") })}
         onPlay={() => (playing ? stopTake() : void playTake(take.id, both))}
       />
-      {note && <p className="mt-0.5 pl-[2.75rem] text-[12px] leading-4 text-faint">{note}</p>}
+      {note && <p title={lagged ? t(LAG_GUIDE) : undefined} className="mt-0.5 pl-[2.75rem] text-[12px] leading-4 text-faint">{note}</p>}
     </div>
   );
 }

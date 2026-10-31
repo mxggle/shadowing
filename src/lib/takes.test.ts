@@ -144,7 +144,9 @@ describe("notes", () => {
   it("lag", () => {
     expect(lagNote(null)).toBe("");
     expect(lagNote(40)).toBe("几乎和原声同步");
-    expect(lagNote(420)).toBe("比原声晚 0.42 秒");
+    expect(lagNote(420)).toBe("比原声晚 0.42 秒 · 紧跟");
+    expect(lagNote(1100)).toBe("比原声晚 1.10 秒 · 学习者常见");
+    expect(lagNote(2300)).toBe("比原声晚 2.30 秒 · 更像听完再复述");
     expect(lagNote(420, true)).toBe("戴蓝牙耳机时测不准晚多少");
     expect(lagNote(420, false, true)).toBe("比口型晚 0.42 秒");
     expect(lagNote(40, false, true)).toBe("几乎和口型同步");
@@ -162,7 +164,7 @@ describe("notes", () => {
     setLang("en");
     expect(paceNote(take({ mine: [2.6, 4.05] }))).toBe("50% faster than the original");
     expect(paceNote(take({ rate: 0.85 }))).toBe("About the same pace as the original (original played at 0.85×)");
-    expect(lagNote(420)).toBe("0.42 s behind the original");
+    expect(lagNote(420)).toBe("0.42 s behind the original · close");
     expect(formatSecs(2.44)).toBe("2.4 s");
     const now = new Date(2026, 9, 14, 15, 30).getTime();
     expect(whenRecorded(now - 5 * 60_000, now)).toBe("5 min ago");

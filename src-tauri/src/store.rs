@@ -60,11 +60,17 @@ pub struct Settings {
     /// 跟读停顿 on: with a transcript, play one sentence at a time, each `sentence_repeats`
     /// times with a pause after every time (`pause_mode`). Off keeps the choices for next time.
     pub pace_on: bool,
-    /// "none", "fixed" (`pause_seconds`), "length" (`pause_ratio` × the sentence) or "wait" (until
-    /// you go on). A string like `picture_layout`: a version that doesn't know a value still reads the file.
+    /// "length" (as long as the sentence, `pause_length`), "fixed" (`pause_seconds`, 0 = none) or
+    /// "wait" (`pause_wait`). Versions before 0.17 also wrote "none", which the frontend reads as
+    /// 0 seconds. A string like `picture_layout`: a version that doesn't know a value still reads the file.
     pub pause_mode: String,
+    /// "short", "standard", "long", or "custom" (`pause_ratio`); "" in files from before the steps,
+    /// which the frontend reads from `pause_ratio` (src/lib/pace.ts).
+    pub pause_length: String,
     pub pause_seconds: f64,
     pub pause_ratio: f64,
+    /// "key" or "voice" (until you've said it).
+    pub pause_wait: String,
     /// Times each sentence plays before the next (the frontend keeps it to 1–10).
     pub sentence_repeats: u32,
     /// Keys the learner chose for the player's actions (action id → key); only those that
@@ -116,8 +122,10 @@ impl Default for Settings {
             annotations: true,
             pace_on: false,
             pause_mode: "length".into(),
+            pause_length: String::new(),
             pause_seconds: 2.0,
             pause_ratio: 1.5,
+            pause_wait: "key".into(),
             sentence_repeats: 1,
             shortcuts: Default::default(),
             media_keys: true,

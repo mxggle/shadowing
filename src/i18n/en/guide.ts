@@ -46,7 +46,7 @@ export const guide: Record<string, Entry> = {
   "没设置也能练：播放、循环和导入字幕都不需要 AI。随时可以在设置（{key}）里补上。":
     "You can practice without them: playing, looping and importing subtitles don't need AI. Set them up anytime in Settings ({key}).",
   用示例练一下: "Practice with the sample",
-  "约 1 分钟：播放、放慢、循环一句、跟读。": "About 1 min: play, slow down, loop a sentence, shadow.",
+  "约 1 分钟：播放、放慢、循环一句、每句停一下、跟读。": "About 1 min: play, slow down, loop a sentence, pause after each, shadow.",
   直接打开我的音频文件夹: "Open my audio folder…",
 
   // Onboarding steps: the Whisper model, signing in (OnboardingSteps.tsx)
@@ -149,6 +149,19 @@ export const guide: Record<string, Entry> = {
   "设置 AI（可选）": "Set up AI (optional)",
 
   // One-off tips (guideSlice.ts TIPS; keys in them are drawn as key caps, see lib/hint.ts)
+  每句停一下: "Pause after each",
+  "按 {key}，或点播放条上的「每句停」：每句放完会停一下，趁这时跟着说。停 3 次就好。":
+    "Press {key}, or click “Pause each” on the player bar: it stops after each sentence, so say it then. Three pauses will do.",
+  "想每句后自动停一下？跟读停顿会替你按暂停。": "Want it to stop after each sentence? Pause to repeat will press pause for you.",
+  "循环之间想留几秒跟着说？": "Want a few seconds between times to say it?",
+  "{toggle} 马上继续，Esc 一直等你；停多久在 ˄ 里调。": "{toggle} goes on now, Esc waits for you; set how long in ˄.",
+  "停顿有点长？": "Pause a bit long?",
+  "停顿不够？": "Pause not long enough?",
+  "能跟上了？试试藏起字幕跟。": "Keeping up? Try it with the text hidden.",
+  开启: "Turn on",
+  每遍停一下: "Pause between",
+  调短一点: "Shorter",
+  调长一点: "Longer",
   "下次可以直接按 {sentenceLoop} 循环当前句，{prev} 和 {next} 换到上一句 / 下一句。": "Next time, just press {sentenceLoop} to loop the current sentence, and {prev} or {next} to go to the previous / next one.",
   "按 {slower} 和 {faster} 也能调速度。": "You can also press {slower} and {faster} to change the speed.",
   "按 {loop} 依次设 A、设 B、取消循环。": "Press {loop} to set A, then B, then clear the loop.",

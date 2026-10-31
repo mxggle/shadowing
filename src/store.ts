@@ -3,7 +3,9 @@ import { AudioEngine } from "./audio/engine";
 import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, trackAfter, type Loop, type PlayMode } from "./audio/logic";
 import { listen } from "@tauri-apps/api/event";
 import { api, setMediaBase, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
-import { setLang, type Lang, type LangSetting } from "./lib/i18n";
+import { setLang, t, type Lang, type LangSetting } from "./lib/i18n";
+import { keymap, keyName } from "./lib/keymap";
+import { justAfterSentence, migratePace, paceActive, withPause } from "./lib/pace";
 import { playKey } from "./lib/playKey";
 import { takeTrackTime } from "./lib/takes";
 import { createAnnotateSlice, type AnnotateState } from "./annotateSlice";
@@ -135,7 +137,12 @@ export const useApp = create<AppState>((set, get) => {
     onTime: (t) => {
       if (Math.abs(t - get().time) >= 0.05) set({ time: t });
     },
-    onRepeats: (repeats) => set({ repeats }),
+    onRepeats: (repeats) => {
+      set({ repeats });
+      // Looping a sentence again and again with no room to say it.
+      const s = get();
+      if (repeats >= 3 && s.loopSentence !== null && !paceActive(s.settings)) s.nudge("loopGap", { label: t("每遍停一下"), run: () => get().setPace(withPause(get().settings)) });
+    },
     onDuration: (d) => set({ duration: Number.isFinite(d) ? d : 0 }),
     onPlaying: (playing) => {
       set({ playing });
@@ -205,6 +212,15 @@ export const useApp = create<AppState>((set, get) => {
     void api.saveSettings(get().settings);
   }
 
+  let handPauses = 0;
+  /** Pausing by hand right after sentences, a third time: 跟读停顿 could do it. */
+  function noteHandPause() {
+    const s = get();
+    if (paceActive(s.settings) || !justAfterSentence(s.transcript?.sentences ?? [], engine.time)) return;
+    if (++handPauses < 3) return;
+    s.nudge("pauseByHand", { label: t("开启"), key: keyName(keymap(s.settings.shortcuts).pace), run: () => get().setPace(withPause(get().settings)) });
+  }
+
   /** `from`: the transcript sentence or section this loop repeats, if any. */
   function applyLoop(loop: Loop, from: LoopFrom = {}) {
     engine.setLoop(loop);
@@ -216,7 +232,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, paceOn: false, pauseMode: "length", pauseSeconds: 2, pauseRatio: 1.5, sentenceRepeats: 1, shortcuts: {}, mediaKeys: true, uiLanguage: "" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, paceOn: false, pauseMode: "length", pauseLength: "standard", pauseSeconds: 2, pauseRatio: 1.5, pauseWait: "key", sentenceRepeats: 1, shortcuts: {}, mediaKeys: true, uiLanguage: "" },
     current: null,
     playing: false,
     time: 0,
@@ -256,7 +272,7 @@ export const useApp = create<AppState>((set, get) => {
         folder: snap.folder,
         missingFolder: snap.missingFolder,
         progress: snap.progress,
-        settings: snap.settings,
+        settings: migratePace(snap.settings),
         guide: snap.guide,
         ai,
         local,
@@ -371,6 +387,7 @@ export const useApp = create<AppState>((set, get) => {
         return;
       }
       if (!playable(current) || get().paceToggle()) return;
+      if (!engine.paused) noteHandPause();
       engine.toggle();
     },
 

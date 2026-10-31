@@ -133,14 +133,23 @@ export function paceNote(take: Take): string {
 /** Bluetooth earphones add a delay of their own that isn't measured. */
 export const BLUETOOTH_LAG = tk("戴蓝牙耳机时测不准晚多少");
 
-/** 边听边说: how far behind the original you were. */
+/** What the lag reads as, roughly (the bands are a guide, not a score; LAG_GUIDE says so). */
+function lagBand(ms: number): string {
+  if (ms < 500) return t("紧跟");
+  return ms < 2000 ? t("学习者常见") : t("更像听完再复述");
+}
+
+/** Shown with the lag: what the bands lean on. */
+export const LAG_GUIDE = tk("同传口译一般比说话人晚 2–4 秒。这几档只是参考。");
+
+/** 边听边说: how far behind the original you were, and what that reads as ("· 紧跟"). */
 /** `dub`: said to the picture (配音), so against the speaker's mouth. */
 export function lagNote(ms: number | null, bluetooth = false, dub = false): string {
   if (ms === null) return "";
   if (bluetooth) return t(BLUETOOTH_LAG);
   const secs = (ms / 1000).toFixed(2);
   if (dub) return ms < 80 ? t("几乎和口型同步") : t("比口型晚 {secs} 秒", { secs });
-  return ms < 80 ? t("几乎和原声同步") : t("比原声晚 {secs} 秒", { secs });
+  return ms < 80 ? t("几乎和原声同步") : `${t("比原声晚 {secs} 秒", { secs })} · ${lagBand(ms)}`;
 }
 
 /** "刚刚", "3 分钟前", "今天 14:05", "10月12日" */
