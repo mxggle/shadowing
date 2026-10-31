@@ -2,6 +2,7 @@ import { useStageWide } from "../hooks/useStageWide";
 import { t, tk } from "../lib/i18n";
 import { layoutShown } from "../lib/picture";
 import { useApp } from "../store";
+import { BookView } from "./Book";
 import { PracticeCoach } from "./guide/PracticeCoach";
 import { LoopPanel } from "./Loop";
 import { Picture } from "./Picture";
@@ -18,6 +19,7 @@ import { SideBySide, Theater } from "./VideoStage";
  * them, beside them, or on its own (VideoStage.tsx).
  */
 export function Stage() {
+  const book = useApp((s) => s.bookOpen);
   const hasTrack = useApp((s) => !!s.current);
   const unsupported = useApp((s) => s.current?.kind === "unsupported");
   const hasTranscript = useApp((s) => !!s.transcript?.sentences.length);
@@ -28,6 +30,7 @@ export function Stage() {
   const wide = useStageWide();
   const layout = picture ? layoutShown(chosen, wide) : "stack";
 
+  if (book) return <BookView />;
   if (!hasTrack) return <Empty />;
   if (unsupported) return <Unsupported />;
   if (layout === "side") return <SideBySide hasTranscript={hasTranscript} />;

@@ -2,6 +2,7 @@ import { BetweenHorizontalStart, FileUp, FoldVertical, Languages, PenLine, Play,
 import { Fragment, memo, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type RefObject } from "react";
 import type { Sentence, Suggestion } from "../lib/api";
 import { explainKey, type Explain } from "../explainSlice";
+import { sentenceFor } from "../lib/book";
 import { hideModeOf, textShown } from "../lib/hide";
 import { t } from "../lib/i18n";
 import { shortcut } from "../lib/platform";
@@ -20,6 +21,7 @@ import { MicButton, RecorderCard } from "./Recorder";
 import { ReplaceBar } from "./ReplaceBar";
 import { SentenceEditor } from "./SentenceEditor";
 import { SectionHeading, SectionMenu } from "./Sections";
+import { BookStar } from "./Book";
 import { HiddenLine, HideTextButton } from "./HideText";
 import { hasRuby, SaidText, SentenceText, UnsureCount, useAnnotation } from "./SentenceText";
 import { TakePeek } from "./TakePeek";
@@ -95,6 +97,9 @@ export function SentenceList() {
   const revealed = useApp((s) => s.revealed);
   const peeking = useApp((s) => s.peek);
   const heard = useApp((s) => s.heard);
+  // 句子本: which of these sentences are in it.
+  const book = useApp((s) => s.book);
+  const inBook = useMemo(() => new Set(book.filter((e) => e.audio === path).map((e) => sentenceFor(sentences, e))), [book, path, sentences]);
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
@@ -131,6 +136,7 @@ export function SentenceList() {
                   canSplit={i > 0 && k === undefined}
                   last={i === sentences.length - 1}
                   hidden={!textShown(hideMode, i, { active, revealed, peek: peeking, heard })}
+                  inBook={inBook.has(i)}
                 />
               </Fragment>
             );
@@ -198,7 +204,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
  * One sentence. With more than one voice (`voices`), a column names the
  * speaker where their turn starts (`turn`), like a script, and turns get a little air between them.
  */
-const Row = memo(function Row({ index, sentence, active, said, looping, editing, find, suggestions, explain, takes, recorder, peek, reading, voices, turn, opensSection, canSplit, last, hidden }: {
+const Row = memo(function Row({ index, sentence, active, said, looping, editing, find, suggestions, explain, takes, recorder, peek, reading, voices, turn, opensSection, canSplit, last, hidden, inBook }: {
   index: number;
   sentence: Sentence;
   active: boolean;
@@ -229,6 +235,8 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
   last: boolean;
   /** 藏字幕: a bar instead of the text (and no notes that give it away). */
   hidden: boolean;
+  /** In 句子本 (its star shows). */
+  inBook: boolean;
 }) {
   const key = useKeys();
   const { playSentence, toggleSentenceLoop, editSentence, toggleExplain, splitSection, mergeSentence } = useApp.getState();
@@ -345,6 +353,7 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
         >
           <Repeat size={14} strokeWidth={2.1} />
         </button>
+        <BookStar index={index} inBook={inBook} takes={takes} />
         <MicButton at={index} count={takes} />
       </span>
       {/* Under the row's actions too: in a narrow column (the picture beside it) they still have room. */}

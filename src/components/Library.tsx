@@ -7,6 +7,7 @@ import { placeDownloads } from "../lib/imports";
 import { isWindows, shortcut } from "../lib/platform";
 import { useApp } from "../store";
 import { AddMenu } from "./AddMenu";
+import { BookShelfRow } from "./Book";
 import { DownloadRow } from "./ImportLink";
 import { Button, IconButton } from "./ui";
 
@@ -150,6 +151,7 @@ function FolderView({ folder }: { folder: FolderListing }) {
           );
         })}
       </div>
+      <BookShelfRow />
     </aside>
   );
 }

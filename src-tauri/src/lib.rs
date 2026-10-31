@@ -2,6 +2,7 @@
 mod i18n;
 mod ai;
 mod audio;
+mod book;
 mod explain;
 mod guide;
 mod library;
@@ -373,6 +374,8 @@ pub fn run() {
             set_ui_language,
             log_line,
             guide::guide_save,
+            book::book_get,
+            book::book_save,
             guide::sample_track,
             ai::ai_get,
             ai::ai_choose,

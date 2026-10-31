@@ -81,7 +81,9 @@ function actions(s: State, e: KeyboardEvent): Record<Action, [() => void, FlashI
     ],
     sentenceLoop: [() => s.toggleSentenceLoop(), "sentenceLoop"],
     prevSentence: [() => s.stepSentence(-1), "prevSentence"],
-    nextSentence: [() => s.stepSentence(1), "nextSentence"],
+    // Going through 句子本, ] is 过了: on to the next one due.
+    nextSentence: [() => (s.bookOpen && s.bookAt ? s.reviewDone(true) : s.stepSentence(1)), "nextSentence"],
+    book: [() => s.toggleBook()],
     prevSection: [() => s.stepSection(-1)],
     nextSection: [() => s.stepSection(1)],
     explain: [() => s.toggleExplain()],
