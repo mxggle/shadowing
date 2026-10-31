@@ -68,9 +68,12 @@ function actions(s: State, e: KeyboardEvent): Record<Action, [() => void, FlashI
     loop: [s.cycleLoop, "loop"],
     pace: [
       () => {
+        const before = useApp.getState().hint;
         s.togglePace();
-        const on = useApp.getState().settings;
-        s.say(on.paceOn ? t("跟读停顿：开（{how}）", { how: paceLabel(on) }) : t("跟读停顿：关"), 2500);
+        const now = useApp.getState();
+        // Turned on for the first time: the tip on how to use it takes the spot.
+        if (now.hint && now.hint !== before) return;
+        s.say(now.settings.paceOn ? t("跟读停顿：开（{how}）", { how: paceLabel(now.settings) }) : t("跟读停顿：关"), 2500);
       },
       "pace",
     ],

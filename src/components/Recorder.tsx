@@ -4,7 +4,7 @@ import { isLoopActive } from "../audio/logic";
 import type { RecordMode, Take, TakePart } from "../lib/api";
 import { t, tk } from "../lib/i18n";
 import { advanceLabel, advanceOf, countOf, hintOf, readyNote, recordsAgain } from "../lib/rounds";
-import { comparePart, inTurns, lagNote, paceNote, playheadAt, takesFor, whenRecorded } from "../lib/takes";
+import { comparePart, inTurns, LAG_GUIDE, lagNote, paceNote, playheadAt, takesFor, whenRecorded } from "../lib/takes";
 import { recordTarget, type Rec, type RecordAt } from "../recordSlice";
 import { useApp } from "../store";
 import { TakeWaves } from "./TakeWaves";
@@ -238,11 +238,12 @@ function Result({ take, at, looping }: { take: Take; at: RecordAt; looping: bool
   const both: TakePart = comparePart(take);
   const toggle = (what: TakePart) => (playing?.what !== what ? void playTake(take.id, what) : playing.paused ? pausePlayingTake(false) : stopTake());
   const note = turns ? paceNote(take) : lagNote(take.lagMs, take.bluetooth, take.dub);
+  const lagged = !turns && !take.dub && !take.bluetooth && (take.lagMs ?? 0) >= 80;
   return (
     <div className="flex flex-col gap-2.5">
       <div>
         <TakeWaves take={take} head={playing ? playheadAt(playing.parts, playing.secs) : NOWHERE} onPlay={(lane) => toggle(lane)} playing={playing?.what} />
-        {note && <p className="mt-0.5 pl-[3.75rem] text-[12px] text-faint">{note}</p>}
+        {note && <p title={lagged ? t(LAG_GUIDE) : undefined} className="mt-0.5 pl-[3.75rem] text-[12px] text-faint">{note}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
         <PlayButton active={playing?.what === both} paused={playing?.paused} onClick={() => toggle(both)} title={turns ? t("从这句听下去：每句先放原句，再放你的 ({key})", { key: key("replay") }) : t("从这句听下去：原句和你的一起放，听合不合拍 ({key})", { key: key("replay") })}>

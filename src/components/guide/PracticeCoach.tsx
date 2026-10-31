@@ -6,8 +6,10 @@ import { useApp, type AppState } from "../../store";
 import { Button, IconButton, Kbd, TextLink } from "../ui";
 import { keyNow } from "../../hooks/useKeys";
 
-type TaskId = "play" | "slow" | "loop" | "shadow";
+type TaskId = "play" | "slow" | "loop" | "pace" | "shadow";
 const SHADOW_REPEATS = 3;
+/** Pauses to speak in before 跟读停顿 counts as tried. */
+const PACE_PAUSES = 3;
 
 // Titles are keys (t() where shown); `how` runs at render time, in the interface language.
 const TASKS: { id: TaskId; title: string; how: () => React.ReactNode }[] = [
@@ -18,6 +20,11 @@ const TASKS: { id: TaskId; title: string; how: () => React.ReactNode }[] = [
   },
   { id: "slow", title: tk("放慢"), how: () => withKey(t("在底部把速度调到 0.75，或按 {key}。"), keyNow("slower")) },
   { id: "loop", title: tk("循环一句"), how: () => withKey(t("鼠标移到一句上，点最右边的循环按钮，或按 {key}。"), keyNow("sentenceLoop")) },
+  {
+    id: "pace",
+    title: tk("每句停一下"),
+    how: () => withKey(t("按 {key}，或点播放条上的「每句停」：每句放完会停一下，趁这时跟着说。停 3 次就好。"), keyNow("pace")),
+  },
   { id: "shadow", title: tk("跟读"), how: () => t("跟着循环小声说出来，听满 {n} 遍。", { n: SHADOW_REPEATS }) },
 ];
 
@@ -34,11 +41,12 @@ function withKey(text: string, key: string) {
 }
 
 /**
- * Checklist above the sample's sentences: a row of four steps and how to do
+ * Checklist above the sample's sentences: a row of five steps and how to do
  * the next one. Each step ticks itself when the learner actually does it.
  */
 export function PracticeCoach() {
   const repeats = useApp((s) => (s.loopSentence !== null ? s.repeats : 0));
+  const paceSaid = useApp((s) => s.paceSaid);
   const done = useDoneTasks();
   const { endPractice } = useApp.getState();
   const next = TASKS.find((task) => !done.has(task.id));
@@ -75,6 +83,11 @@ export function PracticeCoach() {
               <div className="min-w-0">
                 <p className="flex items-baseline gap-2 text-[14px] font-medium">
                   {t(next.title)}
+                  {next.id === "pace" && paceSaid > 0 && (
+                    <span className="tabular font-mono text-[12px] font-normal text-muted">
+                      {Math.min(paceSaid, PACE_PAUSES)}/{PACE_PAUSES}
+                    </span>
+                  )}
                   {next.id === "shadow" && repeats > 0 && (
                     <span className="tabular font-mono text-[12px] font-normal text-loop-text">
                       {repeats}/{SHADOW_REPEATS}
@@ -105,6 +118,7 @@ function useDoneTasks() {
       // Any slower speed counts; someone already at the minimum has nothing to do.
       if (s.settings.rate < startRate.current - 0.001 || startRate.current <= 0.5) hits.push("slow");
       if (s.loopSentence !== null) hits.push("loop");
+      if (s.paceSaid >= PACE_PAUSES) hits.push("pace");
       if (s.loopSentence !== null && s.repeats >= SHADOW_REPEATS) hits.push("shadow");
       setDone((prev) => (hits.every((h) => prev.has(h)) ? prev : new Set([...prev, ...hits])));
     };

@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { NO_LOOP } from "../audio/logic";
 import type { Sentence } from "./api";
 import { setLang } from "./i18n";
-import { clampRatio, clampRepeats, clampSeconds, nextAfter, paceActive, paceLabel, pauseAfter, pauseModeOf, stretchAt, type PaceSettings } from "./pace";
+import { betweenPasses, clampRatio, clampRepeats, clampSeconds, justAfterSentence, longer, migratePace, nextAfter, paceActive, paceLabel, pauseAfter, pauseModeOf, shorter, stretchAt, withPause, type PaceSettings } from "./pace";
 
 afterEach(() => setLang("zh"));
 
-const pace = (s: Partial<PaceSettings> = {}): PaceSettings => ({ paceOn: true, pauseMode: "length", pauseSeconds: 2, pauseRatio: 1.5, sentenceRepeats: 1, ...s });
+const pace = (s: Partial<PaceSettings> = {}): PaceSettings => ({ paceOn: true, pauseMode: "length", pauseLength: "standard", pauseSeconds: 2, pauseRatio: 1.5, pauseWait: "key", sentenceRepeats: 1, ...s });
 const sentence = (start: number, end: number): Sentence => ({ start, end, text: "x" }) as Sentence;
 // Three sentences with silence between them: 1–3, 4–6.5, 7–9.
 const list = [sentence(1, 3), sentence(4, 6.5), sentence(7, 9)];
@@ -15,36 +15,94 @@ describe("paceActive", () => {
   it("changes playing only when on and there is a pause or more than one time", () => {
     expect(paceActive(pace())).toBe(true);
     expect(paceActive(pace({ paceOn: false }))).toBe(false);
-    expect(paceActive(pace({ pauseMode: "none" }))).toBe(false);
-    expect(paceActive(pace({ pauseMode: "none", sentenceRepeats: 3 }))).toBe(true);
+    expect(paceActive(pace({ pauseMode: "fixed", pauseSeconds: 0 }))).toBe(false);
+    expect(paceActive(pace({ pauseMode: "fixed", pauseSeconds: 0, sentenceRepeats: 3 }))).toBe(true);
+    expect(paceActive(pace({ pauseMode: "wait" }))).toBe(true);
   });
 });
 
 describe("pauseAfter", () => {
-  it("none, a fixed time, or until you go on", () => {
-    expect(pauseAfter(pace({ pauseMode: "none" }), 3, 1)).toBe(0);
+  it("a fixed time (0 is none), or until you go on", () => {
     expect(pauseAfter(pace({ pauseMode: "fixed", pauseSeconds: 2.5 }), 3, 1)).toBe(2.5);
+    expect(pauseAfter(pace({ pauseMode: "fixed", pauseSeconds: 0 }), 3, 1)).toBe(0);
     expect(pauseAfter(pace({ pauseMode: "wait" }), 3, 1)).toBeNull();
+    expect(pauseAfter(pace({ pauseMode: "wait", pauseWait: "voice" }), 3, 1)).toBeNull();
   });
 
-  it("by length: the sentence as you heard it (slowed down it's longer) × the ratio", () => {
-    expect(pauseAfter(pace({ pauseRatio: 1.5 }), 2, 1)).toBe(3);
-    expect(pauseAfter(pace({ pauseRatio: 1 }), 2, 0.5)).toBe(4);
+  it("by length, three steps: the sentence as heard × a ratio, plus a moment to start", () => {
+    expect(pauseAfter(pace({ pauseLength: "short" }), 2.8, 1)).toBe(2.6);
+    expect(pauseAfter(pace({ pauseLength: "standard" }), 2.8, 1)).toBe(3.8);
+    expect(pauseAfter(pace({ pauseLength: "long" }), 2.8, 1)).toBe(5.7);
+    // Slowed down the sentence is longer, and so is the pause.
+    expect(pauseAfter(pace(), 2, 0.5)).toBe(5);
+    // A one-second sentence still leaves two; an eight-second one doesn't make you wait twelve.
+    expect(pauseAfter(pace(), 1, 1)).toBe(2);
+    expect(pauseAfter(pace(), 8, 1)).toBe(9);
   });
 
-  it("by length: a very short sentence still leaves a second", () => {
-    expect(pauseAfter(pace({ pauseRatio: 1 }), 0.3, 1)).toBe(1);
+  it("by length, the free ratio kept from before the steps: never under a second", () => {
+    expect(pauseAfter(pace({ pauseLength: "custom", pauseRatio: 1.5 }), 2, 1)).toBe(3);
+    expect(pauseAfter(pace({ pauseLength: "custom", pauseRatio: 1 }), 0.3, 1)).toBe(1);
   });
 
-  it("an unknown mode from a newer version reads as by length", () => {
+  it("an unknown mode or step from a newer version reads as by length, 标准", () => {
     expect(pauseModeOf("later")).toBe("length");
-    expect(pauseAfter(pace({ pauseMode: "later" as never, pauseRatio: 1 }), 2, 1)).toBe(2);
+    expect(pauseAfter(pace({ pauseMode: "later" as never, pauseLength: "huge" as never }), 2, 1)).toBe(3);
+  });
+});
+
+describe("migratePace", () => {
+  it("不停 from an older version is a fixed pause of 0 seconds", () => {
+    const old = migratePace(pace({ pauseMode: "none" as never, pauseSeconds: 3, sentenceRepeats: 2 }));
+    expect([old.pauseMode, old.pauseSeconds, old.sentenceRepeats]).toEqual(["fixed", 0, 2]);
+  });
+
+  it("a ratio chosen before the steps stays; the old default becomes 标准", () => {
+    expect(migratePace(pace({ pauseLength: undefined as never, pauseRatio: 1.5 })).pauseLength).toBe("standard");
+    expect(migratePace(pace({ pauseLength: "" as never, pauseRatio: 2 })).pauseLength).toBe("custom");
+    expect(migratePace(pace({ pauseLength: "long" })).pauseLength).toBe("long");
+  });
+
+  it("waits for a key unless it says the voice", () => {
+    expect(migratePace(pace({ pauseWait: undefined as never })).pauseWait).toBe("key");
+    expect(migratePace(pace({ pauseWait: "voice" })).pauseWait).toBe("voice");
+  });
+});
+
+describe("shorter / longer", () => {
+  it("move a step, a second or a ratio step, and stop at the ends", () => {
+    expect(shorter(pace({ pauseLength: "long" }))).toEqual({ pauseLength: "standard" });
+    expect(shorter(pace({ pauseLength: "short" }))).toBeNull();
+    expect(longer(pace({ pauseLength: "standard" }))).toEqual({ pauseLength: "long" });
+    expect(longer(pace({ pauseLength: "long" }))).toBeNull();
+    expect(shorter(pace({ pauseMode: "fixed", pauseSeconds: 3 }))).toEqual({ pauseSeconds: 2 });
+    expect(shorter(pace({ pauseMode: "fixed", pauseSeconds: 1 }))).toBeNull();
+    expect(longer(pace({ pauseLength: "custom", pauseRatio: 1.5 }))).toEqual({ pauseRatio: 1.75 });
+    expect(longer(pace({ pauseMode: "wait" }))).toBeNull();
+  });
+});
+
+describe("withPause", () => {
+  it("turns it on, by length when the fixed pause is 0 seconds", () => {
+    expect(withPause(pace({ paceOn: false }))).toEqual({ paceOn: true });
+    expect(withPause(pace({ paceOn: false, pauseMode: "fixed", pauseSeconds: 0 }))).toEqual({ paceOn: true, pauseMode: "length" });
+  });
+});
+
+describe("justAfterSentence", () => {
+  it("is a moment after a sentence's end, not the middle of one", () => {
+    expect(justAfterSentence(list, 3.2)).toBe(true);
+    expect(justAfterSentence(list, 2.9)).toBe(true);
+    expect(justAfterSentence(list, 2)).toBe(false);
+    expect(justAfterSentence(list, 5)).toBe(false);
+    expect(justAfterSentence([], 3)).toBe(false);
   });
 });
 
 describe("clamps", () => {
   it("keep the numbers in range and on their steps", () => {
-    expect(clampSeconds(0)).toBe(0.5);
+    expect(clampSeconds(0)).toBe(0);
+    expect(clampSeconds(-1)).toBe(0);
     expect(clampSeconds(2.3)).toBe(2.5);
     expect(clampSeconds(99)).toBe(30);
     expect(clampRatio(1.1)).toBe(1);
@@ -117,21 +175,34 @@ describe("nextAfter", () => {
 });
 
 describe("paceLabel", () => {
-  it("says the pause, and the times when more than one", () => {
-    expect(paceLabel(pace({ pauseMode: "fixed", pauseSeconds: 2 }))).toBe("停 2 秒");
-    expect(paceLabel(pace({ pauseRatio: 1.5 }))).toBe("停 ×1.5");
-    expect(paceLabel(pace({ pauseMode: "wait", sentenceRepeats: 3 }))).toBe("等你 · 3 遍");
-    expect(paceLabel(pace({ pauseMode: "none", sentenceRepeats: 2 }))).toBe("不停 · 2 遍");
+  it("says what happens after each sentence, and the times when more than one", () => {
+    expect(paceLabel(pace({ pauseMode: "fixed", pauseSeconds: 2 }))).toBe("每句停 2 秒");
+    expect(paceLabel(pace({ pauseMode: "fixed", pauseSeconds: 1.5 }))).toBe("每句停 1.5 秒");
+    expect(paceLabel(pace())).toBe("按句长停");
+    expect(paceLabel(pace({ pauseMode: "wait", sentenceRepeats: 3 }))).toBe("每句等我 · 3 遍");
+    expect(paceLabel(pace({ pauseMode: "wait", pauseWait: "voice" }))).toBe("等我说完");
+    expect(paceLabel(pace({ pauseMode: "fixed", pauseSeconds: 0, sentenceRepeats: 2 }))).toBe("每句放 2 遍");
   });
 
   it("while it plays, which time this is", () => {
-    expect(paceLabel(pace({ pauseMode: "fixed", pauseSeconds: 2, sentenceRepeats: 3 }), 2)).toBe("停 2 秒 · 2/3");
-    expect(paceLabel(pace({ pauseMode: "fixed", pauseSeconds: 2 }), 1)).toBe("停 2 秒");
+    expect(paceLabel(pace({ pauseMode: "fixed", pauseSeconds: 2, sentenceRepeats: 3 }), 2)).toBe("每句停 2 秒 · 2/3");
+    expect(paceLabel(pace({ pauseMode: "fixed", pauseSeconds: 2 }), 1)).toBe("每句停 2 秒");
+    expect(paceLabel(pace({ pauseMode: "fixed", pauseSeconds: 0, sentenceRepeats: 3 }), 2)).toBe("每句放 3 遍 · 2/3");
   });
 
   it("in English", () => {
     setLang("en");
     expect(paceLabel(pace({ pauseMode: "fixed", pauseSeconds: 2, sentenceRepeats: 3 }))).toBe("Pause 2 s · 3×");
+    expect(paceLabel(pace())).toBe("Pause to fit");
+  });
+});
+
+describe("betweenPasses", () => {
+  it("on a sentence loop: the pause between times through, or the question when off", () => {
+    expect(betweenPasses(pace(), 2.8, 1)).toBe("每遍之间停 3.8 秒");
+    expect(betweenPasses(pace({ pauseMode: "wait" }), 2.8, 1)).toBe("每遍之间等我");
+    expect(betweenPasses(pace({ paceOn: false }), 2.8, 1)).toBe("每遍之间停一下？");
+    expect(betweenPasses(pace({ pauseMode: "fixed", pauseSeconds: 0, sentenceRepeats: 2 }), 2.8, 1)).toBe("每遍之间不停");
   });
 });
 

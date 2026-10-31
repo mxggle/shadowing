@@ -6,7 +6,8 @@
 import { isLoopActive } from "./audio/logic";
 import type { AudioEngine } from "./audio/engine";
 import type { Settings } from "./lib/api";
-import { clampRatio, clampRepeats, clampSeconds, END_MARGIN, nextAfter, paceActive, pauseAfter, pauseModeOf, stretchAt, type Next, type PaceSettings, type Stretch } from "./lib/pace";
+import { t } from "./lib/i18n";
+import { clampRatio, clampRepeats, clampSeconds, END_MARGIN, longer, nextAfter, paceActive, pauseAfter, pauseLengthOf, pauseModeOf, pauseWaitOf, shorter, stretchAt, type Next, type PaceSettings, type Stretch } from "./lib/pace";
 import { micOpen } from "./recordSlice";
 import type { AppState } from "./store";
 
@@ -21,6 +22,8 @@ export interface PaceGap {
   until: number | null;
   /** How long the whole pause is, in seconds (0 when it waits). */
   secs: number;
+  /** Waiting until you've said it: the mic listens for you to start and stop. */
+  listening?: boolean;
 }
 
 export interface PaceState {
@@ -28,6 +31,11 @@ export interface PaceState {
   pace: PaceRun | null;
   /** The pause after a time through, while it lasts. */
   paceGap: PaceGap | null;
+  /** Pauses that have ended this session (the practice checklist counts them). */
+  paceSaid: number;
+  /** The deck key's menu is open (the loop strip opens it too). */
+  paceMenu: boolean;
+  setPaceMenu(open: boolean): void;
   /** Changes the settings; any change but switching it off turns 跟读停顿 on. */
   setPace(patch: Partial<PaceSettings>): void;
   /** On / off, keeping the settings (the deck key, G). */
@@ -50,6 +58,12 @@ export interface PaceState {
   paceReset(): void;
 }
 
+/** The store's 跟读停顿 settings, for components (with useShallow). */
+export const paceSettingsOf = (s: AppState): PaceSettings => {
+  const { paceOn, pauseMode, pauseLength, pauseSeconds, pauseRatio, pauseWait, sentenceRepeats } = s.settings;
+  return { paceOn, pauseMode, pauseLength, pauseSeconds, pauseRatio, pauseWait, sentenceRepeats };
+};
+
 type Get = () => AppState;
 type Set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)) => void;
 
@@ -61,6 +75,9 @@ export function createPaceSlice(set: Set, get: Get, engine: AudioEngine, persist
   let timer = 0;
   /** What the pause leads to. */
   let after: Next | null = null;
+  /** Pauses in a row ended early by the learner, or held with Esc: a nudge to change the length. */
+  let early = 0;
+  let held = 0;
 
   const sentences = () => get().transcript?.sentences ?? [];
 
@@ -117,7 +134,12 @@ export function createPaceSlice(set: Set, get: Get, engine: AudioEngine, persist
     after = next;
     if (secs === 0) return go();
     set({ paceGap: { until: secs === null ? null : performance.now() + secs * 1000, secs: secs ?? 0 } });
-    if (secs !== null) timer = window.setTimeout(go, secs * 1000);
+    if (secs !== null)
+      timer = window.setTimeout(() => {
+        early = 0;
+        set((s) => ({ paceSaid: s.paceSaid + 1 }));
+        go();
+      }, secs * 1000);
   }
 
   /** The pause is over: what comes after it. */
@@ -140,23 +162,37 @@ export function createPaceSlice(set: Set, get: Get, engine: AudioEngine, persist
     run(stretch.wrap !== null && !isLoopActive(get().loop) ? stretch.stop : next.at);
   }
 
+  /** Offers a pause that fits better, once the learner has shown it three times in a row. */
+  function suggest(id: "paceShorter" | "paceLonger", label: string, patch: Partial<PaceSettings> | null) {
+    if (patch) get().nudge(id, { label, run: () => get().setPace(patch) });
+  }
+
   return {
     pace: null,
     paceGap: null,
+    paceSaid: 0,
+    paceMenu: false,
+
+    setPaceMenu(paceMenu) {
+      set({ paceMenu });
+    },
 
     setPace(patch) {
       const before = paceActive(get().settings);
       const clean: Partial<Settings> = {};
       if (patch.paceOn !== undefined) clean.paceOn = patch.paceOn;
       if (patch.pauseMode !== undefined) clean.pauseMode = pauseModeOf(patch.pauseMode);
+      if (patch.pauseLength !== undefined) clean.pauseLength = pauseLengthOf(patch.pauseLength);
       if (patch.pauseSeconds !== undefined) clean.pauseSeconds = clampSeconds(patch.pauseSeconds);
       if (patch.pauseRatio !== undefined) clean.pauseRatio = clampRatio(patch.pauseRatio);
+      if (patch.pauseWait !== undefined) clean.pauseWait = pauseWaitOf(patch.pauseWait);
       if (patch.sentenceRepeats !== undefined) clean.sentenceRepeats = clampRepeats(patch.sentenceRepeats);
       // Choosing how it pauses means wanting it.
       if (patch.paceOn === undefined) clean.paceOn = true;
       persistSettings(clean);
       const now = paceActive(get().settings);
       if (now === before) return;
+      if (now) get().nudge("paceFirst");
       if (now) {
         if (!engine.paused && free()) resume();
         return;
@@ -204,7 +240,14 @@ export function createPaceSlice(set: Set, get: Get, engine: AudioEngine, persist
     },
 
     paceGoOn() {
-      if (get().paceGap) go();
+      const gap = get().paceGap;
+      if (!gap) return;
+      set((s) => ({ paceSaid: s.paceSaid + 1 }));
+      if (gap.until !== null) {
+        held = 0;
+        if (++early >= 3) suggest("paceShorter", t("调短一点"), shorter(get().settings));
+      }
+      go();
     },
 
     paceHold() {
@@ -213,6 +256,8 @@ export function createPaceSlice(set: Set, get: Get, engine: AudioEngine, persist
       if (gap.until === null) return false; // already waiting: Esc does what it always did
       window.clearTimeout(timer);
       set({ paceGap: { until: null, secs: 0 } });
+      early = 0;
+      if (++held >= 3) suggest("paceLonger", t("调长一点"), longer(get().settings));
       return true;
     },
 

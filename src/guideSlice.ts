@@ -28,7 +28,31 @@ function tipKeys(shortcuts: Record<string, string>) {
 }
 export type TipId = keyof typeof TIPS;
 
+/**
+ * Shown once each, at the moment the learner seems to want something the app can do, with a
+ * button that does it (most of them): pausing by hand right after sentences, looping a sentence
+ * with no gap to speak in, going on early or holding every pause.
+ */
+export const NUDGES = {
+  pauseByHand: tk("想每句后自动停一下？跟读停顿会替你按暂停。"),
+  loopGap: tk("循环之间想留几秒跟着说？"),
+  paceFirst: tk("{toggle} 马上继续，Esc 一直等你；停多久在 ˄ 里调。"),
+  paceShorter: tk("停顿有点长？"),
+  paceLonger: tk("停顿不够？"),
+  hideText: tk("能跟上了？试试藏起字幕跟。"),
+} as const;
+export type NudgeId = keyof typeof NUDGES;
+
+/** A tip's button: what it says (and the key that does the same), and what it does. */
+export interface HintAction {
+  label: string;
+  key?: string;
+  run(): void;
+}
+
 const HINT_MS = 6000;
+/** A nudge asks something, so it stays a little longer. */
+const NUDGE_MS = 10000;
 
 export interface GuideState {
   guide: Guide;
@@ -38,6 +62,8 @@ export interface GuideState {
   wizardOpen: boolean;
   /** A tip currently on screen. */
   hint: string | null;
+  /** Its button, for a nudge that has one. */
+  hintAction: HintAction | null;
 
   saveGuide(patch: Partial<Guide>): void;
   /** Opens the sample for the learning language and shows the practice checklist. */
@@ -46,6 +72,8 @@ export interface GuideState {
   endPractice(): void;
   setWizardOpen(open: boolean): void;
   tip(id: TipId): void;
+  /** A nudge, once ever and at most one a session; never over a recording or a countdown. */
+  nudge(id: NudgeId, action?: HintAction): void;
   /** Shows a short message in the same place as tips, for a few seconds (`ms`). */
   say(text: string, ms?: number): void;
   dismissHint(): void;
@@ -56,6 +84,7 @@ type Set = (patch: Partial<AppState>) => void;
 
 export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): GuideState {
   let hintTimer = 0;
+  let nudged = false;
 
   return {
     guide: { welcomed: false, language: "", practiced: false, tips: [], seenVersion: "" },
@@ -63,6 +92,7 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
     practicing: false,
     wizardOpen: false,
     hint: null,
+    hintAction: null,
 
     saveGuide(patch) {
       const guide = { ...get().guide, ...patch };
@@ -108,15 +138,24 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
       get().say(t(TIPS[id], tipKeys(get().settings.shortcuts)));
     },
 
+    nudge(id, action) {
+      const s = get();
+      if (nudged || s.guide.tips.includes(id) || s.hint || s.rec || s.live || s.drill || (s.paceGap && s.paceGap.until !== null)) return;
+      nudged = true;
+      s.saveGuide({ tips: [...s.guide.tips, id] });
+      s.say(t(NUDGES[id], { toggle: keyName(keymap(s.settings.shortcuts).toggle) }), NUDGE_MS);
+      if (action) set({ hintAction: action });
+    },
+
     say(text, ms = HINT_MS) {
-      set({ hint: text });
+      set({ hint: text, hintAction: null });
       window.clearTimeout(hintTimer);
-      hintTimer = window.setTimeout(() => set({ hint: null }), ms);
+      hintTimer = window.setTimeout(() => set({ hint: null, hintAction: null }), ms);
     },
 
     dismissHint() {
       window.clearTimeout(hintTimer);
-      set({ hint: null });
+      set({ hint: null, hintAction: null });
     },
   };
 }

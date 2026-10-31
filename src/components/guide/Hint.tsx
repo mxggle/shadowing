@@ -3,9 +3,10 @@ import { hintPieces } from "../../lib/hint";
 import { t } from "../../lib/i18n";
 import { useApp } from "../../store";
 
-/** One-off tip floating just above the deck (see `tip()` in guideSlice). */
+/** One-off tip floating just above the deck (see `tip()` and `nudge()` in guideSlice), with a button for a nudge that has one. */
 export function Hint() {
   const hint = useApp((s) => s.hint);
+  const action = useApp((s) => s.hintAction);
   if (!hint) return null;
   return (
     <div className="relative h-0">
@@ -24,6 +25,18 @@ export function Hint() {
             ),
           )}
         </span>
+        {action && (
+          <button
+            onClick={() => {
+              action.run();
+              useApp.getState().dismissHint();
+            }}
+            className="flex h-[26px] shrink-0 items-center gap-1 rounded-[7px] bg-on-ink/15 px-2.5 text-[12px] font-medium whitespace-nowrap transition-[background-color,scale] duration-150 hover:bg-on-ink/25 active:scale-[0.96]"
+          >
+            {action.label}
+            {action.key && <kbd className="inline-grid h-[18px] min-w-[18px] place-items-center rounded-[4px] bg-on-ink/15 px-1 font-sans text-[11px] font-medium">{action.key}</kbd>}
+          </button>
+        )}
         <button
           title={t("知道了")}
           onClick={() => useApp.getState().dismissHint()}

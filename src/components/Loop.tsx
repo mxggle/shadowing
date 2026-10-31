@@ -1,8 +1,11 @@
-import { X } from "lucide-react";
+import { ChevronDown, Hourglass, X } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { t } from "../lib/i18n";
+import { betweenPasses, paceActive, withPause } from "../lib/pace";
 import { formatPrecise } from "../lib/time";
 import { sectionName, sectionsOf } from "../lib/sections";
+import { paceSettingsOf } from "../paceSlice";
 import { useApp } from "../store";
 import { takesFor } from "../lib/takes";
 import { MicButton, RecorderCard } from "./Recorder";
@@ -179,6 +182,7 @@ export function LoopStrip() {
       )}
       <span className="ml-auto flex min-w-0 items-center gap-1">
         {phase === "active" && <PassInfo className="truncate text-[11px]" />}
+        {phase === "active" && loopSentence !== null && <LoopPace />}
         <IconButton title={t("取消循环 (Esc)")} onClick={clearLoop}>
           <X />
         </IconButton>
@@ -196,5 +200,34 @@ function Boundary({ label, value, onNudge }: { label: string; value: number; onN
       <span className="tabular font-mono text-[12px]">{formatPrecise(value)}</span>
       {onNudge && <Nudge small label={label} d={0.1} onNudge={onNudge} />}
     </span>
+  );
+}
+
+/**
+ * On a sentence loop, the pause between times through (跟读停顿 in a loop): "每遍之间停 3.8 秒",
+ * opening the deck key's menu; off, the question, which turns it on.
+ */
+function LoopPace() {
+  const pace = useApp(useShallow(paceSettingsOf));
+  const rate = useApp((s) => s.settings.rate);
+  const length = useApp((s) => (s.loop.a !== null && s.loop.b !== null ? s.loop.b - s.loop.a : 0));
+  const open = useApp((s) => s.paceMenu);
+  const on = paceActive(pace);
+  const { setPace, setPaceMenu } = useApp.getState();
+  return (
+    <>
+      <span className="mx-1 hidden h-3.5 w-px shrink-0 bg-line-strong @[640px]:block" />
+      <button
+        title={on ? t("跟读停顿的设置") : t("跟读停顿：每遍放完停一下，留时间给你说")}
+        // The menu closes on a click outside the deck key; this one toggles it instead.
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => (on ? setPaceMenu(!open) : setPace(withPause(pace)))}
+        className={`hidden h-[26px] shrink-0 items-center gap-1.5 rounded-[7px] pr-1.5 pl-2 text-[12px] whitespace-nowrap transition-colors duration-150 hover:bg-hover hover:text-fg @[640px]:flex ${on ? "text-fg" : "text-muted"}`}
+      >
+        <Hourglass size={12} strokeWidth={2} aria-hidden className={on ? "" : "opacity-70"} />
+        {betweenPasses(pace, length, rate)}
+        {on && <ChevronDown size={11} strokeWidth={2} aria-hidden className="text-muted" />}
+      </button>
+    </>
   );
 }
