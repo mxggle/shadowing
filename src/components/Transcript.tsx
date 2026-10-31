@@ -2,6 +2,7 @@ import { BetweenHorizontalStart, FileUp, FoldVertical, Languages, PenLine, Play,
 import { Fragment, memo, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type RefObject } from "react";
 import type { Sentence, Suggestion } from "../lib/api";
 import { explainKey, type Explain } from "../explainSlice";
+import { hideModeOf, textShown } from "../lib/hide";
 import { t } from "../lib/i18n";
 import { shortcut } from "../lib/platform";
 import { sectionIndexOf, sectionsOf } from "../lib/sections";
@@ -19,6 +20,7 @@ import { MicButton, RecorderCard } from "./Recorder";
 import { ReplaceBar } from "./ReplaceBar";
 import { SentenceEditor } from "./SentenceEditor";
 import { SectionHeading, SectionMenu } from "./Sections";
+import { HiddenLine, HideTextButton } from "./HideText";
 import { hasRuby, SaidText, SentenceText, UnsureCount, useAnnotation } from "./SentenceText";
 import { TakePeek } from "./TakePeek";
 import { IconButton } from "./ui";
@@ -88,6 +90,11 @@ export function SentenceList() {
   const lightUp = useApp(
     (s) => s.settings.wordHighlight && !s.playingTake && !s.playingReading && !(s.live?.mode === "read" && s.live.phase === "reading"),
   );
+  // 藏字幕: everything shows while looking something up or reading a paragraph out (you read it then).
+  const hideMode = useApp((s) => (s.live || find ? "show" : hideModeOf(s.settings.hideText)));
+  const revealed = useApp((s) => s.revealed);
+  const peeking = useApp((s) => s.peek);
+  const heard = useApp((s) => s.heard);
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
@@ -123,6 +130,7 @@ export function SentenceList() {
                   opensSection={headed && k !== undefined}
                   canSplit={i > 0 && k === undefined}
                   last={i === sentences.length - 1}
+                  hidden={!textShown(hideMode, i, { active, revealed, peek: peeking, heard })}
                 />
               </Fragment>
             );
@@ -162,7 +170,8 @@ function Header({ scrolled }: { scrolled: boolean }) {
           <UnsureCount />
         </p>
         <SectionMenu />
-        <span className="ml-auto flex shrink-0 gap-0.5">
+        <span className="ml-auto flex shrink-0 items-center gap-0.5">
+          <HideTextButton />
           <IconButton title={t("查找和替换 ({key})", { key: shortcut("⌘F") })} active={replacing} onClick={() => (replacing ? closeReplace() : openReplace())}>
             <Replace />
           </IconButton>
@@ -189,7 +198,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
  * One sentence. With more than one voice (`voices`), a column names the
  * speaker where their turn starts (`turn`), like a script, and turns get a little air between them.
  */
-const Row = memo(function Row({ index, sentence, active, said, looping, editing, find, suggestions, explain, takes, recorder, peek, reading, voices, turn, opensSection, canSplit, last }: {
+const Row = memo(function Row({ index, sentence, active, said, looping, editing, find, suggestions, explain, takes, recorder, peek, reading, voices, turn, opensSection, canSplit, last, hidden }: {
   index: number;
   sentence: Sentence;
   active: boolean;
@@ -218,6 +227,8 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
   canSplit: boolean;
   /** The last sentence: nothing after it to join. */
   last: boolean;
+  /** 藏字幕: a bar instead of the text (and no notes that give it away). */
+  hidden: boolean;
 }) {
   const key = useKeys();
   const { playSentence, toggleSentenceLoop, editSentence, toggleExplain, splitSection, mergeSentence } = useApp.getState();
@@ -268,6 +279,8 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
       <div className="min-w-0">
         {editing ? (
           <SentenceEditor />
+        ) : hidden ? (
+          <HiddenLine index={index} text={sentence.text} start={sentence.start} end={sentence.end} active={active} />
         ) : (
           <p
             className={`cursor-text font-script text-[18px] ${ruby ? "leading-[40px]" : "leading-[30px]"} break-words select-text transition-colors duration-200 ${
@@ -282,12 +295,13 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
           </p>
         )}
         {!editing &&
+          !hidden &&
           annotation?.below?.map((line, i) => (
             <p key={i} className="mt-0.5 mb-1 text-[13px] leading-relaxed break-words text-faint select-text">
               {line}
             </p>
           ))}
-        {suggestions?.map((s) => <SuggestionNote key={`${s.from}→${s.to}`} suggestion={s} />)}
+        {!hidden && suggestions?.map((s) => <SuggestionNote key={`${s.from}→${s.to}`} suggestion={s} />)}
         {takes > 0 && !recorder && !editing && <TakePeek sentence={sentence} open={peek} />}
       </div>
       <span className="flex h-[30px] items-center">
@@ -334,9 +348,9 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
         <MicButton at={index} count={takes} />
       </span>
       {/* Under the row's actions too: in a narrow column (the picture beside it) they still have room. */}
-      {(explain?.open || recorder) && (
+      {((explain?.open && !hidden) || recorder) && (
         <div className={`min-w-0 ${voices ? "col-[3/-1]" : "col-[2/-1]"}`}>
-          {explain?.open && <ExplainNote index={index} entry={explain} />}
+          {explain?.open && !hidden && <ExplainNote index={index} entry={explain} />}
           {recorder && <RecorderCard at={index} />}
         </div>
       )}

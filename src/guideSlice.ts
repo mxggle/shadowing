@@ -4,7 +4,9 @@ import type { AudioEngine } from "./audio/engine";
 import { NO_LOOP } from "./audio/logic";
 import { api, type Guide, type Track } from "./lib/api";
 import { t, tk } from "./lib/i18n";
+import { hideHowOf, hideModeOf } from "./lib/hide";
 import { keymap, keyName } from "./lib/keymap";
+import { paceActive, withPause } from "./lib/pace";
 import type { AppState } from "./store";
 
 /** Shown once each, when the learner uses the mouse for something that has a key. */
@@ -74,6 +76,8 @@ export interface GuideState {
   tip(id: TipId): void;
   /** A nudge, once ever and at most one a session; never over a recording or a countdown. */
   nudge(id: NudgeId, action?: HintAction): void;
+  /** A loop went round again: three times with no room to speak, or with the text still there, a nudge. */
+  notePass(): void;
   /** Shows a short message in the same place as tips, for a few seconds (`ms`). */
   say(text: string, ms?: number): void;
   dismissHint(): void;
@@ -145,6 +149,16 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
       s.saveGuide({ tips: [...s.guide.tips, id] });
       s.say(t(NUDGES[id], { toggle: keyName(keymap(s.settings.shortcuts).toggle) }), NUDGE_MS);
       if (action) set({ hintAction: action });
+    },
+
+    notePass() {
+      const s = get();
+      if (s.repeats < 3) return;
+      const keys = keymap(s.settings.shortcuts);
+      if (s.loopSentence !== null && !paceActive(s.settings))
+        s.nudge("loopGap", { label: t("每遍停一下"), run: () => get().setPace(withPause(get().settings)) });
+      else if (hideModeOf(s.settings.hideText) === "show")
+        s.nudge("hideText", { label: t("藏字幕"), key: keyName(keys.hideText), run: () => get().setHideText(hideHowOf(get().settings.hideHow)) });
     },
 
     say(text, ms = HINT_MS) {

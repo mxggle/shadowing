@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { PlayMode } from "../audio/logic";
 import type { Lang, LangSetting } from "./i18n";
 import type { NowPlaying } from "./mediaKeys";
+import type { HideHow, HideMode } from "./hide";
 import type { PauseLength, PauseMode, PauseWait } from "./pace";
 
 /** Audio; a video (the engine plays its sound, a `<video>` its picture); or a video the app can't play (WebM, MKV), listed to say why. */
@@ -82,6 +83,10 @@ export interface Settings {
   pauseWait: PauseWait;
   /** Times each sentence plays before the next (1–10). */
   sentenceRepeats: number;
+  /** 藏字幕: the sentences' text shown, hidden, or shown once each has played (lib/hide.ts). */
+  hideText: HideMode;
+  /** The way to hide that H goes back to. */
+  hideHow: HideHow;
   /** Keys the learner chose (action → key), only those that differ from the defaults (lib/keymap.ts). */
   shortcuts: Record<string, string>;
   /** 媒体键: the keyboard's ⏯ ⏮ ⏭ and a headset's buttons work the player (lib/mediaKeys.ts). */

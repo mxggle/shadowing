@@ -118,9 +118,25 @@ export const player: Record<string, Entry> = {
   不遮: "Off",
   遮住: "On",
   "视频：画面在上 / 并排 / 影院": "Video: picture above / side by side / theater",
-  "这一句藏起来了：不看字幕，只听着跟读": "Line hidden: shadow by ear, without reading",
-  显示这一句: "Show the line",
-  "藏起这一句（不看字幕跟读）": "Hide the line (shadow without reading)",
+  "字幕藏起来了：只听着跟读，按住 {key} 偷看": "Text hidden: shadow by ear; hold {key} to peek",
+
+  // 藏字幕 (the sentence list and the theater)
+  藏字幕: "Hide text",
+  听完再看: "Show after",
+  "显示字幕 ({key})": "Show the text ({key})",
+  "藏字幕：不看原文，只听着跟读（按住 {key} 偷看正在放的一句）": "Hide the text: shadow by ear, without reading (hold {key} to peek at the sentence playing)",
+  怎么藏: "How to hide",
+  藏起: "Hide",
+  "和平常一样。": "As usual.",
+  "每句换成和句子一样长的灰条。点一句只看这一句，放到别的句子时又藏起来。":
+    "Each sentence becomes a grey bar as long as it is. Click one to see just that one; it hides again once the track moves on.",
+  "每句放完一遍才显示。开着跟读停顿时，停下来就能看到。": "Each sentence shows once it has played through. With pause to repeat on, you see it in the pause.",
+  "按一下：显示 / 藏起": "Press: show / hide",
+  "按住：偷看正在放的一句": "Hold: peek at the sentence playing",
+  点一下只看这一句: "Click to see just this one",
+  "藏起的句子，点一下只看这一句": "Hidden sentence; click to see just this one",
+  "藏字幕：显示 / 藏起（按住偷看）": "Hide text: show / hide (hold to peek)",
+  "藏字幕：显示 / 藏起；按住偷看": "Hide text: show / hide; hold to peek",
 
   // Sentence list
   "[ ] 换句，S 循环本句 · {origin}": "[ ] previous / next sentence, S loops it · {origin}",

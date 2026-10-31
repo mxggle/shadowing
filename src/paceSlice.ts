@@ -150,7 +150,10 @@ export function createPaceSlice(set: Set, get: Get, engine: AudioEngine, persist
     if (!next || !was || !free()) return;
     const { stretch, pass } = was;
     // The loop's "第 n 遍" counts its times through, as the engine's own wraps do.
-    if (stretch.wrap !== null && isLoopActive(get().loop) && next.kind !== "end") set((s) => ({ repeats: s.repeats + 1 }));
+    if (stretch.wrap !== null && isLoopActive(get().loop) && next.kind !== "end") {
+      set((s) => ({ repeats: s.repeats + 1 }));
+      get().notePass();
+    }
     if (next.kind === "again") return run(stretch.from, pass + 1);
     if (next.kind === "end") {
       armed = null;
