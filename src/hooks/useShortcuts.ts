@@ -3,7 +3,7 @@ import { nextPlayMode, RATE_STEP } from "../audio/logic";
 import { copyText } from "../lib/clipboard";
 import { isTypingTarget } from "../lib/focus";
 import { t } from "../lib/i18n";
-import { actionFor, keymap, pressOf, REPEATING, unshifted, type Action } from "../lib/keymap";
+import { actionFor, keymap, keyOf, pressOf, REPEATING, unshifted, type Action } from "../lib/keymap";
 import { paceLabel } from "../lib/pace";
 import { isBrowserKey, isMod } from "../lib/platform";
 import { sentenceIndexAt } from "../lib/sentences";
@@ -66,6 +66,8 @@ function actions(s: State, e: KeyboardEvent): Record<Action, [() => void, FlashI
     playMode: [() => s.setPlayMode(nextPlayMode(s.settings.playMode)), "playMode"],
     picture: [s.cyclePictureLayout],
     loop: [s.cycleLoop, "loop"],
+    // A press shows or hides the text; held, it peeks at the sentence playing (on key up: hideKeyUp).
+    hideText: [() => s.hideKeyDown()],
     pace: [
       () => {
         const before = useApp.getState().hint;
@@ -152,11 +154,21 @@ export function useShortcuts() {
     const onBrowserKey = (e: KeyboardEvent) => {
       if (import.meta.env.PROD && isBrowserKey(e)) e.preventDefault();
     };
+    // 藏字幕's key acts on release: a press toggles, holding it peeks (by its letter, whatever else is let go first).
+    const onKeyUp = (e: KeyboardEvent) => {
+      const held = keymap(useApp.getState().settings.shortcuts).hideText;
+      if (held && keyOf(e) === held.split("+").pop()) useApp.getState().hideKeyUp();
+    };
+    const onBlur = () => useApp.getState().hideKeyUp(false);
     window.addEventListener("keydown", onBrowserKey, true);
     window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
     return () => {
       window.removeEventListener("keydown", onBrowserKey, true);
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
     };
   }, []);
 }

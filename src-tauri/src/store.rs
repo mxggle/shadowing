@@ -73,6 +73,10 @@ pub struct Settings {
     pub pause_wait: String,
     /// Times each sentence plays before the next (the frontend keeps it to 1–10).
     pub sentence_repeats: u32,
+    /// 藏字幕: "show", "hide" (each sentence a bar) or "after" (shown once it has played).
+    pub hide_text: String,
+    /// The way to hide that H goes back to: "hide" or "after".
+    pub hide_how: String,
     /// Keys the learner chose for the player's actions (action id → key); only those that
     /// differ from the defaults (src/lib/keymap.ts).
     pub shortcuts: std::collections::BTreeMap<String, String>,
@@ -127,6 +131,8 @@ impl Default for Settings {
             pause_ratio: 1.5,
             pause_wait: "key".into(),
             sentence_repeats: 1,
+            hide_text: "show".into(),
+            hide_how: "hide".into(),
             shortcuts: Default::default(),
             media_keys: true,
             ui_language: String::new(),

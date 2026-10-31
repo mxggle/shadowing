@@ -1,4 +1,6 @@
 import { Eye, EyeOff } from "lucide-react";
+import { useKeys } from "../hooks/useKeys";
+import { hideModeOf, textShown } from "../lib/hide";
 import { t } from "../lib/i18n";
 import { sentenceIndexAt } from "../lib/sentences";
 import { formatTime } from "../lib/time";
@@ -40,7 +42,7 @@ export function SideBySide({ hasTranscript }: { hasTranscript: boolean }) {
 
 /**
  * 影院: the picture as large as it goes, the sentence being said under it and the
- * next one faint; the line can be hidden to shadow without reading.
+ * next one faint; 藏字幕 (H) hides it, as it does the sentence list.
  */
 export function Theater({ hasTranscript }: { hasTranscript: boolean }) {
   return (
@@ -58,8 +60,8 @@ function CurrentLine({ big = false }: { big?: boolean }) {
   const sentences = useApp((s) => s.transcript?.sentences ?? []);
   const index = useApp((s) => (s.transcript ? sentenceIndexAt(s.transcript.sentences, s.time) : -1));
   const lit = useApp((s) => s.settings.wordHighlight && !s.playingTake && !s.playingReading);
-  const hidden = useApp((s) => big && s.lineHidden);
-  const toggleHidden = useApp((s) => s.toggleLineHidden);
+  const hidden = useApp((s) => big && !textShown(hideModeOf(s.settings.hideText), index, { active: index, revealed: s.revealed, peek: s.peek, heard: s.heard }));
+  const key = useKeys()("hideText");
   const sentence = sentences[index];
   const next = sentences[index + 1];
   const text = sentence && (lit ? <SaidText sentence={sentence} find="" /> : <SentenceText text={sentence.text} find="" />);
@@ -81,7 +83,7 @@ function CurrentLine({ big = false }: { big?: boolean }) {
   return (
     <div className="relative mx-auto mt-4 min-h-[66px] w-full max-w-[920px] shrink-0 px-11 text-center">
       {hidden ? (
-        <p className="pt-2 text-[13px] text-faint">{t("这一句藏起来了：不看字幕，只听着跟读")}</p>
+        <p className="pt-2 text-[13px] text-faint">{t("字幕藏起来了：只听着跟读，按住 {key} 偷看", { key })}</p>
       ) : (
         sentence && (
           <>
@@ -90,7 +92,12 @@ function CurrentLine({ big = false }: { big?: boolean }) {
           </>
         )
       )}
-      <IconButton title={hidden ? t("显示这一句") : t("藏起这一句（不看字幕跟读）")} aria-pressed={hidden} onClick={toggleHidden} className="absolute top-1 right-0">
+      <IconButton
+        title={hidden ? t("显示字幕 ({key})", { key }) : t("藏字幕：不看原文，只听着跟读（按住 {key} 偷看正在放的一句）", { key })}
+        aria-pressed={hidden}
+        onClick={() => useApp.getState().toggleHideText()}
+        className="absolute top-1 right-0"
+      >
         {hidden ? <Eye /> : <EyeOff />}
       </IconButton>
     </div>

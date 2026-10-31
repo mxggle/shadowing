@@ -13,6 +13,7 @@ import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createDrillSlice, type DrillState } from "./drillSlice";
 import { createExplainSlice, type ExplainState } from "./explainSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
+import { createHideSlice, type HideState } from "./hideSlice";
 import { createImportSlice, type ImportState } from "./importSlice";
 import { createPracticeSlice, type PracticeState } from "./practiceSlice";
 import { createPaceSlice, type PaceState } from "./paceSlice";
@@ -24,7 +25,7 @@ import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./tr
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 import { createVideoSlice, type VideoState } from "./videoSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState, PaceState {
+export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState, PaceState, HideState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -135,13 +136,14 @@ let lastSaved = { path: "", position: -1 };
 export const useApp = create<AppState>((set, get) => {
   const engine = new AudioEngine({
     onTime: (t) => {
-      if (Math.abs(t - get().time) >= 0.05) set({ time: t });
+      const was = get().time;
+      if (Math.abs(t - was) < 0.05) return;
+      get().noteHeard(was, t);
+      set({ time: t });
     },
     onRepeats: (repeats) => {
       set({ repeats });
-      // Looping a sentence again and again with no room to say it.
-      const s = get();
-      if (repeats >= 3 && s.loopSentence !== null && !paceActive(s.settings)) s.nudge("loopGap", { label: t("每遍停一下"), run: () => get().setPace(withPause(get().settings)) });
+      get().notePass();
     },
     onDuration: (d) => set({ duration: Number.isFinite(d) ? d : 0 }),
     onPlaying: (playing) => {
@@ -232,7 +234,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, paceOn: false, pauseMode: "length", pauseLength: "standard", pauseSeconds: 2, pauseRatio: 1.5, pauseWait: "key", sentenceRepeats: 1, shortcuts: {}, mediaKeys: true, uiLanguage: "" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, paceOn: false, pauseMode: "length", pauseLength: "standard", pauseSeconds: 2, pauseRatio: 1.5, pauseWait: "key", sentenceRepeats: 1, hideText: "show", hideHow: "hide", shortcuts: {}, mediaKeys: true, uiLanguage: "" },
     current: null,
     playing: false,
     time: 0,
@@ -261,6 +263,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createVideoSlice(set, get, persistSettings),
     ...createAnnotateSlice(set, get),
     ...createPaceSlice(set, get, engine, persistSettings),
+    ...createHideSlice(set, get, persistSettings),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
@@ -344,6 +347,7 @@ export const useApp = create<AppState>((set, get) => {
     open(track, autoplay = true) {
       saveProgress(true);
       get().paceReset();
+      get().hideReset();
       get().cancelTake();
       get().stopTake();
       get().cancelReading();
@@ -357,7 +361,7 @@ export const useApp = create<AppState>((set, get) => {
         return;
       }
       const start = resumePosition(get().progress[track.path]);
-      set({ pictureLook: "loading", lineHidden: false });
+      set({ pictureLook: "loading" });
       set({ rec: null, live: null, current: track, time: start, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, trackMs: 0 });
       void get().refreshToday();
       void get().loadTranscript(track.path);

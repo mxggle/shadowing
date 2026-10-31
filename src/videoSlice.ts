@@ -16,8 +16,6 @@ export type PictureLook = "loading" | "shown" | "none" | "failed";
 export interface VideoState {
   /** What the current video's picture turned out to be; the layouts need one that's shown. */
   pictureLook: PictureLook;
-  /** 影院: the line under the picture hidden, to shadow without reading. Not kept. */
-  lineHidden: boolean;
   /** The picture's height, dragged with the bar under it; kept between launches. */
   setPictureHeight(px: number): void;
   setPictureLayout(layout: PictureLayout): void;
@@ -27,7 +25,6 @@ export interface VideoState {
   setMaskBand(band: [number, number]): void;
   setPictureHidden(hidden: boolean): void;
   setPictureLook(look: PictureLook): void;
-  toggleLineHidden(): void;
 }
 
 type Get = () => AppState;
@@ -36,7 +33,6 @@ type Set = (patch: Partial<AppState>) => void;
 export function createVideoSlice(set: Set, get: Get, persistSettings: (patch: Partial<Settings>) => void): VideoState {
   return {
     pictureLook: "loading",
-    lineHidden: false,
     setPictureHeight(px) {
       persistSettings({ pictureHeight: clampPicture(px) });
     },
@@ -60,9 +56,6 @@ export function createVideoSlice(set: Set, get: Get, persistSettings: (patch: Pa
     },
     setPictureLook(pictureLook) {
       if (pictureLook !== get().pictureLook) set({ pictureLook });
-    },
-    toggleLineHidden() {
-      set({ lineHidden: !get().lineHidden });
     },
   };
 }
