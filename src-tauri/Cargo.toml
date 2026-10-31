@@ -49,6 +49,10 @@ tauri-plugin-updater = { version = "2", default-features = false, features = ["n
 # Interface language (src/i18n.rs): the Mac's preferred languages, read before the window opens
 # (the native menu is built in Rust). Small, no dependencies on macOS.
 sys-locale = "0.3"
+# Subtitle files saved in older encodings (src/subtitles.rs): Shift_JIS, GBK, Big5, Windows-1252…
+# chardetng is Firefox's detector for such text, by the author of encoding_rs (already in the tree via symphonia).
+chardetng = "1.0"
+encoding_rs = "0.8"
 
 # Which microphone records (src/record/devices.rs): opening AirPods' mic switches them to call
 # quality, so with a Bluetooth headset the Mac's own mic is used. Both already in the tree via cpal.

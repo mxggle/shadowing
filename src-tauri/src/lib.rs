@@ -9,6 +9,7 @@ mod folders;
 mod guide;
 mod library;
 mod local;
+mod lrc;
 mod media;
 mod nowplaying;
 mod plugins;

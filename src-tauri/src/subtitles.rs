@@ -1,11 +1,14 @@
 //! SRT / WebVTT parsing into timed sentences. Both formats share the
 //! `start --> end` cue line, so one forgiving line scanner reads either.
+//! LRC files are read in lrc.rs; `decode` turns any of them into text.
 
 use crate::transcript::Sentence;
+use chardetng::{EncodingDetector, Iso2022JpDetection, Utf8Detection};
 
-/// Subtitle bytes as text: UTF-8 (with or without BOM) or UTF-16 with a BOM.
-pub fn decode(bytes: &[u8]) -> Result<String, String> {
-    let text = if let Some(rest) = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]) {
+/// Subtitle bytes as text: UTF-8 (with or without BOM), UTF-16 with a BOM, or the
+/// older encoding the bytes look like (Shift_JIS, GBK, Big5, Windows-1252…).
+pub fn decode(bytes: &[u8]) -> String {
+    let unicode = if let Some(rest) = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]) {
         String::from_utf8(rest.to_vec()).ok()
     } else if let Some(rest) = bytes.strip_prefix(&[0xFF, 0xFE]) {
         utf16(rest, u16::from_le_bytes)
@@ -14,12 +17,11 @@ pub fn decode(bytes: &[u8]) -> Result<String, String> {
     } else {
         String::from_utf8(bytes.to_vec()).ok()
     };
-    text.ok_or_else(|| {
-        crate::i18n::pick(
-            "字幕文件不是 UTF-8 编码，请先另存为 UTF-8",
-            "The subtitle file isn't UTF-8. Save it as UTF-8 first.",
-        )
-        .to_string()
+    unicode.unwrap_or_else(|| {
+        let mut detector = EncodingDetector::new(Iso2022JpDetection::Allow);
+        detector.feed(bytes, true);
+        let encoding = detector.guess(None, Utf8Detection::Allow);
+        encoding.decode_without_bom_handling(bytes).0.into_owned()
     })
 }
 
@@ -115,7 +117,7 @@ fn parse_time(s: &str) -> Option<f64> {
 }
 
 /// Drops markup (`<i>`, `<v Name>`, `<00:01.000>`, `{\an8}`) and decodes entities.
-fn clean_line(line: &str) -> String {
+pub(crate) fn clean_line(line: &str) -> String {
     let mut out = String::with_capacity(line.len());
     let mut chars = line.chars().peekable();
     while let Some(c) = chars.next() {
@@ -146,7 +148,7 @@ fn clean_line(line: &str) -> String {
 }
 
 /// Joins wrapped lines: a space between words, nothing between CJK characters.
-fn join_lines(lines: &[String]) -> String {
+pub(crate) fn join_lines(lines: &[String]) -> String {
     let mut out = String::new();
     for line in lines {
         let glue = match (out.chars().last(), line.chars().next()) {
@@ -221,13 +223,43 @@ mod tests {
     }
 
     #[test]
-    fn decodes_bom_variants_and_rejects_legacy_encodings() {
-        assert_eq!(decode(b"\xEF\xBB\xBFhi").unwrap(), "hi");
+    fn decodes_bom_variants() {
+        assert_eq!(decode(b"\xEF\xBB\xBFhi"), "hi");
         let utf16le: Vec<u8> = [0xFF, 0xFE]
             .into_iter()
             .chain("日本".encode_utf16().flat_map(u16::to_le_bytes))
             .collect();
-        assert_eq!(decode(&utf16le).unwrap(), "日本");
-        assert!(decode(&[0x93, 0xFA, 0x96, 0x7B]).is_err()); // Shift_JIS "日本"
+        assert_eq!(decode(&utf16le), "日本");
+    }
+
+    #[test]
+    fn decodes_older_encodings_by_what_the_text_looks_like() {
+        let cases = [
+            (
+                encoding_rs::SHIFT_JIS,
+                "1\r\n00:00:01,000 --> 00:00:03,000\r\n今日はいい天気ですね。\r\n\r\n\
+                 2\r\n00:00:04,000 --> 00:00:06,000\r\nそうですね。散歩に行きましょうか。\r\n",
+            ),
+            (
+                encoding_rs::GBK,
+                "1\r\n00:00:01,000 --> 00:00:03,000\r\n今天天气很好，我们去公园散步吧。\r\n\r\n\
+                 2\r\n00:00:04,000 --> 00:00:06,000\r\n好啊，我们几点出发？\r\n",
+            ),
+            (
+                encoding_rs::BIG5,
+                "1\r\n00:00:01,000 --> 00:00:03,000\r\n今天天氣很好，我們去公園散步吧。\r\n\r\n\
+                 2\r\n00:00:04,000 --> 00:00:06,000\r\n好啊，我們幾點出發？\r\n",
+            ),
+            (
+                encoding_rs::WINDOWS_1252,
+                "1\r\n00:00:01,000 --> 00:00:03,000\r\nÇa va très bien, merci.\r\n\r\n\
+                 2\r\n00:00:04,000 --> 00:00:06,000\r\nOù est la gare ? À droite.\r\n",
+            ),
+        ];
+        for (encoding, text) in cases {
+            let (bytes, _, unmappable) = encoding.encode(text);
+            assert!(!unmappable, "{}", encoding.name());
+            assert_eq!(decode(&bytes), text, "{}", encoding.name());
+        }
     }
 }

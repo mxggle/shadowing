@@ -96,10 +96,9 @@ mod tests {
             let track = sample_in(&dir, language).unwrap();
             assert_eq!(track.name, expected);
             let srt = Path::new(&track.path).with_extension("srt");
-            let sentences = crate::subtitles::parse(
-                &crate::subtitles::decode(&std::fs::read(srt).unwrap()).unwrap(),
-            )
-            .unwrap();
+            let sentences =
+                crate::subtitles::parse(&crate::subtitles::decode(&std::fs::read(srt).unwrap()))
+                    .unwrap();
             assert!(sentences.len() >= 4, "{language}: {}", sentences.len());
             // Sentences in order, inside the ~30 s clip, none longer than the 15 s cap.
             for pair in sentences.windows(2) {

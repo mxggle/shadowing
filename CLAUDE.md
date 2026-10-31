@@ -78,7 +78,8 @@ src-tauri/src/
                           改过的字幕只存 app data 里的副本，不改写音频旁的文件）
   timing.rs               逐字高亮用的每个字（英文是每个词）什么时候说：转写时从 Whisper 的词时间得出（只有转写的字幕有），
                           改字（逐字对比，换掉的字接替原来的时间）、拆句、合并、撤销时跟着走
-  subtitles.rs            SRT / WebVTT 解析
+  subtitles.rs            SRT / WebVTT 解析；字幕的编码（UTF-8 / UTF-16 以外的用 chardetng 猜：Shift_JIS、GBK、Big5…）
+  lrc.rs                  LRC 字幕（教材 MP3 常带）：每行放到下一行开始为止，同一时间的几行合成一句
   sections.rs             对话段落：转写 / 导入后在明显的停顿或换了一组说话人处自动分段（纯函数，不联网），
                           以及整理前端送来的分段（transcript.rs 存在字幕里，旧字幕读取时补上）
   nowplaying/             媒体键和耳机按键：macOS 的 Now Playing（mac.rs：MPRemoteCommandCenter + MPNowPlayingInfoCenter，要自己设 playbackState），

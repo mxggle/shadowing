@@ -2,7 +2,7 @@
 //! subtitle file next to the audio (`ep1.srt`, `ep1.ja.vtt`) is picked up.
 
 use crate::sections::{self, Section};
-use crate::{library, store, subtitles, AppState};
+use crate::{library, lrc, store, subtitles, AppState};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -107,7 +107,7 @@ struct StoredFile {
     transcript: Transcript,
 }
 
-const SUBTITLE_EXTENSIONS: &[&str] = &["srt", "vtt"];
+const SUBTITLE_EXTENSIONS: &[&str] = &["srt", "vtt", "lrc"];
 
 /// The page asked about sentences the saved transcript no longer has.
 pub(crate) fn stale() -> &'static str {
@@ -128,7 +128,15 @@ pub fn read_subtitle(path: &Path, source: Source) -> Result<Transcript, String> 
             "Couldn't read the subtitle file: {e}"
         )
     })?;
-    let sentences = subtitles::parse(&subtitles::decode(&bytes)?)?;
+    let text = subtitles::decode(&bytes);
+    let lrc = path
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("lrc"));
+    let sentences = if lrc {
+        lrc::parse(&text)?
+    } else {
+        subtitles::parse(&text)?
+    };
     let origin = path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -181,6 +189,7 @@ fn loose(name: &str) -> String {
 /// Subtitle files next to the audio, best first: `stem.srt` beats
 /// `stem.<lang>.srt` (the language tag must look like one), and a name spelled
 /// exactly like the audio's beats one that only looks the same (see `loose`).
+/// SRT / VTT beat LRC (it has no end times).
 fn find_sidecars(audio: &Path) -> Vec<PathBuf> {
     let Some(stem) = audio.file_stem().and_then(|s| s.to_str()) else {
         return Vec::new();
@@ -189,12 +198,13 @@ fn find_sidecars(audio: &Path) -> Vec<PathBuf> {
     let Some(entries) = audio.parent().and_then(|dir| fs::read_dir(dir).ok()) else {
         return Vec::new();
     };
-    let mut found: Vec<(bool, bool, String, PathBuf)> = entries
+    let mut found: Vec<(bool, bool, bool, String, PathBuf)> = entries
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let name = entry.file_name().into_string().ok()?;
             let (base, ext) = name.rsplit_once('.')?;
-            if !SUBTITLE_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()) {
+            let ext = ext.to_ascii_lowercase();
+            if !SUBTITLE_EXTENSIONS.contains(&ext.as_str()) {
                 return None;
             }
             let spelled_alike = base.starts_with(stem);
@@ -206,19 +216,19 @@ fn find_sidecars(audio: &Path) -> Vec<PathBuf> {
             let lang_ok = (2..=10).contains(&lang.len())
                 && lang.starts_with(|c: char| c.is_ascii_alphabetic())
                 && lang.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
-            (exact || lang_ok).then(|| (!exact, !spelled_alike, name, entry.path()))
+            (exact || lang_ok).then(|| (!exact, ext == "lrc", !spelled_alike, name, entry.path()))
         })
         .collect();
     found.sort_by(|a, b| {
-        (a.0, a.1)
-            .cmp(&(b.0, b.1))
-            .then_with(|| library::natural_cmp(&a.2, &b.2))
+        (a.0, a.1, a.2)
+            .cmp(&(b.0, b.1, b.2))
+            .then_with(|| library::natural_cmp(&a.3, &b.3))
     });
-    found.into_iter().map(|(_, _, _, path)| path).collect()
+    found.into_iter().map(|(_, _, _, _, path)| path).collect()
 }
 
 /// The subtitles next to the audio that the app may read: the best file that
-/// opens, so one that can't be read (not UTF-8, empty) leaves the next in line.
+/// opens, so one that can't be read (empty, no cues) leaves the next in line.
 fn sidecar(state: &AppState, audio: &Path) -> Option<Transcript> {
     find_sidecars(audio)
         .into_iter()
@@ -321,7 +331,7 @@ pub fn transcript_sections(
     Ok(transcript)
 }
 
-/// Native picker for an SRT/VTT file; the choice is saved for this track.
+/// Native picker for an SRT / VTT / LRC file; the choice is saved for this track.
 #[tauri::command]
 pub async fn transcript_import(
     app: AppHandle,
@@ -334,7 +344,7 @@ pub async fn transcript_import(
         .file()
         .set_title(crate::i18n::pick("选择字幕文件", "Choose a subtitle file"))
         .add_filter(
-            crate::i18n::pick("字幕 (SRT / VTT)", "Subtitles (SRT / VTT)"),
+            crate::i18n::pick("字幕 (SRT / VTT / LRC)", "Subtitles (SRT / VTT / LRC)"),
             SUBTITLE_EXTENSIONS,
         );
     if let Some(parent) = audio.parent() {

@@ -214,8 +214,8 @@ fn a_sidecar_that_cannot_be_read_leaves_the_next_one() {
     let audio = root.join("lesson.mp4");
     fs::write(&audio, b"x").unwrap();
     assert!(sidecar(&state, &audio).is_none());
-    // Shift_JIS, as old subtitle files often are: can't be read as UTF-8.
-    fs::write(root.join("lesson.srt"), [0x93, 0xFA, 0x96, 0x7B]).unwrap();
+    // Not subtitles at all (any encoding reads, but there are no cues).
+    fs::write(root.join("lesson.srt"), "日本".as_bytes()).unwrap();
     assert!(sidecar(&state, &audio).is_none());
     fs::write(root.join("lesson.ja.srt"), SRT).unwrap();
     let t = sidecar(&state, &audio).unwrap();
@@ -223,6 +223,32 @@ fn a_sidecar_that_cannot_be_read_leaves_the_next_one() {
         (t.origin.as_str(), t.source),
         ("lesson.ja.srt", Source::Sidecar)
     );
+}
+
+#[test]
+fn sidecar_lrc_when_there_is_no_srt_or_vtt() {
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let audio = d.join("lesson 1.mp3");
+    fs::write(d.join("lesson 1.lrc"), b"x").unwrap();
+    assert_eq!(find_sidecar(&audio).unwrap(), d.join("lesson 1.lrc"));
+    fs::write(d.join("lesson 1.vtt"), b"x").unwrap();
+    assert_eq!(find_sidecar(&audio).unwrap(), d.join("lesson 1.vtt"));
+}
+
+#[test]
+fn reads_lrc_in_gbk() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("第一课.lrc");
+    let text = "[ti:第一课]\r\n[00:01.00]你好，我是小明。\r\n[00:04.00]很高兴认识你，我们一起学习中文吧。\r\n";
+    fs::write(&path, encoding_rs::GBK.encode(text).0).unwrap();
+    let t = read_subtitle(&path, Source::Sidecar).unwrap();
+    let texts: Vec<&str> = t.sentences.iter().map(|s| s.text.as_str()).collect();
+    assert_eq!(
+        texts,
+        ["你好，我是小明。", "很高兴认识你，我们一起学习中文吧。"]
+    );
+    assert_eq!((t.sentences[0].start, t.sentences[0].end), (1.0, 4.0));
 }
 
 #[test]
