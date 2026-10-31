@@ -7,7 +7,9 @@ import { fresh, samples, sampleTranscripts } from "./mockSamples";
 import { mockRecord, seedTakes, stopClip } from "./mockRecorder";
 import { mockPlugins } from "./mockPlugins";
 import { mockReshape } from "./mockReshape";
+import { addDays, type BookEntry } from "../lib/book";
 import { isWindows } from "../lib/platform";
+import { dayKey } from "../lib/practice";
 // A 60-second test pattern with a running clock (checks the picture follows the mock player).
 import mockVideo from "./mockVideo.mp4?url";
 
@@ -230,6 +232,20 @@ const status = () => ({ path: player.path, time: player.time, duration: player.d
 const push = () => void emit("player:status", status());
 /** 等我说完's pretend listening. */
 let listening = 0;
+
+/** 句子本: two due today, one missed yesterday, one coming back, one learnt. */
+const day = dayKey(Date.now());
+const bookLine = (id: string, track: number, i: number, due: number | null, step: number): BookEntry => ({
+  id,
+  audio: tracks[track].path,
+  start: 2 + i * 6,
+  end: 6.2 + i * 6,
+  text: lines[i % lines.length],
+  added: addDays(day, -3),
+  due: due === null ? "" : addDays(day, due),
+  step,
+});
+let book: BookEntry[] = [bookLine("m1", 1, 1, 0, 0), bookLine("m2", 3, 5, -1, 1), bookLine("m3", 1, 10, 0, 0), bookLine("m4", 1, 3, 6, 1), bookLine("m5", 1, 4, null, 3)];
 
 /** Like the engine's hold: a recording paused pauses the track, a range keeping its end; going on plays it
  *  on if it was playing (and nothing has moved it since). Returns, going on, whether it does. */
@@ -465,6 +481,11 @@ export function installMockBackend() {
         case "practice_ping":
         case "now_playing":
           return null;
+        case "book_get":
+          return book;
+        case "book_save":
+          book = a.entries;
+          return;
         // 等我说完: as if you said it in 2.5 s.
         case "listen_start":
           window.clearTimeout(listening);

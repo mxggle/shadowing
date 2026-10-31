@@ -9,6 +9,7 @@ import { justAfterSentence, migratePace, paceActive, withPause } from "./lib/pac
 import { playKey } from "./lib/playKey";
 import { takeTrackTime } from "./lib/takes";
 import { createAnnotateSlice, type AnnotateState } from "./annotateSlice";
+import { createBookSlice, type BookState } from "./bookSlice";
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createDrillSlice, type DrillState } from "./drillSlice";
 import { createExplainSlice, type ExplainState } from "./explainSlice";
@@ -25,7 +26,7 @@ import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./tr
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 import { createVideoSlice, type VideoState } from "./videoSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState, PaceState, HideState {
+export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState, PaceState, HideState, BookState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -264,6 +265,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createAnnotateSlice(set, get),
     ...createPaceSlice(set, get, engine, persistSettings),
     ...createHideSlice(set, get, persistSettings),
+    ...createBookSlice(set, get),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
@@ -285,6 +287,7 @@ export const useApp = create<AppState>((set, get) => {
       void get().restoreJob();
       get().watchImports();
       void get().refreshToday();
+      void get().loadBook();
       const last = snap.folder?.tracks.find((t) => t.path === snap.lastTrack && playable(t));
       if (last) get().open(last, false);
     },
@@ -364,6 +367,7 @@ export const useApp = create<AppState>((set, get) => {
       set({ pictureLook: "loading" });
       set({ rec: null, live: null, current: track, time: start, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, trackMs: 0 });
       void get().refreshToday();
+      void get().loadBook();
       void get().loadTranscript(track.path);
       void get().loadTakes(track.path);
       void get().loadReadings(track.path);

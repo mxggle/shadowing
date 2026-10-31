@@ -43,6 +43,7 @@ const groups = (seekStep: number, key: (a: Action) => string, mediaKeys: boolean
     keys: [
       [[key("sentenceLoop")], t("循环当前句 / 取消")],
       [[key("hideText")], t("藏字幕：显示 / 藏起；按住偷看")],
+      [[key("book")], t("加进句子本 / 拿掉")],
       [[key("prevSentence"), key("nextSentence")], t("上一句 / 下一句")],
       [[key("prevSection"), key("nextSection")], t("上一段 / 下一段")],
       [[key("explain")], t("解释当前句")],

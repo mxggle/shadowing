@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { PlayMode } from "../audio/logic";
 import type { Lang, LangSetting } from "./i18n";
 import type { NowPlaying } from "./mediaKeys";
+import type { BookEntry } from "./book";
 import type { HideHow, HideMode } from "./hide";
 import type { PauseLength, PauseMode, PauseWait } from "./pace";
 
@@ -655,6 +656,11 @@ export const api = {
     space: () => invoke<RecordingSpace>("record_space"),
     /** Deletes the recordings of audio files that are gone; returns what's left. */
     clearMissing: () => invoke<RecordingSpace>("record_clear_missing"),
+  },
+  /** 句子本 (lib/book.ts): the whole list, read and written at once. */
+  book: {
+    get: () => invoke<BookEntry[]>("book_get"),
+    save: (entries: BookEntry[]) => invoke<void>("book_save", { entries }),
   },
   update: {
     /** null when this is the newest version. */
