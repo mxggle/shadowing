@@ -3,10 +3,10 @@
 这里记录每个版本对使用者可见的变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [未发布]
+## [0.17.1] - 2026-11-03
 
 ### 修复
-- **视频画面不再变成空白**：再点一下正在放的视频（或者在列表里双击它），画面会变成一片空白、只剩声音，要换到别的视频再点回来才出现。现在画面一直在。
+- **视频画面不再变成空白**：再点一下正在放的视频，或者在列表里双击它，画面不会再变成一片空白、只剩声音了。以前要换到别的视频再点回来，画面才出现。
   - 换视频、换画面布局时，之前的画面也不再在后台接着读视频文件。
 
 ## [0.17.0] - 2026-10-31
@@ -277,7 +277,8 @@
 - 修改字幕、查找和全部替换、AI 校对、解释这一句（译文、生词、语法点，答案会保存）。
 - 第一次打开有示例练习和 AI 设置向导。
 
-[未发布]: https://github.com/mxggle/shadowing/compare/v0.17.0...HEAD
+[未发布]: https://github.com/mxggle/shadowing/compare/v0.17.1...HEAD
+[0.17.1]: https://github.com/mxggle/shadowing/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/mxggle/shadowing/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/mxggle/shadowing/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/mxggle/shadowing/compare/v0.14.0...v0.15.0
