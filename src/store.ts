@@ -364,7 +364,9 @@ export const useApp = create<AppState>((set, get) => {
         return;
       }
       const start = resumePosition(get().progress[track.path]);
-      set({ pictureLook: "loading" });
+      // A new video's picture is found out again. The one already open keeps its <video>
+      // (Picture.tsx), which won't say again what it already said: its look stays.
+      if (track.path !== get().current?.path) set({ pictureLook: "loading" });
       set({ rec: null, live: null, current: track, time: start, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, trackMs: 0 });
       void get().refreshToday();
       void get().loadBook();

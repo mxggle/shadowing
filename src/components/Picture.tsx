@@ -6,7 +6,7 @@ import { t, tk } from "../lib/i18n";
 import { layoutShown } from "../lib/picture";
 import { nextLead, soundJumped, syncPicture, type Playhead } from "../lib/videoSync";
 import { playhead, useApp } from "../store";
-import { PICTURE_MAX, PICTURE_MIN } from "../videoSlice";
+import { PICTURE_MAX, PICTURE_MIN, type PictureLook } from "../videoSlice";
 import { PictureMask } from "./PictureMask";
 import { useKeys } from "../hooks/useKeys";
 
@@ -42,6 +42,7 @@ function Screen({ path, layout }: { path: string; layout: PictureLayout }) {
   const setLook = useApp((s) => s.setPictureLook);
   useFollow(video);
   useNoSound(video);
+  useRelease(video, look);
 
   // "none": the file has only sound (an mp4 can), so it shows as audio does.
   if (look === "none") return null;
@@ -109,6 +110,23 @@ function useNoSound(ref: RefObject<HTMLVideoElement | null>) {
       tracks.removeEventListener("change", off);
     };
   }, [ref]);
+}
+
+/**
+ * Once its <video> is taken out (another video, another layout, a file with only sound),
+ * it stops reading the file: WebKit keeps a removed one loading and decoding (preload="auto")
+ * until it is collected, though nothing will show it again.
+ */
+function useRelease(ref: RefObject<HTMLVideoElement | null>, look: PictureLook) {
+  useEffect(() => {
+    const video = ref.current;
+    return () => {
+      // Still in the page: the look changed with the <video> kept, or React's development double run.
+      if (!video || video.isConnected) return;
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, [ref, look]);
 }
 
 interface AudioTrackList extends EventTarget {
