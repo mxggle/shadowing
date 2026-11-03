@@ -30,7 +30,9 @@ const FRAME: Record<PictureLayout, { wrap: string; video: string }> = {
  */
 export function Picture({ layout }: { layout: PictureLayout }) {
   const path = useApp((s) => (s.current?.kind === "video" && !s.settings.pictureHidden ? s.current.path : null));
-  return path ? <Screen key={path} path={path} layout={layout} /> : null;
+  // A failed picture is a screen of its own: opening the video again makes a new one, with a new <video>.
+  const failed = useApp((s) => s.pictureLook === "failed");
+  return path ? <Screen key={failed ? `${path}#failed` : path} path={path} layout={layout} /> : null;
 }
 
 function Screen({ path, layout }: { path: string; layout: PictureLayout }) {
