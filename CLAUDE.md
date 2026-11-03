@@ -46,7 +46,7 @@ src/                      前端
   lib/annotations.ts      插件标注：标注随哪些插件和选项变、插件切的段和应用自己的分段（查找、没把握、逐字高亮）怎么合在一起，有单元测试
   lib/playKey.ts          播放条的播放 / 暂停键现在管谁（录音、整段录音、回放录音、整段回放，都没有时是主播放器）、暂停后继续时还要做什么，有单元测试
   lib/mediaKeys.ts        媒体键和耳机按键：⏯ ⏮ ⏭ 各做什么（⏯ 是播放键，⏮ ⏭ 同 [ ]）、什么时候再告诉系统在放什么，有单元测试；hooks/useMediaKeys.ts 接上 Rust
-  components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板；视频时多一块画面，Picture.tsx：静音的 <video>、拖动条、悬停时的布局按钮，PictureMask.tsx 遮字幕的模糊带，
+  components/             UI：Stage.tsx 主区（有字幕 = 句子列表，没有 = 循环面板；视频时多一块画面，Picture.tsx：静音的 <video>（拿掉时去掉 src，不再读文件）、拖动条、悬停时的布局按钮，PictureMask.tsx 遮字幕的模糊带，
                           VideoStage.tsx 并排和影院，PictureMenu.tsx 播放设置里的「画面」「遮字幕」，Unsupported.tsx 放不了的 WebM / MKV 的说明；TrackTitle.tsx 音频的标题）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置，Pace.tsx 跟读停顿（底部的开关和它的设置）；ui.tsx 共用的按键与表单件；
                           Transcript.tsx 句子列表，Sections.tsx 段落小标题和顶部的段落菜单，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），

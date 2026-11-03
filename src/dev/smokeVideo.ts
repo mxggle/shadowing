@@ -35,6 +35,11 @@ export async function videoScenario({ check, waitFor, tracks }: Kit) {
   check("video picture loads from the local server", shown, `ready ${picture()?.readyState} width ${picture()?.videoWidth} error ${picture()?.error?.code}`);
   const sound = await waitFor(async () => (await engine.statusNow()).time > 0.4, 5000);
   check("video's sound plays in the engine", sound && !app().error, app().error ?? "");
+  // Its title clicked once more (or a double click on it): the same <video> stays, and shows.
+  const first = picture();
+  app().open(video, true);
+  await sleep(500);
+  check("opening the video again keeps its picture", picture() === first && app().pictureLook === "shown", `look ${app().pictureLook}`);
 
   const off = async () => (await engine.statusNow()).time - (picture()?.currentTime ?? NaN);
   const inStep = async (label: string, extra = "") => {
@@ -96,6 +101,8 @@ export async function videoScenario({ check, waitFor, tracks }: Kit) {
     const moved = await waitFor(() => picture() !== before, 1000);
     const fine = await waitFor(() => (picture()?.readyState ?? 0) >= 2, 3000);
     check(`picture shows in the ${layout} layout`, fine, `${moved ? "new" : "same"} <video>, ready ${picture()?.readyState}`);
+    // The one taken out stops reading the file (Picture.tsx).
+    if (moved && before) check(`the ${layout} layout lets the old <video> go`, !before.isConnected && !before.hasAttribute("src"));
   }
   app().setPictureHidden(true);
   await sleep(300);
