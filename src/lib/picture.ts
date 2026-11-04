@@ -50,3 +50,28 @@ export function shiftMask([top, bottom]: [number, number], by: number): [number,
   const d = clamp(by, -top, 1 - bottom);
   return [top + d, bottom + d];
 }
+
+/** One way to show the sentence under the theater's picture: its text size, and whether the next sentence shows under it. */
+export interface LineFit {
+  size: number;
+  next: boolean;
+}
+
+/**
+ * What the sentence under the theater's picture tries, in order, until it fits the
+ * fixed room there (so the picture's size never depends on the sentence): first
+ * without the next sentence, then smaller, down to 16px.
+ */
+export const LINE_FITS: LineFit[] = [
+  { size: 24, next: true },
+  { size: 24, next: false },
+  { size: 22, next: false },
+  { size: 20, next: false },
+  { size: 18, next: false },
+  { size: 16, next: false },
+];
+
+/** The first of `tries` that `fits`; the last one when none does. */
+export function firstFit<T>(tries: T[], fits: (t: T) => boolean): T {
+  return tries.find(fits) ?? tries[tries.length - 1];
+}

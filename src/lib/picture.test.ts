@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contentRect, isWide, layoutShown, moveMaskEdge, nextLayout, shiftMask } from "./picture";
+import { contentRect, firstFit, isWide, layoutShown, LINE_FITS, moveMaskEdge, nextLayout, shiftMask } from "./picture";
 
 describe("layouts", () => {
   it("puts the picture beside the sentences only where the main area is wide enough", () => {
@@ -49,5 +49,21 @@ describe("mask band", () => {
     near(shiftMask([0.7, 0.9], -0.2), [0.5, 0.7]);
     near(shiftMask([0.7, 0.9], 0.3), [0.8, 1]);
     near(shiftMask([0.1, 0.3], -0.5), [0, 0.2]);
+  });
+});
+
+describe("the sentence under the theater's picture", () => {
+  it("drops the next sentence before it makes the text smaller", () => {
+    expect(firstFit(LINE_FITS, () => true)).toEqual({ size: 24, next: true });
+    expect(firstFit(LINE_FITS, (f) => !f.next)).toEqual({ size: 24, next: false });
+    expect(firstFit(LINE_FITS, (f) => f.size <= 20)).toEqual({ size: 20, next: false });
+  });
+
+  it("stays at the smallest size when nothing fits", () => {
+    expect(firstFit(LINE_FITS, () => false)).toEqual({ size: 16, next: false });
+  });
+
+  it("never grows on the way down", () => {
+    for (let i = 1; i < LINE_FITS.length; i++) expect(LINE_FITS[i].size).toBeLessThanOrEqual(LINE_FITS[i - 1].size);
   });
 });
