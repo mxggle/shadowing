@@ -142,6 +142,8 @@ function useFitLine(ref: RefObject<HTMLDivElement | null>, deps: unknown[]) {
       return room.scrollHeight <= room.clientHeight;
     };
     const fitNow = () => use(firstFit(LINE_FITS, fits));
+    // A sentence too long even at the smallest size scrolls in its room: the next one starts at its top.
+    room.scrollTop = 0;
     fitNow();
     let width = room.clientWidth;
     const resized = new ResizeObserver(() => {
