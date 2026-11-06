@@ -83,6 +83,7 @@ function Form() {
       <textarea
         autoFocus
         value={draft.message}
+        readOnly={sending}
         aria-label={t("反馈内容")}
         placeholder={t("比如：边听边说时录不到自己的声音；希望能导出到 Anki……")}
         onChange={(e) => editFeedback({ message: e.target.value })}
@@ -95,11 +96,12 @@ function Form() {
       <input
         id="feedback-contact"
         value={draft.contact}
+        readOnly={sending}
         placeholder={t("邮箱、微信或小红书，方便回复你")}
         onChange={(e) => editFeedback({ contact: e.target.value })}
         className={`${fieldClass} mt-1.5`}
       />
-      <Diagnostics on={draft.diagnostics} onChange={(diagnostics) => editFeedback({ diagnostics })} />
+      <Diagnostics on={draft.diagnostics} disabled={sending} onChange={(diagnostics) => editFeedback({ diagnostics })} />
       {send.state === "failed" && (
         <p className="mt-4 text-[12px] leading-relaxed text-danger">
           {send.message}{" "}
@@ -119,7 +121,7 @@ function Form() {
 }
 
 /** 附上诊断信息, with the exact lines it adds one click away. */
-function Diagnostics({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+function Diagnostics({ on, disabled, onChange }: { on: boolean; disabled: boolean; onChange: (on: boolean) => void }) {
   const [lines, setLines] = useState<FeedbackLine[] | null>(null);
   const [shown, setShown] = useState(false);
   useEffect(() => void api.feedback.diagnostics().then(setLines, () => setLines([])), []);
@@ -128,7 +130,7 @@ function Diagnostics({ on, onChange }: { on: boolean; onChange: (on: boolean) =>
     <div className="mt-4">
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-2 text-[13px]">
-          <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} className="size-3.5 accent-fg" />
+          <input type="checkbox" checked={on} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="size-3.5 accent-fg" />
           {t("附上诊断信息")}
         </label>
         <TextLink className="flex items-center gap-0.5 text-[12px]" aria-expanded={shown} onClick={() => setShown(!shown)}>

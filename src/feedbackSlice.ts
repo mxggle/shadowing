@@ -45,6 +45,8 @@ export function createFeedbackSlice(set: Set, get: Get): FeedbackState {
 
     editFeedback(patch) {
       const { feedbackDraft, feedbackSend } = get();
+      // What is being sent is what was written: no changes until it is through (the fields are read-only meanwhile).
+      if (feedbackSend.state === "sending") return;
       // Changing what failed to send clears the error.
       set({ feedbackDraft: { ...feedbackDraft, ...patch }, ...(feedbackSend.state === "failed" && { feedbackSend: { state: "idle" } }) });
     },
