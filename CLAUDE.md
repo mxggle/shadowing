@@ -36,6 +36,7 @@ src/                      前端
   lib/changelog.ts        新功能：把打包进应用的 CHANGELOG.md（releases.ts）读成各个版本、更新后要不要说“已更新到 …”，有单元测试
   lib/feedback.ts         意见反馈：能不能发（和 Rust、接收端一样按字数算的上限）、快到上限时的字数、发不出去时「复制内容」复制什么，有单元测试
   lib/practice.ts         学习记录：按天（4 点换日）汇总练习时间、每天的目标、连续达标天数，有单元测试
+  lib/ask.ts              练满几天后问一次「哪里最不顺手」：算练了几天（一天至少 1 分钟）、满 3 天才问、问过不再问，有单元测试
   lib/takes.ts            跟读录音：哪些录音属于哪一句、两条波形怎么对齐、节奏 / 延迟的说法，有单元测试
   lib/readings.ts         整段录音：读哪些句子、哪些整段录音属于这一段、快慢的说法，有单元测试
   lib/rounds.ts           连续录（一遍遍接着录）和逐句跟读（每句最多几遍）：空格留下哪一遍、遍数输入、卡片上的说法，有单元测试
@@ -58,7 +59,8 @@ src/                      前端
                           ImportLink.tsx 从链接导入的确认框（⌘V 或 ＋ 打开）、列表里下载中 / 排队 / 失败的一行；
                           Practice.tsx 学习记录面板（PracticeCharts.tsx 柱状图和日历，PracticeGoal.tsx 顶栏目标圆环和目标一行）；
                           settings/ 是设置面板（Plugins.tsx 插件：已装的、删除、从文件夹安装；Shortcuts.tsx 自定义快捷键）；
-                          guide/ 是引导：Welcome.tsx 欢迎页（第一次打开是 Onboarding.tsx 四步新手引导，步骤内容在 OnboardingSteps.tsx）、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示
+                          guide/ 是引导：Welcome.tsx 欢迎页（第一次打开是 Onboarding.tsx 四步新手引导，步骤内容在 OnboardingSteps.tsx）、PracticeCoach.tsx 示例练习清单、AiWizard.tsx 等 AI 设置向导、Hint.tsx 一次性提示、
+                          AskCard.tsx 练满 3 天后右上角的一次性提问（停下 20 秒没操作才出现、练习时让开，答案经反馈接口发出，kind `card-3days`）
   dev/smoke.ts            应用内自测脚本（只在 smoke 模式加载）
 src-tauri/src/
   lib.rs                  AppState + 命令注册

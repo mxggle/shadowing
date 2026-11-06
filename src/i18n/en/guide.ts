@@ -166,4 +166,11 @@ export const guide: Record<string, Entry> = {
   "按 {slower} 和 {faster} 也能调速度。": "You can also press {slower} and {faster} to change the speed.",
   "按 {loop} 依次设 A、设 B、取消循环。": "Press {loop} to set A, then B, then clear the loop.",
   知道了: "Got it",
+
+  // The one-time question after a few days of practice (AskCard.tsx)
+  "练了 {n} 天，哪里最不顺手？": "{n} days in. What's been most awkward?",
+  "一句话就好，最想要的功能也可以写。": "One line is enough. Or the feature you'd most like.",
+  哪里最不顺手: "What's been most awkward",
+  "会和版本号、系统、界面语言一起发给开发者。": "Sent to the developer with the app version, system and interface language.",
+  不了: "No thanks",
 };
