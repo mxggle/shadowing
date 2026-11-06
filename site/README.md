@@ -21,6 +21,14 @@
   （新插件按它的 manifest 加一条），连同首页的下载大小一起提交到 `main`。第三方插件照旧手动加。提交入口是 GitHub 的 issue 表单 `.github/ISSUE_TEMPLATE/plugin.yml`。
 - 首页的「插件」一节（`#plugins`）里那个导入确认框和下载中的两行是照应用的 `ImportLink.tsx` 用 HTML 画的，不是截图；应用里的样子变了要跟着改。
 - `install.sh`：一键安装脚本，用户在终端运行 `curl -fsSL https://shadowing.nihongo.day/install.sh | bash`。它用 curl 下载最新的 .dmg（curl 下载的文件没有隔离标记，打开时不会说“已损坏”），挂载后把 Shadowing.app 复制进“应用程序”（替换旧版、先关掉正在运行的），校验签名（只认 Shadowing 自己的证书，哈希写在脚本里）再打开。安装一节的命令框和 README、Release 说明里都用这一行。`vercel.json` 让它以 `text/plain` 返回，浏览器里能直接看内容。
+- `api/feedback.mjs`（线上是 `POST /api/feedback`）：接收应用里写的意见反馈，在私有仓库 `mxggle/shadowing-feedback` 里开成一条 issue
+  （标签是来源 `feedback` / `card-3days` 和 `app:macos` / `app:windows`）。应用从 Rust 发送（`src-tauri/src/feedback.rs`），不经过网页界面。
+  它是 Vercel 的 Node.js 函数：`api/` 里文件名不以 `_` 开头的文件都会成为一个地址，所以这里只放这一个。
+  要在 Vercel 项目的 Environment Variables 里设 `FEEDBACK_GITHUB_TOKEN`：fine-grained token，只给这个仓库，权限只开 Issues 的读写；改了要重新部署才生效。
+  `FEEDBACK_REPO` 可选，换成别的仓库（`owner/name`）。返回：200 `{ ok: true }`；不是 POST 是 405；内容不合格 400 `invalid`；超过 16 KB 413 `too-large`；
+  同一个 IP 10 分钟内超过 5 条 429 `rate`（带 `Retry-After`）；没设 token 503 `unconfigured`；GitHub 出错或 10 秒没回应 502 `upstream`。
+  限速只记在函数实例的内存里（尽力而为，换了实例就重新算），不存 IP；日志只写结果和 GitHub 的状态码，不写反馈的内容、联系方式和诊断信息。
+  本地 `npx serve site` 不运行函数：要试就用 `npx vercel dev`，或者跑测试 `npx vitest run scripts/feedback-api.test.mjs`。
 - 部署：Vercel 导入本仓库，Root Directory 填 `site`，Framework Preset 选 Other，不需要 Build Command。合并到 `main` 就自动上线。
 - 访问统计：Vercel Web Analytics（项目的 Analytics 页里已开启）。`index.html` 的 `<head>` 末尾加载 `/_vercel/insights/script.js`，这个地址只在 Vercel 部署上有，本地预览时 404 是正常的。
 - 页面上显示的版本号（`data-app-version`）在发版时由 `scripts/bump-version.sh` 一起改，`scripts/check-version.sh` 会检查它和应用版本一致。
