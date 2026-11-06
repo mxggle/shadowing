@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { api } from "../../lib/api";
-import { ASK_KIND, ASK_TIP, askDays, daysBefore, QUIET_MS, shouldAsk } from "../../lib/ask";
+import { ASK_KIND, ASK_TIP, practisedDays, QUIET_MS, shouldAsk, todayCounts } from "../../lib/ask";
 import { t } from "../../lib/i18n";
 import { isMod } from "../../lib/platform";
-import { byDay } from "../../lib/practice";
+import { byDay, dayKey } from "../../lib/practice";
 import { useApp, type AppState } from "../../store";
 import { Button, fieldClass, IconButton } from "../ui";
 
@@ -28,8 +28,8 @@ const busy = (s: AppState) =>
   !!s.updatedTo;
 
 // For this run of the app (the card outlives a change of interface language, which draws everything again).
-/** Practice days before today, once loaded. */
-let before: number | null = null;
+/** Days practised, as last counted. */
+let known: number | null = null;
 /** The card has come up: guide.tips has it now, but it comes back at quiet moments until answered or closed. */
 let cameUp = false;
 /** Answered or closed. */
@@ -46,7 +46,7 @@ export function AskCard() {
   const away = useApp(busy);
   // A tip above the deck: comes up only after it, but doesn't hide the card once it's there.
   const hint = useApp((s) => !!s.hint);
-  const [days, setDays] = useState(before);
+  const [days, setDays] = useState(known);
   const [shown, setShown] = useState(cameUp && !finished);
   const [done, setDone] = useState(finished);
   const [draft, setDraft] = useState("");
@@ -54,12 +54,20 @@ export function AskCard() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Counted again from the whole log when today gets its first minute or a new practice day starts
+  // (the app can stay open for days); todayMs is refreshed every few seconds, which draws this again.
+  const today = dayKey(Date.now());
+  const counts = todayCounts(todayMs);
   useEffect(() => {
-    if (askedBefore || days !== null) return;
-    void api.practice.log({}).then((sessions) => setDays((before = daysBefore(byDay(sessions), Date.now()))));
-  }, [askedBefore, days]);
+    if (askedBefore || done) return;
+    let live = true;
+    void api.practice.log({}).then((sessions) => live && setDays((known = practisedDays(byDay(sessions)))));
+    return () => {
+      live = false;
+    };
+  }, [askedBefore, done, today, counts]);
 
-  const count = askDays(days ?? 0, todayMs);
+  const count = days ?? 0;
   const wanted = !done && (cameUp || (days !== null && shouldAsk(askedBefore, count)));
 
   // Comes up after a quiet stretch; goes away as soon as practice starts, and waits for the next one.

@@ -1,6 +1,6 @@
 // The one-time question after a few days of practice (components/guide/AskCard.tsx):
 // how many days count, and when the card may come up without getting in the way.
-import { type DayTotal, dayKey } from "./practice";
+import type { DayTotal } from "./practice";
 
 /** Days with some practice before the card asks its one question. */
 export const ASK_AFTER_DAYS = 3;
@@ -13,18 +13,15 @@ export const ASK_TIP = "askFeedback";
 /** The answer's `kind` at the feedback endpoint (site/api/feedback.js), so it's told apart from the 意见反馈 window's. */
 export const ASK_KIND = "card-3days";
 
-/** Practice days before today with at least a minute (today joins once it has one, see askDays). */
-export function daysBefore(days: Map<string, DayTotal>, now: number): number {
-  const today = dayKey(now);
+/** Practice days with at least a minute, today included once it has one. */
+export function practisedDays(days: Map<string, DayTotal>): number {
   let n = 0;
-  for (const [key, day] of days) if (key < today && day.active >= DAY_MS) n++;
+  for (const day of days.values()) if (day.active >= DAY_MS) n++;
   return n;
 }
 
-/** Days practised so far: the earlier ones plus today once it has a minute. */
-export function askDays(before: number, todayMs: number | null): number {
-  return before + ((todayMs ?? 0) >= DAY_MS ? 1 : 0);
-}
+/** Whether today has a minute yet: the count changes then (and when a new practice day starts). */
+export const todayCounts = (todayMs: number | null) => (todayMs ?? 0) >= DAY_MS;
 
 /** Whether the card may come up at all (it still waits for a quiet moment). */
 export function shouldAsk(askedBefore: boolean, days: number): boolean {
