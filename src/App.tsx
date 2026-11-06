@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { ChevronRight } from "lucide-react";
 import { FeedbackDialog } from "./components/Feedback";
 import { AiWizard } from "./components/guide/AiWizard";
+import { AskCard } from "./components/guide/AskCard";
 import { Hint } from "./components/guide/Hint";
 import { ImportDialog } from "./components/ImportLink";
 import { Welcome } from "./components/guide/Welcome";
@@ -118,6 +119,7 @@ function Shell() {
       <WhatsNewDialog />
       <FeedbackDialog />
       <UpdateNotice />
+      <AskCard />
     </div>
   );
 }
