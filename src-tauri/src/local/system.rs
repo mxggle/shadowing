@@ -13,34 +13,44 @@ fn this_computer() -> String {
     .into()
 }
 
-/// The chip's name, like "Apple M2 Pro".
+/// A text value from sysctl, like `machdep.cpu.brand_string`.
 #[cfg(target_os = "macos")]
-pub fn chip() -> String {
+fn sysctl_text(name: &std::ffi::CStr) -> Option<String> {
     let mut buf = [0u8; 128];
     let mut len = buf.len();
     // SAFETY: the buffer and its length match; sysctl writes at most `len` bytes.
     let rc = unsafe {
         libc::sysctlbyname(
-            c"machdep.cpu.brand_string".as_ptr(),
+            name.as_ptr(),
             buf.as_mut_ptr().cast(),
             &mut len,
             std::ptr::null_mut(),
             0,
         )
     };
-    let name = if rc == 0 {
-        String::from_utf8_lossy(&buf[..len])
-            .trim_end_matches('\0')
-            .trim()
-            .to_string()
-    } else {
-        String::new()
-    };
-    if name.is_empty() {
-        this_computer()
-    } else {
-        name
-    }
+    let text = String::from_utf8_lossy(&buf[..len.min(buf.len())])
+        .trim_end_matches('\0')
+        .trim()
+        .to_string();
+    (rc == 0 && !text.is_empty()).then_some(text)
+}
+
+/// The chip's name, like "Apple M2 Pro".
+#[cfg(target_os = "macos")]
+pub fn chip() -> String {
+    sysctl_text(c"machdep.cpu.brand_string").unwrap_or_else(this_computer)
+}
+
+/// The system's version, like "15.1" (for feedback).
+#[cfg(target_os = "macos")]
+pub fn os_version() -> Option<String> {
+    sysctl_text(c"kern.osproductversion")
+}
+
+/// Not read on other systems.
+#[cfg(not(target_os = "macos"))]
+pub fn os_version() -> Option<String> {
+    None
 }
 
 /// Local transcription isn't offered here, so the chip is never named.

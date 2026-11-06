@@ -132,7 +132,7 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
     },
 
     setWizardOpen(wizardOpen) {
-      set({ wizardOpen, settingsOpen: false, statsOpen: false, newsOpen: false });
+      set({ wizardOpen, settingsOpen: false, statsOpen: false, newsOpen: false, feedbackOpen: false });
     },
 
     tip(id) {

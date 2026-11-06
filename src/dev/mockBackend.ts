@@ -501,6 +501,21 @@ export function installMockBackend() {
         // A newer version is always out; installing downloads for a few seconds, then can't relaunch a browser tab.
         case "update_check":
           return { version: "0.4.0", current: "0.3.0", notes: "### 新增\n- 应用内更新：打开时检查，菜单和设置里也能手动检查。\n- 学习记录：今天、最近 7 天练了多久。\n\n### 修复\n- 第三条\n- 第四条\n- 第五条" };
+        case "feedback_diagnostics":
+          return [
+            { key: "os", label: "系统", value: "macOS 15.1 (aarch64)" },
+            { key: "chip", label: "芯片", value: "Apple M2 Pro" },
+            { key: "memory", label: "内存", value: "16 GB" },
+            { key: "transcribe", label: "转写", value: "local · large-v3-turbo" },
+            { key: "chat", label: "句子解释", value: "deepseek · deepseek-chat" },
+            { key: "plugins", label: "插件", value: "youtube 1.4.0, furigana 0.2.0" },
+            { key: "studyLanguage", label: "学习的语言", value: "ja" },
+          ];
+        // ?feedbackfail shows what a failed send looks like.
+        case "feedback_send":
+          return new Promise((resolve, reject) =>
+            setTimeout(() => (new URLSearchParams(location.search).has("feedbackfail") ? reject("发送失败，请检查网络后再试") : resolve(null)), 800),
+          );
         case "update_install":
           return (async () => {
             const total = 11_000_000;

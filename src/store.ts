@@ -13,6 +13,7 @@ import { createBookSlice, type BookState } from "./bookSlice";
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createDrillSlice, type DrillState } from "./drillSlice";
 import { createExplainSlice, type ExplainState } from "./explainSlice";
+import { createFeedbackSlice, type FeedbackState } from "./feedbackSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
 import { createHideSlice, type HideState } from "./hideSlice";
 import { createImportSlice, type ImportState } from "./importSlice";
@@ -26,7 +27,7 @@ import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./tr
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 import { createVideoSlice, type VideoState } from "./videoSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState, PaceState, HideState, BookState {
+export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState, PaceState, HideState, BookState, FeedbackState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -266,6 +267,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createPaceSlice(set, get, engine, persistSettings),
     ...createHideSlice(set, get, persistSettings),
     ...createBookSlice(set, get),
+    ...createFeedbackSlice(set, get),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
@@ -294,7 +296,7 @@ export const useApp = create<AppState>((set, get) => {
 
     setSettingsOpen(settingsOpen) {
       // One overlay at a time: ⌘, while the AI wizard is open replaces it (as the wizard replaces settings).
-      set(settingsOpen ? { settingsOpen, wizardOpen: false, statsOpen: false, newsOpen: false } : { settingsOpen });
+      set(settingsOpen ? { settingsOpen, wizardOpen: false, statsOpen: false, newsOpen: false, feedbackOpen: false } : { settingsOpen });
     },
     async setUiLanguage(uiLanguage) {
       // Kept in the store's settings too, so a settings save still pending can't undo it.

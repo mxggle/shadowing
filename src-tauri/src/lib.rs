@@ -4,6 +4,7 @@ mod ai;
 mod audio;
 mod book;
 mod explain;
+mod feedback;
 mod guide;
 mod library;
 mod local;
@@ -280,7 +281,7 @@ pub fn run() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build());
-    // The app menu (检查更新… and 新功能… under the app name) is a Mac convention; on Windows
+    // The app menu (检查更新…, 新功能… and 发送反馈… under the app name) is a Mac convention; on Windows
     // it would be a menu bar inside the window, and Settings has both.
     #[cfg(target_os = "macos")]
     let builder = builder
@@ -413,6 +414,8 @@ pub fn run() {
             nowplaying::now_playing,
             update::update_check,
             update::update_install,
+            feedback::feedback_diagnostics,
+            feedback::feedback_send,
             plugins::plugins_list,
             plugins::install::plugins_pick,
             plugins::install::plugins_install,

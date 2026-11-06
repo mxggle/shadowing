@@ -19,7 +19,7 @@ src/                      前端
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，改字幕在 correctSlice.ts，拆句 / 合并句在 reshapeSlice.ts，
                           AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts，
                           学习记录与每日目标在 practiceSlice.ts，跟读停顿在 paceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts，逐句跟读在 drillSlice.ts，
-                          插件和从链接导入在 importSlice.ts，插件在句子上的标注在 annotateSlice.ts，视频画面的设置在 videoSlice.ts）
+                          插件和从链接导入在 importSlice.ts，插件在句子上的标注在 annotateSlice.ts，视频画面的设置在 videoSlice.ts，意见反馈在 feedbackSlice.ts）
   lib/pace.ts             跟读停顿：一次放哪一段（这一句，循环里到循环的终点）、每句后停多久（不停 / 秒数 / 按句长 / 等你）、放几遍之后去哪，有单元测试
   lib/keymap.ts           快捷键：每个动作的默认键（单键）、你自己换的键（单键或组合键 `ctrl+alt+t`；交换、恢复默认、和新默认键冲突时、应用和系统已占用的组合）、按键的名字，有单元测试
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句、正在放的句子逐字亮到哪），有单元测试
@@ -34,6 +34,7 @@ src/                      前端
   lib/paths.ts            路径里的 / 和 \（面包屑的子文件夹、没有标题时用文件名），有单元测试
   lib/update.ts           更新提示里的更新说明要点、下载百分比，有单元测试
   lib/changelog.ts        新功能：把打包进应用的 CHANGELOG.md（releases.ts）读成各个版本、更新后要不要说“已更新到 …”，有单元测试
+  lib/feedback.ts         意见反馈：能不能发（和 Rust、接收端一样按字数算的上限）、快到上限时的字数、发不出去时「复制内容」复制什么，有单元测试
   lib/practice.ts         学习记录：按天（4 点换日）汇总练习时间、每天的目标、连续达标天数，有单元测试
   lib/takes.ts            跟读录音：哪些录音属于哪一句、两条波形怎么对齐、节奏 / 延迟的说法，有单元测试
   lib/readings.ts         整段录音：读哪些句子、哪些整段录音属于这一段、快慢的说法，有单元测试
@@ -51,7 +52,7 @@ src/                      前端
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置，Pace.tsx 跟读停顿（底部的开关和它的设置）；ui.tsx 共用的按键与表单件；
                           Transcript.tsx 句子列表，Sections.tsx 段落小标题和顶部的段落菜单，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
                           Explain.tsx 句子下的解释块、SentenceEditor.tsx 改一句（⇧↩ 断开、⌫ / ⌦ 合并）、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
-                          UpdateNotice.tsx 右上角的更新提示（更新后一次的“已更新到 …”也在这里），WhatsNew.tsx 新功能（菜单、设置里打开）；Recorder.tsx 句子下的跟读录音卡片（和行上的麦克风），TakeWaves.tsx 原句 / 我的两条波形，TakePeek.tsx 播放到录过的句子时展开的精简对比；
+                          UpdateNotice.tsx 右上角的更新提示（更新后一次的“已更新到 …”也在这里），WhatsNew.tsx 新功能（菜单、设置里打开）；Feedback.tsx 意见反馈（设置 → 版本、Mac 菜单的「发送反馈…」打开，「附上诊断信息」先列出会附上的每一行）；Recorder.tsx 句子下的跟读录音卡片（和行上的麦克风），TakeWaves.tsx 原句 / 我的两条波形，TakePeek.tsx 播放到录过的句子时展开的精简对比；
                           Reading.tsx 整段录音（开始菜单、录音时的标题条），Drill.tsx 逐句跟读（每句几遍、进行中的标题条），ReadingResult.tsx 读完的结果（段落上方一行）；
                           AddMenu.tsx 侧栏顶的 ＋（所有添加音频的方式，插件的导入也在这里；见 docs/plugin-ui.md 的插槽），
                           ImportLink.tsx 从链接导入的确认框（⌘V 或 ＋ 打开）、列表里下载中 / 排队 / 失败的一行；
@@ -118,7 +119,9 @@ src-tauri/src/
                           字幕存成可移除的导入字幕（不放在音频旁边）；annotate.rs 标注（插件说要在句子上画什么：字上方的小字、悬停说明、下划线 / 加粗、句子下面一行；
                           不认识的都跳过）；options.rs 插件自己的选项（select / toggle / text，存在 state.json 的 plugins）；names.rs 用标题起文件名（Windows 不允许的字符和 CON、NUL 这类名字也处理，和 src/lib/imports.ts 一样）
   update.rs               应用内更新（tauri-plugin-updater）：读最新 Release 的 latest.json、下载签名过的 .app.tar.gz、
-                          原地替换后重启；菜单里的「检查更新…」和「新功能…」（Windows 没有应用菜单，用设置里的）
+                          原地替换后重启；菜单里的「检查更新…」「新功能…」和「发送反馈…」（Windows 没有应用菜单，用设置里的）
+  feedback.rs             意见反馈：把写的内容（和勾上时的诊断信息：系统版本、芯片、内存、转写和解释用的服务与模型、插件；不含地址和 Key）
+                          发给落地页的 /api/feedback（site/api/feedback.mjs），只在点「发送」时联网；调试构建可以用 SHADOWING_FEEDBACK_URL 换成本机的地址
   smoke.rs                调试构建专用自测入口（也装一个假的导入插件：shell 脚本，Windows 上是 .cmd + PowerShell）
 plugins/youtube/          「YouTube 导入」插件：单独的小 Rust 程序（不进应用的构建），说插件协议；
                           第一次用时下载 yt-dlp 文件夹版和 QuickJS-ng（校验 SHA-256；platform.rs 选 macOS / Windows 的文件，fetch.rs 用系统的 curl 下载），
@@ -133,6 +136,8 @@ src-tauri/tauri.windows.conf.json   只在 Windows 上叠加到 tauri.conf.json 
 docs/plugin-dev.md        写插件的人看的文档（manifest、协议、运行环境、打包、提交和审核）
 site/                     落地页 index.html 和插件目录 plugins.html（列表是 plugins.json，scripts/check-plugin-list.mjs 检查格式；
                           提交插件用 .github/ISSUE_TEMPLATE/plugin.yml），见 site/README.md
+site/api/feedback.mjs     意见反馈的接收端（Vercel 函数，POST /api/feedback）：检查内容、按 IP 限速（只在内存里），在私有仓库 mxggle/shadowing-feedback 开一条 issue；
+                          不存 IP，日志不写内容；token 是 Vercel 的环境变量 FEEDBACK_GITHUB_TOKEN，测试在 scripts/feedback-api.test.mjs
 ```
 
 ## Windows

@@ -3,7 +3,7 @@
 //! relaunches. On Windows the download is the signed installer, which the updater starts and then
 //! quits the app itself. The download is checked against the public key before anything is replaced.
 //! Requests go out from Rust like every other one; the webview only calls these commands.
-//! The app menu with 检查更新… / 新功能… is macOS only: Windows has no app menu, and Settings has both.
+//! The app menu with 检查更新… / 新功能… / 发送反馈… is macOS only: Windows has no app menu, and Settings has all three.
 
 use serde::Serialize;
 use std::sync::Mutex;
@@ -38,6 +38,8 @@ struct Progress {
 const MENU_CHECK: &str = "update-check";
 #[cfg(target_os = "macos")]
 const MENU_NEWS: &str = "whats-new";
+#[cfg(target_os = "macos")]
+const MENU_FEEDBACK: &str = "feedback";
 
 /// None when this is the newest version, or the newest release has no build for this
 /// platform (a Mac-only release: Windows ones are switched on separately, see CLAUDE.md).
@@ -104,18 +106,20 @@ pub async fn update_install(app: AppHandle, pending: State<'_, Pending>) -> Resu
     Ok(())
 }
 
-/// The default menu with “检查更新…” and “新功能…” under the app name; they emit
-/// `update:check` and `news:open`.
+/// The default menu with “检查更新…”, “新功能…” and “发送反馈…” under the app name; they emit
+/// `update:check`, `news:open` and `feedback:open`.
 #[cfg(target_os = "macos")]
 pub fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let menu = Menu::default(app)?;
     if let Some(app_menu) = menu.items()?.first().and_then(|i| i.as_submenu().cloned()) {
-        // About, —, 检查更新…, 新功能…, —, Services…: in their own group under “About”, as in most Mac apps.
+        // About, —, 检查更新…, 新功能…, 发送反馈…, —, Services…: in their own group under “About”, as in most Mac apps.
         let check = MenuItem::with_id(app, MENU_CHECK, check_text(), true, None::<&str>)?;
         let news = MenuItem::with_id(app, MENU_NEWS, news_text(), true, None::<&str>)?;
+        let feedback = MenuItem::with_id(app, MENU_FEEDBACK, feedback_text(), true, None::<&str>)?;
         app_menu.insert(&check, 2)?;
         app_menu.insert(&news, 3)?;
-        app_menu.insert(&PredefinedMenuItem::separator(app)?, 4)?;
+        app_menu.insert(&feedback, 4)?;
+        app_menu.insert(&PredefinedMenuItem::separator(app)?, 5)?;
     }
     Ok(menu)
 }
@@ -130,6 +134,11 @@ fn news_text() -> &'static str {
     crate::i18n::pick("新功能…", "What's New…")
 }
 
+#[cfg(target_os = "macos")]
+fn feedback_text() -> &'static str {
+    crate::i18n::pick("发送反馈…", "Send Feedback…")
+}
+
 /// Puts our menu items in the interface language (the menu is built before settings are read).
 #[cfg(target_os = "macos")]
 pub fn retitle_menu(app: &AppHandle) {
@@ -140,7 +149,11 @@ pub fn retitle_menu(app: &AppHandle) {
     else {
         return;
     };
-    for (id, text) in [(MENU_CHECK, check_text()), (MENU_NEWS, news_text())] {
+    for (id, text) in [
+        (MENU_CHECK, check_text()),
+        (MENU_NEWS, news_text()),
+        (MENU_FEEDBACK, feedback_text()),
+    ] {
         if let Some(item) = app_menu.get(id).and_then(|i| i.as_menuitem().cloned()) {
             let _ = item.set_text(text);
         }
@@ -156,6 +169,7 @@ pub fn on_menu(app: &AppHandle, id: &str) {
     let event = match id {
         MENU_CHECK => "update:check",
         MENU_NEWS => "news:open",
+        MENU_FEEDBACK => "feedback:open",
         _ => return,
     };
     if let Some(window) = app.get_webview_window("main") {

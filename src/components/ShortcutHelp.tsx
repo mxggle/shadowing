@@ -108,8 +108,8 @@ export function ShortcutHelp() {
   useEffect(() => {
     // Capture phase, so Esc closes this sheet instead of also clearing the loop.
     const onKey = (e: KeyboardEvent) => {
-      const { settingsOpen, wizardOpen, statsOpen, newsOpen } = useApp.getState();
-      if (isTypingTarget(e.target) || settingsOpen || wizardOpen || statsOpen || newsOpen) return;
+      const { settingsOpen, wizardOpen, statsOpen, newsOpen, feedbackOpen } = useApp.getState();
+      if (isTypingTarget(e.target) || settingsOpen || wizardOpen || statsOpen || newsOpen || feedbackOpen) return;
       if (e.key === "?") setOpen((o) => !o);
       else if (e.key === "Escape" && open) setOpen(false);
       else return;

@@ -85,7 +85,7 @@ export function createUpdateSlice(set: Set, get: Get): UpdateState {
 
     setNewsOpen(newsOpen) {
       if (!newsOpen) return set({ newsOpen });
-      set({ newsOpen, settingsOpen: false, wizardOpen: false, statsOpen: false });
+      set({ newsOpen, settingsOpen: false, wizardOpen: false, statsOpen: false, feedbackOpen: false });
       get().dismissUpdated();
     },
 
