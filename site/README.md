@@ -20,6 +20,7 @@
   随应用发布的插件（`scripts/release-plugins.sh`）不用手动改：发布以后 `scripts/site-after-release.sh` 把新版本的 zip、大小和 SHA-256 写进来
   （新插件按它的 manifest 加一条），连同首页的下载大小一起提交到 `main`。第三方插件照旧手动加。提交入口是 GitHub 的 issue 表单 `.github/ISSUE_TEMPLATE/plugin.yml`。
 - 首页的「插件」一节（`#plugins`）里那个导入确认框和下载中的两行是照应用的 `ImportLink.tsx` 用 HTML 画的，不是截图；应用里的样子变了要跟着改。
+- 「接下来做什么」一节（`#roadmap`，在「更新」和「安装」之间）和页脚的「功能投票」：新手模式的等候名单和下一个功能的投票，都是 Tally 表单，点了在新标签页打开，页面不加载 Tally 的脚本。简体、繁体中文页用中文表单，英文页、日文页各用自己语言的一份；链接带 `lang`、`ref` 两个参数，填进表单的隐藏字段。表单地址、三种语言的文案和设置见 [docs/site-forms.md](../docs/site-forms.md)，改表单时三种语言一起改。
 - `install.sh`：一键安装脚本，用户在终端运行 `curl -fsSL https://shadowing.nihongo.day/install.sh | bash`。它用 curl 下载最新的 .dmg（curl 下载的文件没有隔离标记，打开时不会说“已损坏”），挂载后把 Shadowing.app 复制进“应用程序”（替换旧版、先关掉正在运行的），校验签名（只认 Shadowing 自己的证书，哈希写在脚本里）再打开。安装一节的命令框和 README、Release 说明里都用这一行。`vercel.json` 让它以 `text/plain` 返回，浏览器里能直接看内容。
 - 部署：Vercel 导入本仓库，Root Directory 填 `site`，Framework Preset 选 Other，不需要 Build Command。合并到 `main` 就自动上线。
 - 访问统计：Vercel Web Analytics（项目的 Analytics 页里已开启）。`index.html` 的 `<head>` 末尾加载 `/_vercel/insights/script.js`，这个地址只在 Vercel 部署上有，本地预览时 404 是正常的。

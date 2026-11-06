@@ -503,6 +503,16 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
 @media (max-width: 720px) { .deck { gap: 10px; } .tog { padding: 0 11px; } .tog kbd { display: none; } }
 @media (max-width: 560px) { .deck { gap: 10px 8px; padding-inline: 12px; } .deck .grp { order: 1; } #loop { order: 2; } #rec { order: 3; } .speeds { order: 4; } #exp { order: 5; } .speeds button { min-width: 44px; } }
 .caption { margin-top: 12px; font-size: 13px; color: var(--faint); }
+
+/* 接下来做什么：等候名单和功能投票。都是 Tally 表单，新标签页打开，页面不加载 Tally 的脚本（docs/site-forms.md）。 */
+.asks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px clamp(24px, 3.4vw, 48px); }
+.asks > div { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; padding-top: 20px; border-top: 1px solid var(--line); }
+.asks h3 { font-family: var(--font-sans, inherit); font-size: 17px; font-weight: 600; line-height: 1.5; }
+.asks p { margin: 6px 0 22px; color: var(--muted); font-size: 15px; line-height: 1.75; max-width: 30em; }
+.asks .btn { margin-top: auto; }
+.asks .soon { display: inline-block; margin-right: 8px; padding: 1px 9px; border-radius: 999px; background: var(--fill); color: var(--muted); font-size: 12.5px; font-weight: 500; line-height: 1.7; vertical-align: 2px; }
+@media (max-width: 720px) { .asks { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 480px) { .asks .btn { width: 100%; } }
 </style>
 <script>
   window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
@@ -803,6 +813,25 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
       <p class="log-more"><a href="https://github.com/mxggle/shadowing/blob/main/CHANGELOG.md" target="_blank" rel="noopener">查看完整的更新日誌</a>，或在 GitHub 上關注本專案，第一時間掌握 Linux 版本的發布動態。</p>
     </section>
 
+    <section class="chapter" id="roadmap" aria-labelledby="roadmap-title">
+      <div class="head">
+        <h2 id="roadmap-title"><span class="ph">接下來做什麼，</span><span class="ph">由你決定。</span></h2>
+        <p>Shadowing 還在開發中，下一步先做什麼，想先聽聽使用者怎麼說。下面兩件事都只要一分鐘，會在新分頁開啟（表單為簡體中文）。</p>
+      </div>
+      <div class="asks">
+        <div>
+          <h3><span class="soon">準備中</span>新手模式：打開就能練</h3>
+          <p>不想自己下載模型、申請 API Key 的話，新手模式會附上現成的跟讀素材，轉寫和解釋直接就能用。留下電子郵件，完成時寄一封信通知你。</p>
+          <a class="btn btn-ink" href="https://tally.so/r/WAITLIST_ZH?lang=zh-Hant&amp;ref=roadmap" target="_blank" rel="noopener">加入候補名單<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4"/></svg></a>
+        </div>
+        <div>
+          <h3>投票：下一個功能</h3>
+          <p>選字查詞、按說話者練習、對齊教材原文、匯出到 Anki……從路線圖裡挑出你最想要的，最多三個，也可以寫下自己的想法。</p>
+          <a class="btn btn-quiet" href="https://tally.so/r/VOTE_ZH?lang=zh-Hant&amp;ref=roadmap" target="_blank" rel="noopener">前往投票<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M18 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4"/></svg></a>
+        </div>
+      </div>
+    </section>
+
     <section class="chapter" id="install" aria-labelledby="install-title">
       <div class="head">
         <h2 id="install-title">安裝說明</h2>
@@ -861,6 +890,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
       <a href="https://github.com/mxggle/shadowing" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/mxggle/shadowing/blob/main/CHANGELOG.md" target="_blank" rel="noopener">更新日誌</a>
       <a href="/plugins">外掛模組</a>
+      <a href="https://tally.so/r/VOTE_ZH?lang=zh-Hant&amp;ref=footer" target="_blank" rel="noopener">功能投票</a>
       <a href="https://github.com/mxggle/shadowing/blob/main/LICENSE" target="_blank" rel="noopener">MIT 授權</a>
       <a href="https://nihongo.day/">更多日語工具</a>
     </nav>
