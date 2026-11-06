@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { ChevronRight } from "lucide-react";
+import { FeedbackDialog } from "./components/Feedback";
 import { AiWizard } from "./components/guide/AiWizard";
 import { Hint } from "./components/guide/Hint";
 import { ImportDialog } from "./components/ImportLink";
@@ -67,6 +68,7 @@ function Shell() {
         <AiWizard />
         <ImportDialog />
         <WhatsNewDialog />
+        <FeedbackDialog />
         <UpdateNotice />
       </>
     );
@@ -114,6 +116,7 @@ function Shell() {
       <AiWizard />
       <ImportDialog />
       <WhatsNewDialog />
+      <FeedbackDialog />
       <UpdateNotice />
     </div>
   );

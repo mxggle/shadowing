@@ -439,6 +439,23 @@ export type DownloadStatus =
 
 export const LOCAL_PROVIDER = "local";
 
+/** One line "附上诊断信息" attaches: `key` is what is sent, `label` and `value` what the window shows. */
+export interface FeedbackLine {
+  key: string;
+  label: string;
+  value: string;
+}
+
+/** What is sent to the developer (src-tauri/src/feedback.rs → site/api/feedback.mjs). */
+export interface Feedback {
+  /** Where it came from: "feedback" for the window; a check-in card has its own, like "card-3days". */
+  kind: string;
+  message: string;
+  contact?: string;
+  /** Also attach the lines `api.feedback.diagnostics()` lists (version, system and language always go). */
+  diagnostics: boolean;
+}
+
 /** A newer version on GitHub Releases. */
 export interface AvailableUpdate {
   version: string;
@@ -667,6 +684,12 @@ export const api = {
     check: () => invoke<AvailableUpdate | null>("update_check"),
     /** Installs what the last check found, then the app relaunches; progress arrives as `update:progress`. */
     install: () => invoke<void>("update_install"),
+  },
+  /** 意见反馈: sent from Rust only when the learner presses 发送; rejects with a sentence to show. */
+  feedback: {
+    diagnostics: () => invoke<FeedbackLine[]>("feedback_diagnostics"),
+    send: ({ kind, message, contact, diagnostics }: Feedback) =>
+      invoke<void>("feedback_send", { kind, message, contact: contact ?? null, diagnostics }),
   },
   plugins: {
     list: () => invoke<PluginInfo[]>("plugins_list"),

@@ -1,6 +1,19 @@
 # 进度
 
-_最后更新：2026-11-04_
+_最后更新：2026-11-06_
+
+## 应用内意见反馈（2026-11-06，已实现）
+- 来由：用户想给应用接一个像 Tally 那样的反馈表单（参考他自己的 Katachi：页脚链接打开 Tally 表单）。比较以后选了在应用里自己做：桌面应用的问题多和设备、转写、模型有关，跳到浏览器填表带不过来这些；中英文一个窗口就够。
+  官网的等候名单和功能投票另用 Tally，练满三天后的小卡片也发到同一个接收端（kind `card-3days`），这两项在别的线程。
+- 应用：设置 →「版本」的「意见反馈 · 写反馈」、Mac 应用菜单的「发送反馈…」（`feedback:open`）打开 `Feedback.tsx`。写的内容留在 `feedbackSlice.ts` 里，关掉窗口不会丢，发出去以后才清空。
+  「附上诊断信息」默认勾上，「会附上什么」列出每一行（`feedback_diagnostics`）；版本号、系统、界面语言总会带上。⌘↩ 发送，发不出去时显示原因和「复制内容」。
+- Rust（`feedback.rs`）：`feedback_send` 检查字数（4000 字、联系方式 200 字，按字符算）、拼好 JSON 发到 `https://shadowing.nihongo.day/api/feedback`；诊断值超过 200 字的截断（接收端的上限）。macOS 版本号用 sysctl 的 `kern.osproductversion`（`local/system.rs`）。
+- 接收端（`site/api/feedback.mjs`，Vercel 函数）：检查格式，拒绝带 Origin 的请求（网页），每个 IP 10 分钟 5 条（只在内存里），在私有仓库 `mxggle/shadowing-feedback` 开 issue（标签是 kind 和 `app:macos` / `app:windows`，GitHub 不肯建标签时去掉标签再开一次）。
+  用户写的字去掉 HTML、断开 @提及（邮箱里的 @ 不动）。token 是 Vercel 的环境变量 `FEEDBACK_GITHUB_TOKEN`（只给这个仓库 Issues 读写的细粒度令牌）。
+- 已验证：Rust 单元测试（字数、JSON 的样子、诊断的写法、截断）、`lib/feedback.test.ts`、`scripts/feedback-api.test.mjs`（51 个：格式、转义、标题、限速、Origin、标签、GitHub 出错、日志里没有写的内容）；
+  浏览器 mock 里看过中文浅色、英文深色、发送成功和失败（`?feedbackfail`），没有报错。Linux 上 clippy 通过（只有原本就有的 nowplaying 在 Linux 上没用到的警告）。
+- 待验证：真机发一条（Mac 和 Windows），GitHub 上看 issue 的样子；Vercel 上 `.mjs` 函数部署后 `GET /api/feedback` 应该是 405。
+
 
 ## 影院模式画面随字幕忽大忽小的修复（2026-11-04，已实现）
 - 来由：用户说影院模式里画面跟着下面的字幕变大变小：字幕三行时画面变小，两行时变大，长句子一句接一句时画框不停地闪。另外觉得画面有点小。

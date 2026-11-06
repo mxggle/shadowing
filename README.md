@@ -109,6 +109,11 @@ and what's done and what's still unverified in [PROGRESS.md](PROGRESS.md). These
 - The app can only open folders you choose in the open dialog, plus its built-in samples.
 - No telemetry and no account. The app itself goes online only for:
   - **updates**: at launch it reads the latest release's `latest.json` on GitHub;
+  - **feedback you send**: when you write feedback in the app (Settings → Version → Feedback, or "Send Feedback…" in the
+    app menu on Mac) and press Send, the text, your optional contact, the app version, system and interface language and,
+    if you leave "Attach diagnostics" ticked, the diagnostics (macOS or Windows version, chip, memory, which transcription and
+    explanation service and model, installed plugins; never keys, files or recordings) go to shadowing.nihongo.day
+    and are kept as an issue in the developer's private GitHub repository;
   - **AI you set up**: transcription uploads the audio to the service you chose, and explanations and proofreading send
     the sentences to the model you chose. With on-device options (Whisper, Ollama, LM Studio) nothing leaves your Mac.
     Settings says where each feature sends its content. All requests are made from Rust, not from the web view;

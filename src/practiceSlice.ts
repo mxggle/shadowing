@@ -44,7 +44,7 @@ export function createPracticeSlice(set: Set, get: Get, persistSettings: (patch:
     trackMs: 0,
 
     setStatsOpen(statsOpen) {
-      set(statsOpen ? { statsOpen, settingsOpen: false, wizardOpen: false, newsOpen: false } : { statsOpen });
+      set(statsOpen ? { statsOpen, settingsOpen: false, wizardOpen: false, newsOpen: false, feedbackOpen: false } : { statsOpen });
     },
 
     async refreshToday() {

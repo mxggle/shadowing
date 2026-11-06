@@ -119,6 +119,12 @@ export function SettingsDialog() {
           <div className="mt-2 border-t border-line pt-5">
             <h3 className="text-[12px] font-medium text-faint">{t("版本")}</h3>
             <UpdateRow />
+            <GuideRow
+              title={t("意见反馈")}
+              description={t("遇到问题、想要什么功能，直接写给开发者。")}
+              action={t("写反馈")}
+              onClick={() => useApp.getState().setFeedbackOpen(true)}
+            />
           </div>
         </div>
       </div>
