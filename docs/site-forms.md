@@ -1,6 +1,6 @@
 # 官网的 Tally 表单
 
-官网上有两个 Tally 表单：**新手模式等候名单**和**下一个功能投票**，入口在首页的「接下来做什么」一节（`#next`）和页脚。
+官网上有两个 Tally 表单：**新手模式等候名单**和**下一个功能投票**，入口在四个语言页的「接下来做什么」一节（`#roadmap`，在「更新」和「安装」之间）；页脚另有一个「功能投票」链接。
 点了在新标签页打开 Tally，页面里不加载 Tally 的脚本。做法照 Katachi 的反馈表单（`mxggle/katachi` 的 `docs/feedback-forms.md`）。
 
 Tally 的表单只能是一种语言，所以每个表单有中文、英文、日文三份：
@@ -16,13 +16,13 @@ Tally 的表单只能是一种语言，所以每个表单有中文、英文、�
 | 新手模式等候名单 | （待填） | （待填） | （待填） |
 | 下一个功能投票 | （待填） | （待填） | （待填） |
 
-链接后面带两个参数，填进表单的隐藏字段：`lang`（`zh-Hans` / `zh-Hant` / `en` / `ja`，哪个页面来的）和 `ref`（`next` 是「接下来做什么」一节，`footer` 是页脚）。
-例：`https://tally.so/r/xxxxxx?lang=zh-Hant&ref=next`。
+链接后面带两个参数，填进表单的隐藏字段：`lang`（`zh-Hans` / `zh-Hant` / `en` / `ja`，哪个页面来的）和 `ref`（`roadmap` 是「接下来做什么」一节，`footer` 是页脚）。
+例：`https://tally.so/r/xxxxxx?lang=zh-Hant&ref=roadmap`。
 
 所有表单共同的设置：不用登录；Tally 的界面语言（Settings → Language）和表单的语言一致；提交后发邮件通知到 Tally 账号的邮箱；
 回复只在 Tally 后台，不对外公开；隐藏字段 `lang`、`ref`。改了表单要三种语言一起改，再各提交一次试试，确认收到邮件。
 
-文案的规矩：新手模式还没做，表单里只说“在做 / 做好以后”，不说已经有了；投票的选项都是 [PRODUCT.md](../PRODUCT.md) 路线图里**还没做**的功能，
+文案的规矩：新手模式还没做，表单和页面上只说“准备中 / 做好以后”，不说已经有了；投票的选项都是 [PRODUCT.md](../PRODUCT.md) 路线图里**还没做**的功能，
 做完一个就从三份投票里拿掉，换成路线图里新的。
 
 ## 新手模式等候名单
@@ -30,7 +30,7 @@ Tally 的表单只能是一种语言，所以每个表单有中文、英文、�
 ### 中文
 
 - 标题：Shadowing 新手模式 · 等候名单
-- 说明：新手模式还在做。做好以后，不用自己下载模型、申请 API Key：打开就有现成的跟读素材，转写和解释直接能用。留下邮箱，上线时发一封邮件告诉你。邮箱只用来通知这件事。
+- 说明：新手模式还在准备中。做好以后，不用自己下载模型、申请 API Key：打开就有现成的跟读素材，转写和解释直接能用。留下邮箱，上线时发一封邮件告诉你。邮箱只用来通知这件事。
 - 1（必填，邮箱）：邮箱；占位：you@example.com
 - 2（选填，单选）：你在学什么语言？——日语 / 英语 / 其他（可填写）
 - 3（选填，单选）：你用什么电脑？——Mac（Apple 芯片，M1 及以后）/ Mac（Intel 芯片）/ Windows / 其他
@@ -42,7 +42,7 @@ Tally 的表单只能是一种语言，所以每个表单有中文、英文、�
 ### English
 
 - Title: Shadowing beginner mode waitlist
-- Intro: Beginner mode is still being built. When it's ready, you won't need to download a model or get an API key: it comes with ready-made shadowing material, and transcription and explanations just work. Leave your email and we'll write once when it launches. Your email is used for nothing else.
+- Intro: Beginner mode is in the works. When it's ready, you won't need to download a model or get an API key: it comes with ready-made shadowing material, and transcription and explanations just work. Leave your email and we'll write once when it launches. Your email is used for nothing else.
 - 1 (required, email): Email; placeholder: you@example.com
 - 2 (optional, single choice): What language are you learning? — Japanese / English / Other (with text)
 - 3 (optional, single choice): Which computer do you use? — Mac (Apple silicon, M1 or later) / Mac (Intel) / Windows / Other
@@ -54,7 +54,7 @@ Tally 的表单只能是一种语言，所以每个表单有中文、英文、�
 ### 日本語
 
 - タイトル：Shadowing 初心者モード ウェイトリスト
-- 説明：初心者モードは開発中です。完成すると、モデルのダウンロードも API キーの取得も不要に。すぐ使えるシャドーイング教材が付いていて、文字起こしも AI 解説もそのまま使えます。メールアドレスを登録いただければ、公開時に一度だけお知らせします。アドレスはこのお知らせ以外には使いません。
+- 説明：初心者モードは準備中です。完成すると、モデルのダウンロードも API キーの取得も不要に。すぐ使えるシャドーイング教材が付いていて、文字起こしも AI 解説もそのまま使えます。メールアドレスを登録いただければ、公開時に一度だけお知らせします。アドレスはこのお知らせ以外には使いません。
 - 1（必須、メール）：メールアドレス；プレースホルダー：you@example.com
 - 2（任意、単一選択）：学んでいる言語は？——英語 / 日本語 / その他（記入可）
 - 3（任意、単一選択）：お使いのパソコンは？——Mac（Apple シリコン、M1 以降）/ Mac（Intel）/ Windows / その他
