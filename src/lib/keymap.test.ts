@@ -168,7 +168,7 @@ describe("combinations in the keymap", () => {
   });
 
   it("ignores combinations that are taken, odd or written another way", () => {
-    for (const k of ["meta+c", "ctrl+f", "meta+q", "shift+t", "ctrl+T", "alt+ctrl+t", "ctrl+", "ctrl+Escape"]) {
+    for (const k of ["meta+c", "ctrl+f", "meta+o", "meta+q", "shift+t", "ctrl+T", "alt+ctrl+t", "ctrl+", "ctrl+Escape"]) {
       expect(keymap({ loop: k }).loop, k).toBe("l");
     }
   });
@@ -177,7 +177,9 @@ describe("combinations in the keymap", () => {
     expect(isTaken("meta+c", "mac")).toBe(true);
     expect(isTaken("ctrl+c", "mac")).toBe(true); // Ctrl does ⌘'s shortcuts on a Mac too
     expect(isTaken("shift+meta+z", "mac")).toBe(true);
+    expect(isTaken("meta+o", "mac")).toBe(true); // the folder switcher
     expect(isTaken("ctrl+c", "windows")).toBe(true);
+    expect(isTaken("ctrl+o", "windows")).toBe(true);
     expect(isTaken("alt+F4", "windows")).toBe(true);
     expect(isTaken("ctrl+alt+t", "mac")).toBe(false);
     expect(isTaken("ctrl+alt+t", "windows")).toBe(false);
