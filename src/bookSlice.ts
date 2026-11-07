@@ -3,6 +3,7 @@
 // 跟读停顿 and 藏字幕 as they're set), until 过了 (]) or 还卡着 (lib/book.ts has the schedule).
 import { api } from "./lib/api";
 import { dueList, entryFor, newEntry, passed, sentenceFor, stuck, type BookEntry } from "./lib/book";
+import { folderHolding } from "./lib/folders";
 import { t } from "./lib/i18n";
 import { dayKey } from "./lib/practice";
 import { sentenceIndexAt } from "./lib/sentences";
@@ -88,7 +89,19 @@ export function createBookSlice(set: Set, get: Get): BookState {
         return;
       }
       const track = get().folder?.tracks.find((x) => x.path === e.audio);
-      if (!track) return get().say(t("这句的音频不在打开的文件夹里"), 4000);
+      if (!track) {
+        // Its audio is in another folder opened before: go there, then on as usual.
+        const holder = folderHolding(get().folders, e.audio);
+        if (!holder) return get().say(t("这句的音频不在打开的文件夹里"), 4000);
+        void get()
+          .switchFolder(holder.path, null)
+          .then((ok) => {
+            if (!ok || get().bookAt !== id) return;
+            if (get().folder?.tracks.some((x) => x.path === e.audio)) get().reviewEntry(id);
+            else get().say(t("这句的音频不在打开的文件夹里"), 4000);
+          });
+        return;
+      }
       get().open(track, false);
       // Its transcript arrives a moment after the audio opens.
       const mine = ++opening;

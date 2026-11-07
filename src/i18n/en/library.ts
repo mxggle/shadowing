@@ -32,6 +32,20 @@ export const library: Record<string, Entry> = {
   "更多导入方式…": "More ways to import…",
   "在 设置 → 插件 里安装插件": "Install plugins in Settings → Plugins",
 
+  // Switching folders
+  "切换文件夹（{key}）": "Switch folder ({key})",
+  切换文件夹: "Switch folder",
+  已固定: "Pinned",
+  最近打开: "Recent",
+  "打开过的文件夹会列在这里，以后点一下就能切回去。": "Folders you open are listed here, one click away from then on.",
+  "找不到这个文件夹：可能被移动、改了名，或者它所在的硬盘没有接上":
+    "Can't find this folder. It may have been moved or renamed, or its drive isn't connected.",
+  "找不到 · {place}": "Not found · {place}",
+  取消固定: "Unpin",
+  固定在上面: "Pin to top",
+  从列表中移除: "Remove from list",
+  最近打开的文件夹: "Recent folders",
+
   // Import from link
   从链接导入: "Import from link",
   "关闭 (Esc)": "Close (Esc)",

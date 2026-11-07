@@ -33,6 +33,28 @@ export interface FolderListing {
   tracks: Track[];
 }
 
+/** A folder opened before, to switch back to (src-tauri/src/folders.rs). */
+export interface FolderEntry {
+  path: string;
+  name: string;
+  /** Where it is, short: "~/Documents/日语", "iCloud 云盘/日语", "/Volumes/U盘". */
+  place: string;
+  pinned: boolean;
+  /** The folder open now. */
+  current: boolean;
+  /** Moved, renamed, or on a drive that isn't connected. */
+  missing: boolean;
+  /** 0 for the folder opened last, 1 for the one before, … */
+  recency: number;
+}
+
+/** A folder just opened, with the track you were on there last time. */
+export interface OpenedFolder {
+  folder: FolderListing;
+  lastTrack: string | null;
+  folders: FolderEntry[];
+}
+
 export interface Settings {
   rate: number;
   /** What happens when a track plays to its end. */
@@ -244,6 +266,8 @@ export interface Guide {
 export interface Snapshot {
   folder: FolderListing | null;
   missingFolder: string | null;
+  /** Folders to switch to: pinned, then the recent ones; the open one among them. */
+  folders: FolderEntry[];
   lastTrack: string | null;
   settings: Settings;
   progress: Record<string, Progress>;
@@ -557,7 +581,13 @@ export const isTauri = () => "__TAURI_INTERNALS__" in window;
 
 export const api = {
   getSnapshot: () => invoke<Snapshot>("get_snapshot"),
-  chooseFolder: () => invoke<FolderListing | null>("choose_folder"),
+  chooseFolder: () => invoke<OpenedFolder | null>("choose_folder"),
+  folders: {
+    list: () => invoke<FolderEntry[]>("folders_list"),
+    open: (path: string) => invoke<OpenedFolder>("folder_open", { path }),
+    pin: (path: string, pinned: boolean) => invoke<FolderEntry[]>("folder_pin", { path, pinned }),
+    forget: (path: string) => invoke<FolderEntry[]>("folder_forget", { path }),
+  },
   rescanFolder: () => invoke<FolderListing | null>("rescan_folder"),
   saveProgress: (path: string, position: number, duration: number) =>
     invoke<void>("save_progress", { path, position, duration }),

@@ -5,6 +5,7 @@ mod audio;
 mod book;
 mod explain;
 mod feedback;
+mod folders;
 mod guide;
 mod library;
 mod local;
@@ -47,7 +48,8 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(state_path: PathBuf, data: Persisted, samples: Option<PathBuf>) -> Self {
+    pub fn new(state_path: PathBuf, mut data: Persisted, samples: Option<PathBuf>) -> Self {
+        folders::seed(&mut data);
         Self {
             saver: Saver::new(state_path.clone()),
             state_path,
@@ -133,6 +135,8 @@ struct Snapshot {
     folder: Option<FolderListing>,
     /// Remembered folder that could not be opened (moved, unmounted).
     missing_folder: Option<String>,
+    /// Folders to switch to (pinned, then recent), the open one among them.
+    folders: Vec<folders::FolderEntry>,
     last_track: Option<String>,
     settings: Settings,
     progress: HashMap<String, Progress>,
@@ -164,6 +168,7 @@ fn get_snapshot(state: State<AppState>, media: State<media::Server>) -> Snapshot
     Snapshot {
         folder,
         missing_folder,
+        folders: folders::list(&state),
         last_track: data.last_track,
         settings: data.settings,
         progress: data.progress,
@@ -173,22 +178,19 @@ fn get_snapshot(state: State<AppState>, media: State<media::Server>) -> Snapshot
     }
 }
 
-/// Only a folder picked in the native dialog becomes the approved root.
+/// Only a folder picked in the native dialog becomes the approved root (and joins
+/// the folders to switch back to, src/folders.rs).
 #[tauri::command]
 async fn choose_folder(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<Option<FolderListing>, String> {
+) -> Result<Option<folders::Opened>, String> {
     let Some(picked) = app.dialog().file().blocking_pick_folder() else {
         return Ok(None);
     };
     let path = picked.into_path().map_err(|e| e.to_string())?;
     let listing = library::scan(&path).map_err(|e| e.to_string())?;
-    state.update(|d| {
-        d.folder = Some(PathBuf::from(&listing.root));
-        d.last_track = None;
-    })?;
-    Ok(Some(listing))
+    folders::enter(&state, listing).map(Some)
 }
 
 #[tauri::command(async)]
@@ -225,7 +227,11 @@ fn save_progress(
 
 #[tauri::command]
 fn set_last_track(state: State<AppState>, path: Option<String>) -> Result<(), String> {
-    state.update(|d| d.last_track = path)
+    state.update(|d| {
+        let folder = d.folder.clone();
+        folders::left_at(&mut d.folders, folder.as_deref(), path.clone());
+        d.last_track = path;
+    })
 }
 
 #[tauri::command]
@@ -369,6 +375,10 @@ pub fn run() {
             get_snapshot,
             choose_folder,
             rescan_folder,
+            folders::folders_list,
+            folders::folder_open,
+            folders::folder_pin,
+            folders::folder_forget,
             save_progress,
             set_last_track,
             save_settings,

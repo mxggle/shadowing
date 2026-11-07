@@ -165,6 +165,8 @@ pub struct Progress {
 #[serde(rename_all = "camelCase", default)]
 pub struct Persisted {
     pub folder: Option<PathBuf>,
+    /// Folders opened before, to switch back to (src/folders.rs); the open one is among them.
+    pub folders: Vec<crate::folders::KnownFolder>,
     pub last_track: Option<String>,
     pub settings: Settings,
     /// Keyed by absolute track path.

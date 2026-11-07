@@ -2,6 +2,7 @@ import { BookMarked, Check, Play, Star, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useKeys } from "../hooks/useKeys";
 import { dueList, dueNote, sentenceFor, type BookEntry } from "../lib/book";
+import { folderHolding } from "../lib/folders";
 import { barWidth, hideModeOf, textShown } from "../lib/hide";
 import { t } from "../lib/i18n";
 import { fileStem } from "../lib/paths";
@@ -122,6 +123,10 @@ export function BookView() {
 /** One sentence of the book: what it says (unless hidden), where it's from and when it comes back. */
 function EntryRow({ entry, current, today }: { entry: BookEntry; current: boolean; today: string }) {
   const track = useApp((s) => s.folder?.tracks.find((x) => x.path === entry.audio));
+  // Not in the open folder: another folder opened before may hold it (shadowing it switches there).
+  const folders = useApp((s) => s.folders);
+  const elsewhere = useMemo(() => (track ? null : folderHolding(folders, entry.audio)), [track, folders, entry.audio]);
+  const reachable = !!track || !!elsewhere;
   // While it's the one being shadowed, its sentence in the open audio (for 藏字幕 and recording).
   const index = useApp((s) => (current && s.current?.path === entry.audio ? sentenceFor(s.transcript?.sentences ?? [], entry) : -1));
   const shown = useApp((s) => {
@@ -143,11 +148,11 @@ function EntryRow({ entry, current, today }: { entry: BookEntry; current: boolea
       <div className="min-w-0">
         {shown || index < 0 ? (
           shown ? (
-            <button onClick={() => track && reviewEntry(entry.id)} disabled={!track} className="block w-full cursor-text text-left font-script text-[18px] leading-[30px] break-words text-fg disabled:text-muted">
+            <button onClick={() => reachable && reviewEntry(entry.id)} disabled={!reachable} className="block w-full cursor-text text-left font-script text-[18px] leading-[30px] break-words text-fg disabled:text-muted">
               {entry.text}
             </button>
           ) : (
-            <button onClick={() => track && reviewEntry(entry.id)} disabled={!track} className="flex h-[30px] w-full items-center font-script text-[18px]" title={t("开始跟读这一句")}>
+            <button onClick={() => reachable && reviewEntry(entry.id)} disabled={!reachable} className="flex h-[30px] w-full items-center font-script text-[18px]" title={t("开始跟读这一句")}>
               <span className="block h-2.5 max-w-full rounded-full bg-track" style={{ width: `${barWidth(entry.text)}em` }} />
             </button>
           )
@@ -156,7 +161,7 @@ function EntryRow({ entry, current, today }: { entry: BookEntry; current: boolea
         )}
         <p className="mt-0.5 text-[11px] text-faint">
           {track ? track.name : fileStem(entry.audio)} · <span className="tabular font-mono">{formatTime(entry.start)}</span>
-          {!track && <> · {t("不在打开的文件夹里")}</>}
+          {!track && <> · {elsewhere ? t("在文件夹「{name}」里", { name: elsewhere.name }) : t("不在打开的文件夹里")}</>}
         </p>
         {current && (
           <div className="mt-2.5 flex flex-wrap items-center gap-2">

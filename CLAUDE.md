@@ -19,7 +19,7 @@ src/                      前端
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，改字幕在 correctSlice.ts，拆句 / 合并句在 reshapeSlice.ts，
                           AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts，
                           学习记录与每日目标在 practiceSlice.ts，跟读停顿在 paceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts，逐句跟读在 drillSlice.ts，
-                          插件和从链接导入在 importSlice.ts，插件在句子上的标注在 annotateSlice.ts，视频画面的设置在 videoSlice.ts，意见反馈在 feedbackSlice.ts）
+                          插件和从链接导入在 importSlice.ts，插件在句子上的标注在 annotateSlice.ts，视频画面的设置在 videoSlice.ts，意见反馈在 feedbackSlice.ts，切换文件夹在 folderSlice.ts）
   lib/pace.ts             跟读停顿：一次放哪一段（这一句，循环里到循环的终点）、每句后停多久（不停 / 秒数 / 按句长 / 等你）、放几遍之后去哪，有单元测试
   lib/keymap.ts           快捷键：每个动作的默认键（单键）、你自己换的键（单键或组合键 `ctrl+alt+t`；交换、恢复默认、和新默认键冲突时、应用和系统已占用的组合）、按键的名字，有单元测试
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句、正在放的句子逐字亮到哪），有单元测试
@@ -31,6 +31,7 @@ src/                      前端
   lib/platform.ts         在哪个系统上跑（Windows 还是 Mac，看 WebView 的 user agent；浏览器 mock 里地址加 ?platform=windows 预览 Windows）、
                           命令键判断（isMod / isCmd）和按键名（shortcut()：⌘ → Ctrl、⇧ → Shift），有单元测试
   lib/wording.ts          Mac 和 Windows 说法不同的词（这台 Mac / 这台电脑，macOS 钥匙串 / Windows 凭据管理器），有单元测试
+  lib/folders.ts          切换文件夹：切换器的分组（已固定 / 最近打开）、打开时焦点落在上一个文件夹（⌘O ↩ 来回切）、句子本的音频在哪个已知文件夹里，有单元测试
   lib/paths.ts            路径里的 / 和 \（面包屑的子文件夹、没有标题时用文件名），有单元测试
   lib/update.ts           更新提示里的更新说明要点、下载百分比，有单元测试
   lib/changelog.ts        新功能：把打包进应用的 CHANGELOG.md（releases.ts）读成各个版本、更新后要不要说“已更新到 …”，有单元测试
@@ -55,7 +56,7 @@ src/                      前端
                           Explain.tsx 句子下的解释块、SentenceEditor.tsx 改一句（⇧↩ 断开、⌫ / ⌦ 合并）、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
                           UpdateNotice.tsx 右上角的更新提示（更新后一次的“已更新到 …”也在这里），WhatsNew.tsx 新功能（菜单、设置里打开）；Feedback.tsx 意见反馈（设置 → 版本、Mac 菜单的「发送反馈…」打开，「附上诊断信息」先列出会附上的每一行）；Recorder.tsx 句子下的跟读录音卡片（和行上的麦克风），TakeWaves.tsx 原句 / 我的两条波形，TakePeek.tsx 播放到录过的句子时展开的精简对比；
                           Reading.tsx 整段录音（开始菜单、录音时的标题条），Drill.tsx 逐句跟读（每句几遍、进行中的标题条），ReadingResult.tsx 读完的结果（段落上方一行）；
-                          AddMenu.tsx 侧栏顶的 ＋（所有添加音频的方式，插件的导入也在这里；见 docs/plugin-ui.md 的插槽），
+                          AddMenu.tsx 侧栏顶的 ＋（所有添加音频的方式，插件的导入也在这里；见 docs/plugin-ui.md 的插槽），FolderSwitcher.tsx 侧栏顶上的文件夹名和它打开的切换器（⌘O），
                           ImportLink.tsx 从链接导入的确认框（⌘V 或 ＋ 打开）、列表里下载中 / 排队 / 失败的一行；
                           Practice.tsx 学习记录面板（PracticeCharts.tsx 柱状图和日历，PracticeGoal.tsx 顶栏目标圆环和目标一行）；
                           settings/ 是设置面板（Plugins.tsx 插件：已装的、删除、从文件夹安装；Shortcuts.tsx 自定义快捷键）；
@@ -65,6 +66,8 @@ src/                      前端
 src-tauri/src/
   lib.rs                  AppState + 命令注册
   i18n.rs                 界面语言：设置里选的，或跟随 Mac（系统首选语言是中文才用中文）；tr! / pick 给 Rust 里的提示选中文或英文
+  folders.rs              打开过的文件夹（state.json 的 folders，最近的在前）：固定的按固定的先后、其余最多 6 个，每个记着上次的音频；
+                          只有原生对话框里选过的文件夹才在列表里，切换（folder_open）只接受列表里的，不多授权任何东西
   library.rs              扫描文件夹（音频、视频 mp4 / m4v / mov、列出但放不了的 webm / mkv）、路径校验（resolve_inside；路径用 dunce 规范化，Windows 上没有 `\\?\` 前缀，盘符和共享名不分大小写）
   media.rs                视频的画面：应用里只给自己用的 HTTP 服务（只听 127.0.0.1、随机端口、每次启动新的口令、核对 Host），把打开的文件夹里的视频按 Range 边读边交给 <video>；
                           不用自定义协议：WebKit 经自定义协议一帧一个请求，放不到实时（见 docs/video-plan.md）

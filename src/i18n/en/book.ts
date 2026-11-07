@@ -25,6 +25,7 @@ export const book: Record<string, Entry> = {
   "今天没有要再跟读的句子。": "Nothing to shadow again today.",
   "在原文里把鼠标移到一句上点 ☆（或按 B），第二天它就会出现在这里。": "In the text, point at a sentence and click ☆ (or press B); it shows up here the next day.",
   不在打开的文件夹里: "not in the folder that's open",
+  "在文件夹「{name}」里": "in the folder “{name}”",
   明天再来: "Back tomorrow",
   "{n} 天后再来": "Back in {n} days",
   记住了: "Learnt",
