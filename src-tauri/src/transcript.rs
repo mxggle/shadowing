@@ -169,11 +169,27 @@ pub fn remove(dir: &Path, audio: &str) -> std::io::Result<()> {
     }
 }
 
-/// `stem.srt` beats `stem.<lang>.srt`; the language tag must look like one.
-pub fn find_sidecar(audio: &Path) -> Option<PathBuf> {
-    let stem = audio.file_stem()?.to_str()?;
-    let mut found: Vec<(bool, String, PathBuf)> = fs::read_dir(audio.parent()?)
-        .ok()?
+/// A file name as people read it: full-width and half-width forms (`＋` / `+`),
+/// composed and decomposed accents and kana (macOS keeps names as the app that
+/// made them spelled them), and capitals all count as the same.
+fn loose(name: &str) -> String {
+    icu_normalizer::ComposingNormalizerBorrowed::new_nfkc()
+        .normalize(name)
+        .to_lowercase()
+}
+
+/// Subtitle files next to the audio, best first: `stem.srt` beats
+/// `stem.<lang>.srt` (the language tag must look like one), and a name spelled
+/// exactly like the audio's beats one that only looks the same (see `loose`).
+fn find_sidecars(audio: &Path) -> Vec<PathBuf> {
+    let Some(stem) = audio.file_stem().and_then(|s| s.to_str()) else {
+        return Vec::new();
+    };
+    let loose_stem = loose(stem);
+    let Some(entries) = audio.parent().and_then(|dir| fs::read_dir(dir).ok()) else {
+        return Vec::new();
+    };
+    let mut found: Vec<(bool, bool, String, PathBuf)> = entries
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let name = entry.file_name().into_string().ok()?;
@@ -181,18 +197,33 @@ pub fn find_sidecar(audio: &Path) -> Option<PathBuf> {
             if !SUBTITLE_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()) {
                 return None;
             }
-            let tag = base.strip_prefix(stem)?;
+            let spelled_alike = base.starts_with(stem);
+            let loose_base = loose(base);
+            let tag = loose_base.strip_prefix(loose_stem.as_str())?;
             let exact = tag.is_empty();
             let lang = tag.strip_prefix('.').unwrap_or("-");
             // "ja", "en-US", "zh-Hans"; not "5" (that is "ep1.5.srt" for "ep1.5.mp3").
             let lang_ok = (2..=10).contains(&lang.len())
                 && lang.starts_with(|c: char| c.is_ascii_alphabetic())
                 && lang.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
-            (exact || lang_ok).then(|| (!exact, name, entry.path()))
+            (exact || lang_ok).then(|| (!exact, !spelled_alike, name, entry.path()))
         })
         .collect();
-    found.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| library::natural_cmp(&a.1, &b.1)));
-    found.into_iter().next().map(|(_, _, path)| path)
+    found.sort_by(|a, b| {
+        (a.0, a.1)
+            .cmp(&(b.0, b.1))
+            .then_with(|| library::natural_cmp(&a.2, &b.2))
+    });
+    found.into_iter().map(|(_, _, _, path)| path).collect()
+}
+
+/// The subtitles next to the audio that the app may read: the best file that
+/// opens, so one that can't be read (not UTF-8, empty) leaves the next in line.
+fn sidecar(state: &AppState, audio: &Path) -> Option<Transcript> {
+    find_sidecars(audio)
+        .into_iter()
+        .filter_map(|p| state.allowed(&p))
+        .find_map(|p| read_subtitle(&p, Source::Sidecar).ok())
 }
 
 /// Canonical audio path (approved folder or bundled samples), plus the transcripts dir.
@@ -207,11 +238,7 @@ pub(crate) fn authorize(
 
 /// What a track shows: the transcript saved for it, else a subtitle file next to it.
 pub(crate) fn current(state: &AppState, audio: &Path, dir: &Path, key: &str) -> Option<Transcript> {
-    load(dir, key).or_else(|| {
-        find_sidecar(audio)
-            .and_then(|p| state.allowed(&p))
-            .and_then(|p| read_subtitle(&p, Source::Sidecar).ok())
-    })
+    load(dir, key).or_else(|| sidecar(state, audio))
 }
 
 /// The transcript a track shows, for an audio path the app may read.
@@ -330,7 +357,7 @@ pub async fn transcript_remove(
     path: String,
 ) -> Result<Option<Transcript>, String> {
     let (audio, key, dir) = authorize(&state, &path)?;
-    let mut message = match find_sidecar(&audio).and_then(|p| state.allowed(&p)) {
+    let mut message = match sidecar(&state, &audio) {
         Some(_) => crate::i18n::pick(
             "会换回音频旁的字幕文件。",
             "The subtitle file next to the audio will be used again.",

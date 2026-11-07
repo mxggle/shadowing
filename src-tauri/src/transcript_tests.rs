@@ -119,6 +119,12 @@ fn files_from_before_sections_get_them_on_load_and_bad_ones_are_repaired() {
     );
 }
 
+fn find_sidecar(audio: &Path) -> Option<PathBuf> {
+    find_sidecars(audio).into_iter().next()
+}
+
+const SRT: &str = "1\n00:00:00,500 --> 00:00:01,000\nこんにちは\n";
+
 #[test]
 fn sidecar_prefers_exact_name_then_language_tags() {
     let dir = tempfile::tempdir().unwrap();
@@ -142,10 +148,88 @@ fn sidecar_prefers_exact_name_then_language_tags() {
 }
 
 #[test]
+fn sidecar_whose_name_only_looks_the_same_is_found() {
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    // A full-width ＋ in the video's name, a half-width + in the subtitle's (and back).
+    fs::write(d.join("p1u1-学校+大学生活.srt"), b"x").unwrap();
+    assert_eq!(
+        find_sidecar(&d.join("p1u1-学校＋大学生活.mp4")).unwrap(),
+        d.join("p1u1-学校+大学生活.srt")
+    );
+    fs::write(d.join("p2u1-会話＋練習.ja.vtt"), b"x").unwrap();
+    assert_eq!(
+        find_sidecar(&d.join("p2u1-会話+練習.mp4")).unwrap(),
+        d.join("p2u1-会話＋練習.ja.vtt")
+    );
+    // Kana spelled decomposed (か + ゛), as some apps on macOS write names.
+    let decomposed = "こ\u{3099}んき\u{3099}つね.srt";
+    fs::write(d.join(decomposed), b"x").unwrap();
+    assert_eq!(
+        find_sidecar(&d.join("ごんぎつね.mp3")).unwrap(),
+        d.join(decomposed)
+    );
+    // Capitals and full-width letters and digits.
+    fs::write(d.join("Lesson 3.srt"), b"x").unwrap();
+    assert_eq!(
+        find_sidecar(&d.join("ＬＥＳＳＯＮ ３.m4a")).unwrap(),
+        d.join("Lesson 3.srt")
+    );
+    // Still a different file: another lesson, or a different word.
+    assert!(find_sidecar(&d.join("p1u2-学校+大学生活.mp4")).is_none());
+    assert!(find_sidecar(&d.join("p1u1-学校-大学生活.mp4")).is_none());
+}
+
+#[test]
+fn sidecar_spelled_exactly_like_the_audio_comes_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    fs::write(d.join("a+b.srt"), b"x").unwrap();
+    fs::write(d.join("a＋b.srt"), b"x").unwrap();
+    assert_eq!(
+        find_sidecars(&d.join("a＋b.mp4")),
+        [d.join("a＋b.srt"), d.join("a+b.srt")]
+    );
+    assert_eq!(
+        find_sidecars(&d.join("a+b.mp4")),
+        [d.join("a+b.srt"), d.join("a＋b.srt")]
+    );
+    // A language-tagged file still comes after any untagged one.
+    fs::write(d.join("a＋b.ja.srt"), b"x").unwrap();
+    assert_eq!(
+        find_sidecars(&d.join("a＋b.mp4")).last().unwrap(),
+        &d.join("a＋b.ja.srt")
+    );
+}
+
+#[test]
+fn a_sidecar_that_cannot_be_read_leaves_the_next_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = crate::library::canonical(dir.path()).unwrap();
+    let data = store::Persisted {
+        folder: Some(root.clone()),
+        ..Default::default()
+    };
+    let state = AppState::new(root.join("state.json"), data, None);
+    let audio = root.join("lesson.mp4");
+    fs::write(&audio, b"x").unwrap();
+    assert!(sidecar(&state, &audio).is_none());
+    // Shift_JIS, as old subtitle files often are: can't be read as UTF-8.
+    fs::write(root.join("lesson.srt"), [0x93, 0xFA, 0x96, 0x7B]).unwrap();
+    assert!(sidecar(&state, &audio).is_none());
+    fs::write(root.join("lesson.ja.srt"), SRT).unwrap();
+    let t = sidecar(&state, &audio).unwrap();
+    assert_eq!(
+        (t.origin.as_str(), t.source),
+        ("lesson.ja.srt", Source::Sidecar)
+    );
+}
+
+#[test]
 fn reads_subtitle_with_origin() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("lesson.srt");
-    fs::write(&path, "1\n00:00:00,500 --> 00:00:01,000\nこんにちは\n").unwrap();
+    fs::write(&path, SRT).unwrap();
     let t = read_subtitle(&path, Source::Sidecar).unwrap();
     assert_eq!((t.origin.as_str(), t.sentences.len()), ("lesson.srt", 1));
 }
