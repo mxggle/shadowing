@@ -71,7 +71,8 @@ src-tauri/src/
   guide.rs                引导状态（state.json 的 guide）、打包的示例音频（samples/，见 samples/README.md 的出处）
   store.rs                state.json 读写、原子写入
   transcript.rs           每个音频的字幕：app data 里的 transcripts/，或音频旁的同名 .srt/.vtt
-                          （改过的字幕只存 app data 里的副本，不改写音频旁的文件）
+                          （名字看起来一样就算同名：NFKC + 小写，全角＋和半角+、NFD 和 NFC、大小写；拼写完全一样的优先，读不出的换下一个；
+                          改过的字幕只存 app data 里的副本，不改写音频旁的文件）
   timing.rs               逐字高亮用的每个字（英文是每个词）什么时候说：转写时从 Whisper 的词时间得出（只有转写的字幕有），
                           改字（逐字对比，换掉的字接替原来的时间）、拆句、合并、撤销时跟着走
   subtitles.rs            SRT / WebVTT 解析

@@ -33,6 +33,9 @@ tokio = { version = "1", features = ["time", "macros", "sync"] }
 sha2 = "0.10"
 # RAM (sysctl) and free disk space (statfs) for choosing a model on macOS; already in the tree.
 libc = "0.2"
+# Finds the subtitle file next to an audio file whose name only looks the same (transcript.rs): NFKC
+# makes ＋ and +, Ａ and A, NFD and NFC (macOS) one spelling. Already in the tree via Tauri (url, idna).
+icu_normalizer = { version = "2", default-features = false, features = ["compiled_data"] }
 # Canonical paths without Windows' `\\?\` prefix (the same as std elsewhere); already in the tree via Tauri.
 dunce = "1.0.5"
 # The system's secure randomness (sign-in PKCE values, install id) on every platform; already in the tree via Tauri.
