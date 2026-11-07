@@ -7,6 +7,7 @@ import { placeDownloads } from "../lib/imports";
 import { isWindows, shortcut } from "../lib/platform";
 import { useApp } from "../store";
 import { AddMenu } from "./AddMenu";
+import { FolderSwitcher } from "./FolderSwitcher";
 import { BookShelfRow } from "./Book";
 import { DownloadRow } from "./ImportLink";
 import { Button, IconButton } from "./ui";
@@ -103,8 +104,8 @@ function FolderView({ folder }: { folder: FolderListing }) {
         <AddMenu />
       </div>
 
-      <div className="flex items-baseline gap-2 px-5 pb-2" title={folder.root}>
-        <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold tracking-[-0.005em]">{folder.name}</h2>
+      <div className="flex items-center justify-between gap-2 pr-5 pb-1 pl-3.5">
+        <FolderSwitcher folder={folder} />
         <span className="tabular shrink-0 font-mono text-[11px] text-faint">{folder.tracks.length}</span>
       </div>
 

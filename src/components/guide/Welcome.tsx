@@ -1,4 +1,4 @@
-import { FolderOpen, Pause, Repeat } from "lucide-react";
+import { Folder, FolderOpen, Pause, Pin, Repeat } from "lucide-react";
 import { t } from "../../lib/i18n";
 import { useApp } from "../../store";
 import { TextLink } from "../ui";
@@ -35,12 +35,43 @@ function Returning() {
           <BigButton onClick={() => void chooseFolder()}>
             <FolderOpen size={16} strokeWidth={1.9} /> {t("打开文件夹")}
           </BigButton>
+          <RecentFolders />
           <TextLink className="mt-5" onClick={() => void startPractice()}>
             {t("先用示例练一下")}
           </TextLink>
         </div>
         <Preview language={guide.language === "en" ? "en" : "ja"} />
       </div>
+    </div>
+  );
+}
+
+/** Folders opened before (the last one couldn't be opened, or none is open): one click away. */
+function RecentFolders() {
+  const folders = useApp((s) => s.folders);
+  const list = folders.filter((f) => !f.current && !f.missing).slice(0, 5);
+  if (list.length === 0) return null;
+  return (
+    <div className="mt-7 w-full max-w-[340px]">
+      <p className="text-[12px] font-medium text-faint">{t("最近打开的文件夹")}</p>
+      <ul className="-mx-2.5 mt-1.5">
+        {list.map((f) => (
+          <li key={f.path}>
+            <button
+              onClick={() => void useApp.getState().switchFolder(f.path)}
+              title={f.path}
+              className="flex w-full items-center gap-2.5 rounded-[8px] px-2.5 py-1.5 text-left transition-colors duration-150 hover:bg-hover"
+            >
+              <Folder size={15} strokeWidth={1.9} className="shrink-0 text-muted" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] leading-[18px] text-fg/90">{f.name}</span>
+                <span className="block truncate text-[11px] leading-4 text-faint">{f.place}</span>
+              </span>
+              {f.pinned && <Pin size={12} strokeWidth={2} aria-label={t("已固定")} className="shrink-0 text-faint" />}
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import type { AiConfig, Explanation, Feature, PracticeSession, Preset, SavedExpl
 import { fresh, samples, sampleTranscripts } from "./mockSamples";
 import { mockRecord, seedTakes, stopClip } from "./mockRecorder";
 import { mockPlugins } from "./mockPlugins";
+import { mockFolders } from "./mockFolders";
 import { mockReshape } from "./mockReshape";
 import { addDays, type BookEntry } from "../lib/book";
 import { isWindows } from "../lib/platform";
@@ -233,7 +234,7 @@ const push = () => void emit("player:status", status());
 /** 等我说完's pretend listening. */
 let listening = 0;
 
-/** 句子本: two due today, one missed yesterday, one coming back, one learnt. */
+/** 句子本: two due today, one missed yesterday, two coming back (one from another folder), one learnt. */
 const day = dayKey(Date.now());
 const bookLine = (id: string, track: number, i: number, due: number | null, step: number): BookEntry => ({
   id,
@@ -245,7 +246,15 @@ const bookLine = (id: string, track: number, i: number, due: number | null, step
   due: due === null ? "" : addDays(day, due),
   step,
 });
-let book: BookEntry[] = [bookLine("m1", 1, 1, 0, 0), bookLine("m2", 3, 5, -1, 1), bookLine("m3", 1, 10, 0, 0), bookLine("m4", 1, 3, 6, 1), bookLine("m5", 1, 4, null, 3)];
+let book: BookEntry[] = [
+  bookLine("m1", 1, 1, 0, 0),
+  bookLine("m2", 3, 5, -1, 1),
+  bookLine("m3", 1, 10, 0, 0),
+  bookLine("m4", 1, 3, 6, 1),
+  bookLine("m5", 1, 4, null, 3),
+  // From a folder opened before (mockFolders.ts): shadowing it switches there.
+  { ...bookLine("m6", 1, 2, 2, 1), audio: "/Users/me/Documents/日语/新标准日本语 初级/第2課 これは本です.mp3" },
+];
 
 /** Like the engine's hold: a recording paused pauses the track, a range keeping its end; going on plays it
  *  on if it was playing (and nothing has moved it since). Returns, going on, whether it does. */
@@ -300,9 +309,14 @@ const practiceLog: PracticeSession[] = [];
 }
 
 export function installMockBackend() {
+  const folder = fresh ? null : { root, name: "日本語ポッドキャスト", tracks };
+  // ?missing: the last folder can't be opened (moved, or its drive unplugged).
+  const missing = new URLSearchParams(location.search).has("missing");
+  const known = mockFolders(folder, fresh, missing);
   const snapshot: Snapshot = {
-    folder: fresh ? null : { root, name: "日本語ポッドキャスト", tracks },
-    missingFolder: null,
+    folder: missing ? null : folder,
+    missingFolder: missing ? root : null,
+    folders: known.entries(),
     lastTrack: fresh ? null : tracks[1].path,
     settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, paceOn: false, pauseMode: "length", pauseLength: "standard", pauseSeconds: 2, pauseRatio: 1.5, pauseWait: "key", sentenceRepeats: 1, hideText: "show", hideHow: "hide", shortcuts: {}, mediaKeys: true, uiLanguage: "" },
     progress: {
@@ -469,8 +483,24 @@ export function installMockBackend() {
         case "guide_save":
           snapshot.guide = a.guide;
           return;
-        case "choose_folder":
-          return { root, name: "日本語ポッドキャスト", tracks };
+        case "choose_folder": {
+          const opened = known.chosen({ root, name: "日本語ポッドキャスト", tracks });
+          snapshot.folder = opened.folder;
+          return opened;
+        }
+        case "folders_list":
+          return known.entries();
+        case "folder_open": {
+          const opened = known.open(a.path);
+          snapshot.folder = opened.folder;
+          return opened;
+        }
+        case "folder_pin":
+          return known.pin(a.path, a.pinned);
+        case "folder_forget":
+          return known.forget(a.path);
+        case "set_last_track":
+          return known.leftAt(a.path);
         case "transcribe_cancel":
           if (job) job.cancelled = true;
           return;

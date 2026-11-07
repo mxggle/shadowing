@@ -106,6 +106,8 @@ export function useShortcuts() {
       if (isMod(e) && !e.altKey && !e.shiftKey) {
         const command: Record<string, (() => boolean | void) | false> = {
           b: s.toggleShelf,
+          // Another folder: the switcher (folders opened before), or the native dialog.
+          o: () => s.openSwitcher(),
           // A link copied elsewhere: import it (when a plugin takes it).
           v: () => void s.pasteLink(),
           // Find in the sentences, starting from any text selected in them.

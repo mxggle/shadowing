@@ -85,6 +85,7 @@ const groups = (seekStep: number, key: (a: Action) => string, mediaKeys: boolean
     keys: [
       [["?"], t("显示 / 隐藏本表")],
       [["⌘", "B"], t("显示 / 隐藏左侧列表")],
+      [["⌘", "O"], t("切换文件夹")],
       [["⌘", ","], t("设置")],
     ],
   },

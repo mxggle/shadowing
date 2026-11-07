@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { AudioEngine } from "./audio/engine";
 import { clampRate, clampSeekStep, cycleLoop, NO_LOOP, nudgeLoop, resumePosition, SEEK_STEP_DEFAULT, trackAfter, type Loop, type PlayMode } from "./audio/logic";
 import { listen } from "@tauri-apps/api/event";
-import { api, setMediaBase, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type Progress, type Settings, type Track } from "./lib/api";
+import { api, setMediaBase, type AiConfig, type AiOverview, type DownloadStatus, type FolderListing, type LocalOverview, type OpenedFolder, type Progress, type Settings, type Track } from "./lib/api";
 import { setLang, t, type Lang, type LangSetting } from "./lib/i18n";
 import { keymap, keyName } from "./lib/keymap";
 import { justAfterSentence, migratePace, paceActive, withPause } from "./lib/pace";
@@ -14,6 +14,7 @@ import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createDrillSlice, type DrillState } from "./drillSlice";
 import { createExplainSlice, type ExplainState } from "./explainSlice";
 import { createFeedbackSlice, type FeedbackState } from "./feedbackSlice";
+import { createFolderSlice, type FolderState } from "./folderSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
 import { createHideSlice, type HideState } from "./hideSlice";
 import { createImportSlice, type ImportState } from "./importSlice";
@@ -27,7 +28,7 @@ import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./tr
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 import { createVideoSlice, type VideoState } from "./videoSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState, PaceState, HideState, BookState, FeedbackState {
+export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState, PaceState, HideState, BookState, FeedbackState, FolderState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -225,6 +226,25 @@ export const useApp = create<AppState>((set, get) => {
     s.nudge("pauseByHand", { label: t("开启"), key: keyName(keymap(s.settings.shortcuts).pace), run: () => get().setPace(withPause(get().settings)) });
   }
 
+  /**
+   * A folder just opened (from the native dialog or the switcher): what was playing
+   * stops, and `track` opens paused (null: none; left out, the one you were on there).
+   */
+  function enterFolder({ folder, lastTrack, folders }: OpenedFolder, track?: string | null) {
+    saveProgress(true);
+    get().cancelTake();
+    get().stopTake();
+    get().cancelReading();
+    get().stopReadingPlayback();
+    get().paceReset();
+    engine.unload();
+    set({ takes: [], readings: [], rec: null, live: null, recordAt: null, folder, folders, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, practicing: false });
+    if (!get().guide.welcomed) get().saveGuide({ welcomed: true });
+    const want = track === undefined ? lastTrack : track;
+    const resume = folder.tracks.find((t) => t.path === want && playable(t));
+    if (resume) get().open(resume, false);
+  }
+
   /** `from`: the transcript sentence or section this loop repeats, if any. */
   function applyLoop(loop: Loop, from: LoopFrom = {}) {
     engine.setLoop(loop);
@@ -268,6 +288,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createHideSlice(set, get, persistSettings),
     ...createBookSlice(set, get),
     ...createFeedbackSlice(set, get),
+    ...createFolderSlice(set, get, enterFolder),
 
     async init() {
       const [snap, ai, local] = await Promise.all([api.getSnapshot(), api.ai.get(), api.local.models()]);
@@ -278,6 +299,7 @@ export const useApp = create<AppState>((set, get) => {
         lang: snap.uiLang,
         folder: snap.folder,
         missingFolder: snap.missingFolder,
+        folders: snap.folders,
         progress: snap.progress,
         settings: migratePace(snap.settings),
         guide: snap.guide,
@@ -331,17 +353,8 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     async chooseFolder() {
-      const folder = await api.chooseFolder();
-      if (!folder) return;
-      saveProgress(true);
-      get().cancelTake();
-      get().stopTake();
-      get().cancelReading();
-      get().stopReadingPlayback();
-      get().paceReset();
-      engine.unload();
-      set({ takes: [], readings: [], rec: null, live: null, recordAt: null, folder, missingFolder: null, current: null, playing: false, time: 0, duration: 0, loop: NO_LOOP, repeats: 0, error: null, transcript: null, loopSentence: null, loopSection: null, practicing: false });
-      if (!get().guide.welcomed) get().saveGuide({ welcomed: true });
+      const opened = await api.chooseFolder();
+      if (opened) enterFolder(opened);
     },
 
     async rescan() {
