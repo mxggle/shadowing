@@ -4037,7 +4037,7 @@ dependencies = [
 
 [[package]]
 name = "shadowing"
-version = "0.17.2"
+version = "0.18.0"
 dependencies = [
  "apple-native-keyring-store",
  "block2",
