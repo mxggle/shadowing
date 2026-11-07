@@ -138,9 +138,9 @@ function baseOf(e: Pick<KeyboardEvent, "key" | "code">): string | null {
   return keyOf(e);
 }
 
-/** Taken by the app (⌘B, ⌘C…; on a Mac Ctrl does those too), the Mac's menu (⌘Q, ⌘H…) or the system. */
+/** Taken by the app (⌘B, ⌘O, ⌘C…; on a Mac Ctrl does those too), the Mac's menu (⌘Q, ⌘H…) or the system. */
 const TAKEN_MAC: ReadonlySet<string> = new Set([
-  ...["b", "v", "f", "z", "c"].flatMap((k) => [`meta+${k}`, `ctrl+${k}`]),
+  ...["b", "o", "v", "f", "z", "c"].flatMap((k) => [`meta+${k}`, `ctrl+${k}`]),
   "meta+,",
   ...["q", "w", "h", "m", "a", "x"].map((k) => `meta+${k}`),
   "alt+meta+h",
@@ -149,7 +149,7 @@ const TAKEN_MAC: ReadonlySet<string> = new Set([
 ]);
 const TAKEN: Record<Platform, ReadonlySet<string>> = {
   mac: TAKEN_MAC,
-  windows: new Set([...["b", "v", "f", "z", "c", ","].map((k) => `ctrl+${k}`), "alt+F4"]),
+  windows: new Set([...["b", "o", "v", "f", "z", "c", ","].map((k) => `ctrl+${k}`), "alt+F4"]),
   other: TAKEN_MAC,
 };
 
