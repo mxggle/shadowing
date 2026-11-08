@@ -15,6 +15,7 @@ import { useApp } from "../store";
 import { ExplainNote } from "./Explain";
 import { ProofreadBar, ProofreadButton, SuggestionNote } from "./Proofread";
 import { DrillBar } from "./Drill";
+import { FlowLine } from "./guide/Flow";
 import { LiveReadingBar, ReadingButton, ReadingProblem } from "./Reading";
 import { ReadingBar } from "./ReadingResult";
 import { RecorderCard } from "./Recorder";
@@ -193,6 +194,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
           )}
         </span>
       </div>
+      <FlowLine />
       <ReplaceBar />
       <ProofreadBar />
       <ReadingProblem />

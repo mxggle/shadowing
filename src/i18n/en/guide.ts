@@ -161,4 +161,15 @@ export const guide: Record<string, Entry> = {
   哪里最不顺手: "What's been most awkward",
   "会和版本号、系统、界面语言一起发给开发者。": "Sent to the developer with the app version, system and interface language.",
   不了: "No thanks",
+  // 推荐练法 (guide/Flow.tsx)
+  推荐练法: "How to practise",
+  "先完整听一遍，再逐句跟读，最后整段录音": "Hear it through, then a sentence drill, then read a section",
+  完整听一遍: "Hear it through",
+  "从头放一遍，先听懂在说什么": "Play it from the start and get what's being said",
+  "一句一句跟着说，每句 {rounds} 遍，录完自动到下一句": ({ n }) =>
+    `Say each sentence after it, {rounds} ${Number(n) === 1 ? "pass" : "passes"} each; it records and moves on by itself`,
+  "整段读下来，读完逐句和原文对比": "Read a whole section, then compare it with the original sentence by sentence",
+  都做完了: "All done",
+  关闭推荐练法: "Close how to practise",
+  "（已做过）": "(done)",
 };

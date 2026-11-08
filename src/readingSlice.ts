@@ -46,7 +46,10 @@ export interface ReadingState {
   shownReading: string | null;
   playingReading: PlayingReading | null;
   readingError: string | null;
+  /** The list header's 整段录音 menu is open. */
+  readingMenu: boolean;
 
+  setReadingMenu(open: boolean): void;
   loadReadings(path: string): Promise<void>;
   /** Starts reading the section you're in, or the one sentence `at` is in (or everything); ⇧M. 逐句跟读 is drillSlice.ts. */
   startReading(opts?: { scope?: ReadingScope; mode?: ParagraphMode; at?: number }): Promise<void>;
@@ -111,9 +114,14 @@ export function createReadingSlice(set: Set, get: Get, engine: AudioEngine, pers
     shownReading: null,
     playingReading: null,
     readingError: null,
+    readingMenu: false,
+
+    setReadingMenu(readingMenu) {
+      set({ readingMenu });
+    },
 
     async loadReadings(path) {
-      set({ readings: [], shownReading: null, readingError: null });
+      set({ readings: [], shownReading: null, readingError: null, readingMenu: false });
       const readings = await api.record.readings(path).catch(() => []);
       if (get().current?.path === path) set({ readings });
     },

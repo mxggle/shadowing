@@ -9,7 +9,7 @@ import { sectionIndexOf, sectionName, sectionsOf } from "../lib/sections";
 import { sentenceIndexAt } from "../lib/sentences";
 import { useApp } from "../store";
 import { RoundsInput } from "./Drill";
-import { Button, fillNodes, IconButton, Kbd } from "./ui";
+import { Button, fillNodes, IconButton, Kbd, TextLink } from "./ui";
 
 const MODES: { mode: ReadingHow; label: string; note: string }[] = [
   { mode: "read", label: tk("自己读"), note: tk("不放原文，你按自己的速度读；停顿一下，高亮就跳到下一句。") },
@@ -39,7 +39,8 @@ export function ReadingProblem() {
 
 /** In the list header: start reading a whole paragraph (or the text), with how and how much. */
 export function ReadingButton() {
-  const [open, setOpen] = useState(false);
+  const open = useApp((s) => s.readingMenu);
+  const setOpen = useApp.getState().setReadingMenu;
   const root = useRef<HTMLDivElement>(null);
   useDismiss(open, () => setOpen(false), root);
   const busy = useApp((s) => !!s.live || !!s.rec || !!s.drill);
@@ -75,7 +76,8 @@ function ReadingMenu({ onClose }: { onClose: () => void }) {
     const list = s.transcript?.sentences;
     return list?.[first] && list[end - 1] ? readingsFor(s.readings, list[first].start, list[end - 1].end).length : 0;
   });
-  const { startReading, setParagraphMode, showReading } = useApp.getState();
+  const flowOpen = useApp((s) => s.flow?.path === s.current?.path);
+  const { startReading, setParagraphMode, showReading, openFlow } = useApp.getState();
   const latest = () => {
     const s = useApp.getState();
     const list = s.transcript!.sentences;
@@ -130,9 +132,23 @@ function ReadingMenu({ onClose }: { onClose: () => void }) {
           </Button>
         )}
       </div>
-      <p className="mt-2 text-[11px] text-faint">
-        {t("快捷键")} <Kbd>⇧</Kbd> <Kbd>M</Kbd>
-      </p>
+      <div className="mt-2 flex items-center text-[11px] text-faint">
+        <span>
+          {t("快捷键")} <Kbd>⇧</Kbd> <Kbd>M</Kbd>
+        </span>
+        {!flowOpen && (
+          <TextLink
+            className="ml-auto text-[11px]"
+            title={t("先完整听一遍，再逐句跟读，最后整段录音")}
+            onClick={() => {
+              onClose();
+              openFlow();
+            }}
+          >
+            {t("推荐练法")}
+          </TextLink>
+        )}
+      </div>
     </div>
   );
 }

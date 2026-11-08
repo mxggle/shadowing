@@ -6,6 +6,7 @@ import { api, type Guide, type Track } from "./lib/api";
 import { t, tk } from "./lib/i18n";
 import { hideHowOf, hideModeOf } from "./lib/hide";
 import { keymap, keyName } from "./lib/keymap";
+import { FLOW_TIP } from "./lib/flow";
 import { paceActive, withPause } from "./lib/pace";
 import type { AppState } from "./store";
 
@@ -66,6 +67,8 @@ export interface GuideState {
   hint: string | null;
   /** Its button, for a nudge that has one. */
   hintAction: HintAction | null;
+  /** 推荐练法 is open above this track's sentences (`path`); `heard`: played into the last sentence meanwhile. */
+  flow: { path: string; heard: boolean } | null;
 
   saveGuide(patch: Partial<Guide>): void;
   /** Opens the sample for the learning language and shows the practice checklist. */
@@ -81,6 +84,11 @@ export interface GuideState {
   /** Shows a short message in the same place as tips, for a few seconds (`ms`). */
   say(text: string, ms?: number): void;
   dismissHint(): void;
+  /** Shows 推荐练法 on the open track; `auto`: it came up by itself, which it does only once. */
+  openFlow(auto?: boolean): void;
+  closeFlow(): void;
+  /** Ticks 推荐练法's first step: the track was heard to its last sentence. */
+  flowHeard(): void;
 }
 
 type Get = () => AppState;
@@ -97,6 +105,7 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
     wizardOpen: false,
     hint: null,
     hintAction: null,
+    flow: null,
 
     saveGuide(patch) {
       const guide = { ...get().guide, ...patch };
@@ -170,6 +179,22 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
     dismissHint() {
       window.clearTimeout(hintTimer);
       set({ hint: null, hintAction: null });
+    },
+
+    openFlow(auto = false) {
+      const { current, guide } = get();
+      if (!current) return;
+      if (auto && !guide.tips.includes(FLOW_TIP)) get().saveGuide({ tips: [...guide.tips, FLOW_TIP] });
+      set({ flow: { path: current.path, heard: false } });
+    },
+
+    closeFlow() {
+      set({ flow: null });
+    },
+
+    flowHeard() {
+      const flow = get().flow;
+      if (flow && !flow.heard) set({ flow: { ...flow, heard: true } });
     },
   };
 }
