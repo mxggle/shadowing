@@ -45,9 +45,19 @@ export function ReadingButton() {
   const busy = useApp((s) => !!s.live || !!s.rec || !!s.drill);
   return (
     <div ref={root} className="relative">
-      <IconButton title={t("整段录音 ({key})", { key: shortcut("⇧M") })} active={open} disabled={busy} onClick={() => setOpen(!open)}>
-        <BookOpenText />
-      </IconButton>
+      {/* The one filled button in the header, with its name where there's room: easy to miss as one more icon. */}
+      <button
+        title={t("整段录音 ({key})", { key: shortcut("⇧M") })}
+        aria-label={t("整段录音")}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        disabled={busy}
+        onClick={() => setOpen(!open)}
+        className={`flex h-7 items-center gap-1.5 rounded-[8px] px-1.5 text-[12px] font-medium whitespace-nowrap text-fg @[600px]:px-2 ${open ? "bg-press" : "btn disabled:opacity-35"}`}
+      >
+        <BookOpenText size={14} strokeWidth={2} aria-hidden />
+        <span className="hidden @[600px]:inline">{t("整段录音")}</span>
+      </button>
       {open && <ReadingMenu onClose={() => setOpen(false)} />}
     </div>
   );

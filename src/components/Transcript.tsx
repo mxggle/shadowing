@@ -161,7 +161,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
   const voices = speakerCount(transcript.sentences);
   return (
     <div className={`shrink-0 border-b transition-colors duration-200 ${scrolled ? "border-line" : "border-transparent"}`}>
-      <div className="mx-auto flex h-10 w-full max-w-[760px] items-center gap-2 pr-8 pl-10">
+      <div className="@container mx-auto flex h-10 w-full max-w-[760px] items-center gap-2 pr-8 pl-10">
         <p className="flex min-w-0 items-center gap-1.5 text-[12px] text-faint" title={t("[ ] 换句，S 循环本句 · {origin}", { origin: transcript.origin })}>
           <span className="shrink-0">
             <span className="tabular font-mono text-muted">{transcript.sentences.length}</span> {t("句", { n: transcript.sentences.length })}
