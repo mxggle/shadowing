@@ -86,7 +86,8 @@ export const ACTION_LABELS: Record<Action, string> = {
 /** Keys that step or nudge, so holding them down keeps going. Toggles (Space, L, S…) fire once per press. */
 export const REPEATING: ReadonlySet<Action> = new Set(["back", "forward", "prevTrack", "nextTrack", "prevSentence", "nextSentence", "prevSection", "nextSection", "slower", "faster"]);
 
-/** The app's own: Esc cancels, ? shows the keys, the rest move focus, edit text or are modifiers. */
+/** The app's own: Esc cancels, ? shows the keys, the rest move focus, edit text or are modifiers. Enter
+ * on its own saves a change and presses the focused button; under Ctrl, Alt or ⌘ it can be a combination's. */
 const RESERVED = new Set(["Escape", "?", "Tab", "Enter", "Backspace", "Delete", "Shift", "Control", "Alt", "Meta", "CapsLock", "Fn", "Dead", "Unidentified", "Process", "ContextMenu", "OS"]);
 
 /** The key a keydown names, as the keymap keeps it; null for a modifier or a key that can't be bound. */
@@ -104,6 +105,7 @@ const NAMED = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home"
 // ---- Combinations ---------------------------------------------------------------------------------
 // Ctrl, Alt or ⌘ held make a combination; Shift only adds to one (on its own it is part of the
 // character: ⇧[ is {, ⇧L is L). Kept as "ctrl+alt+shift+meta+<key>", modifiers in that order.
+// Enter is a key only here (either Enter, the number pad's too): on its own it stays the app's.
 
 type Press = Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "altKey" | "shiftKey" | "metaKey">;
 
@@ -135,7 +137,20 @@ function baseOf(e: Pick<KeyboardEvent, "key" | "code">): string | null {
   if (/^(Digit|Numpad)[0-9]$/.test(code)) return code.slice(-1);
   if (code in SIGNS) return SIGNS[code];
   if (NAMED.has(code)) return code;
+  if (code === "Enter" || code === "NumpadEnter" || e.key === "Enter") return "Enter";
   return keyOf(e);
+}
+
+/** A key that can go under the modifiers: any single key, and Enter. */
+const isBase = (base: string) => base === "Enter" || keyOf({ key: base }) === base;
+
+/**
+ * This keyup lets go of `key`'s key (the one under any modifiers): what it types, or where it is
+ * (⌥T types "†", Enter under Ctrl is still Enter).
+ */
+export function letsGo(e: Pick<KeyboardEvent, "key" | "code">, key: string): boolean {
+  const { base } = split(key);
+  return keyOf(e) === base || baseOf(e) === base;
 }
 
 /** Taken by the app (⌘B, ⌘O, ⌘C…; on a Mac Ctrl does those too), the Mac's menu (⌘Q, ⌘H…) or the system. */
@@ -146,10 +161,13 @@ const TAKEN_MAC: ReadonlySet<string> = new Set([
   "alt+meta+h",
   "shift+meta+z",
   "ctrl+meta+f",
+  // Sends feedback, and the question card's answer (⌘↩; Ctrl too on a Mac).
+  "meta+Enter",
+  "ctrl+Enter",
 ]);
 const TAKEN: Record<Platform, ReadonlySet<string>> = {
   mac: TAKEN_MAC,
-  windows: new Set([...["b", "o", "v", "f", "z", "c", ","].map((k) => `ctrl+${k}`), "alt+F4"]),
+  windows: new Set([...["b", "o", "v", "f", "z", "c", ","].map((k) => `ctrl+${k}`), "alt+F4", "ctrl+Enter"]),
   other: TAKEN_MAC,
 };
 
@@ -190,7 +208,7 @@ function bindable(key: string): boolean {
   const { mods, base } = split(key);
   if (mods.length === 0) return keyOf({ key }) === key;
   const real = mods.some((m) => m !== "shift");
-  return real && keyOf({ key: base }) === base && pressFrom(mods, base) === key && !isTaken(key);
+  return real && isBase(base) && pressFrom(mods, base) === key && !isTaken(key);
 }
 
 /** The canonical form, to check a stored combination is written the way `pressOf` writes it. */
@@ -276,6 +294,8 @@ const NAMES: Record<string, string> = {
   "-": "−",
   PageUp: "PgUp",
   PageDown: "PgDn",
+  // `shortcut()` writes it "Enter" on Windows.
+  Enter: "↩",
 };
 
 /** Modifiers as a Mac writes them, in its order (⌃⌥⇧⌘); `shortcut()` names them on Windows. */
@@ -286,7 +306,7 @@ const MOD_SIGNS: [string, string][] = [
   ["meta", "⌘"],
 ];
 
-/** A key as the key caps show it: "L", "←", "−", 空格 (Space), ⌃⌥T (Ctrl+Alt+T on Windows); "—" for none. */
+/** A key as the key caps show it: "L", "←", "−", 空格 (Space), ⌃⌥T (Ctrl+Alt+T on Windows), ⌃⌥↩ (Ctrl+Alt+Enter); "—" for none. */
 export function keyName(key: string | null, on: Platform = platform): string {
   if (key === null || key === "") return "—";
   const { mods, base } = split(key);

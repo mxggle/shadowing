@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { setLang } from "./i18n";
-import { ACTIONS, actionFor, DEFAULT_KEYS, heldOf, isTaken, keyName, keyOf, keymap, pressOf, rebind, reset, unshifted } from "./keymap";
+import { ACTIONS, actionFor, DEFAULT_KEYS, heldOf, isTaken, keyName, keyOf, keymap, letsGo, pressOf, rebind, reset, unshifted } from "./keymap";
 
 afterEach(() => setLang("zh"));
 
@@ -204,6 +204,61 @@ describe("combinations in the keymap", () => {
     expect(keyName("ctrl+shift+ ", "windows")).toBe("Ctrl+Shift+空格");
     // A single + is a key, not a combination.
     expect(keyName("+", "mac")).toBe("+");
+  });
+});
+
+describe("Enter in a combination", () => {
+  it("is a key under Ctrl, Alt or ⌘ (the number pad's Enter too), not on its own or with Shift alone", () => {
+    expect(pressOf(press("Enter", "Enter", { ctrl: true, alt: true }), "windows")).toBe("ctrl+alt+Enter");
+    expect(pressOf(press("Enter", "NumpadEnter", { ctrl: true, alt: true }), "windows")).toBe("ctrl+alt+Enter");
+    expect(pressOf(press("Enter", "Enter", { ctrl: true, alt: true }), "mac")).toBe("ctrl+alt+Enter");
+    expect(pressOf(press("Enter", "Enter", { alt: true, meta: true }), "mac")).toBe("alt+meta+Enter");
+    expect(pressOf(press("Enter", "", { alt: true }))).toBe("alt+Enter"); // no code: by the key itself
+    // ↩ saves a change and presses the focused button; ⇧↩ cuts a sentence in two.
+    expect(pressOf(press("Enter", "Enter"))).toBeNull();
+    expect(pressOf(press("Enter", "NumpadEnter"))).toBeNull();
+    expect(pressOf(press("Enter", "Enter", { shift: true }))).toBeNull();
+  });
+
+  it("is kept, and read back as the same key", () => {
+    for (const on of ["mac", "windows"] as const) {
+      const key = pressOf(press("Enter", "Enter", { ctrl: true, alt: true }), on)!;
+      const { custom } = rebind({}, "loop", key);
+      expect(custom).toEqual({ loop: "ctrl+alt+Enter" });
+      const map = keymap(JSON.parse(JSON.stringify(custom)));
+      expect(map.loop).toBe("ctrl+alt+Enter");
+      expect(actionFor(map, pressOf(press("Enter", "NumpadEnter", { ctrl: true, alt: true }), on))).toBe("loop");
+    }
+    expect(keymap({ loop: "alt+shift+Enter" }).loop).toBe("alt+shift+Enter");
+    // Not on its own, not with Shift alone, not written another way.
+    for (const k of ["Enter", "shift+Enter", "alt+enter", "alt+NumpadEnter"]) expect(keymap({ loop: k }).loop, k).toBe("l");
+  });
+
+  it("leaves out the ones the app uses: ⌘↩ (and ⌃↩ on a Mac), Ctrl+Enter on Windows send feedback", () => {
+    expect(isTaken("meta+Enter", "mac")).toBe(true);
+    expect(isTaken("ctrl+Enter", "mac")).toBe(true);
+    expect(isTaken("ctrl+Enter", "windows")).toBe(true);
+    expect(isTaken("ctrl+alt+Enter", "mac")).toBe(false);
+    expect(isTaken("ctrl+alt+Enter", "windows")).toBe(false);
+    expect(isTaken("alt+Enter", "windows")).toBe(false);
+  });
+
+  it("is named ↩ on a Mac, Enter on Windows", () => {
+    expect(keyName("ctrl+alt+Enter", "mac")).toBe("⌃⌥↩");
+    expect(keyName("ctrl+alt+Enter", "windows")).toBe("Ctrl+Alt+Enter");
+    expect(keyName("alt+shift+meta+Enter", "mac")).toBe("⌥⇧⌘↩");
+    expect(keyName("alt+shift+Enter", "windows")).toBe("Alt+Shift+Enter");
+  });
+});
+
+describe("letsGo", () => {
+  it("knows the key under the modifiers is let go, by what it types or where it is", () => {
+    expect(letsGo({ key: "H", code: "KeyH" }, "h")).toBe(true);
+    expect(letsGo({ key: "Enter", code: "NumpadEnter" }, "ctrl+alt+Enter")).toBe(true);
+    expect(letsGo({ key: "†", code: "KeyT" }, "alt+t")).toBe(true);
+    expect(letsGo({ key: "+", code: "Equal" }, "+")).toBe(true);
+    expect(letsGo({ key: "Alt", code: "AltLeft" }, "ctrl+alt+Enter")).toBe(false);
+    expect(letsGo({ key: "g", code: "KeyG" }, "h")).toBe(false);
   });
 });
 
