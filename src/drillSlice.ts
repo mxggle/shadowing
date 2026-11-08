@@ -24,7 +24,8 @@ export interface Drill {
 export interface DrillState {
   drill: Drill | null;
   /** Starts with the section you're in, or the one sentence `at` is in (or everything). */
-  startDrill(opts?: { scope?: ReadingScope; at?: number }): void;
+  /** `from`: begin at this sentence instead of the start of the range (it must be inside). */
+  startDrill(opts?: { scope?: ReadingScope; at?: number; from?: number }): void;
   /**
    * A take ended (`kept`, or not: stopped, failed). Kept, the drill goes on to
    * the next sentence or is done; otherwise it stops. Returns whether the take
@@ -43,7 +44,7 @@ export function createDrillSlice(set: Set, get: Get, engine: AudioEngine, persis
   return {
     drill: null,
 
-    startDrill({ scope = "section", at } = {}) {
+    startDrill({ scope = "section", at, from } = {}) {
       const s = get();
       const list = s.transcript?.sentences ?? [];
       if (!s.current || !list.length || s.live || s.rec || s.drill) return;
@@ -51,7 +52,8 @@ export function createDrillSlice(set: Set, get: Get, engine: AudioEngine, persis
       const [first, end] = readingRange(scope, sectionsOf(s.transcript), here, list.length);
       if (end <= first) return;
       get().stopReadingPlayback();
-      const drill = { first, end, current: first, rounds: clampRounds(s.settings.drillRounds) };
+      const current = from !== undefined && from >= first && from < end ? from : first;
+      const drill = { first, end, current, rounds: clampRounds(s.settings.drillRounds) };
       set({ drill, readingError: null, shownReading: null });
       say(drill);
     },

@@ -49,3 +49,18 @@ export function flowAuto(f: { tips: string[]; sentences: number; practicing: boo
 export function flowShown(f: { open: boolean; busy: boolean; practicing: boolean }): boolean {
   return f.open && !f.busy && !f.practicing;
 }
+
+/**
+ * After a take of sentence `at` recorded with its own mic button (not in a
+ * drill): true once another sentence was recorded that way before it, this
+ * session — someone going sentence by sentence by hand, whom 逐句跟读 would save
+ * the clicks.
+ */
+export function byHand(before: number[], at: number | "loop"): boolean {
+  return at !== "loop" && before.some((i) => i !== at);
+}
+
+/** Where 逐句跟读 picks up after sentence `at`: the next one (the last stays the last). */
+export function drillFrom(at: number, count: number): number {
+  return Math.max(0, Math.min(at + 1, count - 1));
+}

@@ -317,6 +317,7 @@ export function createRecordSlice(set: Set, get: Get, engine: AudioEngine, persi
         if (!still()) return void get().drillNext(false);
         set((s) => ({ rec: null, takes: take ? [...s.takes, take] : s.takes, shownTake: take?.id ?? null }));
         if (get().drillNext(true)) return; // on to the next sentence
+        if (take) get().noteTake(rec.at);
         if (take && get().settings.recordReplay) void get().playTake(take.id, comparePart(take), false);
       } catch (e) {
         if (still()) set({ rec: null, recError: String(e) });

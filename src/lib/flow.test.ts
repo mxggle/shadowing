@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FLOW_TIP, flowAuto, flowDone, flowNext, flowShown, heardThrough } from "./flow";
+import { byHand, drillFrom, FLOW_TIP, flowAuto, flowDone, flowNext, flowShown, heardThrough } from "./flow";
 
 const sentences = [{ start: 0 }, { start: 4 }, { start: 9 }];
 
@@ -62,5 +62,25 @@ describe("flowShown", () => {
     expect(flowShown({ open: true, busy: true, practicing: false })).toBe(false);
     expect(flowShown({ open: true, busy: false, practicing: true })).toBe(false);
     expect(flowShown({ open: false, busy: false, practicing: false })).toBe(false);
+  });
+});
+
+describe("byHand", () => {
+  it("a second sentence recorded on its own", () => {
+    expect(byHand([], 3)).toBe(false);
+    expect(byHand([3], 4)).toBe(true);
+    expect(byHand([3, 4], 7)).toBe(true);
+  });
+  it("not the same sentence again, nor an A–B loop", () => {
+    expect(byHand([3, 3], 3)).toBe(false);
+    expect(byHand([3], "loop")).toBe(false);
+  });
+});
+
+describe("drillFrom", () => {
+  it("the next sentence, staying inside the text", () => {
+    expect(drillFrom(3, 10)).toBe(4);
+    expect(drillFrom(9, 10)).toBe(9);
+    expect(drillFrom(0, 1)).toBe(0);
   });
 });

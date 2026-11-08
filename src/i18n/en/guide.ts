@@ -140,6 +140,8 @@ export const guide: Record<string, Entry> = {
   每句停一下: "Pause after each",
   "按 {key}，或点播放条上的「每句停」：每句放完会停一下，趁这时跟着说。停 3 次就好。":
     "Press {key}, or click “Pause each” on the player bar: it stops after each sentence, so say it then. Three pauses will do.",
+  "想一句接一句录下去？逐句跟读会自己往下走，不用每句点麦克风。":
+    "Recording one sentence after another? Sentence drill moves on by itself, no mic button for each.",
   "想每句后自动停一下？跟读停顿会替你按暂停。": "Want it to stop after each sentence? Pause to repeat will press pause for you.",
   "循环之间想留几秒跟着说？": "Want a few seconds between times to say it?",
   "{toggle} 马上继续，Esc 一直等你；停多久在 ˄ 里调。": "{toggle} goes on now, Esc waits for you; set how long in ˄.",

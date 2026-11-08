@@ -6,8 +6,9 @@ import { api, type Guide, type Track } from "./lib/api";
 import { t, tk } from "./lib/i18n";
 import { hideHowOf, hideModeOf } from "./lib/hide";
 import { keymap, keyName } from "./lib/keymap";
-import { FLOW_TIP } from "./lib/flow";
+import { byHand, drillFrom, FLOW_TIP } from "./lib/flow";
 import { paceActive, withPause } from "./lib/pace";
+import type { RecordAt } from "./recordSlice";
 import type { AppState } from "./store";
 
 /** Shown once each, when the learner uses the mouse for something that has a key. */
@@ -43,6 +44,7 @@ export const NUDGES = {
   paceShorter: tk("停顿有点长？"),
   paceLonger: tk("停顿不够？"),
   hideText: tk("能跟上了？试试藏起字幕跟。"),
+  byHand: tk("想一句接一句录下去？逐句跟读会自己往下走，不用每句点麦克风。"),
 } as const;
 export type NudgeId = keyof typeof NUDGES;
 
@@ -81,6 +83,8 @@ export interface GuideState {
   nudge(id: NudgeId, action?: HintAction): void;
   /** A loop went round again: three times with no room to speak, or with the text still there, a nudge. */
   notePass(): void;
+  /** A take was kept with a sentence's own mic button (not in a drill): a second sentence that way, a nudge toward 逐句跟读. */
+  noteTake(at: RecordAt): void;
   /** Shows a short message in the same place as tips, for a few seconds (`ms`). */
   say(text: string, ms?: number): void;
   dismissHint(): void;
@@ -97,6 +101,8 @@ type Set = (patch: Partial<AppState>) => void;
 export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): GuideState {
   let hintTimer = 0;
   let nudged = false;
+  /** Sentences recorded with their own mic button on this track, this session. */
+  let solo = { path: "", at: [] as number[] };
 
   return {
     guide: { welcomed: false, language: "", practiced: false, tips: [], seenVersion: "" },
@@ -168,6 +174,18 @@ export function createGuideSlice(set: Set, get: Get, engine: AudioEngine): Guide
         s.nudge("loopGap", { label: t("每遍停一下"), run: () => get().setPace(withPause(get().settings)) });
       else if (hideModeOf(s.settings.hideText) === "show")
         s.nudge("hideText", { label: t("藏字幕"), key: keyName(keys.hideText), run: () => get().setHideText(hideHowOf(get().settings.hideHow)) });
+    },
+
+    noteTake(at) {
+      const s = get();
+      const path = s.current?.path ?? "";
+      if (solo.path !== path) solo = { path, at: [] };
+      const ask = byHand(solo.at, at);
+      if (at === "loop") return;
+      solo.at.push(at);
+      if (!ask) return;
+      const from = drillFrom(at, s.transcript?.sentences.length ?? 0);
+      s.nudge("byHand", { label: t("逐句跟读"), run: () => get().startDrill({ at: from, from }) });
     },
 
     say(text, ms = HINT_MS) {
