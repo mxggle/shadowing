@@ -175,6 +175,8 @@ export const player: Record<string, Entry> = {
   "取消 (Esc)": "Cancel (Esc)",
   取消: "Cancel",
   "在光标处断开成两句 ({key})": "Split into two sentences at the cursor ({key})",
+  断开: "Split",
+  "要分成两句：把光标放在要断开的地方，点「断开」或按 {key}。": "To make two sentences: put the cursor where it should break, then click Split or press {key}.",
   "并入上一句（光标在句首时按 {key}）": "Merge with the previous sentence ({key} with the cursor at the start)",
   "并入下一句（光标在句尾时按 {key}）": "Merge with the next sentence ({key} with the cursor at the end)",
   "转写时没把握，可能听错了。按 E 改正；没错的话按 E 再按 {key}，虚线就会去掉":

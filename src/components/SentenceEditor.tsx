@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef } from "react";
 import { t } from "../lib/i18n";
 import { isCmd, isMod, shortcut } from "../lib/platform";
 import { useApp } from "../store";
-import { Button, IconButton } from "./ui";
+import { Button, fillNodes, IconButton, Kbd } from "./ui";
 
 /** Grows the field to fit its text, so the sentence keeps its shape while you type. */
 function fit(el: HTMLTextAreaElement) {
@@ -13,8 +13,8 @@ function fit(el: HTMLTextAreaElement) {
 
 /**
  * The sentence being corrected, as a field set in the same type as the script.
- * ↩ or clicking elsewhere saves, Esc puts it back. ⇧↩ cuts the sentence in two
- * at the cursor; ⌫ at its start joins it to the one before, ⌦ at its end the
+ * ↩ or clicking elsewhere saves, Esc puts it back. ⇧↩ (or 断开, which a line
+ * under the buttons explains) cuts the sentence in two at the cursor; ⌫ at its start joins it to the one before, ⌦ at its end the
  * one after. Buttons don't take focus (see App), so the row's play and loop
  * buttons work without leaving the field, and switching to another app keeps
  * it open (to look a word up).
@@ -86,17 +86,18 @@ function Field() {
         onBlur={() => document.hasFocus() && void saveEdit()}
         className="-mx-2 block w-[calc(100%+1rem)] resize-none overflow-hidden rounded-[8px] bg-fill px-2 font-script text-[18px] leading-[30px] break-words text-fg outline-none transition-[background-color,box-shadow] duration-150 focus:bg-raised focus:shadow-[inset_0_0_0_1px_var(--line-strong),0_0_0_3px_var(--hover)]"
       />
-      <div className="mt-2 mb-1 flex items-center gap-1.5">
+      <div className="mt-2 mb-1.5 flex items-center gap-1.5">
         <Button primary title={t("保存 ({key})", { key: shortcut("↩") })} disabled={empty} className="h-7 px-2.5 text-[12px]" onClick={() => void saveEdit()}>
           {t("保存")}
         </Button>
         <Button title={t("取消 (Esc)")} className="h-7 px-2.5 text-[12px]" onClick={cancelEdit}>
           {t("取消")}
         </Button>
+        <Button title={t("在光标处断开成两句 ({key})", { key: shortcut("⇧↩") })} className="h-7 gap-1 px-2.5 text-[12px]" onClick={cut}>
+          <Scissors size={13} strokeWidth={1.75} />
+          {t("断开")}
+        </Button>
         <span className="ml-auto flex gap-0.5">
-          <IconButton title={t("在光标处断开成两句 ({key})", { key: shortcut("⇧↩") })} onClick={cut}>
-            <Scissors />
-          </IconButton>
           <IconButton title={t("并入上一句（光标在句首时按 {key}）", { key: shortcut("⌫") })} disabled={first} className="disabled:opacity-40" onClick={() => void mergeDraft(-1)}>
             <ArrowUpToLine />
           </IconButton>
@@ -105,6 +106,9 @@ function Field() {
           </IconButton>
         </span>
       </div>
+      <p className="mb-1 text-[11px] leading-[19px] text-muted">
+        {fillNodes(t("要分成两句：把光标放在要断开的地方，点「断开」或按 {key}。"), { key: <Kbd>⇧↩</Kbd> })}
+      </p>
     </div>
   );
 }
