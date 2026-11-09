@@ -8,7 +8,9 @@ import { Button, fillNodes, IconButton, Kbd } from "./ui";
 /** Grows the field to fit its text, so the sentence keeps its shape while you type. */
 function fit(el: HTMLTextAreaElement) {
   el.style.height = "0px";
-  el.style.height = `${el.scrollHeight}px`;
+  // 0 means the row isn't laid out (yet): leave the height to `rows` rather than collapsing to a bar.
+  if (el.scrollHeight > 0) el.style.height = `${el.scrollHeight}px`;
+  else el.style.height = "";
 }
 
 /**
@@ -37,9 +39,12 @@ function Field() {
     const el = field.current;
     if (!el) return;
     fit(el);
+    // If the row wasn't laid out yet, fit again once it is.
+    const frame = requestAnimationFrame(() => fit(el));
     el.focus();
     const at = useApp.getState().editing?.caret ?? el.value.length;
     el.setSelectionRange(at, at);
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   const cut = () => field.current && void splitDraft(field.current.selectionStart);

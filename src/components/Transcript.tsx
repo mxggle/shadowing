@@ -248,8 +248,9 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
   const tone = reading ? "bg-danger-soft" : looping ? "bg-loop-soft" : active ? "bg-hover" : "hover:bg-hover/60";
   const lit = active || looping || recorder;
   const columns = voices ? "grid-cols-[3.25rem_1.75rem_1fr_auto]" : "grid-cols-[3.25rem_1fr_auto]";
-  // Content-visibility clips what sticks out of the row: not while its menu is open.
-  const contain = menu ? "relative z-10 [content-visibility:visible]" : "[content-visibility:auto]";
+  // Content-visibility clips what sticks out of the row: not while its menu is open. And not while it is
+  // being edited: a skipped row reports a height of 0, so the field would be sized to a thin bar.
+  const contain = menu || editing ? "relative z-10 [content-visibility:visible]" : "[content-visibility:auto]";
   return (
     <div
       data-index={index}
