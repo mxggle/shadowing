@@ -37,10 +37,6 @@ import { IconButton } from "./ui";
  */
 export function SentenceList() {
   const sentences = useApp((s) => s.transcript?.sentences ?? []);
-  // 注音 for sentences not read yet (a new transcript, an edit, another plugin or setting).
-  const marksOn = useApp((s) => s.settings.annotations);
-  const plugins = useApp((s) => s.plugins);
-  useEffect(() => void useApp.getState().loadAnnotations(), [sentences, marksOn, plugins]);
   const active = useApp((s) => {
     if (!s.transcript) return -1;
     // Reading on your own: the sentence you're on; playing a reading or a take back: the one playing.
