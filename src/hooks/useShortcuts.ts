@@ -99,7 +99,7 @@ export function useShortcuts() {
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return;
       const s = useApp.getState();
-      if (s.settingsOpen || s.wizardOpen || s.statsOpen || s.newsOpen || s.feedbackOpen || s.linkImport) return;
+      if (s.settingsOpen || s.wizardOpen || s.statsOpen || s.newsOpen || s.feedbackOpen || s.linkImport || s.ankiWaiting) return;
       // Ctrl, Alt or ⌘ held: a combination. The app's own ⌘ shortcuts come first, then the learner's keys.
       const combo = e.metaKey || e.ctrlKey || e.altKey;
       if ((s.live || s.rec) && recordingKey(e, s, combo)) return;
