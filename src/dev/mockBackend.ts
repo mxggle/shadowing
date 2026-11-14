@@ -246,6 +246,8 @@ const bookLine = (id: string, track: number, i: number, due: number | null, step
   due: due === null ? "" : addDays(day, due),
   step,
 });
+/** 加入 Anki calls so far (the first one says Anki isn't open). */
+let ankiTries = 0;
 let book: BookEntry[] = [
   bookLine("m1", 1, 1, 0, 0),
   bookLine("m2", 3, 5, -1, 1),
@@ -511,6 +513,9 @@ export function installMockBackend() {
         case "practice_ping":
         case "now_playing":
           return null;
+        case "anki_add":
+          // The first time as if Anki weren't open, to see how to set it up; then added.
+          return { status: ankiTries++ === 0 ? "unreachable" : "added", deck: "Shadowing" };
         case "book_get":
           return book;
         case "book_save":

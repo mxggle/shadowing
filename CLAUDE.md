@@ -19,7 +19,7 @@ src/                      前端
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，改字幕在 correctSlice.ts，拆句 / 合并句在 reshapeSlice.ts，
                           AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts，
                           学习记录与每日目标在 practiceSlice.ts，跟读停顿在 paceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts，逐句跟读在 drillSlice.ts，
-                          插件和从链接导入在 importSlice.ts，插件在句子上的标注在 annotateSlice.ts，视频画面的设置在 videoSlice.ts，意见反馈在 feedbackSlice.ts，切换文件夹在 folderSlice.ts）
+                          插件和从链接导入在 importSlice.ts，插件在句子上的标注在 annotateSlice.ts，视频画面的设置在 videoSlice.ts，意见反馈在 feedbackSlice.ts，切换文件夹在 folderSlice.ts，加入 Anki 在 ankiSlice.ts）
   lib/pace.ts             跟读停顿：一次放哪一段（这一句，循环里到循环的终点）、每句后停多久（不停 / 秒数 / 按句长 / 等你）、放几遍之后去哪，有单元测试
   lib/keymap.ts           快捷键：每个动作的默认键（单键）、你自己换的键（单键或组合键 `ctrl+alt+t`；交换、恢复默认、和新默认键冲突时、应用和系统已占用的组合）、按键的名字，有单元测试
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句、正在放的句子逐字亮到哪），有单元测试
@@ -80,6 +80,8 @@ src-tauri/src/
                           改字（逐字对比，换掉的字接替原来的时间）、拆句、合并、撤销时跟着走
   subtitles.rs            SRT / WebVTT 解析；字幕的编码（UTF-8 / UTF-16 以外的用 chardetng 猜：Shift_JIS、GBK、Big5…）
   lrc.rs                  LRC 字幕（教材 MP3 常带）：每行放到下一行开始为止，同一时间的几行合成一句
+  anki/                   加入 Anki：经 AnkiConnect（本机 127.0.0.1:8765，Anki 开着、装了插件 2055492159；不走代理）把一句做成卡片：card.rs 笔记类型「Shadowing Sentence」、牌组「Shadowing」、
+                          字段（原文、录音、译文、已保存的解释、出处）和切哪一段，mod.rs 从原音频切出这句（record/original.rs 的 clip，24 kHz WAV）再加进去；连不上时前端 AnkiHelp.tsx 说怎么装
   sections.rs             对话段落：转写 / 导入后在明显的停顿或换了一组说话人处自动分段（纯函数，不联网），
                           以及整理前端送来的分段（transcript.rs 存在字幕里，旧字幕读取时补上）
   nowplaying/             媒体键和耳机按键：macOS 的 Now Playing（mac.rs：MPRemoteCommandCenter + MPNowPlayingInfoCenter，要自己设 playbackState），

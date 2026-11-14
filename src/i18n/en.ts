@@ -10,5 +10,6 @@ import { library } from "./en/library";
 import { pace } from "./en/pace";
 import { book } from "./en/book";
 import { feedback } from "./en/feedback";
+import { anki } from "./en/anki";
 
-export const en: Record<string, Entry> = { ...app, ...guide, ...settings, ...player, ...record, ...library, ...pace, ...book, ...feedback };
+export const en: Record<string, Entry> = { ...app, ...guide, ...settings, ...player, ...record, ...library, ...pace, ...book, ...feedback, ...anki };

@@ -1,4 +1,4 @@
-import { BetweenHorizontalStart, Ellipsis, FoldVertical, Languages, PenLine, Repeat, Star } from "lucide-react";
+import { BetweenHorizontalStart, Ellipsis, FoldVertical, Languages, Layers, PenLine, Repeat, Star } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useDismiss } from "../hooks/useDismiss";
 import { useKeys } from "../hooks/useKeys";
@@ -9,14 +9,14 @@ import { MicButton } from "./Recorder";
 import { MenuItem, MenuSeparator } from "./ui";
 
 /** Room the 「…」 menu needs below its button before it opens upwards instead. */
-const MENU_HEIGHT = 160;
+const MENU_HEIGHT = 196;
 
 const hoverOnly = "text-muted opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100";
 const square = "grid size-[28px] place-items-center rounded-[8px] transition-[opacity,background-color,color,scale] duration-150 active:scale-90";
 
 /**
  * A sentence row's actions on the right, shown while the pointer is over it: 解释, 循环
- * and 录音, and 「…」 for the rest (修改, 合并, 新段, 句子本). One that's on (looping,
+ * and 录音, and 「…」 for the rest (修改, 合并, 新段, 句子本, 加入 Anki). One that's on (looping,
  * explained, recorded, in 句子本) stays in sight.
  */
 export function SentenceActions({ index, looping, explaining, editing, canSplit, last, inBook, takes, menu, setMenu }: {
@@ -71,7 +71,7 @@ function More({ index, canSplit, last, inBook, open, setOpen }: { index: number;
   const [up, setUp] = useState(false);
   const close = useCallback(() => setOpen(false), [setOpen]);
   useDismiss(open, close, root);
-  const { editSentence, mergeSentence, splitSection, toggleBook } = useApp.getState();
+  const { editSentence, mergeSentence, splitSection, toggleBook, addToAnki } = useApp.getState();
   const run = (action: () => void) => () => {
     setOpen(false);
     action();
@@ -108,6 +108,12 @@ function More({ index, canSplit, last, inBook, open, setOpen }: { index: number;
             label={inBook ? t("从句子本拿掉") : t("加进句子本")}
             title={inBook ? t("从句子本拿掉 ({key})", { key: key("book") }) : t("加进句子本，明天再来跟读 ({key})", { key: key("book") })}
             onClick={run(() => toggleBook(index))}
+          />
+          <MenuItem
+            icon={<Layers size={15} strokeWidth={1.9} />}
+            label={t("加入 Anki")}
+            title={t("做成 Anki 卡片：这一句的录音、原文和保存过的解释")}
+            onClick={run(() => void addToAnki(index))}
           />
         </div>
       )}

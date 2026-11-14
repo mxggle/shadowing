@@ -579,6 +579,12 @@ export type ImportStatus =
 
 export const isTauri = () => "__TAURI_INTERNALS__" in window;
 
+/** What 加入 Anki did: added, already there, or Anki isn't open (or has no AnkiConnect). */
+export interface AnkiAdded {
+  status: "added" | "duplicate" | "unreachable";
+  deck: string;
+}
+
 export const api = {
   getSnapshot: () => invoke<Snapshot>("get_snapshot"),
   chooseFolder: () => invoke<OpenedFolder | null>("choose_folder"),
@@ -622,6 +628,8 @@ export const api = {
   /** Asks the explanation model about one sentence; `text` must still be what it says. */
   explainSentence: (path: string, index: number, text: string) =>
     invoke<Explanation>("sentence_explain", { path, index, text }),
+  /** 加入 Anki: the sentence (its audio, text and kept explanation) as a card, through AnkiConnect. */
+  ankiAdd: (path: string, index: number, text: string) => invoke<AnkiAdded>("anki_add", { path, index, text }),
   /** Answers kept for a track whose sentences still say the same. */
   savedExplanations: (path: string) => invoke<SavedExplanation[]>("sentence_explanations", { path }),
   ai: {

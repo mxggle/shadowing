@@ -115,6 +115,19 @@ pub fn sentence_explanations(state: State<AppState>, path: String) -> Result<Vec
     Ok(saved::load(&dir(&state), &audio, &transcript.sentences))
 }
 
+/// The answer kept for sentence `index` (in the interface language), if it was explained.
+pub fn kept(
+    state: &AppState,
+    audio: &str,
+    sentences: &[Sentence],
+    index: usize,
+) -> Option<Explanation> {
+    saved::load(&dir(state), audio, sentences)
+        .into_iter()
+        .find(|a| a.index == index)
+        .map(|a| a.explanation)
+}
+
 fn dir(state: &AppState) -> std::path::PathBuf {
     state.data_dir().join("explanations")
 }
