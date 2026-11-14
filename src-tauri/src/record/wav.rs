@@ -14,7 +14,7 @@ pub fn encode(l: &[f32], r: &[f32], apart: bool) -> Vec<u8> {
         let sum: Vec<f32> = (0..l.len().max(r.len()))
             .map(|i| l.get(i).unwrap_or(&0.0) + r.get(i).unwrap_or(&0.0))
             .collect();
-        pcm(&[&sum])
+        pcm(&[&sum], RATE)
     } else {
         stereo_wav(l, r)
     }
@@ -22,10 +22,15 @@ pub fn encode(l: &[f32], r: &[f32], apart: bool) -> Vec<u8> {
 
 /// 16-bit stereo WAV at `RATE`: left `l`, right `r` (the shorter one padded).
 pub fn stereo_wav(l: &[f32], r: &[f32]) -> Vec<u8> {
-    pcm(&[l, r])
+    pcm(&[l, r], RATE)
 }
 
-fn pcm(channels: &[&[f32]]) -> Vec<u8> {
+/// 16-bit mono WAV at `rate`.
+pub fn mono(x: &[f32], rate: u32) -> Vec<u8> {
+    pcm(&[x], rate)
+}
+
+fn pcm(channels: &[&[f32]], rate: u32) -> Vec<u8> {
     let ch = channels.len() as u32;
     let frames = channels.iter().map(|c| c.len()).max().unwrap_or(0);
     let data_len = frames as u32 * 2 * ch;
@@ -36,8 +41,8 @@ fn pcm(channels: &[&[f32]]) -> Vec<u8> {
     out.extend_from_slice(&16u32.to_le_bytes());
     out.extend_from_slice(&1u16.to_le_bytes()); // PCM
     out.extend_from_slice(&(ch as u16).to_le_bytes());
-    out.extend_from_slice(&RATE.to_le_bytes());
-    out.extend_from_slice(&(RATE * 2 * ch).to_le_bytes());
+    out.extend_from_slice(&rate.to_le_bytes());
+    out.extend_from_slice(&(rate * 2 * ch).to_le_bytes());
     out.extend_from_slice(&(2 * ch as u16).to_le_bytes());
     out.extend_from_slice(&16u16.to_le_bytes());
     out.extend_from_slice(b"data");

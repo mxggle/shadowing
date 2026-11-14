@@ -8,6 +8,17 @@ use std::path::Path;
 
 /// Each `(start, end)` stretch (seconds, in order) of the file at `path`.
 pub fn stretches(path: &Path, spans: &[(f64, f64)]) -> Result<Vec<Vec<f32>>, String> {
+    stretches_at(path, spans, RATE)
+}
+
+/// One stretch of the file, mono at `rate` (a sentence for an Anki card).
+pub fn clip(path: &Path, start: f64, end: f64, rate: u32) -> Result<Vec<f32>, String> {
+    Ok(stretches_at(path, &[(start, end)], rate)?
+        .pop()
+        .unwrap_or_default())
+}
+
+fn stretches_at(path: &Path, spans: &[(f64, f64)], rate: u32) -> Result<Vec<Vec<f32>>, String> {
     let (Some(first), Some(last)) = (spans.first(), spans.last()) else {
         return Ok(Vec::new());
     };
@@ -29,8 +40,8 @@ pub fn stretches(path: &Path, spans: &[(f64, f64)]) -> Result<Vec<Vec<f32>>, Str
                 .map(|f| f.iter().sum::<f32>() / ch as f32),
         );
     }
-    let all = convert(&mono, sr, RATE);
-    let at = |t: f64| (((t - first.0.max(0.0)) * RATE as f64).max(0.0) as usize).min(all.len());
+    let all = convert(&mono, sr, rate);
+    let at = |t: f64| (((t - first.0.max(0.0)) * rate as f64).max(0.0) as usize).min(all.len());
     Ok(spans
         .iter()
         .map(|&(a, b)| all[at(a)..at(b).max(at(a))].to_vec())

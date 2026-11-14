@@ -1,6 +1,20 @@
 # 进度
 
-_最后更新：2026-11-07_
+_最后更新：2026-11-14_
+
+## 把一句加入 Anki（2026-11-14，已实现）
+- 来由：反馈（Windows 用户）「希望增加选区短句快速制作 Anki【字幕 + 录音片段 → 制卡】」；PRODUCT.md 里一直有「导出到 Anki」。
+- 设计取舍：
+  - 内置，不做成插件：插件要另外下载、安装、确认权限，想做卡的是普通学习者；做卡本来就是跟读的下一步。docs/plugin-plan.md 的 `exporters` 扩展点留着，以后真有别的导出目标再做。
+  - 经 AnkiConnect（Anki 插件 2055492159，本机 127.0.0.1:8765）直接加进开着的 Anki，不生成 .apkg：一句一句加时，每次导入文件都要在 Anki 里点一遍，太重；Yomitan 这类工具也都用 AnkiConnect，会做卡的人多半装过。
+    连不上时弹一个小窗：开着 Anki、第一次装 AnkiConnect（代码可复制）、「再试一次」直接加刚才那句。
+  - 自己的笔记类型「Shadowing Sentence」（Sentence / Audio / Translation / Explanation / Source）和牌组「Shadowing」，第一次加时自动建；正面原文 + 录音，背面译文 + 逐块解释 + 语气 + 出处。同一牌组里原文相同不重复加。
+  - 录音从原音频切：句子前 0.1 秒（和应用里放一句一样）到句子后 0.3 秒，但不进下一句；24 kHz 单声道 WAV（不加 MP3 编码器依赖，约 50 KB/秒）。同一段同一个文件名，再加覆盖而不是多一个文件。
+  - 解释只带已保存的（界面语言的），不为做卡去问 AI。
+- 实现：Rust `anki/`（`mod.rs` 命令 `anki_add`，`connect.rs` AnkiConnect 请求（不走代理），`card.rs` 字段的 HTML、笔记类型、切哪一段）；`record/original.rs` 的 `clip`、`record/wav.rs` 的 `mono`；`explain::kept`。
+  前端 `ankiSlice.ts`、`components/AnkiHelp.tsx`、句子「…」菜单里的「加入 Anki」。
+- 已验证：Rust 单元测试（切哪一段、文件名、字段转义和解释、模板用到的字段都存在、base64、AnkiConnect 的回复）；浏览器 mock 里菜单 → 连不上的小窗 → 再试一次 → 「已加入」提示，中英文界面。
+- 待验证（真机）：真实的 Anki + AnkiConnect（Mac 和 Windows）加卡、卡片里的录音能放、AnkiMobile / AnkiDroid 同步后能放 WAV。
 
 ## 快速切换文件夹（2026-11-07，已实现）
 - 来由：用户想要「最近 3 个打开过的文件夹、已固定」，像 Word / Excel 的开始页，不用每次都在系统对话框里找。harry 要求按专业的 UI/UX 设计来做，不是照搬。

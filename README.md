@@ -57,6 +57,12 @@ The interface is in English or Simplified Chinese: it follows your Mac's languag
 - Uses the AI you set up: OpenAI, Anthropic, Gemini, DeepSeek, OpenRouter, Ollama, LM Studio, any compatible server,
   or sign in with your ChatGPT plan.
 
+## Add to Anki
+
+- In a sentence's "…" menu, "Add to Anki" makes a card from its audio, its text and the saved explanation, in the
+  "Shadowing" deck. Needs Anki for desktop open with the AnkiConnect add-on (code 2055492159); it only talks to Anki on
+  this computer.
+
 ## Practice log
 
 - Today, the last 7 days and all-time practice time, with a daily goal and a streak. Only real practice counts:

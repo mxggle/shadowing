@@ -22,7 +22,7 @@ mod follow;
 mod hold;
 pub mod listen;
 mod mic;
-mod original;
+pub(crate) mod original;
 mod playback;
 mod reading;
 // Manual, macOS only (`say` plays the learner).
@@ -37,7 +37,7 @@ mod space;
 mod take;
 mod vad;
 mod watch;
-mod wav;
+pub(crate) mod wav;
 
 use crate::audio::tap;
 use crate::audio::Player;

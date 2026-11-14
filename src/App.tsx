@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { ChevronRight } from "lucide-react";
+import { AnkiHelpDialog } from "./components/AnkiHelp";
 import { FeedbackDialog } from "./components/Feedback";
 import { AiWizard } from "./components/guide/AiWizard";
 import { AskCard } from "./components/guide/AskCard";
@@ -120,6 +121,7 @@ function Shell() {
       <ImportDialog />
       <WhatsNewDialog />
       <FeedbackDialog />
+      <AnkiHelpDialog />
       <UpdateNotice />
       <AskCard />
     </div>

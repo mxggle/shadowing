@@ -9,6 +9,7 @@ import { justAfterSentence, migratePace, paceActive, withPause } from "./lib/pac
 import { playKey } from "./lib/playKey";
 import { takeTrackTime } from "./lib/takes";
 import { createAnnotateSlice, type AnnotateState } from "./annotateSlice";
+import { createAnkiSlice, type AnkiState } from "./ankiSlice";
 import { createBookSlice, type BookState } from "./bookSlice";
 import { createCorrectSlice, type CorrectState } from "./correctSlice";
 import { createDrillSlice, type DrillState } from "./drillSlice";
@@ -28,7 +29,7 @@ import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./tr
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 import { createVideoSlice, type VideoState } from "./videoSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState, PaceState, HideState, BookState, FeedbackState, FolderState {
+export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState, PaceState, HideState, BookState, AnkiState, FeedbackState, FolderState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -287,6 +288,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createPaceSlice(set, get, engine, persistSettings),
     ...createHideSlice(set, get, persistSettings),
     ...createBookSlice(set, get),
+    ...createAnkiSlice(set, get),
     ...createFeedbackSlice(set, get),
     ...createFolderSlice(set, get, enterFolder),
 

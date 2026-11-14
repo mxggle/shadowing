@@ -1,6 +1,7 @@
 #[macro_use]
 mod i18n;
 mod ai;
+mod anki;
 mod audio;
 mod book;
 mod explain;
@@ -386,6 +387,7 @@ pub fn run() {
             set_ui_language,
             log_line,
             guide::guide_save,
+            anki::anki_add,
             book::book_get,
             book::book_save,
             guide::sample_track,
