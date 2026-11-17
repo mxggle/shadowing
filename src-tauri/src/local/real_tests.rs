@@ -255,3 +255,29 @@ fn real_speakers() {
         }
     }
 }
+
+/// SHADOWING_AUDIO=<file> SHADOWING_LANG=<ja, or empty to detect>: a file whose DTW
+/// word times used to abort the app (a whisper window that advanced < 0.16 s; first
+/// seen on a 139 s mp3 of short TTS scenes with pauses). Must finish, every word timed.
+#[test]
+#[ignore]
+fn real_dtw_on_a_tiny_window_does_not_abort() {
+    let audio = PathBuf::from(std::env::var("SHADOWING_AUDIO").expect("SHADOWING_AUDIO"));
+    let lang = std::env::var("SHADOWING_LANG")
+        .ok()
+        .filter(|l| !l.is_empty());
+    let file = models_dir().join(models::find("large-v3-turbo-q8_0").unwrap().file);
+    let mut whisper = Whisper::load(&file, "large-v3-turbo-q8_0").unwrap();
+    let job = Job {
+        audio: &audio,
+        language: lang.as_deref(),
+        plan: chunk::DEFAULT,
+        cancel: Arc::new(AtomicBool::new(false)),
+    };
+    let sentences = run(&job, &mut whisper, Arc::new(|_, _| {})).unwrap();
+    println!("{} sentences", sentences.len());
+    assert!(!sentences.is_empty());
+    for s in &sentences {
+        assert!(s.start.is_finite() && s.end >= s.start, "{s:?}");
+    }
+}

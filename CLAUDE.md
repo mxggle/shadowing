@@ -192,6 +192,8 @@ x86_64 先做；2026-10-19 在真实的 Windows 11 电脑上试过，从 0.10.0 
 - whisper-rs 0.16 的 `set_abort_callback_safe` 有 bug（会让每次编码都中止），`local/whisper.rs` 改用原始回调。
 - 本机转写用 DTW 词时间：普通 token 时间会把每轮第一个词放到上一轮结束处（早约 1 秒）。whisper.cpp 的 DTW 不能和
   flash attention 同时用，所以关掉了 flash attention（慢约 25%）。
+- whisper-rs-sys 用的是仓库里的一份（`src-tauri/vendor/whisper-rs-sys`，`Cargo.toml` 的 `[patch.crates-io]`），改了 whisper.cpp 两处（搜 “Shadowing patch”）：
+  一个窗口只前进不到 0.16 秒时 DTW 的 median_filter 会 `abort()` 整个应用。上游 whisper.cpp 已修；升级 whisper-rs 时确认新版带了这个修复再去掉 vendor。
 - 已知限制：m4a/m4b 的 AAC 有约 23ms 编码器前置延迟未裁剪；CAF 里的 AAC 打不开。
 
 ## 约定
