@@ -2,7 +2,7 @@ import { Pause, Play, RotateCcw, RotateCw, SkipBack, SkipForward } from "lucide-
 import { useState } from "react";
 import { useFlash } from "../hooks/useFlash";
 import { t } from "../lib/i18n";
-import { formatTime } from "../lib/time";
+import { formatHundredths, formatTime } from "../lib/time";
 import { playKeyTitle } from "../lib/playKey";
 import { sectionName, sectionsOf } from "../lib/sections";
 import { playable, playKeyOf, useApp } from "../store";
@@ -37,14 +37,43 @@ export function PlayerBar() {
   );
 }
 
-/** Elapsed · track · total; click the total to see what's left instead. */
+const PRECISE_KEY = "shadowing:preciseTime";
+function loadPrecise(): boolean {
+  try {
+    return localStorage.getItem(PRECISE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Elapsed · track · total. Click the elapsed time to read it to the hundredth
+ * (for fixing subtitle times by ear; remembered), the total to see what's left.
+ */
 function Timeline() {
   const time = useApp((s) => s.time);
   const duration = useApp((s) => s.duration);
   const [remaining, setRemaining] = useState(false);
+  const [precise, setPrecise] = useState(loadPrecise);
+  const togglePrecise = () => {
+    const next = !precise;
+    setPrecise(next);
+    try {
+      localStorage.setItem(PRECISE_KEY, next ? "1" : "0");
+    } catch {
+      /* a convenience; fine to forget */
+    }
+  };
   return (
     <div className="flex items-center gap-3">
-      <span className="tabular w-[52px] font-mono text-[11px] text-muted">{formatTime(time)}</span>
+      <button
+        title={precise ? t("只显示到秒") : t("显示到百分之一秒")}
+        aria-pressed={precise}
+        onClick={togglePrecise}
+        className={`tabular rounded text-left font-mono text-[11px] text-muted transition-colors hover:text-fg ${precise ? "min-w-[52px]" : "w-[52px]"}`}
+      >
+        {precise ? formatHundredths(time) : formatTime(time)}
+      </button>
       <div className="min-w-0 flex-1">
         <Scrubber />
       </div>

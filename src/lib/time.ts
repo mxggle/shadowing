@@ -15,3 +15,11 @@ export function formatPrecise(seconds: number): string {
   const tenths = Math.round(seconds * 10);
   return `${formatTime(Math.floor(tenths / 10))}.${tenths % 10}`;
 }
+
+/** 527.054 -> "8:47.05" — the playhead to the hundredth, for lining subtitles up by ear. */
+export function formatHundredths(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) seconds = 0;
+  // Floor, like the plain clock: 8:47.999 is still 8:47, not 8:48.00. The tiny bias keeps 2.3 from reading 2.29.
+  const cs = Math.floor(seconds * 100 + 1e-6);
+  return `${formatTime(Math.floor(cs / 100))}.${String(cs % 100).padStart(2, "0")}`;
+}
