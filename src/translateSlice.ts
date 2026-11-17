@@ -3,6 +3,7 @@
 // whenever the track, its sentences or the language change). Rules in lib/translation.ts.
 import { api, type Settings } from "./lib/api";
 import { featureReady } from "./lib/aiReady";
+import { t } from "./lib/i18n";
 import { batches, nextTranslationMode, targetLanguage, untranslated, type TranslationMode } from "./lib/translation";
 import type { AppState } from "./store";
 
@@ -52,14 +53,17 @@ export function createTranslateSlice(set: Set, get: Get, persistSettings: (patch
       if (!featureReady("chat", get().ai, get().local)) return status(key, { state: "unset" });
       let done = 0;
       try {
+        let byText = kept;
         for (const batch of batches(todo)) {
           status(key, { state: "running", done, total: todo.length });
-          const byText = await api.translateSentences(current.path, target, batch);
+          byText = await api.translateSentences(current.path, target, batch);
           if (mine !== generation) return;
           done += batch.length;
           set({ translations: { key, byText, status: { state: "running", done, total: todo.length } } });
         }
-        status(key, { state: "idle" });
+        // The model may leave a line out: say so, with 再试一次 asking only for those.
+        const left = untranslated(transcript.sentences, transcript.translations, byText).length;
+        status(key, left ? { state: "failed", message: t("有 {n} 句 AI 没给出译文", { n: left }) } : { state: "idle" });
       } catch (e) {
         if (mine === generation) status(key, { state: "failed", message: String(e) });
       }

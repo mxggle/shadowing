@@ -292,12 +292,16 @@ fn apply_edits(transcript: &mut Transcript, edits: &[Edit]) -> Result<(), String
         }
         texts.push(lines.join(" "));
     }
+    let before = transcript.translations.clone();
     for (edit, text) in edits.iter().zip(texts) {
         let length = text.encode_utf16().count() as u32;
-        // A correction keeps the subtitles' translation of the sentence.
-        let before = &transcript.sentences[edit.index].text;
-        if let Some(t) = transcript.translations.remove(before) {
-            transcript.translations.insert(text.clone(), t);
+        // A correction keeps the subtitles' translation of the sentence (as they were before
+        // these edits: another edit may have changed what the map holds by now).
+        if let Some(t) = before.get(&transcript.sentences[edit.index].text) {
+            transcript
+                .translations
+                .entry(text.clone())
+                .or_insert_with(|| t.clone());
         }
         let sentence = &mut transcript.sentences[edit.index];
         sentence.unsure = edit
@@ -310,6 +314,15 @@ fn apply_edits(transcript: &mut Transcript, edits: &[Edit]) -> Result<(), String
         sentence.text = text;
     }
     if !edits.is_empty() {
+        // Only what some sentence still says (the same line may be there twice).
+        let said: std::collections::HashSet<&str> = transcript
+            .sentences
+            .iter()
+            .map(|s| s.text.as_str())
+            .collect();
+        transcript
+            .translations
+            .retain(|text, _| said.contains(text.as_str()));
         transcript.own();
         transcript.edited = true;
     }

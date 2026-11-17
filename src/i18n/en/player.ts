@@ -161,6 +161,7 @@ export const player: Record<string, Entry> = {
   "由「句子解释」的 AI 一次翻译整个音频；翻译过的会保存下来，不会重复翻译。":
     "The explanations AI translates the whole track at once; translations are kept and never asked for twice.",
   正在翻译: "Translating",
+  "有 {n} 句 AI 没给出译文": "The AI gave no translation for {n} sentences",
   "翻译没有完成：{message}": "Translation stopped: {message}",
   "翻译用「句子解释」的服务，还没有设置好。": "Translations use the explanations AI, which isn't set up yet.",
   "译文：显示": "Translation: shown",

@@ -19,6 +19,7 @@ import { createFolderSlice, type FolderState } from "./folderSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
 import { createHideSlice, type HideState } from "./hideSlice";
 import { createTranslateSlice, type TranslateState } from "./translateSlice";
+import { fromSubtitles } from "./lib/translation";
 import { createImportSlice, type ImportState } from "./importSlice";
 import { createPracticeSlice, type PracticeState } from "./practiceSlice";
 import { createPaceSlice, type PaceState } from "./paceSlice";
@@ -334,8 +335,11 @@ export const useApp = create<AppState>((set, get) => {
       // Explanations are kept per language (src-tauri/src/explain/saved.rs): drop this one's, bring back the other's.
       get().resetExplanations();
       set({ lang, ai, local });
-      const current = get().current;
-      if (current) void get().loadExplanations(current.path);
+      const { current, transcript } = get();
+      // A bilingual subtitle file beside the audio is read afresh, and which of its lines is the
+      // translation depends on the language you read (src-tauri/src/bilingual.rs): read it again.
+      if (current && transcript?.source === "sidecar" && fromSubtitles(transcript)) void get().loadTranscript(current.path);
+      else if (current) void get().loadExplanations(current.path);
     },
     toggleShelf() {
       const shelfOpen = !get().shelfOpen;
