@@ -2,7 +2,8 @@
 //! `start --> end` cue line, so one forgiving line scanner reads either.
 //! LRC files are read in lrc.rs; `decode` turns any of them into text.
 
-use crate::transcript::Sentence;
+use crate::bilingual;
+use crate::transcript::{Sentence, Translations};
 use chardetng::{EncodingDetector, Iso2022JpDetection, Utf8Detection};
 
 /// Subtitle bytes as text: UTF-8 (with or without BOM), UTF-16 with a BOM, or the
@@ -31,8 +32,16 @@ fn utf16(bytes: &[u8], word: fn([u8; 2]) -> u16) -> Option<String> {
 }
 
 /// Cues sorted by start. Headers, NOTE/STYLE blocks and cue ids are skipped;
-/// a missing blank line between cues is tolerated.
+/// a missing blank line between cues is tolerated. In bilingual subtitles, only the
+/// lines as said (see bilingual.rs).
+#[cfg(test)]
 pub fn parse(text: &str) -> Result<Vec<Sentence>, String> {
+    parse_bilingual(text).map(|(sentences, _)| sentences)
+}
+
+/// The cues as `parse` reads them, and for bilingual subtitles each sentence's translation
+/// (sentence text → its translation lines).
+pub fn parse_bilingual(text: &str) -> Result<(Vec<Sentence>, Translations), String> {
     struct Cue {
         start: f64,
         end: f64,
@@ -65,11 +74,24 @@ pub fn parse(text: &str) -> Result<Vec<Sentence>, String> {
         }
     }
 
+    let reader = bilingual::reader_script(crate::i18n::current());
+    let other = bilingual::translation_script(
+        &cues.iter().map(|c| c.lines.clone()).collect::<Vec<_>>(),
+        reader,
+    );
     let mut out: Vec<Sentence> = Vec::new();
+    let mut translations = Translations::new();
     for Cue { start, end, lines } in cues {
-        let text = join_lines(&lines);
+        let (said, theirs) = match other {
+            Some(script) => bilingual::split(&lines, script),
+            None => (lines, Vec::new()),
+        };
+        let text = join_lines(&said);
         if text.is_empty() {
             continue;
+        }
+        if !theirs.is_empty() {
+            translations.insert(text.clone(), join_lines(&theirs));
         }
         // Auto-generated captions repeat a line across back-to-back cues.
         if let Some(last) = out.last_mut() {
@@ -93,7 +115,7 @@ pub fn parse(text: &str) -> Result<Vec<Sentence>, String> {
             crate::i18n::pick("文件里没有找到字幕", "No subtitles found in the file").into(),
         );
     }
-    Ok(out)
+    Ok((out, translations))
 }
 
 fn parse_timing(line: &str) -> Option<(f64, f64)> {
@@ -214,6 +236,15 @@ mod tests {
         let s = parse(vtt).unwrap();
         assert_eq!(s.len(), 1);
         assert_eq!(s[0].end, 3.0);
+    }
+
+    #[test]
+    fn bilingual_cues_keep_the_translation_apart() {
+        let srt = "1\n00:00:01,000 --> 00:00:02,000\n今日は暑いね\n今天好热啊\n\n\
+                   2\n00:00:03,000 --> 00:00:04,000\nそうだね\n是啊\n";
+        let (s, tr) = parse_bilingual(srt).unwrap();
+        assert_eq!(texts(&s), ["今日は暑いね", "そうだね"]);
+        assert_eq!(tr.get("そうだね").map(String::as_str), Some("是啊"));
     }
 
     #[test]

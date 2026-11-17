@@ -77,6 +77,10 @@ pub struct Settings {
     pub hide_text: String,
     /// The way to hide that H goes back to: "hide" or "after".
     pub hide_how: String,
+    /// 译文 under each sentence: "show", "blur" (blurred until hovered or clicked) or "off".
+    pub translation: String,
+    /// The language translations are made in ("zh-Hans", "en"…); "" follows the interface.
+    pub translate_to: String,
     /// Keys the learner chose for the player's actions (action id → key); only those that
     /// differ from the defaults (src/lib/keymap.ts).
     pub shortcuts: std::collections::BTreeMap<String, String>,
@@ -133,6 +137,8 @@ impl Default for Settings {
             sentence_repeats: 1,
             hide_text: "show".into(),
             hide_how: "hide".into(),
+            translation: "show".into(),
+            translate_to: String::new(),
             shortcuts: Default::default(),
             media_keys: true,
             ui_language: String::new(),

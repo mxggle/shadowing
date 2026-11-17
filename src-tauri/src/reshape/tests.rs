@@ -34,6 +34,7 @@ fn transcript() -> Transcript {
             .collect(),
         edited: false,
         sections: vec![section(0, None), section(2, Some("駅で")), section(4, None)],
+        translations: Default::default(),
     }
 }
 

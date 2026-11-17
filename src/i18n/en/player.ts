@@ -138,6 +138,35 @@ export const player: Record<string, Entry> = {
   "藏字幕：显示 / 藏起（按住偷看）": "Hide text: show / hide (hold to peek)",
   "藏字幕：显示 / 藏起；按住偷看": "Hide text: show / hide; hold to peek",
 
+  // 译文 (a translation under each sentence)
+  译文: "Translation",
+  模糊译文: "Blurred",
+  "译文：显示 → 模糊 → 不显示 ({key})": "Translation: show → blur → off ({key})",
+  "译文：显示 → 模糊 → 不显示": "Translation: show → blur → off",
+  "显示 → 模糊 → 不显示": "Show → blur → off",
+  译文设置: "Translation settings",
+  模糊: "Blur",
+  不显示: "Off",
+  "每句下面一行译文。": "A translation under each sentence.",
+  "译文先模糊着，跟读完再对一下意思：悬停看，点一下一直显示。":
+    "Translations stay blurred so you can check the meaning after shadowing: hover to see one, click to keep it shown.",
+  "只看原文。": "Only the original text.",
+  "译文（模糊），点一下显示": "Translation (blurred); click to show it",
+  "悬停看译文，点一下一直显示": "Hover to see the translation, click to keep it shown",
+  点一下再模糊: "Click to blur it again",
+  翻译成: "Translate into",
+  "跟随界面（{name}）": "Interface ({name})",
+  "字幕文件自带译文，直接用它的；没有译文的句子由「句子解释」的 AI 翻译。":
+    "The subtitle file comes with translations, so those are used; sentences without one are translated by the explanations AI.",
+  "由「句子解释」的 AI 一次翻译整个音频；翻译过的会保存下来，不会重复翻译。":
+    "The explanations AI translates the whole track at once; translations are kept and never asked for twice.",
+  正在翻译: "Translating",
+  "翻译没有完成：{message}": "Translation stopped: {message}",
+  "翻译用「句子解释」的服务，还没有设置好。": "Translations use the explanations AI, which isn't set up yet.",
+  "译文：显示": "Translation: shown",
+  "译文：模糊": "Translation: blurred",
+  "译文：不显示": "Translation: off",
+
   // Sentence list
   "[ ] 换句，S 循环本句 · {origin}": "[ ] previous / next sentence, S loops it · {origin}",
   句: noun("sentence"),

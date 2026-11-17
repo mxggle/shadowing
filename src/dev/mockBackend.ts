@@ -105,6 +105,8 @@ const allPresets: Preset[] = [
 ];
 const presets = allPresets.filter((p) => !(isWindows && p.id === "local"));
 const aiConfig: AiConfig = { transcribe: { provider: null, model: "" }, chat: { provider: null, model: "" }, baseUrls: {}, keyHints: {}, chatgptClientId: null, chatgptHostId: null };
+// ?ai: explanations (and translations) already set up.
+if (new URLSearchParams(location.search).has("ai")) Object.assign(aiConfig, { chat: { provider: "deepseek", model: "deepseek-chat" }, keyHints: { deepseek: "sk-…abcd" } });
 const keys: Record<string, string> = {};
 const mockModels: Record<string, string[]> = {
   groq: ["whisper-large-v3", "whisper-large-v3-turbo"],
@@ -203,6 +205,8 @@ async function mockProofread(path: string): Promise<Suggestion[]> {
 
 // Explaining a sentence: a pause, then a demonstration answer (the third sentence fails once).
 let explainFailed = false;
+/** 译文 the mock "translated": path + language → text → translation. */
+const keptTranslations = new Map<string, Record<string, string>>();
 const keptExplanations = new Map<string, SavedExplanation[]>();
 async function mockExplain(path: string, index: number, text: string): Promise<Explanation> {
   if (!aiConfig.chat.provider) throw "还没有设置「句子解释」用的 AI 服务";
@@ -320,7 +324,7 @@ export function installMockBackend() {
     missingFolder: missing ? root : null,
     folders: known.entries(),
     lastTrack: fresh ? null : tracks[1].path,
-    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, paceOn: false, pauseMode: "length", pauseLength: "standard", pauseSeconds: 2, pauseRatio: 1.5, pauseWait: "key", sentenceRepeats: 1, hideText: "show", hideHow: "hide", shortcuts: {}, mediaKeys: true, uiLanguage: "" },
+    settings: { rate: 0.85, playMode: "next", seekStep: 5, transcribeLanguage: "", dailyGoals: [{ since: "2026-01-01", minutes: 30 }], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, paceOn: false, pauseMode: "length", pauseLength: "standard", pauseSeconds: 2, pauseRatio: 1.5, pauseWait: "key", sentenceRepeats: 1, hideText: "show", hideHow: "hide", translation: "show", translateTo: "", shortcuts: {}, mediaKeys: true, uiLanguage: "" },
     progress: {
       [tracks[0].path]: { position: 178, duration: 180, updatedAt: 0 },
       [tracks[1].path]: { position: 64, duration: 200, updatedAt: 0 },
@@ -391,6 +395,19 @@ export function installMockBackend() {
           return mockExplain(a.path, a.index, a.text);
         case "sentence_explanations":
           return [...(keptExplanations.get(a.path) ?? [])];
+        case "translations_saved":
+          return { ...(keptTranslations.get(`${a.path}\n${a.lang}`) ?? {}) };
+        case "translate_sentences":
+          return new Promise((resolve) =>
+            setTimeout(() => {
+              const key = `${a.path}\n${a.lang}`;
+              const kept = { ...(keptTranslations.get(key) ?? {}) };
+              const sentences = transcripts.get(a.path)?.sentences ?? [];
+              for (const i of a.indices as number[]) if (sentences[i]) kept[sentences[i].text] = `〔${a.lang}〕${sentences[i].text}`;
+              keptTranslations.set(key, kept);
+              resolve(kept);
+            }, 600),
+          );
         case "transcript_proofread_cancel":
           proofreading++;
           return;

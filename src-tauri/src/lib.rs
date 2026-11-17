@@ -3,6 +3,7 @@ mod i18n;
 mod ai;
 mod anki;
 mod audio;
+mod bilingual;
 mod book;
 mod explain;
 mod feedback;
@@ -26,6 +27,7 @@ mod subtitles;
 mod timing;
 mod transcribe;
 mod transcript;
+mod translate;
 mod update;
 
 use library::FolderListing;
@@ -422,6 +424,8 @@ pub fn run() {
             proofread::transcript_proofread_cancel,
             explain::sentence_explain,
             explain::sentence_explanations,
+            translate::translate_sentences,
+            translate::translations_saved,
             practice::practice_ping,
             practice::practice_log,
             nowplaying::now_playing,

@@ -16,6 +16,7 @@ fn transcript(text: &str) -> Transcript {
         }],
         edited: false,
         sections: sections::whole(),
+        translations: Default::default(),
     }
 }
 

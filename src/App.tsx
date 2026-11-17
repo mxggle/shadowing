@@ -19,6 +19,7 @@ import { WhatsNewDialog } from "./components/WhatsNew";
 import { fillNodes } from "./components/ui";
 import { useMediaKeys } from "./hooks/useMediaKeys";
 import { useAnnotations } from "./hooks/useAnnotations";
+import { useTranslations } from "./hooks/useTranslations";
 import { usePracticePing } from "./hooks/usePracticePing";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { api, isTauri } from "./lib/api";
@@ -47,6 +48,7 @@ function Shell() {
   useMediaKeys();
   usePracticePing();
   useAnnotations();
+  useTranslations();
 
   useEffect(() => {
     if (!isTauri() || booted) return;

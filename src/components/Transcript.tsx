@@ -26,6 +26,7 @@ import { HiddenLine, HideTextButton } from "./HideText";
 import { hasRuby, SaidText, SentenceText, UnsureCount, useAnnotation } from "./SentenceText";
 import { SentenceActions } from "./SentenceActions";
 import { TakePeek } from "./TakePeek";
+import { TranslationButton, TranslationLine } from "./Translation";
 import { IconButton } from "./ui";
 
 /**
@@ -175,6 +176,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
         <SectionMenu />
         <span className="ml-auto flex shrink-0 items-center gap-0.5">
           <HideTextButton />
+          <TranslationButton />
           <IconButton title={t("查找和替换 ({key})", { key: shortcut("⌘F") })} active={replacing} onClick={() => (replacing ? closeReplace() : openReplace())}>
             <Replace />
           </IconButton>
@@ -308,6 +310,8 @@ const Row = memo(function Row({ index, sentence, active, said, looping, editing,
             )}
           </p>
         )}
+        {/* Under a hidden sentence too: knowing what it means while saying it by ear. */}
+        {!editing && <TranslationLine text={sentence.text} />}
         {!editing &&
           !hidden &&
           annotation?.below?.map((line, i) => (

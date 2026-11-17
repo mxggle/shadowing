@@ -18,6 +18,7 @@ import { createFeedbackSlice, type FeedbackState } from "./feedbackSlice";
 import { createFolderSlice, type FolderState } from "./folderSlice";
 import { createGuideSlice, type GuideState } from "./guideSlice";
 import { createHideSlice, type HideState } from "./hideSlice";
+import { createTranslateSlice, type TranslateState } from "./translateSlice";
 import { createImportSlice, type ImportState } from "./importSlice";
 import { createPracticeSlice, type PracticeState } from "./practiceSlice";
 import { createPaceSlice, type PaceState } from "./paceSlice";
@@ -29,7 +30,7 @@ import { createTranscriptSlice, type LoopFrom, type TranscriptState } from "./tr
 import { createUpdateSlice, type UpdateState } from "./updateSlice";
 import { createVideoSlice, type VideoState } from "./videoSlice";
 
-export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState, PaceState, HideState, BookState, AnkiState, FeedbackState, FolderState {
+export interface AppState extends TranscriptState, CorrectState, ReshapeState, ProofreadState, ExplainState, GuideState, PracticeState, UpdateState, RecordState, ReadingState, DrillState, ImportState, VideoState, AnnotateState, PaceState, HideState, TranslateState, BookState, AnkiState, FeedbackState, FolderState {
   ready: boolean;
   folder: FolderListing | null;
   missingFolder: string | null;
@@ -257,7 +258,7 @@ export const useApp = create<AppState>((set, get) => {
     folder: null,
     missingFolder: null,
     progress: {},
-    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, paceOn: false, pauseMode: "length", pauseLength: "standard", pauseSeconds: 2, pauseRatio: 1.5, pauseWait: "key", sentenceRepeats: 1, hideText: "show", hideHow: "hide", shortcuts: {}, mediaKeys: true, uiLanguage: "" },
+    settings: { rate: 1, playMode: "next", seekStep: SEEK_STEP_DEFAULT, transcribeLanguage: "", dailyGoals: [], recordMode: "listen", recordReplay: true, paragraphMode: "read", paragraphDrill: false, drillRounds: 3, wordHighlight: true, recordDub: false, importVideo: 0, pictureHeight: 300, pictureLayout: "side", pictureMask: false, maskTop: 0.74, maskBottom: 0.96, pictureHidden: false, annotations: true, paceOn: false, pauseMode: "length", pauseLength: "standard", pauseSeconds: 2, pauseRatio: 1.5, pauseWait: "key", sentenceRepeats: 1, hideText: "show", hideHow: "hide", translation: "show", translateTo: "", shortcuts: {}, mediaKeys: true, uiLanguage: "" },
     current: null,
     playing: false,
     time: 0,
@@ -287,6 +288,7 @@ export const useApp = create<AppState>((set, get) => {
     ...createAnnotateSlice(set, get),
     ...createPaceSlice(set, get, engine, persistSettings),
     ...createHideSlice(set, get, persistSettings),
+    ...createTranslateSlice(set, get, persistSettings),
     ...createBookSlice(set, get),
     ...createAnkiSlice(set, get),
     ...createFeedbackSlice(set, get),
