@@ -116,3 +116,10 @@ opt-level = 3
 opt-level = 3
 [profile.dev.package.ndarray]
 opt-level = 3
+
+# whisper.cpp with a fix the published whisper-rs-sys 0.15.0 lacks: DTW word times on a
+# window that advanced < 0.16 s aborted the whole app (median_filter's WHISPER_ASSERT).
+# Upstream whisper.cpp has the same fix; drop this once a whisper-rs-sys release includes it.
+# The two changes are marked "Shadowing patch" in vendor/whisper-rs-sys/whisper.cpp/src/whisper.cpp.
+[patch.crates-io]
+whisper-rs-sys = { path = "vendor/whisper-rs-sys" }

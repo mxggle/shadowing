@@ -208,6 +208,29 @@ fn words_from_tokens(tokens: Vec<Token>, segment_end: i64) -> Vec<Word> {
 mod tests {
     use super::*;
 
+    /// whisper.cpp's DTW used to abort the whole app (WHISPER_ASSERT in median_filter)
+    /// when a window advanced < 0.16 s. The fix lives in the vendored whisper-rs-sys
+    /// (`[patch.crates-io]` in Cargo.toml); this fails if an upgrade drops it.
+    #[test]
+    fn whisper_cpp_has_the_short_window_dtw_fix() {
+        let src = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/vendor/whisper-rs-sys/whisper.cpp/src/whisper.cpp"
+        ))
+        .unwrap();
+        assert!(src.contains("n_segments && n_frames/2 > 7"));
+        assert!(src.contains("if (filter_width >= a->ne[2]) {"));
+        assert!(!src.contains("WHISPER_ASSERT(filter_width < a->ne[2]);"));
+        let lock = include_str!("../../Cargo.lock");
+        let sys = lock
+            .split("[[package]]")
+            .find(|p| p.contains("name = \"whisper-rs-sys\""));
+        assert!(
+            sys.is_some_and(|p| !p.contains("source = ")),
+            "whisper-rs-sys must come from vendor/, not crates.io"
+        );
+    }
+
     #[test]
     fn split_characters_are_glued_back_together() {
         let ni = "日".as_bytes(); // 3 bytes, split across two tokens
