@@ -260,3 +260,22 @@ fn reads_subtitle_with_origin() {
     let t = read_subtitle(&path, Source::Sidecar).unwrap();
     assert_eq!((t.origin.as_str(), t.sentences.len()), ("lesson.srt", 1));
 }
+
+#[test]
+fn an_edit_keeps_the_subtitles_translation_and_a_repeated_line_keeps_its_own() {
+    let mut t = transcript("Hello");
+    t.sentences.push(t.sentences[0].clone());
+    t.translations.insert("Hello".into(), "你好".into());
+    apply_edits(&mut t, &[edit(0, "Hello there")]).unwrap();
+    assert_eq!(
+        t.translations.get("Hello there").map(String::as_str),
+        Some("你好")
+    );
+    assert_eq!(
+        t.translations.get("Hello").map(String::as_str),
+        Some("你好")
+    );
+    apply_edits(&mut t, &[edit(1, "Hi")]).unwrap();
+    assert!(!t.translations.contains_key("Hello"));
+    assert_eq!(t.translations.get("Hi").map(String::as_str), Some("你好"));
+}
