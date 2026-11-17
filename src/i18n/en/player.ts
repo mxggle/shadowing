@@ -11,6 +11,8 @@ export const player: Record<string, Entry> = {
   // Deck
   显示总时长: "Show total length",
   显示剩余时间: "Show time left",
+  显示到百分之一秒: "Show to the hundredth of a second",
+  只显示到秒: "Show whole seconds only",
   "A–B 循环": "A–B loop",
   "听到句首按一下设起点 A ({key})": "Click when the sentence starts to set start A ({key})",
   "设终点 B": "Set end B",

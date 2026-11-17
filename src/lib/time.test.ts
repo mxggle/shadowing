@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPrecise, formatTime } from "./time";
+import { formatHundredths, formatPrecise, formatTime } from "./time";
 
 describe("formatTime", () => {
   it("formats minutes and hours", () => {
@@ -22,5 +22,20 @@ describe("formatPrecise", () => {
     expect(formatPrecise(59.97)).toBe("1:00.0");
     expect(formatPrecise(0)).toBe("0:00.0");
     expect(formatPrecise(NaN)).toBe("0:00.0");
+  });
+});
+
+describe("formatHundredths", () => {
+  it("shows the playhead to the hundredth", () => {
+    expect(formatHundredths(527.054)).toBe("8:47.05");
+    expect(formatHundredths(2.3)).toBe("0:02.30");
+    expect(formatHundredths(0.07)).toBe("0:00.07");
+    expect(formatHundredths(3725.5)).toBe("1:02:05.50");
+  });
+
+  it("agrees with the plain clock on the whole seconds", () => {
+    expect(formatHundredths(59.999)).toBe("0:59.99");
+    expect(formatHundredths(-1)).toBe("0:00.00");
+    expect(formatHundredths(NaN)).toBe("0:00.00");
   });
 });
