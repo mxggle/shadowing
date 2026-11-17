@@ -54,7 +54,15 @@ pub struct Transcript {
     /// Files saved before sections existed get them worked out on load.
     #[serde(default)]
     pub sections: Vec<Section>,
+    /// Translations that came with the subtitles (bilingual subtitles, see bilingual.rs):
+    /// sentence text → translation. Keyed by the text, so one goes with its sentence and
+    /// a sentence cut or joined no longer has one.
+    #[serde(default, skip_serializing_if = "Translations::is_empty")]
+    pub translations: Translations,
 }
+
+/// Sentence text → its translation.
+pub type Translations = std::collections::BTreeMap<String, String>;
 
 impl Transcript {
     pub fn new(source: Source, origin: String, sentences: Vec<Sentence>) -> Self {
@@ -65,6 +73,7 @@ impl Transcript {
             sentences,
             edited: false,
             sections,
+            translations: Translations::new(),
         }
     }
 
@@ -132,16 +141,18 @@ pub fn read_subtitle(path: &Path, source: Source) -> Result<Transcript, String> 
     let lrc = path
         .extension()
         .is_some_and(|e| e.eq_ignore_ascii_case("lrc"));
-    let sentences = if lrc {
-        lrc::parse(&text)?
+    let (sentences, translations) = if lrc {
+        (lrc::parse(&text)?, Translations::new())
     } else {
-        subtitles::parse(&text)?
+        subtitles::parse_bilingual(&text)?
     };
     let origin = path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
-    Ok(Transcript::new(source, origin, sentences))
+    let mut transcript = Transcript::new(source, origin, sentences);
+    transcript.translations = translations;
+    Ok(transcript)
 }
 
 /// FNV-1a: stable across Rust versions, unlike `DefaultHasher`.
@@ -283,6 +294,11 @@ fn apply_edits(transcript: &mut Transcript, edits: &[Edit]) -> Result<(), String
     }
     for (edit, text) in edits.iter().zip(texts) {
         let length = text.encode_utf16().count() as u32;
+        // A correction keeps the subtitles' translation of the sentence.
+        let before = &transcript.sentences[edit.index].text;
+        if let Some(t) = transcript.translations.remove(before) {
+            transcript.translations.insert(text.clone(), t);
+        }
         let sentence = &mut transcript.sentences[edit.index];
         sentence.unsure = edit
             .unsure
@@ -400,6 +416,7 @@ pub async fn transcript_remove(
     if confirmed {
         remove(&dir, &key).map_err(|e| e.to_string())?;
         crate::explain::forget(&state, &key);
+        crate::translate::forget(&state, &key);
     }
     Ok(current(&state, &audio, &dir, &key))
 }

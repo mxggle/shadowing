@@ -77,7 +77,19 @@ pub async fn anki_add(
     .await
     .map_err(|e| e.to_string())??;
 
-    let explanation = crate::explain::kept(&state, &audio, sentences, index);
+    // No explanation: the sentence's translation (译文) still goes on the back.
+    let explanation = crate::explain::kept(&state, &audio, sentences, index).or_else(|| {
+        let translation = transcript
+            .translations
+            .get(&text)
+            .cloned()
+            .or_else(|| crate::translate::kept(&state, &audio, sentences, index))
+            .filter(|t| !t.is_empty())?;
+        Some(crate::explain::Explanation {
+            translation,
+            ..Default::default()
+        })
+    });
     let name = file
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())

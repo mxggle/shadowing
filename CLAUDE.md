@@ -19,10 +19,11 @@ src/                      前端
   store.ts                唯一的 Zustand store（字幕部分在 transcriptSlice.ts，改字幕在 correctSlice.ts，拆句 / 合并句在 reshapeSlice.ts，
                           AI 校对在 proofreadSlice.ts，解释句子在 explainSlice.ts，引导部分在 guideSlice.ts，
                           学习记录与每日目标在 practiceSlice.ts，跟读停顿在 paceSlice.ts，应用内更新在 updateSlice.ts，跟读录音在 recordSlice.ts（回放录音在 takePlayback.ts），整段录音在 readingSlice.ts，逐句跟读在 drillSlice.ts，
-                          插件和从链接导入在 importSlice.ts，插件在句子上的标注在 annotateSlice.ts，视频画面的设置在 videoSlice.ts，意见反馈在 feedbackSlice.ts，切换文件夹在 folderSlice.ts，加入 Anki 在 ankiSlice.ts）
+                          插件和从链接导入在 importSlice.ts，插件在句子上的标注在 annotateSlice.ts，视频画面的设置在 videoSlice.ts，意见反馈在 feedbackSlice.ts，切换文件夹在 folderSlice.ts，加入 Anki 在 ankiSlice.ts，每句的译文在 translateSlice.ts）
   lib/pace.ts             跟读停顿：一次放哪一段（这一句，循环里到循环的终点）、每句后停多久（不停 / 秒数 / 按句长 / 等你）、放几遍之后去哪，有单元测试
   lib/keymap.ts           快捷键：每个动作的默认键（单键）、你自己换的键（单键或组合键 `ctrl+alt+t`；交换、恢复默认、和新默认键冲突时、应用和系统已占用的组合）、按键的名字，有单元测试
   lib/sentences.ts        句子规则（当前句、句子循环、[ ] 换句、正在放的句子逐字亮到哪），有单元测试
+  lib/translation.ts      译文：显示 / 模糊 / 不显示、翻译成哪种语言（默认跟随界面）、字幕自带的译文优先、哪些句子还要翻译、分批，有单元测试
   lib/sections.ts         对话段落规则（分段、合并、改名、整段循环、{ } 换段），有单元测试
   lib/edits.ts            改字幕的规则（改动取整词、查找匹配、全部替换），有单元测试
   lib/reshape.ts          拆句 / 合并后跟着挪的东西（句子序号、段落、解释、建议、撤销），有单元测试
@@ -53,7 +54,7 @@ src/                      前端
                           VideoStage.tsx 并排和影院，PictureMenu.tsx 播放设置里的「画面」「遮字幕」，Unsupported.tsx 放不了的 WebM / MKV 的说明；TrackTitle.tsx 音频的标题）、PlayerBar.tsx 底部播放条、
                           Loop.tsx 循环面板 / 播放条上的循环窗、PlaybackMenu.tsx 速度等设置，Pace.tsx 跟读停顿（底部的开关和它的设置）；ui.tsx 共用的按键与表单件；
                           Transcript.tsx 句子列表（点一句就放，再点循环），SentenceActions.tsx 句子右边的按钮（解释、循环、录音、「…」里的修改 / 合并 / 新段 / 句子本），Sections.tsx 段落小标题和顶部的段落菜单，SentenceText.tsx 句子文字（查找高亮、没把握的虚线），
-                          Explain.tsx 句子下的解释块、SentenceEditor.tsx 改一句（⇧↩ 断开、⌫ / ⌦ 合并）、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
+                          Explain.tsx 句子下的解释块、Translation.tsx 句子下的译文（模糊时悬停看、点一下一直显示）和字幕栏的「译文」按钮、SentenceEditor.tsx 改一句（⇧↩ 断开、⌫ / ⌦ 合并）、ReplaceBar.tsx 查找和替换、Proofread.tsx AI 校对；
                           UpdateNotice.tsx 右上角的更新提示（更新后一次的“已更新到 …”也在这里），WhatsNew.tsx 新功能（菜单、设置里打开）；Feedback.tsx 意见反馈（设置 → 版本、Mac 菜单的「发送反馈…」打开，「附上诊断信息」先列出会附上的每一行）；Recorder.tsx 句子下的跟读录音卡片（和行上的麦克风），TakeWaves.tsx 原句 / 我的两条波形，TakePeek.tsx 播放到录过的句子时展开的精简对比；
                           Reading.tsx 整段录音（开始菜单、录音时的标题条），Drill.tsx 逐句跟读（每句几遍、进行中的标题条），ReadingResult.tsx 读完的结果（段落上方一行）；
                           AddMenu.tsx 侧栏顶的 ＋（所有添加音频的方式，插件的导入也在这里；见 docs/plugin-ui.md 的插槽），FolderSwitcher.tsx 侧栏顶上的文件夹名和它打开的切换器（⌘O），
@@ -78,6 +79,7 @@ src-tauri/src/
                           改过的字幕只存 app data 里的副本，不改写音频旁的文件）
   timing.rs               逐字高亮用的每个字（英文是每个词）什么时候说：转写时从 Whisper 的词时间得出（只有转写的字幕有），
                           改字（逐字对比，换掉的字接替原来的时间）、拆句、合并、撤销时跟着走
+  bilingual.rs            双语字幕：每条一行原文、一行译文时按文字（假名、汉字、拉丁字母…）分开，界面语言那一边算译文
   subtitles.rs            SRT / WebVTT 解析；字幕的编码（UTF-8 / UTF-16 以外的用 chardetng 猜：Shift_JIS、GBK、Big5…）
   lrc.rs                  LRC 字幕（教材 MP3 常带）：每行放到下一行开始为止，同一时间的几行合成一句
   anki/                   加入 Anki：经 AnkiConnect（本机 127.0.0.1:8765，Anki 开着、装了插件 2055492159；不走代理）把一句做成卡片：card.rs 笔记类型「Shadowing Sentence」、牌组「Shadowing」、
@@ -102,6 +104,7 @@ src-tauri/src/
   reshape/                拆句 / 合并句 / 撤销：cut.rs 在光标处断开（按字数估时间、再挪到附近的停顿上），mod.rs 合并、
                           段落和已存的解释跟着挪
   explain/                解释这一句：把一句（带前后几句）发给「句子解释」的模型，reply.rs 只留下译文、逐块的意思和语法、语气并封顶（宽松地读，一块写错不丢整个回答），saved.rs 把答案存在 app data 的 explanations/（句子被改过就作废）
+  translate/              译文：把一批句子（最多 30 句，带前面几句当上下文）发给「句子解释」的模型翻译，saved.rs 按句子的文字和语言存在 app data 的 translations/（改过的句子重新翻译）
   proofread/              AI 校对：把字幕（没把握的字用〔〕标出）发给「句子解释」的模型，reply.rs 只留下能精确套用的小改动
   transcribe/             转写：pcm.rs 解码成 16 kHz 单声道、chunk.rs 在停顿处切块、cloud.rs 上传、
                           sentences.rs 把 Whisper 结果变成带时间的句子（没有标点时按 Whisper 分段断句）、

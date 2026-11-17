@@ -6,6 +6,7 @@ import type { NowPlaying } from "./mediaKeys";
 import type { BookEntry } from "./book";
 import type { HideHow, HideMode } from "./hide";
 import type { PauseLength, PauseMode, PauseWait } from "./pace";
+import type { TranslationMode } from "./translation";
 
 /** Audio; a video (the engine plays its sound, a `<video>` its picture); or a video the app can't play (WebM, MKV), listed to say why. */
 export type TrackKind = "audio" | "video" | "unsupported";
@@ -110,6 +111,10 @@ export interface Settings {
   hideText: HideMode;
   /** The way to hide that H goes back to. */
   hideHow: HideHow;
+  /** 译文 under each sentence: shown, blurred until you look, or off (lib/translation.ts). */
+  translation: TranslationMode;
+  /** The language translations are made in ("zh-Hans", "en"…); "" follows the interface. */
+  translateTo: string;
   /** Keys the learner chose (action → key), only those that differ from the defaults (lib/keymap.ts). */
   shortcuts: Record<string, string>;
   /** 媒体键: the keyboard's ⏯ ⏮ ⏭ and a headset's buttons work the player (lib/mediaKeys.ts). */
@@ -330,6 +335,8 @@ export interface Transcript {
   edited?: boolean;
   /** Where each section starts, the first at sentence 0 (missing = one section). */
   sections?: Section[];
+  /** Translations that came with bilingual subtitles: sentence text → translation. */
+  translations?: Record<string, string>;
 }
 
 /** A word the AI thinks was misheard, shown under its sentence until accepted or ignored. */
@@ -630,6 +637,11 @@ export const api = {
     invoke<Explanation>("sentence_explain", { path, index, text }),
   /** 加入 Anki: the sentence (its audio, text and kept explanation) as a card, through AnkiConnect. */
   ankiAdd: (path: string, index: number, text: string) => invoke<AnkiAdded>("anki_add", { path, index, text }),
+  /** 译文: translates these sentences (at most 30) into `lang`; returns every kept translation of the track in it. */
+  translateSentences: (path: string, lang: string, indices: number[]) =>
+    invoke<Record<string, string>>("translate_sentences", { path, lang, indices }),
+  /** The kept translations of a track's sentences in `lang` (text → translation, "" when already in it). */
+  savedTranslations: (path: string, lang: string) => invoke<Record<string, string>>("translations_saved", { path, lang }),
   /** Answers kept for a track whose sentences still say the same. */
   savedExplanations: (path: string) => invoke<SavedExplanation[]>("sentence_explanations", { path }),
   ai: {

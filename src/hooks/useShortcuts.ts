@@ -68,6 +68,13 @@ function actions(s: State, e: KeyboardEvent): Record<Action, [() => void, FlashI
     loop: [s.cycleLoop, "loop"],
     // A press shows or hides the text; held, it peeks at the sentence playing (on key up: hideKeyUp).
     hideText: [() => s.hideKeyDown()],
+    translation: [
+      () => {
+        s.cycleTranslation();
+        const mode = useApp.getState().settings.translation;
+        s.say(mode === "blur" ? t("译文：模糊") : mode === "off" ? t("译文：不显示") : t("译文：显示"), 1800);
+      },
+    ],
     pace: [
       () => {
         const before = useApp.getState().hint;
